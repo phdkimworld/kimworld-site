@@ -11,3 +11,6 @@
 - name: "휴머노이드"
   slug: "humanoids"
   description: "휴머노이드 로봇, 액추에이터, 로봇 파운데이션 모델 관련 기업 분석."
+- name: "AI 소프트웨어"
+  slug: "ai-software"
+  description: "음성 인공지능, 대화형 에이전트, 기업용 AI 플랫폼처럼 소프트웨어로 돈을 버는 인공지능 기업 분석."

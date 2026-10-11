@@ -36,3 +36,9 @@ TSLA:
   exchange: "NASDAQ"
   theme: "휴머노이드"
   aliases: ["Tesla", "옵티머스"]
+SOUN:
+  name: "사운드하운드 AI"
+  name_en: "SoundHound AI"
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["사운드하운드", "SoundHound", "SoundHound AI"]
