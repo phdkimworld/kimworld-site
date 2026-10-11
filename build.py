@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import datetime as dt
 import html
@@ -345,7 +347,8 @@ class Ads:
 def build(drafts=False, strict=False, out: Path = DIST):
     log = Log()
     site = load_yaml(ROOT / "site.yaml", {})
-    site["site_url"] = str(site.get("site_url", "")).rstrip("/")
+    # 도메인 연결 전에는 워크플로가 SITE_URL 에 github.io 주소를 넣어 준다(그 주소에서도 화면이 깨지지 않게)
+    site["site_url"] = str(os.environ.get("SITE_URL") or site.get("site_url", "")).rstrip("/")
     base_path = urlparse(site["site_url"]).path.rstrip("/")  # GitHub Pages 프로젝트 주소면 /kimworld-site
     ads = Ads(load_yaml(ROOT / "ads.yaml", {}), log)
     themes = load_yaml(ROOT / "data" / "themes.yaml", [])
@@ -465,7 +468,11 @@ def build(drafts=False, strict=False, out: Path = DIST):
         dest = out / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         page_url = site["site_url"] + "/" + rel.replace("index.html", "")
-        dest.write_text(env.get_template(tpl).render(**common, page_url=page_url, **ctx), encoding="utf-8")
+        html_out = env.get_template(tpl).render(**common, page_url=page_url, **ctx)
+        if base_path:  # 본문 마크다운의 /static/…, /disclaimer/ 같은 링크에도 하위 경로를 붙인다
+            html_out = re.sub(r'((?:href|src|action)=")/(?!/)(?!' + re.escape(base_path.lstrip("/")) + r'/)',
+                              r"\1" + base_path + "/", html_out)
+        dest.write_text(html_out, encoding="utf-8")
 
     # ---- 리포트 페이지
     og_dir = out / "og"

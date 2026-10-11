@@ -130,6 +130,15 @@ pages_txt += (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf
 import re as _re
 check("보유 공개" not in pages_txt and "보유 여부" not in pages_txt and not _re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", pages_txt), "보유 여부·이메일이 화면에 없음")
 
+print("6) 도메인 연결 전(github.io 하위 주소)")
+import os as _os
+t = make_project()
+r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True,
+                   env={**_os.environ, "SITE_URL": "https://phdkimworld.github.io/kimworld-site"})
+allhtml = "".join(f.read_text(encoding="utf-8") for f in (t / "dist").rglob("*.html"))
+check(r.returncode == 0 and not _re.search(r'(?:href|src)="/(?!kimworld-site/|/)', allhtml), "모든 내부 링크·CSS·JS에 하위 경로가 붙음")
+check(not (t / "dist/CNAME").exists(), "github.io 주소일 때 CNAME 없음")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")
