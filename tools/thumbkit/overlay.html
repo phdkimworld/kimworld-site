@@ -1,0 +1,166 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1280px;height:720px;overflow:hidden;background:#05060d}
+.bg{position:absolute;inset:0;background:url(bg_fx.png) center/cover no-repeat}
+svg{position:absolute;inset:0}
+</style></head><body>
+<div class="bg"></div>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff9c4"/><stop offset=".35" stop-color="#ffe14a"/><stop offset=".75" stop-color="#ffb000"/><stop offset="1" stop-color="#ff7a00"/>
+  </linearGradient>
+  <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f3f3"/><stop offset="1" stop-color="#b9bcc6"/>
+  </linearGradient>
+  <linearGradient id="redArea" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ff1e2d" stop-opacity=".32"/><stop offset="1" stop-color="#ff1e2d" stop-opacity="0"/>
+  </linearGradient>
+  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="shadow" x="-10%" y="-30%" width="120%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".85"/></filter>
+</defs>
+<!-- 하락 차트: 왼쪽 위에서 아래로 -->
+<g id="chart"></g>
+<!-- 가격표 -->
+<g id="tag" filter="url(#shadow)"></g>
+<!-- 제목 2줄 -->
+<g id="title"></g>
+</svg>
+<script>
+const S = window.SPEC;
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;(parent||document.querySelector('svg')).appendChild(e);return e}
+// 1b) 상승(반등) 모드: S.up=true면 V자 반등 초록 차트
+const CL=!S.layout||S.layout==='classic';
+if(CL&&S.up){(function(){
+  const g=document.getElementById('chart');
+  const xe=(S.chart_end||[300,440])[0], ye=(S.chart_end||[300,440])[1];
+  const ys=S.up_start_y||480, yl=S.up_low_y||660, n=64;
+  let seed=S.seed||7;const r=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  const pts=[];for(let i=0;i<=n;i++){const t=i/n;const base=t<.45? ys+(yl-ys)*(t/.45) : yl+(ye-yl)*((t-.45)/.55);
+    const nz=(i&&i<n)?(r()-.5)*26:0;pts.push([-10+(xe+10)*t,base+nz])}
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const defs=document.querySelector('defs');
+  defs.insertAdjacentHTML('beforeend','<linearGradient id="greenArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1eff6a" stop-opacity=".30"/><stop offset="1" stop-color="#1eff6a" stop-opacity="0"/></linearGradient>');
+  el('path',{d:d+` L ${xe} 720 L -10 720 Z`,fill:'url(#greenArea)'},g);
+  el('path',{d,fill:'none',stroke:'#2bff7a','stroke-width':5,'stroke-linejoin':'round',filter:'url(#glow)'},g);
+  el('path',{d:`M ${xe-30} ${ye+4} L ${xe+16} ${ye-20} L ${xe-6} ${ye+30} Z`,fill:'#2bff7a',filter:'url(#glow)'},g);
+})();}
+// 1) 차트: 결정적 지그재그 하락선
+if(CL&&!S.up)(function(){
+  const g=document.getElementById('chart');
+  const end=S.chart_end||[330,690];const y0=S.chart_top||300;const n=64;
+  let seed=S.seed||7;const r=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  const raw=[0];for(let i=1;i<=n;i++){let st=(r()-.62)*1.0;if(r()<.12)st+=r()*1.4;if(r()<.08)st-=r()*1.6;raw.push(raw[i-1]+st)}
+  const lo=Math.min(...raw),hi=Math.max(...raw);const drift=raw.map((v,i)=>v-(raw[n]-raw[0])*i/n);const amp=Math.max(...drift.map(Math.abs))||1;
+  const pts=raw.map((v,i)=>{const t=i/n;const base=y0+(end[1]-y0)*Math.pow(t,1.25);return[-10+(end[0]+10)*t, base+(i&&i<n? -drift[i]/amp*38:0)]});
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  el('path',{d:d+` L ${end[0]} 720 L -10 720 Z`,fill:'url(#redArea)'},g);
+  el('path',{d,fill:'none',stroke:'#ff2b3a','stroke-width':5,'stroke-linejoin':'round',filter:'url(#glow)'},g);
+  const [ex,ey]=end;el('path',{d:`M ${ex-22} ${ey-30} L ${ex+14} ${ey+14} L ${ex-34} ${ey+6} Z`,fill:'#ff2b3a',filter:'url(#glow)'},g);
+})();
+// 2) 가격표
+if(CL)(function(){
+  const g=document.getElementById('tag');const [tx,ty]=S.tag_pos||[130,300];
+  el('text',{x:tx,y:ty,'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':44,fill:S.up?'#4dff8f':'#ff4650',stroke:'#1a0003','stroke-width':8,'paint-order':'stroke'},g,S.price);
+  el('text',{x:tx,y:ty+66,'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':66,fill:S.up?'#2bff7a':'#ff2b3a',stroke:S.up?'#001a08':'#1a0003','stroke-width':7,'paint-order':'stroke'},g,S.change);
+})();
+// 3) 제목: 2중 외곽선 + 그라데이션 + 그림자, 폭 자동 맞춤
+if(CL)(function(){
+  const g=document.getElementById('title');
+  function line(txt,y,size,fill,inner,outer,maxW){
+    const common={x:640,y,'text-anchor':'middle','font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size,'letter-spacing':-2};
+    const tmp=el('text',common,g,txt);const w=tmp.getComputedTextLength();tmp.remove();
+    const fit=w>maxW?{textLength:maxW,lengthAdjust:'spacingAndGlyphs'}:{};
+    el('text',{...common,...fit,fill:'#000',stroke:'#000','stroke-width':outer+10,'stroke-linejoin':'round',opacity:.55,transform:'translate(0,10)'},g,txt); // 그림자
+    el('text',{...common,...fit,fill:outer?'#05060d':'none',stroke:'#05060d','stroke-width':outer,'stroke-linejoin':'round'},g,txt); // 바깥 검정
+    el('text',{...common,...fit,fill,stroke:inner.color,'stroke-width':inner.w,'stroke-linejoin':'round','paint-order':'stroke'},g,txt); // 안쪽 색 외곽선 + 채움
+    el('text',{...common,...fit,fill,stroke:'none'},g,txt);
+  }
+  line(S.line1, S.line1_y||118, S.line1_size||104, 'url(#gold)', {color:'#3a1500',w:10}, 26, 1200);
+  line(S.line2, S.line2_y||250, S.line2_size||124, 'url(#silver)', {color:'#e0101e',w:16}, 34, 1210);
+})();
+
+// ===== 추가 레이아웃: split / bignum / versus =====
+const FILLS={gold:'url(#gold)',silver:'url(#silver)',red:'#ff2b3a',white:'#ffffff',yellow:'#ffe14a',cyan:'#3ee8ff',green:'#2bff7a',magenta:'#ff3df0',orange:'#ff8a00',lime:'#b6ff3d'};
+const INNER={gold:'#3a1500',silver:'#e0101e',red:'#ffffff',white:'#05060d',yellow:'#05060d',cyan:'#002a33',green:'#001a08',magenta:'#2a0028',orange:'#2a1200',lime:'#132a00'};
+function T(g,txt,x,y,size,color,o){o=o||{};
+  const anchor=o.anchor||'start';const maxW=o.maxW||1200;
+  const common={x,y,'text-anchor':anchor,'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size,'letter-spacing':o.ls!=null?o.ls:-2};
+  const tmp=el('text',common,g,txt);const w=tmp.getComputedTextLength();tmp.remove();
+  const fit=w>maxW?{textLength:maxW,lengthAdjust:'spacingAndGlyphs'}:{};
+  const outer=o.outer!=null?o.outer:Math.round(size*.26), inner=o.inner!=null?o.inner:Math.round(size*.12);
+  const tr=o.rot?` rotate(${o.rot} ${x} ${y})`:'';
+  el('text',{...common,...fit,fill:'#000',stroke:'#000','stroke-width':outer+10,'stroke-linejoin':'round',opacity:.55,transform:'translate(0,10)'+tr},g,txt);
+  el('text',{...common,...fit,fill:'#05060d',stroke:'#05060d','stroke-width':outer,'stroke-linejoin':'round',transform:tr},g,txt);
+  el('text',{...common,...fit,fill:FILLS[color]||color,stroke:o.innerColor||INNER[color]||'#05060d','stroke-width':inner,'stroke-linejoin':'round','paint-order':'stroke',transform:tr},g,txt);
+  el('text',{...common,...fit,fill:FILLS[color]||color,stroke:'none',transform:tr},g,txt);
+  return Math.min(w,maxW);
+}
+function shade(dir,strength){ // 텍스트 쪽 어둡게
+  const id='sh'+dir;document.querySelector('defs').insertAdjacentHTML('beforeend',
+   dir==='left'?`<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity="${strength}"/><stop offset=".55" stop-color="#000" stop-opacity="${strength*.6}"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>`
+   :`<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="${strength}"/></linearGradient>`);
+  if(dir==='left')el('rect',{x:0,y:0,width:820,height:720,fill:`url(#${id})`});else el('rect',{x:0,y:380,width:1280,height:340,fill:`url(#${id})`});
+}
+function badge(b){ if(!b)return; const g=el('g',{transform:`rotate(${b.rot||-6} ${b.x} ${b.y})`,filter:'url(#shadow)'});
+  const size=b.size||70; const tmp=el('text',{'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size},g,b.text);const w=tmp.getComputedTextLength();tmp.remove();
+  el('rect',{x:b.x-w/2-28,y:b.y-size*.92,width:w+56,height:size*1.25,rx:16,fill:b.bg||'#ff1e2d',stroke:'#fff','stroke-width':6},g);
+  el('text',{x:b.x,y:b.y,'text-anchor':'middle','font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size,fill:b.color||'#fff'},g,b.text);
+}
+function arrow(a){ if(!a)return; const [x1,y1,x2,y2]=a.pts; const mx=(x1+x2)/2+(a.bend||0), my=(y1+y2)/2-(a.bend||0)*.6;
+  const d=`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`; const col=a.color||'#ffe14a';
+  el('path',{d,fill:'none',stroke:'#05060d','stroke-width':26,'stroke-linecap':'round'});
+  el('path',{d,fill:'none',stroke:col,'stroke-width':14,'stroke-linecap':'round',filter:'url(#glow)'});
+  const ang=Math.atan2(y2-my,x2-mx), L=46;
+  const p1=[x2-L*Math.cos(ang-.5),y2-L*Math.sin(ang-.5)], p2=[x2-L*Math.cos(ang+.5),y2-L*Math.sin(ang+.5)];
+  el('path',{d:`M ${p1} L ${x2} ${y2} L ${p2} Z`,fill:col,stroke:'#05060d','stroke-width':6,'stroke-linejoin':'round'});
+}
+if(S.layout==='split'){ // 왼쪽 큰 글자 블록 + 오른쪽 큰 피사체
+  shade('left',.85); const g=el('g',{});
+  let y=S.top||150; (S.lines||[]).forEach(l=>{ T(g,l.t,S.x||52,y,l.size||110,l.color||'white',{maxW:S.maxW||660,rot:l.rot}); y+=(l.gap||(l.size||110)*1.08); });
+  badge(S.badge); arrow(S.arrow);
+}
+if(S.layout==='bignum'){ // 거대한 숫자 하나 + 짧은 훅
+  shade('left',.8); const g=el('g',{});
+  T(g,S.kicker,S.x||50,S.kicker_y||140,S.kicker_size||84,S.kicker_color||'yellow',{maxW:700});
+  T(g,S.big,S.x||40,S.big_y||400,S.big_size||250,S.big_color||'red',{maxW:720,ls:-8,innerColor:'#ffffff',inner:14});
+  T(g,S.sub,S.x||50,S.sub_y||560,S.sub_size||92,S.sub_color||'white',{maxW:700});
+  badge(S.badge); arrow(S.arrow);
+}
+if(S.layout==='versus'){ // 그때 vs 지금 가격 대비
+  shade('bottom',.9); const g=el('g',{});
+  T(g,S.line1,640,S.line1_y||128,S.line1_size||100,S.line1_color||'gold',{anchor:'middle',maxW:1200});
+  const L=S.left,R=S.right;
+  T(g,L.price,L.x||250,L.y||470,L.size||130,'silver',{anchor:'middle',maxW:440});
+  el('line',{x1:(L.x||250)-200,y1:(L.y||470)-40,x2:(L.x||250)+200,y2:(L.y||470)-70,stroke:'#ff1e2d','stroke-width':16,'stroke-linecap':'round',filter:'url(#glow)'});
+  T(g,L.label,L.x||250,(L.y||470)+86,54,'white',{anchor:'middle',maxW:440});
+  T(g,R.price,R.x||640,R.y||560,R.size||170,'red',{anchor:'middle',maxW:520,innerColor:'#fff',inner:12});
+  T(g,R.label,R.x||640,(R.y||560)+92,58,'yellow',{anchor:'middle',maxW:520});
+  arrow(S.arrow); badge(S.badge);
+}
+if(S.layout==='center'){ // 기본: 영상 제목을 화면 가운데에 크게
+  const k=S.shade!=null?S.shade:.62;
+  document.querySelector('defs').insertAdjacentHTML('beforeend',`<radialGradient id="cdark" cx="50%" cy="52%" r="62%"><stop offset="0" stop-color="#000" stop-opacity="${k}"/><stop offset=".65" stop-color="#000" stop-opacity="${k*.5}"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>`);
+  el('rect',{x:0,y:0,width:1280,height:720,fill:'url(#cdark)'});
+  const g=el('g',{}); const L=S.title_lines||[];
+  const gap=l=>(l.size||110)*(l.lh||1.14);
+  const total=L.reduce((a,l)=>a+gap(l),0);
+  let y=(S.center_y||390)-total/2+(L[0]?(L[0].size||110)*.86:0);
+  L.forEach(l=>{ T(g,l.t,640,y,l.size||110,l.color||'white',{anchor:'middle',maxW:S.maxW||1100,rot:l.rot}); y+=gap(l); });
+  badge(S.badge); arrow(S.arrow);
+}
+// ===== 회사명 + 티커 표기 (모든 레이아웃 필수) =====
+function nametag(n){ if(!n)return; const g=el('g',{filter:'url(#shadow)'});
+  const size=n.size||58, x=n.x!=null?n.x:44, y=n.y!=null?n.y:78, gap=18;
+  const tk=n.ticker; // 티커는 영문 그대로
+  const t1=el('text',{'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size*.82},g,tk);const wt=t1.getComputedTextLength();t1.remove();
+  const tagW=wt+40, tagH=size*1.08;
+  let x0=x; if(n.anchor==='end'||n.anchor==='middle'){ let wn=0; if(n.name){const t2=el('text',{'font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size},g,n.name);wn=t2.getComputedTextLength()+gap;t2.remove();} x0=n.anchor==='end'?x-(tagW+wn):x-(tagW+wn)/2;}
+  el('rect',{x:x0,y:y-size*.86,width:tagW,height:tagH,rx:12,fill:n.tag_bg||'#ffe14a',stroke:'#05060d','stroke-width':5},g);
+  el('text',{x:x0+tagW/2,y:y-size*.86+tagH*.78,'text-anchor':'middle','font-family':'Noto Sans CJK KR','font-weight':900,'font-size':size*.82,fill:'#05060d'},g,tk);
+  if(n.name) T(g,n.name,x0+tagW+gap,y,size,n.color||'white',{maxW:n.maxW||760,outer:Math.round(size*.2),inner:Math.round(size*.08)});
+}
+nametag(S.nametag);
+</script>
+</body></html>
