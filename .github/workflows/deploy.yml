@@ -35,19 +35,6 @@ jobs:
           sudo apt-get install -y -q fonts-noto-cjk >/dev/null   # 공유 이미지(카카오톡 미리보기)용 한글 글꼴
       - name: Test
         run: python tests/test_build.py
-      - name: Pick site address
-        # Pages 설정에 도메인(drkimworld.com)이 연결돼 있으면 site.yaml 주소를 그대로 쓰고,
-        # 아직이면 github.io 하위 주소로 빌드해서 그 주소에서도 화면이 깨지지 않게 한다.
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          CNAME=$(gh api "repos/${{ github.repository }}/pages" --jq '.cname // ""' 2>/dev/null || true)
-          if [ -z "$CNAME" ]; then
-            echo "SITE_URL=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
-            echo "도메인 미연결 → github.io 주소로 빌드"
-          else
-            echo "도메인 연결됨: $CNAME"
-          fi
       - name: Build
         run: python build.py --strict
       - uses: actions/upload-pages-artifact@v3
