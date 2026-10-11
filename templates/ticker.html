@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% set current_theme = t.theme %}
+{% block title %}{{ code }} {{ t.name }} 리포트 모음 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ t.name }}({{ code }}) 분석 리포트 {{ rs|length }}개. 최신 리포트 {{ rs[0].date|kdate }}.{% endblock %}
+{% block main %}
+<div class="wrap">
+  <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ code }}</span></nav>
+  <header class="page-head">
+    <div class="report-ticker"><span class="tick tick-lg">{{ code }}</span><span class="report-company">{{ t.name }} <span class="muted">{{ t.name_en }} · {{ t.exchange }}</span></span></div>
+    <p class="muted">리포트 {{ rs|length }}개 · 최신순</p>
+  </header>
+  <div class="cards">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
+  {{ list_ad|safe }}
+</div>
+{% endblock %}

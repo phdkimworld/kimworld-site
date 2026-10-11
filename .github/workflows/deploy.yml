@@ -1,0 +1,54 @@
+name: Build and deploy
+
+# main에 올라오면 검사 → 빌드 → GitHub Pages 배포.
+# 매일 한국시간 0시 5분에도 다시 빌드한다(날짜를 미래로 적은 리포트가 그날 자동 공개됨).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "5 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          sudo apt-get install -y -q fonts-noto-cjk >/dev/null   # 공유 이미지(카카오톡 미리보기)용 한글 글꼴
+      - name: Test
+        run: python tests/test_build.py
+      - name: Build
+        run: python build.py --strict
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

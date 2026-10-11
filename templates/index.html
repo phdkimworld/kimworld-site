@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% block main %}
+<section class="hero">
+  <div class="wrap">
+    <h1 class="hero-title">{{ site.tagline }}</h1>
+    <p class="hero-sub">공시와 실적 자료로 정리한 미국 주식 리포트. 회원 가입 없이 모두 무료로 읽을 수 있습니다.</p>
+    <form class="search-form" action="{{ base }}/search/" role="search">
+      <label class="sr-only" for="q-home">종목 검색</label>
+      <input id="q-home" name="q" type="search" placeholder="종목명이나 티커" autocomplete="off" enterkeyhint="search">
+      <button type="submit" class="btn btn-primary">검색</button>
+    </form>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="recent-viewed" hidden aria-labelledby="rv-h">
+    <h2 id="rv-h" class="section-title">이어서 읽기</h2>
+    <ul class="chip-list" data-recent></ul>
+  </section>
+
+  <section aria-labelledby="latest-h">
+    <h2 id="latest-h" class="section-title">최신 리포트</h2>
+    {% if rs %}
+    <div class="cards">
+      {% for r in rs[:6] %}{{ card(r, base) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <p><strong>첫 리포트를 준비하고 있습니다.</strong></p>
+      <p>새 리포트가 올라오면 이 자리에 가장 먼저 보입니다.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  {{ list_ad|safe }}
+
+  {% if rs|length > 6 %}
+  <section aria-labelledby="more-h">
+    <h2 id="more-h" class="section-title">지난 리포트</h2>
+    <div class="cards">{% for r in rs[6:24] %}{{ card(r, base) }}{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if ticker_list %}
+  <section aria-labelledby="tick-h">
+    <h2 id="tick-h" class="section-title">종목별로 보기</h2>
+    <ul class="ticker-grid">
+      {% for t in ticker_list %}
+      <li><a href="{{ base }}/t/{{ t.code|lower }}/"><span class="tick">{{ t.code }}</span><span class="tg-name">{{ t.name }}</span><span class="tg-meta">리포트 {{ t.count }}개 · {{ t.last|kdate }}</span></a></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section aria-labelledby="theme-h">
+    <h2 id="theme-h" class="section-title">테마별로 보기</h2>
+    <ul class="theme-grid">
+      {% for t in themes %}<li><a href="{{ base }}/theme/{{ t.slug }}/"><strong>{{ t.name }}</strong><span>{{ t.description }}</span></a></li>{% endfor %}
+    </ul>
+  </section>
+
+  {% if site.newsletter.url %}
+  <aside class="newsletter"><a class="btn btn-primary" href="{{ site.newsletter.url }}" rel="noopener" target="_blank">{{ site.newsletter.label }}</a></aside>
+  {% endif %}
+</div>
+{% endblock %}

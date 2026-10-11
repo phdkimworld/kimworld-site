@@ -1,0 +1,13 @@
+# 테마(카테고리). 리포트의 theme 값은 여기 name 중 하나여야 한다.
+- name: "양자컴퓨팅"
+  slug: "quantum"
+  description: "큐비트 확장, 오류 정정, 상용화 시점을 둘러싼 양자컴퓨팅 하드웨어·소프트웨어 기업 분석."
+- name: "AI 반도체"
+  slug: "ai-chips"
+  description: "AI 가속기, 고대역폭 메모리, 맞춤형 칩과 공급망을 둘러싼 기업 분석."
+- name: "우주항공·방산"
+  slug: "space-defense"
+  description: "재사용 발사체, 저궤도 위성 통신, 우주 방산 기업의 사업성과 재무 분석."
+- name: "휴머노이드"
+  slug: "humanoids"
+  description: "휴머노이드 로봇, 액추에이터, 로봇 파운데이션 모델 관련 기업 분석."

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% set current_theme = r.theme %}
+{% block title %}{{ r.ticker }} {{ r.company }} — {{ r.title }} | {{ site.site_name }}{% endblock %}
+{% block description %}{{ r.summary }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_image %}{{ r.og_image }}{% endblock %}
+{% block robots %}{% if r.draft %}<meta name="robots" content="noindex,nofollow">{% endif %}{% endblock %}
+{% block head %}
+<meta property="article:published_time" content="{{ r.date|iso }}">
+{% if r.updated %}<meta property="article:modified_time" content="{{ r.updated|iso }}">{% endif %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": r.title,
+  "description": r.summary,
+  "datePublished": r.date|iso,
+  "dateModified": (r.updated or r.date)|iso,
+  "image": r.og_image,
+  "author": {"@type": "Organization", "name": site.site_name},
+  "publisher": {"@type": "Organization", "name": site.site_name},
+  "mainEntityOfPage": page_url,
+  "about": {"@type": "Corporation", "name": r.company_en or r.company, "tickerSymbol": r.ticker}
+}|tojson }}
+</script>
+{% endblock %}
+{% block main %}
+<div class="progress" aria-hidden="true"><span></span></div>
+<div class="wrap report-layout">
+  <article class="report" data-slug="{{ r.slug }}" data-ticker="{{ r.ticker }}" data-theme="{{ r.theme }}" data-title="{{ r.title }}" data-url="{{ r.url }}" data-asof="{{ r.data_as_of|iso }}">
+    {% if r.sponsor %}<p class="sponsor-flag">[광고] 이 페이지에는 유료 광고가 포함되어 있습니다. 광고주는 분석 내용에 관여하지 않았습니다.</p>{% endif %}
+    {% if r.draft %}<p class="draft-flag">초안 — 공개되지 않은 미리보기입니다.</p>{% endif %}
+
+    <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><a href="{{ base }}/theme/{{ r.theme_slug }}/">{{ r.theme }}</a><span aria-hidden="true">›</span><a href="{{ base }}/t/{{ r.ticker|lower }}/">{{ r.ticker }}</a></nav>
+
+    <header class="report-head">
+      <div class="report-ticker">
+        <a class="tick tick-lg" href="{{ base }}/t/{{ r.ticker|lower }}/">{{ r.ticker }}</a>
+        <span class="report-company">{{ r.company }} <span class="muted">{{ r.company_en }} · {{ r.exchange }}</span></span>
+      </div>
+      <h1>{{ r.title }}</h1>
+      <p class="report-meta">
+        <span>공개 <time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time></span>
+        {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
+        <span>{{ r.minutes }}분 읽기</span>
+      </p>
+      <p class="asof">숫자 기준일 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></p>
+      <div class="report-actions">
+        <button type="button" class="btn" data-action="share">공유하기</button>
+        <button type="button" class="btn" data-action="save" aria-pressed="false">저장</button>
+        <button type="button" class="btn" data-action="print">인쇄</button>
+      </div>
+    </header>
+
+    {% if r.newer %}
+    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}">{{ r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
+    {% endif %}
+    {% if stale %}
+    <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>
+    {% endif %}
+
+    <section class="summary-box" aria-label="핵심 요약">
+      <h2 class="summary-title">핵심 요약</h2>
+      {% if r.key_points %}
+      <ul class="key-points">{% for k in r.key_points %}<li>{{ k }}</li>{% endfor %}</ul>
+      {% else %}
+      <p>{{ r.summary }}</p>
+      {% endif %}
+      <div class="disclosure">
+        <p><strong>보유 공개</strong> {{ r.holding_text }}{% if r.holding_detail %} {{ r.holding_detail }}{% endif %}</p>
+        <p><strong>AI 활용</strong> {{ r.ai_use }}</p>
+        {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
+        <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>
+      </div>
+    </section>
+
+    {% if r.youtube_id %}
+    <div class="yt" data-yt="{{ r.youtube_id }}">
+      <button type="button" class="yt-play" aria-label="이 리포트의 유튜브 영상 재생">
+        <img src="https://i.ytimg.com/vi/{{ r.youtube_id }}/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
+        <span class="yt-btn" aria-hidden="true"><svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.7a8.5 8.5 0 0 0-6-6C55.2.3 34 .3 34 .3s-21.2 0-26.5 1.4a8.5 8.5 0 0 0-6 6C.1 13 .1 24 .1 24s0 11 1.4 16.3a8.5 8.5 0 0 0 6 6C12.8 47.7 34 47.7 34 47.7s21.2 0 26.5-1.4a8.5 8.5 0 0 0 6-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3z" fill="#e00"/><path d="M45 24 27 14v20z" fill="#fff"/></svg></span>
+        <span class="yt-cap">영상으로 보기</span>
+      </button>
+    </div>
+    {% endif %}
+
+    {% if r.toc %}
+    <details class="toc toc-inline" open>
+      <summary>목차</summary>
+      <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
+    </details>
+    {% endif %}
+
+    <div class="prose">
+      {% for piece in body_pieces %}{{ piece|safe }}{% endfor %}
+    </div>
+
+    {% if r.sources %}
+    <section class="sources" aria-labelledby="src-h">
+      <h2 id="src-h">출처</h2>
+      <ol>
+        {% for s in r.sources %}
+        <li>{% if s.url %}<a href="{{ s.url }}" rel="noopener" target="_blank">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}{% if s.date %} <span class="muted">({{ s.date }})</span>{% endif %}</li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% endif %}
+
+    {{ end_ad|safe }}
+
+    {% if site.newsletter.url %}
+    <aside class="newsletter"><a class="btn btn-primary" href="{{ site.newsletter.url }}" rel="noopener" target="_blank">{{ site.newsletter.label }}</a></aside>
+    {% endif %}
+
+    {% if r.ticker_reports %}
+    <section class="more" aria-labelledby="more-t">
+      <h2 id="more-t">{{ r.ticker }} 다른 리포트</h2>
+      <ol class="timeline">
+        {% for x in r.ticker_reports %}<li><time datetime="{{ x.date|iso }}">{{ x.date|kdate }}</time> <a href="{{ x.url }}">{{ x.title }}</a></li>{% endfor %}
+      </ol>
+    </section>
+    {% endif %}
+
+    {% if r.related %}
+    <section class="more" aria-labelledby="more-r">
+      <h2 id="more-r">같은 테마 리포트</h2>
+      <div class="cards cards-2">{% for x in r.related %}{{ card(x, base, false) }}{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    <nav class="prevnext" aria-label="이전·다음 리포트">
+      {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 새 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.title }}</strong></a>{% else %}<span></span>{% endif %}
+      {% if r.prev %}<a class="pn pn-prev" href="{{ r.prev.url }}"><span class="muted">이전 리포트 →</span><strong>{{ r.prev.ticker }} · {{ r.prev.title }}</strong></a>{% endif %}
+    </nav>
+
+    {{ bottom_ad|safe }}
+
+    <section class="disclaimer-box">
+      <h2>투자 유의 고지</h2>
+      <p>이 리포트는 공개 자료를 바탕으로 한 정보 제공용 글이며 특정 종목의 매수·매도를 권유하지 않습니다. 숫자는 {{ r.data_as_of|kdate }} 기준이며 이후 달라질 수 있습니다. 해외 주식은 환율·세금 위험이 따릅니다. 오류를 발견하시면 <a href="{{ base }}/contact/">알려 주세요</a>. 자세한 내용은 <a href="{{ base }}/disclaimer/">면책 고지</a>를 보세요.</p>
+    </section>
+  </article>
+
+  {% if r.toc %}
+  <aside class="toc-side" aria-label="목차">
+    <div class="toc-sticky">
+      <p class="toc-side-title">목차</p>
+      <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
+      <button type="button" class="btn btn-small" data-action="top">맨 위로</button>
+    </div>
+  </aside>
+  {% endif %}
+</div>
+<button type="button" class="to-top" data-action="top" aria-label="맨 위로">↑</button>
+<div class="term-pop" role="tooltip" hidden></div>
+{% endblock %}

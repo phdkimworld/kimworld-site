@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}리포트 검색 | {{ site.site_name }}{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
+{% block main %}
+<div class="wrap search-page">
+  <h1>리포트 검색</h1>
+  <form class="search-form" role="search" onsubmit="return false">
+    <label class="sr-only" for="q">검색어</label>
+    <input id="q" name="q" type="search" placeholder="종목명, 티커, 테마 (초성 검색도 됩니다: ㅇㅇㅋ)" autocomplete="off" enterkeyhint="search" autofocus>
+  </form>
+  <p class="search-count muted" aria-live="polite"></p>
+  <div class="cards" data-results></div>
+  <div class="search-tips">
+    <p class="muted">이렇게 찾아보세요</p>
+    <ul class="chip-list">
+      {% for t in themes %}<li><a class="chip" href="?q={{ t.name|urlencode }}">{{ t.name }}</a></li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

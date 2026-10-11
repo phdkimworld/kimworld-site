@@ -1,0 +1,46 @@
+# 광고 설정 — 이 파일만 고치면 사이트 전체 광고가 바뀝니다.
+# 값이 비어 있는 광고는 아무것도 출력하지 않습니다(빈 자리·자리 표시 문구 없음).
+# 여기 넣는 번호(ca-pub-…, DAN-…, 쿠팡 링크)는 모두 웹페이지에 그대로 보이는 공개값입니다. 비밀 키는 넣지 않습니다.
+
+enabled: true
+
+adsense:
+  client: ""                 # ca-pub-0000000000000000  (넣으면 ads.txt도 자동 생성)
+  slots:
+    in_article: ""           # 인아티클 광고 단위 번호 (본문 중간)
+    display: ""              # 디스플레이 광고 단위 번호 (선택)
+
+adfit:
+  width: 320
+  height: 100
+  units:
+    report_end: ""           # DAN-xxxx  리포트 끝
+    list: ""                 # DAN-xxxx  홈·목록 (비어 있으면 report_end 단위를 씀)
+
+coupang:
+  # 쿠팡 파트너스 대시보드에서 만든 카테고리 배너 코드를 그대로 붙여 넣는다. 쿠팡 도메인 밖 주소가 있으면 빌드가 실패한다.
+  banner_html: ""
+  banner_height: 140
+  # 테마별 상품 링크(대시보드 "상품 링크"로 만든 https://link.coupang.com/a/… 주소). 테마 이름은 data/themes.yaml과 같게.
+  # 리포트가 다루는 종목명·티커가 상품명에 들어가면 자동으로 뺀다.
+  products: {}
+  #  양자컴퓨팅:
+  #    - name: "양자컴퓨터 입문서"
+  #      url: "https://link.coupang.com/a/xxxxx"
+  #      image: ""          # 선택. 쿠팡 이미지 주소
+  #  _default:
+  #    - name: "미국주식 투자 책"
+  #      url: "https://link.coupang.com/a/yyyyy"
+  products_per_box: 3
+  blocked_words: ["증권", "계좌", "코인", "비트코인", "가상자산", "리딩", "주식 추천", "급등", "종목 추천"]
+  allowed_domains: ["coupang.com", "coupangcdn.com"]
+
+# 자리별로 어떤 광고를 낼지 정한다. 쓸 수 있는 값:
+#   adsense_in_article, adsense_display, adfit_report_end, adfit_list, coupang_banner, coupang_products, none
+# 리포트 페이지 광고는 최대 4개(report_* 자리 합계). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
+placements:
+  report_mid: adsense_in_article        # 본문 세 번째 소제목 앞 (소제목 3개 미만이면 없음)
+  report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
+  report_end: adfit_report_end          # 출처 목록 아래
+  report_bottom: coupang_banner         # 면책 고지 위
+  list: adfit_list                      # 홈·목록 페이지 (한 개만)

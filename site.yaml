@@ -1,0 +1,32 @@
+# 사이트 기본 설정. 에이전트와 운영자가 함께 고치는 파일입니다.
+# 비밀값(API 키·비밀번호)은 이 파일에 넣지 않습니다. 아래 값은 모두 웹페이지에 그대로 보이는 공개값입니다.
+
+site_url: "https://phdkimworld.github.io/kimworld-site"   # 도메인을 연결하면 https://도메인 으로 바꾸고 CNAME 파일도 만든다
+site_name: "김박사 월드"
+site_name_en: "KimWorld"
+tagline: "미국 성장·테마주 심층 리포트, 전부 무료"
+description: "양자컴퓨팅, AI 반도체, 우주항공, 휴머노이드 등 미국 테마주를 공시와 실적 자료로 분석한 무료 리포트. 투자 권유가 아닙니다."
+language: "ko"
+
+operator:
+  display_name: "김박사 월드 미스터리"
+  real_name_or_business: ""      # 개인정보처리방침에 필요. 운영자가 정해서 알려 주면 채운다
+  email: ""                      # 문의·개인정보 연락처. 비어 있으면 페이지에 "준비 중"으로 표시
+  youtube_url: ""                # 유튜브 채널 주소
+
+analytics:
+  ga4_id: ""                     # G-XXXXXXXXXX
+  google_site_verification: ""
+  naver_site_verification: ""
+
+newsletter:
+  url: ""                        # 스티비 등 구독 페이지 주소. 비어 있으면 구독 상자를 숨김
+  label: "새 리포트가 나오면 이메일로 받기 (무료)"
+
+ai_use_default: "이 리포트는 운영자가 정한 분석 틀과 판단에 따라 작성했으며, 자료 정리와 문장 다듬기에 AI 도구를 사용했습니다. 숫자는 아래 출처를 확인해 실었습니다."
+
+stale_days: 180                  # 데이터 기준일에서 이만큼 지나면 "오래된 리포트" 안내를 띄움
+
+lint:
+  banned_phrases: ["수익 보장", "원금 보장", "무조건 오른다", "확실한 수익", "100% 수익", "손실 보전", "급등 확정", "지금 사야", "놓치면 후회", "목표가 달성 확실"]
+  min_chars: 2500                # 본문 최소 글자 수(공백 제외). 짧으면 경고

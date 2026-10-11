@@ -1,0 +1,14 @@
+{% macro card(r, base, show_theme=true) -%}
+<article class="card">
+  <a class="card-link" href="{{ r.url }}">
+    <div class="card-top">
+      <span class="tick">{{ r.ticker }}</span>
+      <span class="card-company">{{ r.company }}</span>
+      {% if show_theme %}<span class="card-theme">{{ r.theme }}</span>{% endif %}
+    </div>
+    <h3 class="card-title">{{ r.title }}</h3>
+    <p class="card-summary">{{ r.summary }}</p>
+    <div class="card-meta"><time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time> · {{ r.minutes }}분 읽기{% if r.updated %} · <span class="upd">{{ r.updated|kdate }} 갱신</span>{% endif %}</div>
+  </a>
+</article>
+{%- endmacro %}

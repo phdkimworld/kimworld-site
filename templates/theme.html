@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% set current_theme = th.name %}
+{% block title %}{{ th.name }} 리포트 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ th.description }}{% endblock %}
+{% block main %}
+<div class="wrap">
+  <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ th.name }}</span></nav>
+  <header class="page-head">
+    <h1>{{ th.name }}</h1>
+    <p class="muted">{{ th.description }}</p>
+  </header>
+  {% if rs %}
+  <div class="cards">{% for r in rs %}{{ card(r, base, false) }}{% endfor %}</div>
+  {{ list_ad|safe }}
+  {% else %}
+  <div class="empty"><p>이 테마의 리포트를 준비하고 있습니다.</p><p><a href="{{ base }}/">다른 리포트 보기</a></p></div>
+  {% endif %}
+</div>
+{% endblock %}

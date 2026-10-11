@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}페이지를 찾을 수 없습니다 | {{ site.site_name }}{% endblock %}
+{% block robots %}<meta name="robots" content="noindex">{% endblock %}
+{% block main %}
+<div class="wrap narrow empty-404">
+  <h1>페이지를 찾을 수 없습니다</h1>
+  <p>주소가 바뀌었거나 삭제된 페이지입니다. 종목 이름으로 찾아보세요.</p>
+  <form class="search-form" action="{{ base }}/search/" role="search">
+    <label class="sr-only" for="q404">종목 검색</label>
+    <input id="q404" name="q" type="search" placeholder="종목명이나 티커">
+    <button type="submit" class="btn btn-primary">검색</button>
+  </form>
+  <p><a href="{{ base }}/">홈으로 가기</a></p>
+</div>
+{% endblock %}
