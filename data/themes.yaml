@@ -35,3 +35,6 @@
 - name: "광물·자원"
   slug: "minerals"
   description: "핵심 광물과 희토류 탐사 기업의 자원 발표와 자금 조달 분석."
+- name: "석유·가스"
+  slug: "oil-gas"
+  description: "석유·가스 탐사와 생산 기업의 허가, 시추 일정, 자금 조달 분석."

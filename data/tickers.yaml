@@ -138,3 +138,9 @@ GRML:
   exchange: "NASDAQ"
   theme: "광물·자원"
   aliases: ["그린란드마인스", "클로토 뉴로사이언시스", "Greenland Mines", "GRML"]
+GLND:
+  name: "그린란드 에너지"
+  name_en: "Greenland Energy Company"
+  exchange: "NASDAQ"
+  theme: "석유·가스"
+  aliases: ["그린란드에너지", "Greenland Energy", "펠리컨"]
