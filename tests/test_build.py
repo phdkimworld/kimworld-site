@@ -166,6 +166,9 @@ check(len(seen) == 8, "1시간 안에 다시 돌면 추가 호출 없음(시간�
 cs.run(now + _dt.timedelta(hours=2), fake)
 check(len(seen) == 16 and len(set(seen)) == 16, "다음 실행은 아직 안 받은 검색어부터")
 check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 영문 소문자·숫자")
+_c = _json.loads(tmpc.read_text(encoding="utf-8"))
+_c["entries"]["양자컴퓨팅|반도체 전쟁 책"]["date"] = "2026-10-09"
+tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
 t = make_project()
 r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
@@ -177,6 +180,8 @@ check("제트테스트 굿즈" not in box and "비트코인" not in box, "다룬
 check("12,802원" in box and "로켓배송" in box and "data-cp-sub=\"quantum1\"" in box, "가격·로켓배송·하위 ID 표시")
 grp = box[box.find("data-cp-group"):]
 check(grp.find("상품 2") < grp.find("상품 0"), "로켓배송 상품을 앞에")
+groups_html = box.split("data-cp-group")[1:]
+check(all("기준이며 바뀔 수 있습니다" in g for g in groups_html) and "2026.10.09 기준" in groups_html[1] and "2026.10.09" not in groups_html[0], "가격 기준일이 묶음마다 따로 붙음(보이는 묶음의 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
 check(page.count('<aside class="ad ') <= 4, "광고 4개 이하 유지")
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):

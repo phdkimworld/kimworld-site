@@ -37,7 +37,7 @@ jobs:
         run: python tests/test_build.py
       - name: Restore Coupang products
         # 쿠팡 검색 API는 시간당 10회 제한이 있어, 받은 결과를 Actions 캐시로 다음 빌드에 넘긴다(저장소에는 올리지 않음)
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .cache
           key: coupang-${{ github.run_id }}
@@ -49,6 +49,13 @@ jobs:
           COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
           COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
         run: python scripts/coupang_sync.py
+      - name: Save Coupang products
+        # 뒤 단계가 실패해도 호출 기록을 남겨야 다음 실행이 시간당 상한을 넘지 않는다
+        if: always() && github.event_name != 'pull_request' && hashFiles('.cache/coupang_auto.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: coupang-${{ github.run_id }}
       - name: Build
         run: python build.py --strict
       - uses: actions/upload-pages-artifact@v3

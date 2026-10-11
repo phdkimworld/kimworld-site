@@ -348,14 +348,15 @@ class Ads:
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []))
             if groups:
                 # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
+                # 가격 기준일은 묶음마다 다르다(검색어마다 받은 날이 다름). 보이는 묶음의 날짜가 함께 보이도록 묶음 안에 둔다.
                 inner = "".join(
-                    f'<div class="cp-grid" data-cp-group{"" if i == 0 else " hidden"}>'
+                    f'<div class="cp-group" data-cp-group{"" if i == 0 else " hidden"}><div class="cp-grid">'
                     + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div>"
+                    + (f'<p class="cp-note">가격은 {str(g["date"]).replace("-", ".")} 기준이며 바뀔 수 있습니다.</p>' if g.get("date") else "")
+                    + "</div>"
                     for i, g in enumerate(groups))
-                date = max(g["date"] for g in groups)
-                note = f'<p class="cp-note">가격은 {date.replace("-", ".")} 기준이며 바뀔 수 있습니다.</p>' if date else ""
                 return (f'<aside class="ad ad-coupang-products" data-slot="{slot}" aria-label="광고">{label}'
-                        f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p><div class="cp-rot">{inner}</div>{note}</aside>')
+                        f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p><div class="cp-rot">{inner}</div></aside>')
             items = self.products_for(ctx.get("theme", ""), ctx.get("exclude", []))
             if not items:
                 return ""

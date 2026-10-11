@@ -227,7 +227,7 @@ button { font: inherit; color: inherit; }
 .cp-price { font-weight: 700; font-size: .85rem; }
 .cp-rocket { align-self: flex-start; font-size: .68rem; font-weight: 700; color: #0073e9; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
 .cp-note { margin: 6px 0 0; color: var(--muted); font-size: .72rem; }
-.cp-grid[hidden] { display: none; }
+.cp-group[hidden] { display: none; }
 
 /* ---------- footer ---------- */
 .site-footer { margin-top: 64px; border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: .82rem; color: var(--muted); }
