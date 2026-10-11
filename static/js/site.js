@@ -228,4 +228,12 @@
     fetch(base + '/search.json').then(function (r) { return r.json(); }).then(function (d) { data = d; run(); })
       .catch(function () { countEl.textContent = '검색 자료를 불러오지 못했습니다. 잠시 뒤 다시 시도하세요.'; });
   }
+
+  // 쿠팡 상품 묶음: 방문마다 하나를 무작위로 보여 준다(검색어별 노출을 고르게 나눠 클릭을 비교하려고)
+  document.querySelectorAll('.cp-rot').forEach(function (box) {
+    var gs = box.querySelectorAll('[data-cp-group]');
+    if (gs.length < 2) return;
+    var pick = Math.floor(Math.random() * gs.length);
+    gs.forEach(function (g, i) { g.hidden = i !== pick; });
+  });
 })();

@@ -35,6 +35,20 @@ jobs:
           sudo apt-get install -y -q fonts-noto-cjk >/dev/null   # 공유 이미지(카카오톡 미리보기)용 한글 글꼴
       - name: Test
         run: python tests/test_build.py
+      - name: Restore Coupang products
+        # 쿠팡 검색 API는 시간당 10회 제한이 있어, 받은 결과를 Actions 캐시로 다음 빌드에 넘긴다(저장소에는 올리지 않음)
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: coupang-${{ github.run_id }}
+          restore-keys: coupang-
+      - name: Sync Coupang products
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+        run: python scripts/coupang_sync.py
       - name: Build
         run: python build.py --strict
       - uses: actions/upload-pages-artifact@v3

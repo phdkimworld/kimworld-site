@@ -224,6 +224,21 @@ class Ads:
                     log.err(f"ads.yaml coupang.products.{theme} 의 '{it.get('name')}' 주소가 쿠팡 https 주소가 아닙니다")
         self.c_per_box = int(c.get("products_per_box") or 3)
         self.c_blocked = [str(w).lower() for w in (c.get("blocked_words") or [])]
+        # 쿠팡 API 자동 상품(scripts/coupang_sync.py 결과). 없으면 위 수동 상품만 쓴다.
+        self.c_auto: dict[str, list[dict]] = {}
+        auto_path = Path(os.environ.get("COUPANG_CACHE") or ROOT / ".cache" / "coupang_auto.json")
+        try:
+            entries = (json.loads(auto_path.read_text(encoding="utf-8")).get("entries") or {}).values()
+        except Exception:
+            entries = []
+        for e in entries:
+            prods = [x for x in (e.get("products") or [])
+                     if str(x.get("url", "")).startswith("https://") and not self.bad_hosts(str(x.get("url", "")) + " " + str(x.get("image", "")))]
+            if prods:
+                self.c_auto.setdefault(str(e.get("theme")), []).append(
+                    {"keyword": e.get("keyword"), "sub_id": e.get("sub_id"), "date": e.get("date", ""), "products": prods})
+        for groups in self.c_auto.values():
+            groups.sort(key=lambda g: str(g.get("sub_id")))
         self.place = self.cfg.get("placements") or {}
         valid = {"adsense_in_article", "adsense_display", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
@@ -252,7 +267,7 @@ class Ads:
         if kind == "coupang_banner":
             return bool(self.c_banner)
         if kind == "coupang_products":
-            return bool(self.c_products)
+            return bool(self.c_products or self.c_auto)
         return False
 
     def products_for(self, theme: str, exclude_words: list[str]) -> list[dict]:
@@ -271,6 +286,28 @@ class Ads:
             if len(out) >= self.c_per_box:
                 break
         return out
+
+    def auto_groups_for(self, theme: str, exclude_words: list[str]) -> list[dict]:
+        """테마의 자동 상품 묶음(검색어별). 다룬 회사·금지어 상품은 빼고, 로켓배송 → 쿠팡 순위 순으로 고른다."""
+        ex = [w.lower() for w in exclude_words if w] + self.c_blocked
+        out = []
+        for g in self.c_auto.get(theme) or []:
+            prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex)]
+            prods.sort(key=lambda x: (not x.get("rocket"), int(x.get("rank") or 999)))
+            if prods:
+                out.append({**g, "products": prods[: self.c_per_box]})
+        return out
+
+    @staticmethod
+    def _card(it: dict, slot: str, sub: str = "") -> str:
+        img = (f'<span class="cp-img"><img src="{html.escape(it["image"])}" alt="" loading="lazy" width="160" height="160"></span>'
+               if it.get("image") else "")
+        price = f'<span class="cp-price">{int(it["price"]):,}원</span>' if it.get("price") else ""
+        rocket = '<span class="cp-rocket">로켓배송</span>' if it.get("rocket") else ""
+        sub_attr = f' data-cp-sub="{html.escape(sub)}"' if sub else ""
+        return (f'<a class="cp-card" href="{html.escape(it["url"])}" target="_blank" rel="sponsored noopener" '
+                f'data-cp-slot="{slot}"{sub_attr}>{img}<span class="cp-name">{html.escape(it["name"])}</span>'
+                f'{price}{rocket}<span class="cp-go">쿠팡에서 보기</span></a>')
 
     def render(self, slot: str, ctx: dict | None = None) -> str:
         """slot의 광고 HTML. 설정이 없으면 빈 문자열."""
@@ -308,6 +345,17 @@ class Ads:
                 f'style="height:{self.c_banner_h}px" srcdoc="{html.escape(doc, quote=True)}"></iframe></aside>'
             )
         if kind == "coupang_products":
+            groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []))
+            if groups:
+                # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
+                inner = "".join(
+                    f'<div class="cp-grid" data-cp-group{"" if i == 0 else " hidden"}>'
+                    + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div>"
+                    for i, g in enumerate(groups))
+                date = max(g["date"] for g in groups)
+                note = f'<p class="cp-note">가격은 {date.replace("-", ".")} 기준이며 바뀔 수 있습니다.</p>' if date else ""
+                return (f'<aside class="ad ad-coupang-products" data-slot="{slot}" aria-label="광고">{label}'
+                        f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p><div class="cp-rot">{inner}</div>{note}</aside>')
             items = self.products_for(ctx.get("theme", ""), ctx.get("exclude", []))
             if not items:
                 return ""

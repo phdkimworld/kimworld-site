@@ -139,6 +139,49 @@ allhtml = "".join(f.read_text(encoding="utf-8") for f in (t / "dist").rglob("*.h
 check(r.returncode == 0 and not _re.search(r'(?:href|src)="/(?!kimworld-site/|/)', allhtml), "모든 내부 링크·CSS·JS에 하위 경로가 붙음")
 check(not (t / "dist/CNAME").exists(), "github.io 주소일 때 CNAME 없음")
 
+print("7) 쿠팡 API 자동 상품")
+import json as _json, datetime as _dt
+sys.path.insert(0, str(SRC / "scripts"))
+import coupang_sync as cs
+# 서명 형식(쿠팡 문서: yyMMdd'T'HHmmss'Z', 메시지 = 날짜+메서드+경로+쿼리)
+auth = cs.authorization("GET", "/p", "a=1", "AK", "SK", _dt.datetime(2026, 10, 11, 22, 5, 9, tzinfo=_dt.timezone.utc))
+check(auth.startswith("CEA algorithm=HmacSHA256, access-key=AK, signed-date=261011T220509Z, signature=") and "SK" not in auth, "서명 헤더 형식, 비밀키 노출 없음")
+tmpc = Path(tempfile.mkdtemp()) / "c.json"
+_os.environ["COUPANG_CACHE"] = str(tmpc); cs.CACHE = tmpc
+_os.environ.pop("COUPANG_ACCESS_KEY", None)
+check(cs.run() == 0 and not tmpc.exists(), "키가 없으면 호출 없이 통과")
+_os.environ["COUPANG_ACCESS_KEY"] = "AK"; _os.environ["COUPANG_SECRET_KEY"] = "SK"
+seen = []
+def fake(kw, sid, limit, a, b):
+    seen.append((kw, sid))
+    return [{"name": f"{kw} 상품 {i}", "url": f"https://link.coupang.com/a/{sid}{i}", "image": "https://thumbnail.coupangcdn.com/x.jpg",
+             "price": 12800 + i, "rocket": i == 2, "rank": i + 1} for i in range(4)] + [
+            {"name": "제트테스트 굿즈", "url": "https://link.coupang.com/a/z", "image": "", "price": 1, "rocket": True, "rank": 0},
+            {"name": "비트코인 채굴기", "url": "https://link.coupang.com/a/b", "image": "", "price": 1, "rocket": True, "rank": 0}]
+now = _dt.datetime(2026, 10, 11, 15, 0, tzinfo=_dt.timezone.utc)
+cs.run(now, fake)
+check(len(seen) == 8, f"한 번에 8번까지만 호출({len(seen)})")
+cs.run(now + _dt.timedelta(minutes=10), fake)
+check(len(seen) == 8, "1시간 안에 다시 돌면 추가 호출 없음(시간당 상한)")
+cs.run(now + _dt.timedelta(hours=2), fake)
+check(len(seen) == 16 and len(set(seen)) == 16, "다음 실행은 아직 안 받은 검색어부터")
+check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 영문 소문자·숫자")
+t = make_project()
+r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+page = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+box = page[page.find('ad-coupang-products'):]
+box = box[: box.find("</aside>")]
+check(r.returncode == 0 and box.count("data-cp-group") == 2, "양자컴퓨팅 리포트에 검색어 묶음 2개")
+check(box.count(" hidden") == 1, "스크립트 없이도 첫 묶음 하나만 보임")
+check("제트테스트 굿즈" not in box and "비트코인" not in box, "다룬 회사·금지어 상품 제외")
+check("12,802원" in box and "로켓배송" in box and "data-cp-sub=\"quantum1\"" in box, "가격·로켓배송·하위 ID 표시")
+grp = box[box.find("data-cp-group"):]
+check(grp.find("상품 2") < grp.find("상품 0"), "로켓배송 상품을 앞에")
+check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
+check(page.count('<aside class="ad ') <= 4, "광고 4개 이하 유지")
+for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
+    _os.environ.pop(k, None)
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")
