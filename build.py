@@ -31,13 +31,7 @@ ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 KST = dt.timezone(dt.timedelta(hours=9))
 
-HOLDING_TEXT = {
-    "none": "작성일 기준 운영자는 이 종목을 보유하지 않습니다.",
-    "holding": "작성일 기준 운영자는 이 종목을 보유하고 있습니다.",
-    "plan": "작성일 기준 운영자는 이 종목을 보유하지 않지만 매수를 검토하고 있습니다.",
-}
-HOLDING_SUFFIX = " 리포트에서 다룬 종목은 보유 여부와 관계없이 공개 후 7일 동안 매매하지 않습니다."
-REQUIRED = ["ticker", "title", "theme", "date", "data_as_of", "summary", "holding", "sources"]
+REQUIRED = ["ticker", "title", "theme", "date", "data_as_of", "summary", "sources"]
 COUPANG_DISCLOSURE = "이 영역은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
 COUPANG_PAGE_NOTICE = "이 페이지에는 쿠팡 파트너스 링크가 포함되어 있습니다."
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
@@ -386,9 +380,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
         if meta["theme"] not in theme_by_name:
             log.err(f"{name}: theme '{meta['theme']}' 가 data/themes.yaml 에 없습니다")
             continue
-        if meta["holding"] not in HOLDING_TEXT:
-            log.err(f"{name}: holding 은 none / holding / plan 중 하나")
-            continue
+        for k in ("holding", "holding_detail"):
+            if k in meta:
+                log.err(f"{name}: '{k}' 항목은 쓰지 않습니다(운영자 보유 여부는 공개하지 않음)")
         try:
             d, upd, asof = to_date(meta["date"]), to_date(meta.get("updated")), to_date(meta["data_as_of"])
         except Exception:
@@ -425,8 +419,6 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "title": str(meta["title"]), "theme": meta["theme"], "theme_slug": theme_by_name[meta["theme"]]["slug"],
             "date": d, "updated": upd, "data_as_of": asof, "summary": str(meta["summary"]).strip(),
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],
-            "holding": meta["holding"], "holding_text": HOLDING_TEXT[meta["holding"]] + HOLDING_SUFFIX,
-            "holding_detail": str(meta.get("holding_detail") or ""),
             "ai_use": str(meta.get("ai_use") or site.get("ai_use_default", "")),
             "youtube_id": str(meta.get("youtube_id") or "").strip(),
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
@@ -521,9 +513,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     op = site.get("operator", {})
     repl = {
         "{{site_name}}": site.get("site_name", ""),
-        "{{operator_display_name}}": op.get("display_name") or "준비 중",
-        "{{operator_real_name}}": op.get("real_name_or_business") or "운영자",
-        "{{operator_email}}": op.get("email") or "(연락처 준비 중)",
+        "{{channel_name}}": op.get("display_name") or site.get("site_name", ""),
         "{{youtube_url}}": op.get("youtube_url") or "#",
     }
     for p in sorted((ROOT / "content" / "pages").glob("*.md")):
@@ -535,8 +525,6 @@ def build(drafts=False, strict=False, out: Path = DIST):
         pages.append({"slug": p.stem, "title": meta.get("title", p.stem)})
         write(f"{p.stem}/index.html", "page.html", p={"title": meta.get("title"), "description": meta.get("description", ""),
               "updated": to_date(meta.get("updated")), "html": html_body})
-    if not op.get("email"):
-        print("ℹ️  site.yaml operator.email 이 비어 있습니다(애드센스 심사·개인정보처리방침에 연락처가 필요)")
 
     # ---- 검색 색인, 피드, 사이트맵, 기타
     index = [{

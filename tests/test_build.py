@@ -120,6 +120,15 @@ check(r.returncode != 0 and "금지 표현" in r.stdout, "금지 표현이면 �
 t = make_project(None, {"zzzz-fut-2099-01.md": two.replace("2026-01-15", "2099-01-01")})
 run(t)
 check(not (t / "dist/r/zzzz-fut-2099-01").exists(), "미래 날짜 글은 아직 공개 안 됨(예약 발행)")
+t = make_project(None, {"zzzz-hold-2026-04.md": two.replace("draft:", "holding: none\ndraft:", 1) if "draft:" in two else two.replace("sources:", "holding: none\nsources:", 1)})
+r = run(t)
+check(r.returncode != 0 and "holding" in r.stdout, "보유 여부 항목이 있으면 빌드 실패")
+t = make_project()
+run(t)
+pages_txt = "".join((t / "dist" / pg / "index.html").read_text(encoding="utf-8") for pg in ("about", "contact", "privacy", "disclaimer"))
+pages_txt += (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+import re as _re
+check("보유 공개" not in pages_txt and "보유 여부" not in pages_txt and not _re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", pages_txt), "보유 여부·이메일이 화면에 없음")
 
 print()
 if FAILS:

@@ -10,7 +10,6 @@ key_points:
   - "가상 회사의 매출은 1,000만 달러(테스트 숫자)"
   - "현금 소진 속도가 가장 큰 위험(테스트 문장)"
   - "다음 확인할 것: 10-Q의 현금 잔고"
-holding: none
 youtube_id: "dQw4w9WgXcQ"
 sources:
   - title: "테스트 출처 1"
