@@ -42,3 +42,99 @@ SOUN:
   exchange: "NASDAQ"
   theme: "AI 소프트웨어"
   aliases: ["사운드하운드", "SoundHound", "SoundHound AI"]
+XNDU:
+  name: "자나두 퀀텀"
+  name_en: "Xanadu Quantum Technologies"
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["자나두", "자나두 퀀텀 테크놀로지스", "Xanadu"]
+PLTR:
+  name: "팔란티어"
+  name_en: "Palantir Technologies Inc."
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["팔란티어 테크놀로지스", "Palantir", "Palantir Technologies"]
+FIG:
+  name: "피그마"
+  name_en: "Figma, Inc."
+  exchange: "NYSE"
+  theme: "AI 소프트웨어"
+  aliases: ["피그마", "Figma", "FIG"]
+TEM:
+  name: "템퍼스 AI"
+  name_en: "Tempus AI, Inc."
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["템퍼스", "템퍼스 에이아이", "Tempus AI"]
+ASTS:
+  name: "AST 스페이스모바일"
+  name_en: "AST SpaceMobile, Inc."
+  exchange: "NASDAQ"
+  theme: "우주항공·방산"
+  aliases: ["ASTS", "AST 스페이스 모바일", "AST SpaceMobile"]
+CEG:
+  name: "컨스텔레이션 에너지"
+  name_en: "Constellation Energy Corporation"
+  exchange: "NASDAQ"
+  theme: "원자력·에너지"
+  aliases: ["CEG", "컨스텔레이션", "Constellation Energy"]
+ASPI:
+  name: "ASP 아이소토프스"
+  name_en: "ASP Isotopes Inc."
+  exchange: "NASDAQ"
+  theme: "원자력·에너지"
+  aliases: ["ASPI", "ASP 아이소토프", "ASP Isotopes"]
+CLSK:
+  name: "클린스파크"
+  name_en: "CleanSpark, Inc."
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["클린스파크", "CleanSpark", "CLSK"]
+IREN:
+  name: "아이렌"
+  name_en: "IREN Limited"
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["아이리스 에너지", "Iris Energy", "IREN Limited"]
+GPUS:
+  name: "하이퍼스케일 데이터"
+  name_en: "Hyperscale Data, Inc."
+  exchange: "NYSE American"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["하이퍼스케일 데이터", "하이퍼스케일", "Hyperscale Data", "GPUS"]
+AMC:
+  name: "AMC 엔터테인먼트"
+  name_en: "AMC Entertainment Holdings, Inc."
+  exchange: "NYSE"
+  theme: "소비재·밈주식"
+  aliases: ["AMC", "AMC 엔터", "AMC 극장", "AMC Entertainment"]
+DNUT:
+  name: "크리스피 크림"
+  name_en: "Krispy Kreme, Inc."
+  exchange: "NASDAQ"
+  theme: "소비재·밈주식"
+  aliases: ["크리스피 크림", "크리스피크림", "Krispy Kreme"]
+SERV:
+  name: "서브 로보틱스"
+  name_en: "Serve Robotics Inc."
+  exchange: "NASDAQ"
+  theme: "로봇·자율주행"
+  aliases: ["서브", "서브로보틱스", "Serve Robotics"]
+SLDP:
+  name: "솔리드파워"
+  name_en: "Solid Power, Inc."
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["솔리드 파워", "Solid Power"]
+QXO:
+  name: "큐엑스오"
+  name_en: "QXO, Inc."
+  exchange: "NYSE"
+  theme: "산업재·인수합병"
+  aliases: ["제이콥스 큐엑스오", "QXO", "QXO Inc"]
+GRML:
+  name: "그린란드 마인스"
+  name_en: "Greenland Mines Ltd"
+  exchange: "NASDAQ"
+  theme: "광물·자원"
+  aliases: ["그린란드마인스", "클로토 뉴로사이언시스", "Greenland Mines", "GRML"]
