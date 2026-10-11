@@ -159,11 +159,18 @@ def split_for_ads(body_html: str, want_mid: bool, want_products: bool) -> list[t
     prod = -1
     if want_products:
         prod = len(body_html)
+        found = False
         for i, pos in enumerate(h2):
             end = body_html.find("</h2>", pos)
             if "운영자 판단" in body_html[pos:end]:
                 prod = h2[i + 1] if i + 1 < len(h2) else len(body_html)
+                found = True
                 break
+        if not found:
+            # "운영자 판단"이 없는 긴 리포트는 본문 한가운데에 가장 가까운 소제목 앞에 둔다(끝의 광고와 몰리지 않게)
+            later = [p for p in h2 if p > mid + 1]
+            if later:
+                prod = min(later, key=lambda p: abs(p - len(body_html) / 2))
         if prod == mid:
             prod = -1  # 두 광고가 붙으면 아래쪽을 끈다
     cuts = sorted([(p, n) for p, n in ((mid, "report_mid"), (prod, "report_products")) if p >= 0])
@@ -291,7 +298,8 @@ class Ads:
         """테마의 자동 상품 묶음(검색어별). 다룬 회사·금지어 상품은 빼고, 로켓배송 → 쿠팡 순위 순으로 고른다."""
         ex = [w.lower() for w in exclude_words if w] + self.c_blocked
         out = []
-        for g in self.c_auto.get(theme) or []:
+        src = [g for gs in self.c_auto.values() for g in gs] if theme == "*" else (self.c_auto.get(theme) or [])
+        for g in src:
             prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex)]
             prods.sort(key=lambda x: (not x.get("rocket"), int(x.get("rank") or 999)))
             if prods:
@@ -349,8 +357,11 @@ class Ads:
             if groups:
                 # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
                 # 가격 기준일은 묶음마다 다르다(검색어마다 받은 날이 다름). 보이는 묶음의 날짜가 함께 보이도록 묶음 안에 둔다.
+                first = {"report_mid": 0, "report_products": 1, "report_end": 2}.get(slot, 0)  # 스크립트 없어도 상자마다 다른 묶음
+                if first >= len(groups):
+                    return ""  # 묶음이 상자 수보다 적으면 같은 상품이 두 번 보이지 않게 이 상자는 뺀다
                 inner = "".join(
-                    f'<div class="cp-group" data-cp-group{"" if i == 0 else " hidden"}><div class="cp-grid">'
+                    f'<div class="cp-group" data-cp-group{"" if i == first else " hidden"}><div class="cp-grid">'
                     + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div>"
                     + (f'<p class="cp-note">가격은 {str(g["date"]).replace("-", ".")} 기준이며 바뀔 수 있습니다.</p>' if g.get("date") else "")
                     + "</div>"
@@ -556,11 +567,11 @@ def build(drafts=False, strict=False, out: Path = DIST):
     for code, rs in sorted(by_ticker.items(), key=lambda kv: kv[1][0]["date"], reverse=True):
         t = tickers[code]
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
-        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs, list_ad=ads.render("list"))
+        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs, list_ad=ads.render("list", {"theme": t.get("theme", ""), "exclude": [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]}))
     for th in themes:
         rs = [r for r in public if r["theme"] == th["name"]]
-        write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list"))
-    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=ads.render("list"), is_home=True)
+        write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))
+    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=ads.render("list", {"theme": "*"}), is_home=True)
     write("search/index.html", "search.html")
     write("404.html", "404.html")
 

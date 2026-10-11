@@ -59,6 +59,8 @@ FULL_ADS = {
             "_default": [{"name": "미국주식 투자 책", "url": "https://link.coupang.com/a/ddd"}],
         },
     },
+    "placements": {"report_mid": "adsense_in_article", "report_products": "coupang_products", "report_end": "adfit_report_end",
+                   "report_bottom": "coupang_banner", "list": "adfit_list"},
 }
 
 print("1) 광고 설정이 비어 있을 때")
@@ -174,8 +176,24 @@ r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, tex
 page = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 box = page[page.find('ad-coupang-products'):]
 box = box[: box.find("</aside>")]
-check(r.returncode == 0 and box.count("data-cp-group") == 2, "양자컴퓨팅 리포트에 검색어 묶음 2개")
-check(box.count(" hidden") == 1, "스크립트 없이도 첫 묶음 하나만 보임")
+check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 리포트에 검색어 묶음 3개")
+check(box.count(" hidden") == 2, "스크립트 없이도 묶음 하나만 보임")
+boxes = re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)".*?</aside>', page, flags=re.S)
+check(boxes == ["report_mid", "report_products", "report_end"], f"쿠팡 상자 3개: 중간·본문 끝·출처 아래 ({boxes})")
+shown = [re.search(r'data-cp-group>(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
+check(len(set(shown)) == 3, "스크립트 없이도 상자마다 다른 검색어 묶음")
+home = (t / "dist/index.html").read_text(encoding="utf-8")
+check(home.count('<aside class="ad ') == 1 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자 하나, 모든 테마 묶음에서 무작위")
+th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
+check(th.count("data-cp-group") == 3, "테마 페이지: 그 테마 묶음만")
+sp = (t / "dist").rglob("*.html")
+_c = _json.loads(tmpc.read_text(encoding="utf-8"))
+_c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith("과학 교양 책")}
+tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
+t = make_project()
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+page2 = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check(page2.count("ad-coupang-products") == 2, "묶음이 2개뿐이면 상자도 2개(중복 노출 없음)")
 check("제트테스트 굿즈" not in box and "비트코인" not in box, "다룬 회사·금지어 상품 제외")
 check("12,802원" in box and "로켓배송" in box and "data-cp-sub=\"quantum1\"" in box, "가격·로켓배송·하위 ID 표시")
 grp = box[box.find("data-cp-group"):]

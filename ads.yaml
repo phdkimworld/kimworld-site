@@ -39,8 +39,8 @@ coupang:
 #   adsense_in_article, adsense_display, adfit_report_end, adfit_list, coupang_banner, coupang_products, none
 # 리포트 페이지 광고는 최대 4개(report_* 자리 합계). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
 placements:
-  report_mid: adsense_in_article        # 본문 세 번째 소제목 앞 (소제목 3개 미만이면 없음)
+  report_mid: coupang_products          # 본문 세 번째 소제목 앞 (소제목 3개 미만이면 없음). 애드센스 승인 뒤 adsense_in_article 로 바꿀지 성과 비교
   report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
-  report_end: adfit_report_end          # 출처 목록 아래
+  report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: coupang_banner         # 면책 고지 위
-  list: adfit_list                      # 홈·목록 페이지 (한 개만)
+  list: coupang_products                # 홈·테마·종목 목록 페이지 (한 개만)

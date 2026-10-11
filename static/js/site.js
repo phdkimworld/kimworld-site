@@ -230,10 +230,12 @@
   }
 
   // 쿠팡 상품 묶음: 방문마다 하나를 무작위로 보여 준다(검색어별 노출을 고르게 나눠 클릭을 비교하려고)
-  document.querySelectorAll('.cp-rot').forEach(function (box) {
+  // 한 페이지에 상자가 여럿이면 시작점만 무작위로 정하고 차례로 다른 묶음을 보여 준다(같은 상품이 두 번 보이지 않게)
+  var cpStart = Math.floor(Math.random() * 1000);
+  document.querySelectorAll('.cp-rot').forEach(function (box, bi) {
     var gs = box.querySelectorAll('[data-cp-group]');
     if (gs.length < 2) return;
-    var pick = Math.floor(Math.random() * gs.length);
+    var pick = (cpStart + bi) % gs.length;
     gs.forEach(function (g, i) { g.hidden = i !== pick; });
   });
 })();
