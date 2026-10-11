@@ -1,14 +1,14 @@
 name: Build and deploy
 
 # main에 올라오면 검사 → 빌드 → GitHub Pages 배포.
-# 매일 한국시간 0시 5분에도 다시 빌드한다(날짜를 미래로 적은 리포트가 그날 자동 공개됨).
+# 매시 5분에도 다시 빌드한다(미래 날짜 리포트는 한국시간 0시 5분 빌드에 공개, 쿠팡 상품은 시간당 8개까지 갱신).
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   schedule:
-    - cron: "5 15 * * *"
+    - cron: "5 * * * *"   # 매시 5분(UTC). 한국시간 0시 5분 예약 공개 포함, 쿠팡 상품을 시간당 8개씩 갱신
   workflow_dispatch:
 
 permissions:
