@@ -144,3 +144,9 @@ GLND:
   exchange: "NASDAQ"
   theme: "석유·가스"
   aliases: ["그린란드에너지", "Greenland Energy", "펠리컨"]
+ROC:
+  name: "랭크원 컴퓨팅"
+  name_en: "Rank One Computing"
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["랭크원컴퓨팅", "랭크 원 컴퓨팅", "Rank One Computing", "ROC AI"]
