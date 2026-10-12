@@ -38,3 +38,6 @@
 - name: "석유·가스"
   slug: "oil-gas"
   description: "석유·가스 탐사와 생산 기업의 허가, 시추 일정, 자금 조달 분석."
+- name: "코인·블록체인"
+  slug: "crypto"
+  description: "레이어1 블록체인과 코인의 토큰 경제, 업그레이드, ETF와 규제가 가격을 움직이는 과정 분석."

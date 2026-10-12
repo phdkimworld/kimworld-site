@@ -168,3 +168,9 @@ ASST:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["스트라이브", "애셋 엔티티스", "Strive", "Asset Entities"]
+INJ:
+  name: "인젝티브"
+  name_en: "Injective"
+  exchange: "Binance"
+  theme: "코인·블록체인"
+  aliases: ["인젝티브", "인젝티브 프로토콜", "Injective", "Injective Protocol"]
