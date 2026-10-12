@@ -192,3 +192,9 @@ LEU:
   exchange: "NYSE"
   theme: "원자력·에너지"
   aliases: ["센트러스", "센트러스에너지", "Centrus", "Centrus Energy"]
+OKLO:
+  name: "오클로"
+  name_en: "Oklo Inc."
+  exchange: "NYSE"
+  theme: "원자력·에너지"
+  aliases: ["오클로", "Oklo", "Oklo Inc", "오로라 원자로"]
