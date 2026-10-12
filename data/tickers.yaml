@@ -156,3 +156,9 @@ ARQQ:
   exchange: "NASDAQ"
   theme: "양자컴퓨팅"
   aliases: ["아르킷", "아킷 퀀텀", "Arqit", "Arqit Quantum"]
+RDW:
+  name: "레드와이어"
+  name_en: "Redwire"
+  exchange: "NYSE"
+  theme: "우주항공·방산"
+  aliases: ["레드와이어", "레드 와이어", "Redwire", "Redwire Space"]
