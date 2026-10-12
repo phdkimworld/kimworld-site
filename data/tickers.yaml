@@ -180,3 +180,9 @@ JOBY:
   exchange: "NYSE"
   theme: "우주항공·방산"
   aliases: ["조비 에비에이션", "조비", "Joby", "Joby Aviation"]
+LAES:
+  name: "SEALSQ"
+  name_en: "SEALSQ Corp"
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["씰에스큐", "실SQ", "씰SQ", "SEALSQ", "SEALSQ Corp", "위즈키 반도체"]
