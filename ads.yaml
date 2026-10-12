@@ -14,7 +14,7 @@ adfit:
   width: 320
   height: 100
   units:
-    report_end: ""           # DAN-xxxx  리포트 끝
+    report_end: "DAN-fLqYFcTk9aoRDmDT"   # DAN-xxxx  리포트 하단(320x100)
     list: ""                 # DAN-xxxx  홈·목록 (비어 있으면 report_end 단위를 씀)
 
 coupang:
@@ -42,5 +42,5 @@ placements:
   report_mid: coupang_products          # 본문 세 번째 소제목 앞 (소제목 3개 미만이면 없음). 애드센스 승인 뒤 adsense_in_article 로 바꿀지 성과 비교
   report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
-  report_bottom: coupang_banner         # 면책 고지 위
+  report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)
   list: coupang_products                # 홈·테마·종목 목록 페이지 (한 개만)
