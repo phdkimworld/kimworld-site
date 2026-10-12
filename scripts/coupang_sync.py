@@ -81,7 +81,7 @@ def plan(cfg: dict, themes: list[dict]) -> list[dict]:
             print(f"[coupang] data/themes.yaml 에 없는 테마는 건너뜀: {theme}")
             continue
         for i, kw in enumerate(kws or []):
-            jobs.append({"theme": theme, "keyword": str(kw), "sub_id": sub_id(slug[theme], i)})
+            jobs.append({"theme": theme, "keyword": str(kw), "sub_id": sub_id(slug[theme], i), "idx": i})
     return jobs
 
 
@@ -105,7 +105,8 @@ def run(now: dt.datetime | None = None, searcher=search) -> int:
     entries = {k: v for k, v in entries.items() if k in keys}  # 설정에서 빠진 검색어는 버린다
     fresh_after = now.timestamp() - float(cfg.get("refresh_hours", 20)) * 3600
     todo = [j for j in jobs if entries.get(f'{j["theme"]}|{j["keyword"]}', {}).get("ts", 0) < fresh_after]
-    todo.sort(key=lambda j: entries.get(f'{j["theme"]}|{j["keyword"]}', {}).get("ts", 0))  # 오래된 것부터
+    # 오래된 것부터. 아직 한 번도 안 받은 것끼리는 각 테마의 첫 번째 검색어부터(상품이 하나도 없는 테마를 먼저 채운다)
+    todo.sort(key=lambda j: (entries.get(f'{j["theme"]}|{j["keyword"]}', {}).get("ts", 0), j["idx"]))
     budget = min(int(cfg.get("max_calls_per_run", 8)), int(cfg.get("max_calls_per_hour", 8)) - len(calls))
     limit = max(1, min(10, int(cfg.get("results_per_keyword", 10))))
     done = 0
@@ -121,7 +122,7 @@ def run(now: dt.datetime | None = None, searcher=search) -> int:
         except Exception as e:  # 네트워크 등. 키는 출력하지 않는다
             print(f'[coupang] 검색 실패 "{j["keyword"]}": {type(e).__name__}')
             continue
-        entries[f'{j["theme"]}|{j["keyword"]}'] = {**j, "ts": now.timestamp(), "date": now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat(), "products": items}
+        entries[f'{j["theme"]}|{j["keyword"]}'] = {**{k: v for k, v in j.items() if k != "idx"}, "ts": now.timestamp(), "date": now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat(), "products": items}
         done += 1
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     CACHE.write_text(json.dumps({"entries": entries, "calls": calls}, ensure_ascii=False), encoding="utf-8")

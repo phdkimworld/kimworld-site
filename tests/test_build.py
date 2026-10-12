@@ -165,11 +165,17 @@ def fake(kw, sid, limit, a, b):
             {"name": "비트코인 채굴기", "url": "https://link.coupang.com/a/b", "image": "", "price": 1, "rocket": True, "rank": 0}]
 now = _dt.datetime(2026, 10, 11, 15, 0, tzinfo=_dt.timezone.utc)
 cs.run(now, fake)
-check(len(seen) == 8, f"한 번에 8번까지만 호출({len(seen)})")
+check(len(seen) == 5, f"한 번에 5번까지만 호출({len(seen)})")
+check([s for _, s in seen] == ["quantum1", "aichips1", "spacedefense1", "humanoids1", "aisoftware1"], "아직 안 받은 테마의 첫 검색어부터")
 cs.run(now + _dt.timedelta(minutes=10), fake)
-check(len(seen) == 8, "1시간 안에 다시 돌면 추가 호출 없음(시간당 상한)")
-cs.run(now + _dt.timedelta(hours=2), fake)
-check(len(seen) == 16 and len(set(seen)) == 16, "다음 실행은 아직 안 받은 검색어부터")
+check(len(seen) == 9, "1시간 안에 다시 돌면 시간당 9번까지만(5+4)")
+cs.run(now + _dt.timedelta(minutes=20), fake)
+check(len(seen) == 9, "시간당 상한에 닿으면 더 부르지 않음")
+cs.run(now + _dt.timedelta(minutes=69), fake)
+check(len(seen) == 13, "첫 실행 1시간 뒤(두 번째 실행 59분 뒤)에도 남은 몫(4번)을 받음")
+for h in range(2, 12):
+    cs.run(now + _dt.timedelta(hours=h), fake)
+check(len(set(seen)) == len(seen) and all(f"{n}" in {s for _, s in seen} for n in ("quantum1", "quantum2", "quantum3")), "같은 검색어를 20시간 안에 다시 받지 않고 결국 모두 받음")
 check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 영문 소문자·숫자")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"]["양자컴퓨팅|반도체 전쟁 책"]["date"] = "2026-10-09"
