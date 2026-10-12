@@ -216,3 +216,9 @@ POET:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["포엣", "포엣테크놀로지스", "POET Technologies", "피오이티"]
+DNA:
+  name: "징코 바이오웍스"
+  name_en: "Ginkgo Bioworks Holdings"
+  exchange: "NYSE"
+  theme: "바이오·헬스케어"
+  aliases: ["징코", "깅코 바이오웍스", "Ginkgo", "Ginkgo Bioworks"]
