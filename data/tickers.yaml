@@ -246,3 +246,9 @@ CBRS:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["세레브라스", "세레브라스 시스템즈", "Cerebras", "Cerebras Systems", "WSE-3"]
+BTQ:
+  name: "BTQ 테크놀로지스"
+  name_en: "BTQ Technologies Corp."
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["BTQ 테크놀로지스", "비티큐", "BTQ Technologies", "BTQQF", "QSSN", "QCIM"]
