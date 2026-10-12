@@ -150,3 +150,9 @@ ROC:
   exchange: "NASDAQ"
   theme: "AI 소프트웨어"
   aliases: ["랭크원컴퓨팅", "랭크 원 컴퓨팅", "Rank One Computing", "ROC AI"]
+ARQQ:
+  name: "아르킷 퀀텀"
+  name_en: "Arqit Quantum"
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["아르킷", "아킷 퀀텀", "Arqit", "Arqit Quantum"]
