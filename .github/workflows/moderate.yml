@@ -1,0 +1,57 @@
+name: Moderate (댓글·종토방 검토)
+
+# 매일 클로드 예약 작업이 실행한다.
+# 1) decisions 를 비우고 실행 → 검토할 글 목록을 기록에 출력(연락처·링크는 가림)
+# 2) decisions 에 결정 JSON을 넣어 실행 → 적용
+#    {"comments":[{"id":12,"status":"ok"},{"id":13,"status":"hidden"}],"ban":[3],"unban":[]}
+on:
+  workflow_dispatch:
+    inputs:
+      decisions:
+        description: "결정 JSON (비우면 목록만 출력)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api
+  cancel-in-progress: false
+
+jobs:
+  moderate:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DECISIONS: ${{ github.event.inputs.decisions }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Connect D1
+        working-directory: worker
+        run: |
+          ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          test -n "$ID"
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+      - name: List queue
+        if: env.DECISIONS == ''
+        working-directory: worker
+        run: |
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command "
+            SELECT c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.reports, c.status,
+                   (SELECT COUNT(*) FROM comments h WHERE h.uid = c.uid AND c.uid IS NOT NULL AND h.status = 'hidden') AS hid
+            FROM comments c
+            WHERE c.reviewed = 0 AND (c.status IN ('held','hidden') OR (c.status = 'ok' AND c.reports > 0))
+            ORDER BY c.created LIMIT 100" > /tmp/q.json
+          python3 ../scripts/moderation.py list /tmp/q.json
+      - name: Apply decisions
+        if: env.DECISIONS != ''
+        working-directory: worker
+        run: |
+          python3 ../scripts/moderation.py apply "$DECISIONS" /tmp/apply.sql
+          cat /tmp/apply.sql
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/apply.sql

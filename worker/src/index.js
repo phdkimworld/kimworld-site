@@ -434,7 +434,7 @@ export default {
         if (am && req.method === "POST") {
           const { status } = await readJson(req);
           if (!["ok", "held", "hidden", "deleted"].includes(status)) return json(req, { error: "status" }, 400);
-          const r = await db.prepare("UPDATE comments SET status = ?, reports = CASE WHEN ? = 'ok' THEN 0 ELSE reports END WHERE id = ?").bind(status, status, parseInt(am[1], 10)).run();
+          const r = await db.prepare("UPDATE comments SET status = ?, reviewed = 1, reports = CASE WHEN ? = 'ok' THEN 0 ELSE reports END WHERE id = ?").bind(status, status, parseInt(am[1], 10)).run();
           return json(req, { ok: !!r.meta?.changes });
         }
       }

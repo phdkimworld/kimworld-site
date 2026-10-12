@@ -271,6 +271,19 @@ f.write_text(f.read_text(encoding="utf-8") + "\n\nMarket data: 숫자 정리, �
 r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_output=True, text=True)
 check("허용하지 않는" not in r.stdout + r.stderr, "평범한 'data:' 글자는 통과")
 
+print("11) 댓글 검토 도우미")
+sys.path.insert(0, str(SRC / "scripts")); import moderation as MOD
+red = MOD.redact("카톡 010-1234-5678 https://x.co/a @leader99 a@b.com 2026년 3.90달러")
+check("1234" not in red and "x.co" not in red and "leader99" not in red and "a@b.com" not in red and "2026년" in red, "공개 기록에는 연락처·링크·아이디를 가림")
+_out = Path(tempfile.mkdtemp()) / "a.sql"
+MOD.cmd_apply('{"comments":[{"id":3,"status":"ok"}],"ban":[2]}', str(_out))
+check("reviewed = 1" in _out.read_text() and "banned" in _out.read_text(), "결정 → SQL")
+for bad in ['{"comments":[{"id":"1; DROP TABLE users","status":"ok"}]}', '{"comments":[{"id":1,"status":"ok\'; DROP"}]}']:
+    try:
+        MOD.cmd_apply(bad, str(_out)); check(False, "잘못된 결정 거절")
+    except (ValueError, SystemExit):
+        check(True, "잘못된 결정 거절(주입 방지)")
+
 print("9) 읽기 편의: 접는 상자·표·고정 페이지 조건부 줄")
 sys.path.insert(0, str(SRC)); import build as B
 h = B.md_renderer().convert("## 3부. 이벤트 카드 3장\n\n**핵심** 요약\n\n### 2026년\n\n**2026.10.09 · 가 (P1)**\n\n- 무슨 일: 가\n\n**2026.09.01 · 나 (P2)**\n\n- 무슨 일: 나\n\n### 2025년 이전\n\n**2025.01.02 · 다 (P1)**\n\n- 무슨 일: 다\n\n### 같은 호재인데 왜 반응이 달랐나\n\n비교\n\n## 4부. 패턴\n\n본문")
