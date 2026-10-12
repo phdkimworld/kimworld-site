@@ -162,3 +162,9 @@ RDW:
   exchange: "NYSE"
   theme: "우주항공·방산"
   aliases: ["레드와이어", "레드 와이어", "Redwire", "Redwire Space"]
+ASST:
+  name: "스트라이브"
+  name_en: "Strive"
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["스트라이브", "애셋 엔티티스", "Strive", "Asset Entities"]
