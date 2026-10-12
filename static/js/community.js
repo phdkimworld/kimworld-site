@@ -76,7 +76,7 @@
           like.disabled = false;
           if (d._status !== 200) { if (d.message) alert(d.message); return; }
           liked[c.id] = d.liked;
-          box.querySelectorAll('.cm-like[data-cid="' + c.id + '"]').forEach(function (b) { b.textContent = '♥ ' + num(d.likes); b.setAttribute('aria-pressed', d.liked ? 'true' : 'false'); });
+          document.querySelectorAll('.cm-like[data-cid="' + c.id + '"]').forEach(function (b) { b.textContent = '♥ ' + num(d.likes); b.setAttribute('aria-pressed', d.liked ? 'true' : 'false'); });
         }).catch(function () { like.disabled = false; });
       });
       act.appendChild(like);
@@ -115,7 +115,26 @@
         listEl.textContent = '';
         if (!d.comments.length) listEl.appendChild(el('li', 'cm-empty muted', '첫 댓글을 남겨 주세요.'));
         d.comments.forEach(function (c) { listEl.appendChild(item(c, false)); });
+        if (sort === 'top') renderTop(d);
       });
+    }
+
+    // 요약 바로 아래 '인기 댓글': 베스트(좋아요 3개 이상) → 좋아요 받은 댓글 많은 순 2개 → 없으면 최근 댓글 1개
+    var topEl = document.querySelector('[data-cm-top]');
+    function renderTop(d) {
+      if (!topEl) return;
+      var seen = {};
+      var picks = (d.best || []).concat(d.comments.filter(function (c) { return c.likes > 0; }))
+        .filter(function (c) { if (seen[c.id]) return false; seen[c.id] = 1; return true; }).slice(0, 2);
+      var hot = picks.length > 0;
+      if (!hot) picks = d.comments.slice(0, 1); // 아직 좋아요가 없으면 가장 최근 댓글 하나
+      topEl.querySelector('.cm-top-title').textContent = hot ? '인기 댓글' : '최근 댓글';
+      var ol = topEl.querySelector('ol'); ol.textContent = '';
+      var bestIds = (d.best || []).map(function (b) { return b.id; });
+      picks.forEach(function (c) { ol.appendChild(item(c, bestIds.indexOf(c.id) >= 0)); });
+      var more = topEl.querySelector('[data-cm-more]');
+      if (more) more.textContent = '댓글 ' + num(d.comments.length) + '개 모두 보기 · 쓰기';
+      topEl.hidden = !picks.length;
     }
 
     box.querySelectorAll('[data-sort]').forEach(function (b) {
@@ -146,7 +165,7 @@
 
     // 첫 화면을 다 그린 뒤 불러온다(본문 표시를 늦추지 않게). #comments 로 들어오면 바로
     var go = function () { load().then(function () { if (location.hash === '#comments') box.scrollIntoView(); }).catch(function () {}); };
-    if (location.hash === '#comments') go(); else setTimeout(go, 800);
+    if (location.hash === '#comments') go(); else setTimeout(go, 300);
   }
 
   // ---------- 검색어 기록(검색 페이지) ----------

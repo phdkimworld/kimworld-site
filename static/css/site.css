@@ -259,6 +259,11 @@ button { font: inherit; color: inherit; }
 .cm-form-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cm-len { font-size: .75rem; }
 .cm-msg { margin: 0; font-size: .85rem; color: var(--accent); min-height: 1em; }
+.cm-top { margin: 0 0 20px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.cm-top-title { margin: 0 0 4px; font-size: .9rem; font-weight: 800; }
+.cm-top .cm-item:last-child { border-bottom: 0; }
+.cm-top-more { display: inline-block; margin-top: 6px; font-size: .88rem; font-weight: 700; }
+.cm-top[hidden] { display: none; }
 .cm-best { margin: 0 0 16px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
 .cm-best h3 { margin: 0 0 6px; font-size: .9rem; }
 .cm-tabs { display: flex; gap: 6px; margin: 0 0 8px; }

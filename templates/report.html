@@ -75,6 +75,14 @@
       </div>
     </section>
 
+    {% if site.api_url %}
+    <section class="cm-top" data-cm-top hidden aria-label="인기 댓글">
+      <p class="cm-top-title">인기 댓글</p>
+      <ol class="cm-list"></ol>
+      <a class="cm-top-more" href="#comments" data-cm-more>댓글 모두 보기</a>
+    </section>
+    {% endif %}
+
     {% if r.youtube_id %}
     <div class="yt" data-yt="{{ r.youtube_id }}">
       <button type="button" class="yt-play" aria-label="이 리포트의 유튜브 영상 재생">
