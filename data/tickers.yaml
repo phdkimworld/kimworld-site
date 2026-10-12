@@ -240,3 +240,9 @@ SDGR:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["슈뢰딩거", "Schrodinger", "Schrödinger", "번슨", "FEP+"]
+CBRS:
+  name: "세레브라스"
+  name_en: "Cerebras Systems Inc."
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["세레브라스", "세레브라스 시스템즈", "Cerebras", "Cerebras Systems", "WSE-3"]
