@@ -221,6 +221,7 @@
       }).filter(Boolean).sort(function (a, b) { return b.s - a.s || (a.r.d < b.r.d ? 1 : -1); });
       countEl.textContent = hits.length ? '"' + q + '" 검색 결과 ' + hits.length + '개' : '"' + q + '"에 맞는 리포트가 아직 없습니다. 다른 이름이나 티커로 찾아보세요.';
       results.innerHTML = hits.slice(0, 50).map(function (h) { return card(h.r); }).join('');
+      if (window.kwLogSearch) window.kwLogSearch(q, hits.length);
     }
     var timer;
     input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(run, 120); });

@@ -222,6 +222,22 @@ check(pm.count("ad-coupang-products") == 2 and len(slots) <= 4 and pm.count("DAN
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
     _os.environ.pop(k, None)
 
+print("8) 조회수·댓글·인기 영역")
+t = make_project()
+run(t)
+pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+home = (t / "dist/index.html").read_text(encoding="utf-8")
+check('id="comments" data-comments hidden' in pg and "community.js" in pg and 'data-views hidden' in pg, "리포트에 댓글·조회수 자리(처음엔 숨김)")
+check("data-insights hidden" in home and "data-popular-list" in home and "data-trending-list" in home, "홈에 많이 본 리포트·많이 찾는 종목 자리(처음엔 숨김)")
+check('name="website" class="hp"' in pg, "로봇 막는 숨은 칸")
+sy = yaml.safe_load((t / "site.yaml").read_text(encoding="utf-8")); sy["api_url"] = ""
+(t / "site.yaml").write_text(yaml.safe_dump(sy, allow_unicode=True), encoding="utf-8")
+run(t)
+pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check("community.js" not in pg and "data-comments" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
+w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
+check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

@@ -18,6 +18,9 @@ analytics:
   google_site_verification: ""
   naver_site_verification: ""
 
+# 조회수·댓글·좋아요·인기 리포트·요즘 찾는 종목 API(Cloudflare Worker, worker/ 폴더). 비우면 그 기능을 모두 숨긴다.
+api_url: "https://api.drkimworld.com"
+
 newsletter:
   url: ""                        # 스티비 등 구독 페이지 주소. 비어 있으면 구독 상자를 숨김
   label: "새 리포트가 나오면 이메일로 받기 (무료)"

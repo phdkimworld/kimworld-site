@@ -1,0 +1,90 @@
+name: API (views, comments)
+
+# worker/ 가 바뀌거나 손으로 실행하면 Cloudflare에 API를 배포한다.
+# 필요한 GitHub 비밀값: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (없으면 배포를 건너뛴다)
+# 선택: KIMWORLD_ADMIN_TOKEN (관리 화면 비밀번호. 없으면 API 토큰에서 만든 값을 쓴다)
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/api.yml"]
+  workflow_dispatch:
+    inputs:
+      comment_id:
+        description: "관리: 상태를 바꿀 댓글 번호(비우면 배포만)"
+        required: false
+      status:
+        description: "관리: ok(다시 게시) / hidden(숨김) / deleted(삭제)"
+        required: false
+        default: "deleted"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_IN: ${{ secrets.KIMWORLD_ADMIN_TOKEN }}
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test
+        run: node test/test_worker.mjs
+      - name: Check secrets
+        id: chk
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare 비밀값이 없어 배포를 건너뜁니다."; echo "go=no" >> "$GITHUB_OUTPUT"
+          else echo "go=yes" >> "$GITHUB_OUTPUT"; fi
+      - name: Prepare D1 database
+        if: steps.chk.outputs.go == 'yes'
+        run: |
+          W="npx --yes wrangler@3.99.0"
+          ID=$($W d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          if [ -z "$ID" ]; then
+            $W d1 create kimworld
+            ID=$($W d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          fi
+          test -n "$ID"
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+          $W d1 migrations apply kimworld --remote
+      - name: Deploy worker
+        if: steps.chk.outputs.go == 'yes'
+        run: |
+          W="npx --yes wrangler@3.99.0"
+          $W deploy
+          SALT=$(printf '%s' "$CLOUDFLARE_API_TOKEN:salt" | sha256sum | cut -c1-48)
+          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
+          printf '%s' "$SALT" | $W secret put SALT
+          printf '%s' "$ADMIN" | $W secret put ADMIN_TOKEN
+      - name: Health check
+        if: steps.chk.outputs.go == 'yes'
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS https://api.drkimworld.com/v1/health; then exit 0; fi
+            sleep 20
+          done
+          echo "api.drkimworld.com 응답 없음(도메인 연결이 몇 분 걸릴 수 있음)"; exit 1
+      - name: Moderate comment
+        if: steps.chk.outputs.go == 'yes' && github.event.inputs.comment_id != ''
+        env:
+          CID: ${{ github.event.inputs.comment_id }}
+          ST: ${{ github.event.inputs.status }}
+        run: |
+          [[ "$CID" =~ ^[0-9]+$ ]] || { echo "댓글 번호는 숫자"; exit 1; }
+          [[ "$ST" =~ ^(ok|hidden|deleted|held)$ ]] || { echo "상태 값 오류"; exit 1; }
+          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
+          curl -fsS -X POST "https://api.drkimworld.com/v1/admin/comments/$CID" \
+            -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" \
+            -d "{\"status\":\"$ST\"}"

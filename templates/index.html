@@ -19,6 +19,19 @@
     <ul class="chip-list" data-recent></ul>
   </section>
 
+  {% if site.api_url %}
+  <section class="insights" data-insights hidden>
+    <div class="ins-col" data-popular hidden>
+      <h2 class="section-title">많이 본 리포트 <span class="muted ins-sub">최근 7일</span></h2>
+      <ol class="rank" data-popular-list></ol>
+    </div>
+    <div class="ins-col" data-trending hidden>
+      <h2 class="section-title">요즘 많이 찾는 종목 <span class="muted ins-sub">최근 7일 검색</span></h2>
+      <ul class="chip-list" data-trending-list></ul>
+    </div>
+  </section>
+  {% endif %}
+
   <section aria-labelledby="latest-h">
     <h2 id="latest-h" class="section-title">최신 리포트</h2>
     {% if rs %}

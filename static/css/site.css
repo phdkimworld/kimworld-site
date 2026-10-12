@@ -243,3 +243,49 @@ button { font: inherit; color: inherit; }
   a { color: #000; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+/* ---------- 조회수·댓글·인기 ---------- */
+.views { color: var(--muted); }
+.cm-jump { color: var(--muted); }
+.comments { margin: 40px 0 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.comments h2 { font-size: 1.15rem; margin: 0 0 8px; }
+.cm-count { color: var(--accent); }
+.cm-rule { font-size: .8rem; margin: 0 0 12px; }
+.cm-form { display: grid; gap: 8px; margin-bottom: 20px; }
+.cm-form input, .cm-form textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+.cm-form textarea { resize: vertical; min-height: 84px; }
+.cm-form input[name=nick] { max-width: 280px; }
+.cm-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.cm-form-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cm-len { font-size: .75rem; }
+.cm-msg { margin: 0; font-size: .85rem; color: var(--accent); min-height: 1em; }
+.cm-best { margin: 0 0 16px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.cm-best h3 { margin: 0 0 6px; font-size: .9rem; }
+.cm-tabs { display: flex; gap: 6px; margin: 0 0 8px; }
+.cm-tabs button { font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.cm-tabs button[aria-selected=true] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.cm-list { list-style: none; margin: 0; padding: 0; }
+.cm-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.cm-best .cm-item:last-child, .cm-list .cm-item:last-child { border-bottom: 0; }
+.cm-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .85rem; }
+.cm-badge { font-size: .65rem; font-weight: 800; color: var(--accent-ink); background: var(--accent); padding: 1px 6px; border-radius: 4px; }
+.cm-time { font-size: .75rem; }
+.cm-body { margin: 6px 0 8px; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+.cm-act { display: flex; gap: 12px; align-items: center; }
+.cm-like { font: inherit; font-size: .8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; min-height: 32px; }
+.cm-like[aria-pressed=true] { color: #e11d48; border-color: #e11d48; }
+.cm-like:disabled { opacity: .5; cursor: default; }
+.cm-link { font: inherit; font-size: .75rem; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 4px; min-height: 32px; }
+.cm-empty { padding: 16px 0; }
+.insights { display: grid; gap: 16px; grid-template-columns: 1fr; margin: 8px 0 28px; }
+@media (min-width: 860px) { .insights { grid-template-columns: 1.4fr 1fr; } }
+.ins-col { min-width: 0; }
+.ins-sub { font-size: .75rem; font-weight: 400; }
+.rank { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.rank-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.rank-item:last-child { border-bottom: 0; }
+.rank-no { font-weight: 800; color: var(--accent); width: 1.2em; text-align: center; flex: none; }
+.rank-link { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex: 1; color: var(--text); text-decoration: none; }
+.rank-tick { font-weight: 800; font-size: .8rem; flex: none; }
+.rank-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-n { font-size: .75rem; flex: none; }

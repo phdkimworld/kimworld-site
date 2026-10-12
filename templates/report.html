@@ -44,6 +44,8 @@
         <span>공개 <time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time></span>
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
         <span>{{ r.minutes }}분 읽기</span>
+        <span class="views" data-views hidden></span>
+        {% if site.api_url %}<a class="cm-jump" href="#comments" data-cm-jump hidden>댓글</a>{% endif %}
       </p>
       <p class="asof">숫자 기준일 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></p>
       <div class="report-actions">
@@ -106,6 +108,26 @@
     {% endif %}
 
     {{ end_ad|safe }}
+
+    {% if site.api_url %}
+    <section class="comments" id="comments" data-comments hidden aria-labelledby="cm-h">
+      <h2 id="cm-h">댓글 <span class="cm-count" data-cm-count></span></h2>
+      <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>
+      <form class="cm-form" data-cm-form novalidate>
+        <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임">
+        <textarea name="body" maxlength="500" rows="3" placeholder="이 리포트에 대한 생각을 남겨 주세요" aria-label="댓글 내용"></textarea>
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="cm-form-row"><span class="cm-len muted" data-cm-len>0/500</span><button class="btn btn-primary" type="submit">등록</button></div>
+        <p class="cm-msg" data-cm-msg role="status"></p>
+      </form>
+      <div class="cm-best" data-cm-best hidden><h3>베스트 댓글</h3><ol class="cm-list"></ol></div>
+      <div class="cm-tabs" role="tablist" aria-label="정렬">
+        <button type="button" role="tab" data-sort="top" aria-selected="true">인기순</button>
+        <button type="button" role="tab" data-sort="new" aria-selected="false">최신순</button>
+      </div>
+      <ol class="cm-list" data-cm-list></ol>
+    </section>
+    {% endif %}
 
     {% if site.newsletter.url %}
     <aside class="newsletter"><a class="btn btn-primary" href="{{ site.newsletter.url }}" rel="noopener" target="_blank">{{ site.newsletter.label }}</a></aside>

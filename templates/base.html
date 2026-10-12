@@ -87,8 +87,9 @@
   </div>
 </footer>
 <div class="toast" role="status" aria-live="polite"></div>
-<script>window.KW = { base: "{{ base }}" };</script>
+<script>window.KW = { base: "{{ base }}", api: "{{ site.api_url or '' }}" };</script>
 <script src="{{ base }}/static/js/site.js?v={{ asset_ver }}" defer></script>
+{% if site.api_url %}<script src="{{ base }}/static/js/community.js?v={{ asset_ver }}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>
