@@ -234,3 +234,9 @@ DVLT:
   exchange: "NASDAQ"
   theme: "코인·블록체인"
   aliases: ["데이터볼트", "Datavault", "위사 테크놀로지스", "WiSA"]
+SDGR:
+  name: "슈뢰딩거"
+  name_en: "Schrödinger, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["슈뢰딩거", "Schrodinger", "Schrödinger", "번슨", "FEP+"]
