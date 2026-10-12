@@ -1,7 +1,7 @@
 name: API (views, comments)
 
 # worker/ 가 바뀌거나 손으로 실행하면 Cloudflare에 API를 배포한다.
-# 필요한 GitHub 비밀값: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (없으면 배포를 건너뛴다)
+# 필요한 GitHub 비밀값: CLOUDFLARE_API_TOKEN(권한: Account Workers Scripts Edit, Account D1 Edit), CLOUDFLARE_ACCOUNT_ID (없으면 배포를 건너뛴다)
 # 선택: KIMWORLD_ADMIN_TOKEN (관리 화면 비밀번호. 없으면 API 토큰에서 만든 값을 쓴다)
 on:
   push:
@@ -70,6 +70,7 @@ jobs:
           printf '%s' "$ADMIN" | $W secret put ADMIN_TOKEN
       - name: Health check
         if: steps.chk.outputs.go == 'yes'
+        continue-on-error: true   # api.drkimworld.com 연결 전에는 실패해도 배포는 성공으로 둔다
         run: |
           for i in 1 2 3 4 5 6; do
             if curl -fsS https://api.drkimworld.com/v1/health; then exit 0; fi

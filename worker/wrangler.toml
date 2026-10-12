@@ -3,8 +3,9 @@
 name = "kimworld-api"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
-workers_dev = false
-routes = [{ pattern = "api.drkimworld.com", custom_domain = true }]
+# 배포 토큰에는 계정 권한(Workers Scripts, D1)만 있으면 된다. api.drkimworld.com 연결은 Cloudflare 대시보드
+# (Workers & Pages → kimworld-api → Settings → Domains & Routes → Custom domain)에서 한 번 붙인다.
+workers_dev = true
 
 [[d1_databases]]
 binding = "DB"
