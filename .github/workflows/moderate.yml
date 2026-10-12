@@ -54,4 +54,7 @@ jobs:
         run: |
           python3 ../scripts/moderation.py apply "$DECISIONS" /tmp/apply.sql
           cat /tmp/apply.sql
-          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/apply.sql
+          if grep -q UPDATE /tmp/apply.sql; then
+            npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/apply.sql
+            echo "::notice title=APPLIED::$(grep -c UPDATE /tmp/apply.sql) statements"
+          else echo "::notice title=APPLIED::0 statements"; fi
