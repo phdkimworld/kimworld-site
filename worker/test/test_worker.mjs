@@ -261,6 +261,16 @@ check(r1.data.ok && list.data.comments.some((c) => c.nick === "탈퇴한 사용�
 r1 = await call("GET", "/v1/me", { ip: "80.0.0.1", cookie: LA.cookie });
 check(r1.data.loggedIn === false, "탈퇴하면 로그인도 끝남");
 
+console.log("광고 성과");
+r = await call("POST", "/v1/ad/events", { body: { seg: "m.r", e: [{ g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "c" }, { g: "spacec3d4", s: "rail", k: "i" }, { g: "BAD!", s: "report_end", k: "i" }, { g: "x1", s: "nowhere", k: "i" }] }, ip: "90.0.0.1" });
+check(r.data.ok && r.data.n === 2, "올바른 묶음·자리만 받음");
+await call("POST", "/v1/ad/events", { body: { seg: "d.h", e: [{ g: "quantuma1b2", s: "report_end", k: "i" }] }, ip: "90.0.0.2" });
+let st2 = (await DB.prepare("SELECT seg, imps, clicks FROM ad_stats WHERE g = 'quantuma1b2' ORDER BY seg").all()).results;
+check(st2.length === 2 && st2.find((x) => x.seg === "m.r").imps === 1 && st2.find((x) => x.seg === "m.r").clicks === 1, "한 페이지에서 같은 묶음은 노출 1·클릭 1까지만, 환경별로 따로");
+r = await call("POST", "/v1/ad/events", { body: { seg: "phone", e: [{ g: "quantuma1b2", s: "report_end", k: "i" }] }, ip: "90.0.0.3" });
+check(r.data.ok === false, "환경 값이 이상하면 거절");
+check(!JSON.stringify((await DB.prepare("SELECT * FROM ad_stats").all()).results).includes("90.0.0"), "광고 성과에는 IP 없음");
+
 console.log("검색어");
 for (const ip of ["20.0.0.1", "20.0.0.2", "20.0.0.3"]) await call("POST", "/v1/search", { body: { q: "리게티" }, ip });
 await call("POST", "/v1/search", { body: { q: "리게티" }, ip: "20.0.0.3" });

@@ -38,8 +38,9 @@ def authorization(method: str, path: str, query: str, access: str, secret: str, 
     return f"CEA algorithm=HmacSHA256, access-key={access}, signed-date={sd}, signature={sig}"
 
 
-def sub_id(theme_slug: str, idx: int) -> str:
-    return re.sub(r"[^a-z0-9]", "", theme_slug.lower())[:20] + str(idx + 1)
+def sub_id(theme_slug: str, keyword: str) -> str:
+    """하위 ID = 테마 + 검색어 해시 4자리. 검색어를 바꾸면 하위 ID도 바뀌어 성과가 섞이지 않는다."""
+    return re.sub(r"[^a-z0-9]", "", theme_slug.lower())[:16] + hashlib.md5(keyword.encode("utf-8")).hexdigest()[:4]
 
 
 def parse(js: dict) -> list[dict]:
@@ -73,6 +74,74 @@ def search(keyword: str, sid: str, limit: int, access: str, secret: str) -> list
         return parse(json.loads(r.read().decode("utf-8")))
 
 
+REPORT_PATHS = ["/v2/providers/affiliate_open_api/apis/openapi/v1/reports/orders",
+                "/v2/providers/affiliate_open_api/apis/openapi/v1/reports/commission"]
+REPORTS = Path(os.environ.get("COUPANG_REPORTS") or ROOT / ".cache" / "coupang_reports.json")
+
+
+def parse_report(js: dict) -> dict:
+    """실적 응답에서 하위 ID별 주문 수·수수료를 모은다. 필드 이름이 달라도 흔한 이름은 모두 받는다."""
+    rows = js.get("data") if isinstance(js, dict) else None
+    if isinstance(rows, dict):
+        rows = rows.get("data") or rows.get("items") or []
+    by, total = {}, 0.0
+    for x in rows or []:
+        if not isinstance(x, dict):
+            continue
+        sid = str(x.get("subId") or x.get("subid") or x.get("sub_id") or x.get("subParam") or "").lower()
+        com = 0.0
+        for k in ("commission", "commissionAmount", "commission_amount", "amount"):
+            try:
+                if x.get(k) is not None:
+                    com = float(x[k]); break
+            except (TypeError, ValueError):
+                pass
+        total += com
+        if sid:
+            b = by.setdefault(sid, {"orders": 0, "commission": 0.0})
+            b["orders"] += int(x.get("orderCount") or x.get("quantity") or 1)
+            b["commission"] += com
+    return {"by_sub": by, "total": total}
+
+
+def report_get(path: str, query: str, access: str, secret: str) -> dict:
+    req = urllib.request.Request(f"{DOMAIN}{path}?{query}", headers={
+        "Authorization": authorization("GET", path, query, access, secret, dt.datetime.now(dt.timezone.utc)),
+        "Content-Type": "application/json;charset=UTF-8"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def sync_reports(now: dt.datetime, access: str, secret: str, budget: int, getter=report_get) -> int:
+    """하루 한 번, 지난 30일 실적(하위 ID별 주문·수수료)을 받아 학습에 쓴다. 쓴 호출 수를 돌려준다."""
+    try:
+        old = json.loads(REPORTS.read_text(encoding="utf-8"))
+    except Exception:
+        old = {}
+    if budget <= 0 or now.timestamp() - float(old.get("ts", 0)) < 20 * 3600:
+        return 0
+    # 실패해도 시도한 시각을 남겨 하루에 한 번만 시도한다(검색 호출 몫을 뺏지 않게). 이전 실적은 그대로 둔다
+    REPORTS.parent.mkdir(parents=True, exist_ok=True)
+    REPORTS.write_text(json.dumps({**old, "ts": now.timestamp()}, ensure_ascii=False), encoding="utf-8")
+    kst = now.astimezone(dt.timezone(dt.timedelta(hours=9))).date()
+    q = urllib.parse.urlencode({"startDate": (kst - dt.timedelta(days=30)).strftime("%Y%m%d"),
+                                "endDate": (kst - dt.timedelta(days=1)).strftime("%Y%m%d"), "page": 0})
+    used = 0
+    for path in REPORT_PATHS[:budget]:
+        used += 1
+        try:
+            res = parse_report(getter(path, q, access, secret))
+        except Exception as e:
+            print(f"[coupang] 실적 받기 실패({path.rsplit('/', 1)[-1]}): {type(e).__name__}")
+            continue
+        if res["by_sub"] or path.endswith("commission"):
+            REPORTS.parent.mkdir(parents=True, exist_ok=True)
+            REPORTS.write_text(json.dumps({"ts": now.timestamp(), "source": path.rsplit("/", 1)[-1], **res}, ensure_ascii=False), encoding="utf-8")
+            print(f"[coupang] 실적: 하위 ID {len(res['by_sub'])}개, 30일 수수료 합계 {res['total']:.0f}원")
+            break
+    return used
+
+
 def plan(cfg: dict, themes: list[dict]) -> list[dict]:
     slug = {t["name"]: t["slug"] for t in themes}
     jobs = []
@@ -81,11 +150,11 @@ def plan(cfg: dict, themes: list[dict]) -> list[dict]:
             print(f"[coupang] data/themes.yaml 에 없는 테마는 건너뜀: {theme}")
             continue
         for i, kw in enumerate(kws or []):
-            jobs.append({"theme": theme, "keyword": str(kw), "sub_id": sub_id(slug[theme], i), "idx": i})
+            jobs.append({"theme": theme, "keyword": str(kw), "sub_id": sub_id(slug[theme], str(kw)), "idx": i})
     return jobs
 
 
-def run(now: dt.datetime | None = None, searcher=search) -> int:
+def run(now: dt.datetime | None = None, searcher=search, reporter=report_get) -> int:
     now = now or dt.datetime.now(dt.timezone.utc)
     access, secret = os.environ.get("COUPANG_ACCESS_KEY", "").strip(), os.environ.get("COUPANG_SECRET_KEY", "").strip()
     if not access or not secret:
@@ -124,6 +193,10 @@ def run(now: dt.datetime | None = None, searcher=search) -> int:
             continue
         entries[f'{j["theme"]}|{j["keyword"]}'] = {**{k: v for k, v in j.items() if k != "idx"}, "ts": now.timestamp(), "date": now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat(), "products": items}
         done += 1
+    # 상품이 모두 최신이고 호출 여유가 있으면 하루 한 번 실적을 받는다(검색과 같은 시간당 상한 안에서)
+    left = int(cfg.get("max_calls_per_hour", 8)) - len(calls) if len(todo) <= done else 0
+    for _ in range(sync_reports(now, access, secret, min(2, left), reporter)):
+        calls.append(now.timestamp())
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     CACHE.write_text(json.dumps({"entries": entries, "calls": calls}, ensure_ascii=False), encoding="utf-8")
     print(f"[coupang] 새로 받은 검색어 {done}개, 보관 중 {len(entries)}/{len(jobs)}개, 남은 대기 {max(0, len(todo) - done)}개")

@@ -152,6 +152,45 @@ def apply_glossary(body_html: str, glossary: list[dict]) -> tuple[str, list[dict
     return "".join(out), used
 
 
+def ad_weights(ads) -> dict:
+    """쿠팡 상자 학습 자료(정적 파일, 매시 빌드 때 갱신). 브라우저가 이걸 보고 묶음을 고른다(API 부담 없음).
+    - 노출·클릭: Cloudflare 기록(.cache/ad_stats.json, 지난 30일) → 묶음별 합계, 이용 환경별(s), 자리별(l)
+    - 수수료: 쿠팡 실적(.cache/coupang_reports.json, 지난 30일) → 묶음별 주문·수수료"""
+    def load(name):
+        try:
+            return json.loads((ROOT / ".cache" / name).read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    raw = load("ad_stats.json")
+    rows = raw[0].get("results", []) if isinstance(raw, list) and raw else (raw.get("results", []) if isinstance(raw, dict) else [])
+    rep = load("coupang_reports.json").get("by_sub", {})
+    g: dict[str, dict] = {}
+    for gs in ads.c_auto.values():
+        for x in gs:
+            sid = str(x.get("sub_id") or "")
+            if sid:
+                g[sid] = {"t": ads.theme_slug.get(x.get("theme"), ""), "i": 0, "c": 0, "s": {}, "l": {}}
+    tot_i = tot_c = 0
+    for r in rows:
+        sid = str(r.get("g") or "")
+        i, c = int(r.get("imps") or 0), int(r.get("clicks") or 0)
+        tot_i += i; tot_c += c
+        if sid not in g:
+            continue
+        e = g[sid]; e["i"] += i; e["c"] += c
+        for key, k in (("s", str(r.get("seg") or "")), ("l", str(r.get("slot") or ""))):
+            v = e[key].setdefault(k, [0, 0]); v[0] += i; v[1] += c
+    tot_r = 0.0
+    for sid, v in rep.items():
+        if sid in g:
+            g[sid]["r"] = round(float(v.get("commission") or 0)); g[sid]["o"] = int(v.get("orders") or 0)
+        tot_r += float(v.get("commission") or 0)
+    ctr = (tot_c + 2) / (tot_i + 100)                      # 전체 클릭률(자료가 적으면 2%에 가깝게)
+    epc = (tot_r / tot_c) if tot_c and tot_r else 0.0      # 클릭 1번당 평균 수수료(실적이 있을 때만)
+    return {"v": 1, "updated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"),
+            "prior": {"ctr": round(ctr, 5), "n": 40}, "epc": round(epc, 2), "explore": 0.1, "g": g}
+
+
 def chart_info(slug: str) -> dict | None:
     """피드 카드에 붙일 대표 차트(static/charts/<slug>.png)와 크기(레이아웃 밀림 방지)."""
     f = ROOT / "static" / "charts" / f"{slug}.png"
@@ -309,9 +348,10 @@ class Ads:
                      if str(x.get("url", "")).startswith("https://") and not self.bad_hosts(str(x.get("url", "")) + " " + str(x.get("image", "")))]
             if prods:
                 self.c_auto.setdefault(str(e.get("theme")), []).append(
-                    {"keyword": e.get("keyword"), "sub_id": e.get("sub_id"), "date": e.get("date", ""), "products": prods})
+                    {"keyword": e.get("keyword"), "sub_id": e.get("sub_id"), "date": e.get("date", ""), "products": prods, "theme": str(e.get("theme"))})
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
+        self.theme_slug: dict[str, str] = {}  # 테마 이름 → 주소용 이름(build 에서 채움). 맞춤형 광고 선택에 쓴다
         self.place = self.cfg.get("placements") or {}
         # 대화 사이 광고 리듬(first번째 글 뒤부터 every개마다, 최대 max개)
         rh = self.cfg.get("rhythm") or {}
@@ -456,7 +496,7 @@ class Ads:
                     return ""  # 묶음이 상자 수보다 적으면 같은 상품이 두 번 보이지 않게 이 상자는 뺀다
                 ctx["_cp_i"] = first + 1
                 inner = "".join(
-                    f'<div class="cp-group" data-cp-group data-cp-date="{str(g.get("date") or "").replace("-", ".")}"{"" if i == first else " hidden"}><div class="cp-grid">'
+                    f'<div class="cp-group" data-cp-group data-cp-sub="{html.escape(str(g.get("sub_id") or ""))}" data-cp-theme="{html.escape(self.theme_slug.get(g.get("theme"), ""))}" data-cp-date="{str(g.get("date") or "").replace("-", ".")}"{"" if i == first else " hidden"}><div class="cp-grid">'
                     + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div></div>"
                     for i, g in enumerate(groups))
                 # 가격 기준일 문구는 상자에 한 번. 보이는 묶음이 바뀌면 site.js가 날짜를 바꾼다
@@ -509,6 +549,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     ads = Ads(load_yaml(ROOT / "ads.yaml", {}), log)
     themes = load_yaml(ROOT / "data" / "themes.yaml", [])
     theme_by_name = {t["name"]: t for t in themes}
+    ads.theme_slug = {t["name"]: t["slug"] for t in themes}
     tickers = load_yaml(ROOT / "data" / "tickers.yaml", {})
     glossary = load_yaml(ROOT / "data" / "glossary.yaml", [])
     today = dt.datetime.now(KST).date()
@@ -733,6 +774,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "a": r["aliases"], "th": r["theme"], "ts": r["theme_slug"], "s": r["summary"], "d": r["date"].isoformat(),
     } for r in public]
     (out / "search.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (out / "ad-weights.json").write_text(json.dumps(ad_weights(ads), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     su = site["site_url"]
     urls = [(f"{su}/", today)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"]) for r in public]

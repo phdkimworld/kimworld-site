@@ -59,6 +59,24 @@ jobs:
         with:
           path: .cache
           key: coupang-${{ github.run_id }}
+      - name: Ad stats (learning)
+        # 쿠팡 상자 노출·클릭(지난 30일)을 받아 빌드가 ad-weights.json(브라우저가 묶음을 고르는 자료)을 만든다
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: worker
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Cloudflare 비밀값 없음 → 건너뜀"; exit 0; }
+          ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          test -n "$ID"
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+          SINCE=$(date -u -d '30 days ago' +%F)
+          mkdir -p ../.cache
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command \
+            "SELECT g, slot, seg, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= '$SINCE' GROUP BY g, slot, seg" > ../.cache/ad_stats.json
+          python3 -c "import json;d=json.load(open('../.cache/ad_stats.json'));print('광고 성과 줄 수:', len(d[0]['results']))"
       - name: Build
         run: python build.py --strict
       - name: Board notices
@@ -74,7 +92,7 @@ jobs:
           python ../scripts/board_notices.py > /tmp/notices.sql
           ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
           test -n "$ID"
-          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml || true
           npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/notices.sql
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         if: github.event_name != 'pull_request'

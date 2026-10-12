@@ -159,6 +159,12 @@ auth = cs.authorization("GET", "/p", "a=1", "AK", "SK", _dt.datetime(2026, 10, 1
 check(auth.startswith("CEA algorithm=HmacSHA256, access-key=AK, signed-date=261011T220509Z, signature=") and "SK" not in auth, "서명 헤더 형식, 비밀키 노출 없음")
 tmpc = Path(tempfile.mkdtemp()) / "c.json"
 _os.environ["COUPANG_CACHE"] = str(tmpc); cs.CACHE = tmpc
+tmpr = tmpc.parent / "r.json"; _os.environ["COUPANG_REPORTS"] = str(tmpr); cs.REPORTS = tmpr
+rep_calls = []
+def fake_rep(path, q, a, b):
+    rep_calls.append(path)
+    return {"data": [{"date": "20261010", "subId": cs.sub_id("quantum", "양자컴퓨터 책"), "commission": 1200, "orderCount": 1},
+                     {"date": "20261011", "subId": cs.sub_id("quantum", "양자컴퓨터 책"), "commission": 800}]}
 _os.environ.pop("COUPANG_ACCESS_KEY", None)
 check(cs.run() == 0 and not tmpc.exists(), "키가 없으면 호출 없이 통과")
 _os.environ["COUPANG_ACCESS_KEY"] = "AK"; _os.environ["COUPANG_SECRET_KEY"] = "SK"
@@ -170,18 +176,23 @@ def fake(kw, sid, limit, a, b):
             {"name": "제트테스트 굿즈", "url": "https://link.coupang.com/a/z", "image": "", "price": 1, "rocket": True, "rank": 0},
             {"name": "비트코인 채굴기", "url": "https://link.coupang.com/a/b", "image": "", "price": 1, "rocket": True, "rank": 0}]
 now = _dt.datetime(2026, 10, 11, 15, 0, tzinfo=_dt.timezone.utc)
-cs.run(now, fake)
+cs.run(now, fake, fake_rep)
 check(len(seen) == 5, f"한 번에 5번까지만 호출({len(seen)})")
-check([s for _, s in seen] == ["quantum1", "aichips1", "spacedefense1", "humanoids1", "aisoftware1"], "아직 안 받은 테마의 첫 검색어부터")
-cs.run(now + _dt.timedelta(minutes=10), fake)
+_kw0 = yaml.safe_load((SRC / "data/coupang.yaml").read_text(encoding="utf-8"))["keywords"]
+_first = [cs.sub_id(sl, _kw0[nm][0]) for nm, sl in (("양자컴퓨팅", "quantum"), ("AI 반도체", "ai-chips"), ("우주항공·방산", "space-defense"), ("휴머노이드", "humanoids"), ("AI 소프트웨어", "ai-software"))]
+check([s for _, s in seen] == _first, f"아직 안 받은 테마의 첫 검색어부터 ({[s for _, s in seen]})")
+cs.run(now + _dt.timedelta(minutes=10), fake, fake_rep)
 check(len(seen) == 9, "1시간 안에 다시 돌면 시간당 9번까지만(5+4)")
-cs.run(now + _dt.timedelta(minutes=20), fake)
+cs.run(now + _dt.timedelta(minutes=20), fake, fake_rep)
 check(len(seen) == 9, "시간당 상한에 닿으면 더 부르지 않음")
-cs.run(now + _dt.timedelta(minutes=69), fake)
+cs.run(now + _dt.timedelta(minutes=69), fake, fake_rep)
 check(len(seen) == 14, "두 번째 실행 59분 뒤에도 시간당 상한 안에서 5번을 받음")
 for h in range(2, 12):
-    cs.run(now + _dt.timedelta(hours=h), fake)
-check(len(set(seen)) == len(seen) and all(f"{n}" in {s for _, s in seen} for n in ("quantum1", "quantum2", "quantum3")), "같은 검색어를 20시간 안에 다시 받지 않고 결국 모두 받음")
+    cs.run(now + _dt.timedelta(hours=h), fake, fake_rep)
+check(len(set(seen)) == len(seen) and all(cs.sub_id("quantum", k) in {s for _, s in seen} for k in _kw0["양자컴퓨팅"]), "같은 검색어를 20시간 안에 다시 받지 않고 결국 모두 받음")
+_rep = _json.loads(tmpr.read_text(encoding="utf-8")) if tmpr.exists() else {}
+check(len(rep_calls) == 1 and _rep.get("by_sub", {}).get(cs.sub_id("quantum", "양자컴퓨터 책"), {}).get("commission") == 2000, f"상품이 다 최신일 때 하루 한 번 실적(하위 ID별 수수료) 받기 ({len(rep_calls)})")
+check(cs.sub_id("quantum", "양자역학 책") != cs.sub_id("quantum", "양자컴퓨터 책") and re.fullmatch(r"quantum[0-9a-f]{4}", cs.sub_id("quantum", "x")), "하위 ID는 테마+검색어 해시(검색어를 바꾸면 성과가 섞이지 않음)")
 check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 영문 소문자·숫자")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"]["양자컴퓨팅|반도체 전쟁 책"]["date"] = "2026-10-09"
@@ -201,12 +212,12 @@ check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 �
 check(box.count(" hidden") == 2, "스크립트 없이도 묶음 하나만 보임")
 boxes = re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)".*?</aside>', page, flags=re.S)
 check(boxes == ["report_mid", "report_products", "report_end"], f"쿠팡 상자 3개: 중간·본문 끝·출처 아래 ({boxes})")
-shown = [re.search(r'data-cp-group data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
+shown = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
 check(len(set(shown)) == 3, "스크립트 없이도 상자마다 다른 검색어 묶음")
 check(all(b.count('class="cp-note"') == 1 for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)), "가격 기준일 문구는 상자마다 한 번")
 home = notpl((t / "dist/index.html").read_text(encoding="utf-8"))
 check(3 <= home.count('<aside class="ad ') <= 5 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자(목록 1 + 피드 사이), 모든 테마 묶음에서")
-_vis = [re.search(r'data-cp-group data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
+_vis = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
 check(len(set(_vis)) == len(_vis) >= 3, "홈 쿠팡 상자는 서로 다른 묶음")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
 check(th.count("data-cp-group") == 3, "테마 페이지: 그 테마 묶음만")
@@ -219,11 +230,11 @@ subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=Tr
 page2 = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
 check(page2.count("ad-coupang-products") == 2, "묶음이 2개뿐이면 상자도 2개(중복 노출 없음)")
 check("제트테스트 굿즈" not in box and "비트코인" not in box, "다룬 회사·금지어 상품 제외")
-check("12,802원" in box and "로켓배송" in box and "data-cp-sub=\"quantum1\"" in box, "가격·로켓배송·하위 ID 표시")
+check("12,802원" in box and "로켓배송" in box and f'data-cp-sub="{cs.sub_id("quantum", _kw0["양자컴퓨팅"][0])}"' in box, "가격·로켓배송·하위 ID 표시")
 grp = box[box.find("data-cp-group"):]
 check(grp.find("상품 2") < grp.find("상품 0"), "로켓배송 상품을 앞에")
 groups_html = box.split("data-cp-group")[1:]
-check(groups_html[1].startswith(' data-cp-date="2026.10.09"') and "2026.10.09" not in groups_html[0] and box.count("기준이며 바뀔 수 있습니다") == 1,
+check(' data-cp-date="2026.10.09"' in groups_html[1][:200] and "2026.10.09" not in groups_html[0] and box.count("기준이며 바뀔 수 있습니다") == 1,
       "가격 기준일은 묶음마다 data-cp-date로, 문구는 상자에 한 번(보이는 묶음 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
 check(notpl(page).count('<aside class="ad ') <= 5, "본문 광고 5개 이하 유지")
@@ -296,6 +307,22 @@ for bad in ['{"comments":[{"id":"1; DROP TABLE users","status":"ok"}]}', '{"comm
         MOD.cmd_apply(bad, str(_out)); check(False, "잘못된 결정 거절")
     except (ValueError, SystemExit):
         check(True, "잘못된 결정 거절(주입 방지)")
+
+print("12) 광고 학습 자료")
+t = make_project()
+(t / ".cache").mkdir(exist_ok=True)
+shutil.copy(tmpc, t / ".cache/coupang_auto.json")
+_sub = cs.sub_id("quantum", _kw0["양자컴퓨팅"][0])
+(t / ".cache/ad_stats.json").write_text(_json.dumps([{"results": [{"g": _sub, "slot": "report_end", "seg": "m.r", "imps": 400, "clicks": 20},
+    {"g": "unknownsub", "slot": "list", "seg": "d.h", "imps": 100, "clicks": 1}]}]), encoding="utf-8")
+(t / ".cache/coupang_reports.json").write_text(_json.dumps({"by_sub": {_sub: {"orders": 2, "commission": 3000}}}), encoding="utf-8")
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={k: v for k, v in _os.environ.items() if k != "COUPANG_CACHE"})
+aw = _json.loads((t / "dist/ad-weights.json").read_text(encoding="utf-8"))
+gq = aw["g"].get(_sub, {})
+check(gq.get("i") == 400 and gq.get("c") == 20 and gq.get("s", {}).get("m.r") == [400, 20] and gq.get("l", {}).get("report_end") == [400, 20] and gq.get("t") == "quantum", "학습 자료: 묶음별·환경별·자리별 노출·클릭과 테마")
+check(gq.get("r") == 3000 and aw["epc"] > 0 and 0 < aw["prior"]["ctr"] < 0.1 and "unknownsub" not in aw["g"], "학습 자료: 수수료·클릭당 수익·전체 클릭률, 없는 묶음은 뺌")
+pg_l = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check(f'data-cp-sub="{_sub}" data-cp-theme="quantum"' in pg_l, "상자 묶음마다 하위 ID·테마 표시(브라우저가 고르고 기록)")
 
 print("9) 읽기 편의: 접는 상자·표·고정 페이지 조건부 줄")
 sys.path.insert(0, str(SRC)); import build as B

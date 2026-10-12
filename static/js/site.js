@@ -40,7 +40,7 @@
   var report = document.querySelector('.report');
   var SAVED = 'kw-saved', RECENT = 'kw-recent';
   function current() {
-    return report && { u: report.dataset.url, t: report.dataset.title, k: report.dataset.ticker };
+    return report && { u: report.dataset.url, t: report.dataset.title, k: report.dataset.ticker, th: report.dataset.themeSlug || '' };
   }
   function isSaved() { var c = current(); return c && load(SAVED, []).some(function (x) { return x.u === c.u; }); }
   function syncSaveBtn() {
@@ -250,17 +250,6 @@
       .catch(function () { countEl.textContent = '검색 자료를 불러오지 못했습니다. 잠시 뒤 다시 시도하세요.'; });
   }
 
-  // 쿠팡 상품 묶음: 방문마다 하나를 무작위로 보여 준다(검색어별 노출을 고르게 나눠 클릭을 비교하려고)
-  // 한 페이지에 상자가 여럿이면 시작점만 무작위로 정하고 차례로 다른 묶음을 보여 준다(같은 상품이 두 번 보이지 않게)
-  var cpStart = Math.floor(Math.random() * 1000);
-  document.querySelectorAll('.cp-rot').forEach(function (box, bi) {
-    var gs = box.querySelectorAll('[data-cp-group]');
-    if (gs.length < 2) return;
-    var pick = (cpStart + bi) % gs.length;
-    gs.forEach(function (g, i) { g.hidden = i !== pick; });
-    var note = box.parentNode && box.parentNode.querySelector('[data-cp-note]'), dd = gs[pick].getAttribute('data-cp-date');
-    if (note) { note.hidden = !dd; note.querySelector('span').textContent = dd || ''; }
-  });
 })();
 
 // 접힌 상자(이벤트 카드·출처): 주소의 #앵커가 상자 안을 가리키면 펼치고, 인쇄할 때는 모두 펼친다
@@ -328,4 +317,112 @@
   }
   place();
   if (mq.addEventListener) mq.addEventListener('change', place);
+})();
+
+// ---------- 쿠팡 상자: 스스로 배우는 선택 + 성과 기록 ----------
+// · 고르기: ad-weights.json(매시 빌드가 만드는 정적 파일)의 노출·클릭·수수료로 묶음마다 '기대 수익'을 추정한다.
+//   톰슨 샘플링(베타 분포에서 클릭률을 뽑아 비교) → 잘 되는 묶음이 더 자주, 새 묶음도 계속 시험된다. 10%는 무작위로 탐색.
+//   이용 환경(휴대폰/PC × 페이지 종류)과 자리별 성과를 반영하고, 이 브라우저에서 최근 읽은 테마의 상품을 조금 더 우대한다(기록은 이 기기에만).
+// · 기록: 상자가 화면에 절반 이상 1초 보이면 노출, 상품을 누르면 클릭. 페이지를 떠날 때 한 번에 보낸다(API 부담 최소).
+(function () {
+  var KW = window.KW || {}, API = (KW.api || '').replace(/\/+$/, ''), base = KW.base || '';
+  if (!document.querySelector('.ad-coupang-products, template[data-thread-ad]')) return;
+  var mobile = window.matchMedia && matchMedia('(max-width: 759px)').matches;
+  var path = location.pathname.slice(base.length);
+  var pageType = document.querySelector('article.report') ? 'r' : /^\/(index\.html)?$/.test(path) ? 'h' : /^\/t\//.test(path) ? 't' : /^\/theme\//.test(path) ? 'th' : 'o';
+  var SEG = (mobile ? 'm' : 'd') + '.' + pageType;
+  var W = null, used = {}, queue = [], seenBox = new WeakSet();
+
+  // 이 브라우저에서 최근 읽은 리포트의 테마(가까울수록 큰 값)
+  var aff = {};
+  try { (JSON.parse(localStorage.getItem('kw-recent') || '[]')).forEach(function (x, i) { if (x && x.th) aff[x.th] = (aff[x.th] || 0) + Math.max(0, 8 - i) / 8; }); } catch (e) {}
+
+  function gamma(k) { // Marsaglia–Tsang
+    if (k < 1) return gamma(k + 1) * Math.pow(Math.random(), 1 / k);
+    var d = k - 1 / 3, c = 1 / Math.sqrt(9 * d), x, v, u;
+    for (;;) {
+      do { var u1 = Math.random(), u2 = Math.random(); x = Math.sqrt(-2 * Math.log(u1 || 1e-12)) * Math.cos(2 * Math.PI * u2); v = 1 + c * x; } while (v <= 0);
+      v = v * v * v; u = Math.random();
+      if (u < 1 - 0.0331 * x * x * x * x || Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function beta(a, b) { var x = gamma(a), y = gamma(b); return x / (x + y); }
+  function score(sub, theme, slot) {
+    var p = (W && W.prior) || { ctr: 0.02, n: 40 }, g = W && W.g && W.g[sub];
+    var i = 0, c = 0;
+    if (g) {
+      i = g.i; c = g.c;
+      var sg = g.s && g.s[SEG]; if (sg && sg[0] >= 30) { i = sg[0] + 0.3 * g.i; c = sg[1] + 0.3 * g.c; }   // 이 환경 자료가 충분하면 그쪽 위주
+      var sl = g.l && g.l[slot]; if (sl && sl[0] >= 30) { i = 0.5 * i + sl[0]; c = 0.5 * c + sl[1]; }      // 이 자리 자료가 충분하면 반영
+    }
+    var ctr = beta(p.ctr * p.n + c, (1 - p.ctr) * p.n + Math.max(0, i - c));
+    var val = 1; // 클릭 1번당 수수료(실적이 있으면): 묶음 값을 전체 평균 쪽으로 당겨서 쓴다
+    if (W && W.epc > 0 && g) val = ((g.r || 0) + 20 * W.epc) / ((g.c || 0) + 20) / W.epc;
+    var af = 1 + 0.5 * Math.min(1, (aff[theme] || 0) / 2);
+    return ctr * val * af;
+  }
+  function subOf(gr) { return gr.getAttribute('data-cp-sub') || ''; }
+  function showGroup(box, gr) {
+    box.querySelectorAll('[data-cp-group]').forEach(function (x) { x.hidden = x !== gr; });
+    var note = box.querySelector('[data-cp-note]'), dd = gr.getAttribute('data-cp-date');
+    if (note) { note.hidden = !dd; var sp = note.querySelector('span'); if (sp) sp.textContent = dd || ''; }
+  }
+  // 상자 하나에 묶음 고르기(이미 이 페이지에 나온 묶음은 피한다)
+  function choose(box) {
+    var gs = Array.prototype.slice.call(box.querySelectorAll('[data-cp-group]'));
+    if (!gs.length) return;
+    var slot = box.getAttribute('data-slot') || '';
+    var cand = gs.filter(function (g) { return !used[subOf(g)]; }); if (!cand.length) cand = gs;
+    var pick;
+    if (Math.random() < ((W && W.explore) || 0.1)) pick = cand[Math.floor(Math.random() * cand.length)];
+    else { var best = -1; cand.forEach(function (g) { var sc = score(subOf(g), g.getAttribute('data-cp-theme') || '', slot); if (sc > best) { best = sc; pick = g; } }); }
+    used[subOf(pick)] = 1; showGroup(box, pick);
+  }
+  function visibleGroup(box) { return box.querySelector('[data-cp-group]:not([hidden])'); }
+  function inView(el) { var r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; }
+
+  // 노출 기록: 절반 이상 1초
+  var io = window.IntersectionObserver ? new IntersectionObserver(function (es) {
+    es.forEach(function (en) {
+      var box = en.target;
+      if (en.isIntersecting && en.intersectionRatio >= 0.5) {
+        box._t = setTimeout(function () {
+          if (seenBox.has(box)) return;
+          var gr = visibleGroup(box); if (!gr) return;
+          seenBox.add(box); queue.push({ g: subOf(gr), s: box.getAttribute('data-slot') || '', k: 'i' });
+        }, 1000);
+      } else clearTimeout(box._t);
+    });
+  }, { threshold: [0, 0.5] }) : null;
+  function track(box) { if (io && !box._kw) { box._kw = 1; io.observe(box); } }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('.cp-card'); if (!a) return;
+    var box = a.closest('.ad-coupang-products'), gr = a.closest('[data-cp-group]'); if (!box || !gr) return;
+    queue.push({ g: subOf(gr), s: box.getAttribute('data-slot') || '', k: 'c' });
+    flush();
+  }, true);
+  function flush() {
+    if (!queue.length || !API) return;
+    var body = JSON.stringify({ seg: SEG, e: queue.splice(0, 40) });
+    try { if (navigator.sendBeacon && navigator.sendBeacon(API + '/v1/ad/events', body)) return; } catch (e) {}
+    try { fetch(API + '/v1/ad/events', { method: 'POST', body: body, keepalive: true, credentials: 'include' }); } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flush(); });
+  window.addEventListener('pagehide', flush);
+
+  // 대화 사이 광고(댓글·종토방)는 나중에 끼워지므로 community.js가 이걸 부른다
+  window.kwAdNew = function (box) { if (!box) return; choose(box); track(box); };
+
+  // 이 화면에서 실제로 보이는 상자부터 고른다(PC 전용 오른쪽 칸처럼 숨겨진 상자가 좋은 묶음을 먼저 가져가지 않게)
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.ad-coupang-products'))
+    .sort(function (a, b) { return (a.offsetParent === null) - (b.offsetParent === null); });
+  boxes.forEach(function (b) { var g = visibleGroup(b); if (g) used[subOf(g)] = 1; track(b); });
+  fetch(base + '/ad-weights.json', { cache: 'default' }).then(function (r) { return r.json(); }).then(function (w) {
+    W = w; used = {};
+    // 이미 화면에 보이는 상자는 바꾸지 않는다(깜빡임 방지). 나머지는 학습 자료로 다시 고른다
+    boxes.forEach(function (b) { if (inView(b) || seenBox.has(b)) { var g = visibleGroup(b); if (g) used[subOf(g)] = 1; } });
+    boxes.forEach(function (b) { if (!inView(b) && !seenBox.has(b)) choose(b); });
+  }).catch(function () {
+    boxes.forEach(function (b) { if (!inView(b)) choose(b); }); // 자료가 없으면 사전값(전체 평균)으로 고른다
+  });
 })();

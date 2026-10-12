@@ -390,26 +390,16 @@
     }
 
     // 대화 사이 광고: 글이 first개를 넘으면 first번째 글 뒤부터 every개마다, 최대 max개(마지막 글 뒤에는 넣지 않음)
-    var adTpl = box.querySelector('template[data-thread-ad]'), usedGroups = {};
+    var adTpl = box.querySelector('template[data-thread-ad]');
     function placeAds() {
       if (!adTpl) return;
       var first = +box.getAttribute('data-ad-first') || 8, every = +box.getAttribute('data-ad-every') || 8, max = +box.getAttribute('data-ad-max') || 0;
       var items = Array.prototype.slice.call(listEl.children).filter(function (x) { return x.classList.contains('cm-item'); });
-      usedGroups = {};
       for (var i = first, k = 0; i < items.length && k < max; i += every, k++) {
         var frag = document.importNode(adTpl.content, true);
         var li = el('li', 'cm-ad'); li.appendChild(frag);
-        // 쿠팡 상자: 광고마다 다른 상품 묶음
-        var gs = li.querySelectorAll('[data-cp-group]');
-        if (gs.length) {
-          var free = []; for (var g = 0; g < gs.length; g++) if (!usedGroups[g]) free.push(g);
-          if (!free.length) break;
-          var pick = free[Math.floor(Math.random() * free.length)]; usedGroups[pick] = 1;
-          for (g = 0; g < gs.length; g++) gs[g].hidden = g !== pick;
-          var note = li.querySelector('[data-cp-note]'), dd = gs[pick].getAttribute('data-cp-date');
-          if (note) { note.hidden = !dd; var sp = note.querySelector('span'); if (sp) sp.textContent = dd || ''; }
-        }
         items[i - 1].after(li);
+        if (window.kwAdNew) window.kwAdNew(li.querySelector('.ad-coupang-products')); // 학습 자료로 묶음 고르기 + 노출 기록
         if (li.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
       }
     }

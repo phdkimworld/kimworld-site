@@ -1,0 +1,38 @@
+name: Ad report (쿠팡 검색어 성과)
+
+# 2주마다 클로드 예약 작업이 실행해 검색어별 노출·클릭·주문·수수료를 주석으로 받아 본다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Restore Coupang cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache
+          key: coupang-report-${{ github.run_id }}
+          restore-keys: coupang-
+      - name: Stats from Cloudflare
+        working-directory: worker
+        run: |
+          ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          test -n "$ID"
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+          SINCE=$(date -u -d '30 days ago' +%F)
+          mkdir -p ../.cache
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command \
+            "SELECT g, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= '$SINCE' GROUP BY g" > ../.cache/ad_stats_kw.json
+      - name: Report
+        run: python3 scripts/ad_report.py
