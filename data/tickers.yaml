@@ -204,3 +204,9 @@ SES:
   exchange: "NYSE"
   theme: "전기차·배터리"
   aliases: ["에스이에스", "SES AI", "SES AI Corp", "솔리드에너지"]
+MP:
+  name: "MP 머티리얼즈"
+  name_en: "MP Materials Corp."
+  exchange: "NYSE"
+  theme: "광물·자원"
+  aliases: ["엠피 머티리얼즈", "MP머티리얼즈", "MP Materials", "마운틴패스"]
