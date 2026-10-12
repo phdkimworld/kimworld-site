@@ -222,3 +222,9 @@ DNA:
   exchange: "NYSE"
   theme: "바이오·헬스케어"
   aliases: ["징코", "깅코 바이오웍스", "Ginkgo", "Ginkgo Bioworks"]
+NVAX:
+  name: "노바백스"
+  name_en: "Novavax, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["노바백스", "Novavax", "누백소비드", "매트릭스엠"]
