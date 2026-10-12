@@ -44,8 +44,11 @@
   }
   function isSaved() { var c = current(); return c && load(SAVED, []).some(function (x) { return x.u === c.u; }); }
   function syncSaveBtn() {
-    var b = document.querySelector('[data-action="save"]');
-    if (b) { var s = isSaved(); b.setAttribute('aria-pressed', s ? 'true' : 'false'); b.textContent = s ? '저장됨' : '저장'; }
+    var s = isSaved();
+    document.querySelectorAll('[data-action="save"]').forEach(function (b) {
+      b.setAttribute('aria-pressed', s ? 'true' : 'false');
+      var l = b.querySelector('[data-save-label]'); if (l) l.textContent = s ? '저장됨' : '저장';
+    });
   }
   function toggleSave() {
     var c = current(); if (!c) return;
@@ -55,9 +58,15 @@
     save(SAVED, list.slice(0, 50)); syncSaveBtn();
     toast(was ? '저장을 취소했습니다' : '저장했습니다. 홈의 "이어서 읽기"에서 찾을 수 있어요');
   }
-  function share() {
+  function share(btn) {
     var url = location.href.split('#')[0];
     var title = document.title;
+    var su = btn && btn.getAttribute('data-share-url');
+    if (su) { // 피드 카드의 공유 버튼: 그 리포트 주소
+      var bp = (window.KW && KW.base) || '';
+      url = location.origin + (bp && su.indexOf(bp + '/') !== 0 ? bp : '') + su;
+      title = btn.getAttribute('data-share-title') || title;
+    }
     if (navigator.share) {
       navigator.share({ title: title, url: url }).then(function () { track('share', { method: 'native' }); }).catch(function () {});
       return;
@@ -149,7 +158,7 @@
     var a = b.dataset.action;
     if (a === 'font') cycleFont();
     else if (a === 'theme') toggleTheme();
-    else if (a === 'share') share();
+    else if (a === 'share') share(b);
     else if (a === 'save') toggleSave();
     else if (a === 'print') window.print();
     else if (a === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -281,4 +290,42 @@
       lastY = y;
     });
   }, { passive: true });
+})();
+
+// 게시 날짜를 SNS처럼 '3시간 전', '2일 전'으로(30일이 넘으면 날짜 그대로)
+(function () {
+  var now = Date.now();
+  document.querySelectorAll('time[data-ago]').forEach(function (t) {
+    var d = new Date(t.getAttribute('datetime') + (t.getAttribute('datetime').length <= 10 ? 'T00:00:00+09:00' : ''));
+    var s = (now - d.getTime()) / 1000; if (!(s >= 0)) return;
+    var txt = s < 3600 ? '방금' : s < 86400 ? Math.floor(s / 3600) + '시간 전' : s < 86400 * 30 ? Math.floor(s / 86400) + '일 전' : null;
+    if (txt) { t.title = t.textContent; t.textContent = txt; }
+  });
+})();
+
+// 리포트: 휴대폰에서 위쪽 반응 줄이 화면 밖으로 나가면 아래 고정 줄을 띄운다(댓글 칸이 보이면 숨김)
+(function () {
+  var dock = document.querySelector('[data-dock]'), bar = document.querySelector('[data-report-bar]');
+  if (!dock || !bar || !window.IntersectionObserver) return;
+  var barOut = false, cmIn = false;
+  var sync = function () { var on = barOut && !cmIn; dock.hidden = !on; document.body.classList.toggle('has-dock', on); };
+  new IntersectionObserver(function (es) { barOut = !es[0].isIntersecting && es[0].boundingClientRect.top < 0; sync(); }).observe(bar);
+  var cm = document.getElementById('comments');
+  if (cm) new IntersectionObserver(function (es) { cmIn = es[0].isIntersecting; sync(); }).observe(cm);
+})();
+
+// 홈(휴대폰): 인사이트 칸을 피드 네 번째 글 뒤로 옮겨 첫 화면에 글이 먼저 보이게 한다(넓은 화면에서는 오른쪽 칸)
+(function () {
+  var side = document.querySelector('.home-side'), list = document.querySelector('.feed-list');
+  if (!side || !list || !window.matchMedia) return;
+  var home = side.parentNode, mq = matchMedia('(max-width: 999px)');
+  function place() {
+    if (mq.matches) {
+      var posts = list.querySelectorAll(':scope > .post');
+      var after = posts[3] || posts[posts.length - 1];
+      if (after) { var nx = after.nextElementSibling; if (nx && nx.classList.contains('ad')) after = nx; after.after(side); }
+    } else if (side.parentNode !== home) home.insertBefore(side, home.firstChild);
+  }
+  place();
+  if (mq.addEventListener) mq.addEventListener('change', place);
 })();

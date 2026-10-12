@@ -5,7 +5,9 @@ import { readFileSync } from "node:fs";
 import worker, { needsHold } from "../src/index.js";
 
 const sqlite = new DatabaseSync(":memory:");
-sqlite.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+import { readdirSync } from "node:fs";
+for (const f of readdirSync(new URL("../migrations/", import.meta.url)).filter((x) => x.endsWith(".sql")).sort())
+  sqlite.exec(readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8"));
 function stmt(sql, args = []) {
   return {
     bind: (...a) => stmt(sql, a),
@@ -113,6 +115,27 @@ check(r.data.items.length === 3 && r.data.items.every((c) => !("ih" in c) && c.s
 check(r.data.items[0].created >= r.data.items[1].created, "최근 댓글은 새 글 먼저");
 r = await call("GET", "/v1/popular?days=1&limit=50");
 check(r.data.items[0].today === 2 && r.data.days === 1, "오늘 조회수(today) 함께 보냄");
+
+console.log("리포트 좋아요·답글·피드 숫자");
+r = await call("POST", "/v1/like", { body: { slug: "rgti-2026-10" }, ip: "30.0.0.1" });
+check(r.data.likes === 1 && r.data.liked === true, "리포트 좋아요");
+await call("POST", "/v1/like", { body: { slug: "rgti-2026-10" }, ip: "30.0.0.2" });
+r = await call("POST", "/v1/like", { body: { slug: "rgti-2026-10" }, ip: "30.0.0.1" });
+check(r.data.likes === 1 && r.data.liked === false, "다시 누르면 취소");
+list = await call("GET", "/v1/comments?slug=rgti-2026-10");
+const root = list.data.comments.find((c) => !c.parent).id;
+r = await call("POST", "/v1/comments", { body: { slug: "rgti-2026-10", body: "답글입니다", parent: root, t: 8000 }, ip: "31.0.0.1" });
+check(r.data.ok, "답글 등록");
+const reply = r.data.id;
+r = await call("POST", "/v1/comments", { body: { slug: "rgti-2026-10", body: "답글의 답글", parent: reply, t: 8000 }, ip: "31.0.0.2" });
+list = await call("GET", "/v1/comments?slug=rgti-2026-10");
+check(list.data.comments.filter((c) => c.parent === root).length === 2, "답글의 답글은 원래 댓글 아래로(한 단계)");
+r = await call("POST", "/v1/comments", { body: { slug: "soun-2026-10", body: "다른 글 답글", parent: root, t: 8000 }, ip: "31.0.0.3" });
+check(r.status === 400, "다른 글의 댓글에는 답글 불가");
+r = await call("GET", "/v1/stats?slugs=rgti-2026-10,soun-2026-10", { ip: "30.0.0.2" });
+const st = r.data.stats["rgti-2026-10"];
+check(st.likes === 1 && st.liked === true && st.comments >= 6 && st.top && !st.top.body.includes("답글"), "피드 숫자: 좋아요·내 좋아요·댓글 수·대표 댓글(답글 제외)");
+check(r.data.stats["soun-2026-10"].top === null && r.headers.get("Cache-Control") === "no-store", "댓글 없으면 대표 댓글 없음, 개인별 값이라 캐시 안 함");
 
 console.log("검색어");
 for (const ip of ["20.0.0.1", "20.0.0.2", "20.0.0.3"]) await call("POST", "/v1/search", { body: { q: "리게티" }, ip });

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card %}
+{% from "_macros.html" import card, icon %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.ticker }} {{ r.company }} — {{ r.title }} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ r.summary }}{% endblock %}
@@ -45,13 +45,14 @@
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
         <span>{{ r.minutes }}분 읽기</span>
         <span class="views" data-views hidden></span>
-        {% if site.api_url %}<a class="cm-jump" href="#comments" data-cm-jump hidden>댓글</a>{% endif %}
       </p>
       <p class="asof">숫자 기준일 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></p>
-      <div class="report-actions">
-        <button type="button" class="btn" data-action="share">공유하기</button>
-        <button type="button" class="btn" data-action="save" aria-pressed="false">저장</button>
-        <button type="button" class="btn" data-action="print">인쇄</button>
+      <div class="report-actions post-actions report-bar" data-report-bar>
+        <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span><span class="pa-txt">좋아요</span></button>
+        <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span><span class="pa-txt">댓글</span></a>
+        <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}<span class="pa-txt">공유</span></button>
+        <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}<span class="pa-txt" data-save-label>저장</span></button>
+        <button type="button" class="pa pa-print" data-action="print" aria-label="인쇄">{{ icon('print') }}</button>
       </div>
     </header>
 
@@ -162,7 +163,7 @@
     {% if r.related %}
     <section class="more" aria-labelledby="more-r">
       <h2 id="more-r">같은 테마 리포트</h2>
-      <div class="cards cards-2">{% for x in r.related %}{{ card(x, base, false) }}{% endfor %}</div>
+      <div class="cards cards-2">{% for x in r.related %}{{ card(x, base, false, false) }}{% endfor %}</div>
     </section>
     {% endif %}
 
@@ -189,6 +190,13 @@
   </aside>
   {% endif %}
 </div>
+<nav class="report-dock post-actions" data-dock aria-label="리포트 반응" hidden data-slug="{{ r.slug }}">
+  <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>
+  <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span></a>
+  <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}</button>
+  <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}</button>
+  <button type="button" class="pa" data-action="top" aria-label="맨 위로"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+</nav>
 <button type="button" class="to-top" data-action="top" aria-label="맨 위로">↑</button>
 <div class="term-pop" role="tooltip" hidden></div>
 {% endblock %}

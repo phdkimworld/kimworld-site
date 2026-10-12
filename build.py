@@ -152,6 +152,20 @@ def apply_glossary(body_html: str, glossary: list[dict]) -> tuple[str, list[dict
     return "".join(out), used
 
 
+def chart_info(slug: str) -> dict | None:
+    """피드 카드에 붙일 대표 차트(static/charts/<slug>.png)와 크기(레이아웃 밀림 방지)."""
+    f = ROOT / "static" / "charts" / f"{slug}.png"
+    if not f.exists():
+        return None
+    try:
+        from PIL import Image
+        with Image.open(f) as im:
+            w, h = im.size
+    except Exception:
+        w, h = 1080, 1080
+    return {"src": f"/static/charts/{slug}.png", "w": w, "h": h}
+
+
 def wrap_tables(html_in: str, extra: str = "") -> str:
     """표를 가로 스크롤 상자로 감싼다(표 자체는 폭을 꽉 채우고, 넘칠 때만 상자 안에서 밀린다)."""
     cls = ("table-wrap " + extra).strip()
@@ -547,6 +561,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "title": str(meta["title"]), "theme": meta["theme"], "theme_slug": theme_by_name[meta["theme"]]["slug"],
             "date": d, "updated": upd, "data_as_of": asof, "summary": str(meta["summary"]).strip(),
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],
+            "chart": chart_info(slug),
             "youtube_id": str(meta.get("youtube_id") or "").strip(),
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,

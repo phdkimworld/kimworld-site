@@ -18,6 +18,10 @@
     <h2 id="rv-h" class="section-title">이어서 읽기</h2>
     <ul class="chip-list" data-recent></ul>
   </section>
+</div>
+
+<div class="wrap home-grid">
+  <aside class="home-side" aria-label="독자 인사이트">
 
   {% if site.api_url %}
   <section class="insights" data-insights hidden aria-label="독자 인사이트">
@@ -46,12 +50,15 @@
   </section>
   {% endif %}
 
-  <section aria-labelledby="latest-h">
-    <h2 id="latest-h" class="section-title">최신 리포트</h2>
+  </aside>
+
+  <section class="feed" aria-labelledby="latest-h">
+    <h2 id="latest-h" class="section-title">새 리포트</h2>
     {% if rs %}
-    <div class="cards">
-      {% for r in rs[:6] %}{{ card(r, base) }}{% endfor %}
+    <div class="feed-list">
+      {% for r in rs[:30] %}{{ card(r, base) }}{% if loop.index == 4 %}{{ list_ad|safe }}{% endif %}{% endfor %}
     </div>
+    {% if rs|length < 4 %}{{ list_ad|safe }}{% endif %}
     {% else %}
     <div class="empty">
       <p><strong>첫 리포트를 준비하고 있습니다.</strong></p>
@@ -59,16 +66,9 @@
     </div>
     {% endif %}
   </section>
+</div>
 
-  {{ list_ad|safe }}
-
-  {% if rs|length > 6 %}
-  <section aria-labelledby="more-h">
-    <h2 id="more-h" class="section-title">지난 리포트</h2>
-    <div class="cards">{% for r in rs[6:24] %}{{ card(r, base) }}{% endfor %}</div>
-  </section>
-  {% endif %}
-
+<div class="wrap">
   {% if ticker_list %}
   <section aria-labelledby="tick-h">
     <h2 id="tick-h" class="section-title">종목별로 보기</h2>

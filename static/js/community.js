@@ -23,6 +23,15 @@
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
+  // 닉네임 첫 글자 동그라미(닉네임마다 색이 정해짐)
+  function avatar(nick) {
+    var n = String(nick || '?'), h = 0;
+    for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+    var a = el('span', 'cm-av', n.replace(/^익명#/, '익').charAt(0));
+    a.style.background = 'hsl(' + (h % 360) + ' 42% 46%)';
+    a.setAttribute('aria-hidden', 'true');
+    return a;
+  }
   function ago(ms) {
     var s = Math.max(0, (Date.now() - ms) / 1000);
     if (s < 60) return '방금';
@@ -42,6 +51,54 @@
     }).catch(function () {});
   }
 
+  // ---------- 게시물 반응(피드 카드·리포트 공통): 좋아요·댓글 수·조회수·대표 댓글 ----------
+  function postSlug(n) { var c = n.closest('[data-slug]'); return c && c.getAttribute('data-slug'); }
+  function setLike(sl, likes, on) {
+    document.querySelectorAll('[data-post-like]').forEach(function (b) {
+      if (postSlug(b) !== sl) return;
+      b.hidden = false; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.querySelector('[data-n]').textContent = likes ? num(likes) : '';
+    });
+  }
+  var postEls = Array.prototype.slice.call(document.querySelectorAll('[data-post-like]'));
+  var slugs = postEls.map(postSlug).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+  if (slugs.length) {
+    api('/v1/stats?slugs=' + slugs.slice(0, 60).join(',')).then(function (d) {
+      var st = d.stats || {};
+      Object.keys(st).forEach(function (sl) {
+        var x = st[sl];
+        setLike(sl, x.likes, x.liked);
+        document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === sl) n.textContent = x.comments ? num(x.comments) : ''; });
+        document.querySelectorAll('[data-post-views]').forEach(function (n) {
+          if (postSlug(n) !== sl || !x.views) return;
+          n.textContent = num(x.views); n.parentNode.hidden = false;
+        });
+        document.querySelectorAll('[data-post-top]').forEach(function (n) {
+          if (postSlug(n) !== sl || !x.top) return;
+          n.textContent = '';
+          n.appendChild(avatar(x.top.nick));
+          var t = el('span', 'post-top-txt');
+          t.appendChild(el('strong', null, x.top.nick + ' '));
+          t.appendChild(document.createTextNode(x.top.body));
+          n.appendChild(t);
+          if (x.top.likes) n.appendChild(el('span', 'post-top-n muted', '♥ ' + num(x.top.likes)));
+          n.hidden = false;
+        });
+      });
+    }).catch(function () {});
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-post-like]'); if (!b) return;
+    var sl = postSlug(b); if (!sl || b.disabled) return;
+    var on = b.getAttribute('aria-pressed') !== 'true';
+    b.classList.remove('pop'); void b.offsetWidth; if (on) b.classList.add('pop');
+    b.disabled = true;
+    api('/v1/like', { method: 'POST', body: { slug: sl } }).then(function (d) {
+      b.disabled = false;
+      if (d._status === 200) setLike(sl, d.likes, d.liked);
+    }).catch(function () { b.disabled = false; });
+  });
+
   // ---------- 리포트: 댓글 ----------
   var box = document.querySelector('[data-comments]');
   if (box && slug) {
@@ -55,14 +112,16 @@
     var startedAt = 0;
     var liked = {};
 
-    function item(c, isBest) {
-      var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : ''));
+    function item(c, isBest, canReply) {
+      var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : ''));
+      li.appendChild(avatar(c.nick));
+      var main = el('div', 'cm-main'); li.appendChild(main);
       var head = el('div', 'cm-head');
       if (isBest) head.appendChild(el('span', 'cm-badge', 'BEST'));
       head.appendChild(el('strong', 'cm-nick', c.nick));
       head.appendChild(el('span', 'cm-time muted', ago(c.created)));
-      li.appendChild(head);
-      li.appendChild(el('p', 'cm-body', c.body));
+      main.appendChild(head);
+      main.appendChild(el('p', 'cm-body', c.body));
       var act = el('div', 'cm-act');
       var like = el('button', 'cm-like', '♥ ' + num(c.likes));
       like.type = 'button';
@@ -80,6 +139,11 @@
         }).catch(function () { like.disabled = false; });
       });
       act.appendChild(like);
+      if (canReply) {
+        var rb = el('button', 'cm-link', '답글'); rb.type = 'button';
+        rb.addEventListener('click', function () { openReply(c.parent || c.id, c.nick); });
+        act.appendChild(rb);
+      }
       if (c.mine) {
         var del = el('button', 'cm-link', '삭제'); del.type = 'button';
         del.addEventListener('click', function () {
@@ -95,8 +159,33 @@
         });
         act.appendChild(rep);
       }
-      li.appendChild(act);
+      main.appendChild(act);
       return li;
+    }
+
+    // 답글 쓰기: 원래 댓글의 답글 묶음 아래에 작은 입력 칸을 연다(답글은 한 단계)
+    function openReply(rootId, toNick) {
+      var old = listEl.querySelector('.cm-reply-form'); if (old) old.remove();
+      var wrap = listEl.querySelector('[data-root="' + rootId + '"]'); if (!wrap) return;
+      var f = el('form', 'cm-reply-form'), started = 0;
+      var t = el('textarea'); t.rows = 2; t.maxLength = 500; t.placeholder = toNick + '님에게 답글'; t.setAttribute('aria-label', '답글 내용');
+      t.addEventListener('input', function () { if (!started) started = Date.now(); });
+      var row = el('div', 'cm-form-row'), m = el('span', 'cm-msg muted');
+      var cancel = el('button', 'cm-link', '취소'); cancel.type = 'button'; cancel.addEventListener('click', function () { f.remove(); });
+      var ok = el('button', 'btn btn-primary', '답글 등록'); ok.type = 'submit';
+      row.appendChild(m); row.appendChild(cancel); row.appendChild(ok);
+      f.appendChild(t); f.appendChild(row);
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); ok.disabled = true;
+        api('/v1/comments', { method: 'POST', body: { slug: slug, nick: form.nick.value, body: t.value, website: '', parent: rootId, t: started ? Date.now() - started : 0 } })
+          .then(function (d) {
+            ok.disabled = false;
+            if (!d.ok) { m.textContent = d.message || '등록하지 못했습니다.'; return; }
+            if (d.status === 'held') { m.textContent = d.message; return; }
+            load().catch(function () {});
+          }).catch(function () { ok.disabled = false; m.textContent = '등록하지 못했습니다.'; });
+      });
+      wrap.appendChild(f); t.focus();
     }
 
     function load() {
@@ -107,6 +196,7 @@
         if (jump) { jump.hidden = false; jump.textContent = '댓글 ' + (d.comments.length ? num(d.comments.length) : ''); }
         liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
         countEl.textContent = d.comments.length ? num(d.comments.length) : '';
+        document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === slug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
         var nickInput = form.querySelector('[name=nick]');
         if (nickInput && !nickInput.value) nickInput.placeholder = '닉네임 (비우면 ' + d.me + ')';
         var bol = bestEl.querySelector('ol'); bol.textContent = '';
@@ -114,7 +204,23 @@
         bestEl.hidden = !(d.best && d.best.length);
         listEl.textContent = '';
         if (!d.comments.length) listEl.appendChild(el('li', 'cm-empty muted', '첫 댓글을 남겨 주세요.'));
-        d.comments.forEach(function (c) { listEl.appendChild(item(c, false)); });
+        // 원 댓글(정렬 순서 유지) 아래에 답글을 시간순으로
+        var roots = d.comments.filter(function (c) { return !c.parent; }), kids = {};
+        d.comments.filter(function (c) { return c.parent; }).sort(function (a, b) { return a.created - b.created; })
+          .forEach(function (c) { (kids[c.parent] = kids[c.parent] || []).push(c); });
+        roots.forEach(function (c) {
+          var li = item(c, false, true);
+          var rw = el('div', 'cm-thread'); rw.setAttribute('data-root', c.id);
+          var rs = kids[c.id] || [];
+          if (rs.length) {
+            var ul = el('ul', 'cm-replies');
+            rs.forEach(function (r) { ul.appendChild(item(r, false, true)); });
+            rw.appendChild(ul);
+          }
+          li.querySelector('.cm-main').appendChild(rw);
+          listEl.appendChild(li);
+        });
+        d.roots = roots;
         if (sort === 'top') renderTop(d);
       });
     }
@@ -124,10 +230,10 @@
     function renderTop(d) {
       if (!topEl) return;
       var seen = {};
-      var picks = (d.best || []).concat(d.comments.filter(function (c) { return c.likes > 0; }))
+      var picks = (d.best || []).concat(d.roots.filter(function (c) { return c.likes > 0; }))
         .filter(function (c) { if (seen[c.id]) return false; seen[c.id] = 1; return true; }).slice(0, 2);
       var hot = picks.length > 0;
-      if (!hot) picks = d.comments.slice(0, 1); // 아직 좋아요가 없으면 가장 최근 댓글 하나
+      if (!hot) picks = d.roots.slice(0, 1); // 아직 좋아요가 없으면 가장 최근 댓글 하나
       topEl.querySelector('.cm-top-title').textContent = hot ? '인기 댓글' : '최근 댓글';
       var ol = topEl.querySelector('ol'); ol.textContent = '';
       var bestIds = (d.best || []).map(function (b) { return b.id; });

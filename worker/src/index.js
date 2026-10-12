@@ -47,7 +47,7 @@ export function needsHold(text) {
 }
 
 function publicComment(c, ih) {
-  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, mine: !!ih && c.ih === ih };
+  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, mine: !!ih && c.ih === ih };
 }
 
 async function readJson(req) {
@@ -86,16 +86,42 @@ export default {
         return json(req, { views: row?.n || 0 });
       }
       if (p === "/v1/stats" && req.method === "GET") {
+        // 피드 카드용: 조회·좋아요·댓글 수, 내가 좋아요 했는지, 대표 댓글 하나(좋아요 많은 순 → 최신)
         const slugs = (url.searchParams.get("slugs") || "").split(",").filter((s) => SLUG_RE.test(s)).slice(0, 60);
         if (!slugs.length) return json(req, { stats: {} });
         const q = slugs.map(() => "?").join(",");
-        const v = await db.prepare(`SELECT slug, n FROM views_total WHERE slug IN (${q})`).bind(...slugs).all();
-        const c = await db.prepare(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${q}) GROUP BY slug`).bind(...slugs).all();
+        const [v, l, c, mine, top] = await Promise.all([
+          db.prepare(`SELECT slug, n FROM views_total WHERE slug IN (${q})`).bind(...slugs).all(),
+          db.prepare(`SELECT slug, n FROM likes_total WHERE slug IN (${q})`).bind(...slugs).all(),
+          db.prepare(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${q}) GROUP BY slug`).bind(...slugs).all(),
+          db.prepare(`SELECT slug FROM post_likes WHERE ih = ? AND slug IN (${q})`).bind(ih, ...slugs).all(),
+          db.prepare(`SELECT slug, nick, body, likes, created FROM (SELECT slug, nick, body, likes, created,
+              ROW_NUMBER() OVER (PARTITION BY slug ORDER BY likes DESC, created DESC) AS rn
+              FROM comments WHERE status = 'ok' AND parent_id IS NULL AND slug IN (${q})) WHERE rn = 1`).bind(...slugs).all(),
+        ]);
         const stats = {};
-        for (const s of slugs) stats[s] = { views: 0, comments: 0 };
+        for (const s of slugs) stats[s] = { views: 0, likes: 0, comments: 0, liked: false, top: null };
         for (const r of v.results || []) stats[r.slug].views = r.n;
+        for (const r of l.results || []) stats[r.slug].likes = r.n;
         for (const r of c.results || []) stats[r.slug].comments = r.n;
-        return json(req, { stats }, 200, { "Cache-Control": "public, max-age=60" });
+        for (const r of mine.results || []) stats[r.slug].liked = true;
+        for (const r of top.results || []) stats[r.slug].top = { nick: r.nick, body: r.body.length > 70 ? r.body.slice(0, 70) + "…" : r.body, likes: r.likes, created: r.created };
+        return json(req, { stats }, 200, { "Cache-Control": "no-store" });
+      }
+      if (p === "/v1/like" && req.method === "POST") {
+        const { slug } = await readJson(req);
+        if (!SLUG_RE.test(slug || "")) return json(req, { error: "slug" }, 400);
+        const ins = await db.prepare("INSERT OR IGNORE INTO post_likes (slug, ih, created) VALUES (?, ?, ?)").bind(slug, ih, now).run();
+        if (ins.meta?.changes) {
+          await db.prepare("INSERT INTO likes_total (slug, n) VALUES (?, 1) ON CONFLICT(slug) DO UPDATE SET n = n + 1").bind(slug).run();
+        } else { // 한 번 더 누르면 취소
+          await db.batch([
+            db.prepare("DELETE FROM post_likes WHERE slug = ? AND ih = ?").bind(slug, ih),
+            db.prepare("UPDATE likes_total SET n = MAX(n - 1, 0) WHERE slug = ?").bind(slug),
+          ]);
+        }
+        const row = await db.prepare("SELECT n FROM likes_total WHERE slug = ?").bind(slug).first();
+        return json(req, { likes: row?.n || 0, liked: !!ins.meta?.changes });
       }
       if (p === "/v1/popular" && req.method === "GET") {
         const days = Math.min(30, Math.max(1, parseInt(url.searchParams.get("days") || "7", 10) || 7));
@@ -139,7 +165,7 @@ export default {
         if (!SLUG_RE.test(slug)) return json(req, { error: "slug" }, 400);
         const sort = url.searchParams.get("sort") === "top" ? "likes DESC, created DESC" : "created DESC";
         const list = await db.prepare(`SELECT * FROM comments WHERE slug = ? AND status = 'ok' ORDER BY ${sort} LIMIT 200`).bind(slug).all();
-        const best = await db.prepare("SELECT * FROM comments WHERE slug = ? AND status = 'ok' AND likes >= ? ORDER BY likes DESC, created ASC LIMIT ?")
+        const best = await db.prepare("SELECT * FROM comments WHERE slug = ? AND status = 'ok' AND parent_id IS NULL AND likes >= ? ORDER BY likes DESC, created ASC LIMIT ?")
           .bind(slug, LIMITS.bestMinLikes, LIMITS.bestCount).all();
         const liked = await db.prepare("SELECT l.cid FROM comment_likes l JOIN comments c ON c.id = l.cid WHERE c.slug = ? AND l.ih = ?").bind(slug, ih).all();
         return json(req, {
@@ -164,9 +190,16 @@ export default {
           .bind(now - 60e3, ih, now - 864e5).first();
         if ((recent?.m || 0) >= LIMITS.perMinute || (recent?.d || 0) >= LIMITS.perDay)
           return json(req, { error: "rate", message: "잠시 뒤에 다시 써 주세요." }, 429);
+        // 답글: 한 단계만. 답글에 단 답글은 원래 댓글 아래로 모은다
+        let parent = null;
+        if (b.parent != null) {
+          const pc = await db.prepare("SELECT id, slug, status, parent_id FROM comments WHERE id = ?").bind(parseInt(b.parent, 10) || 0).first();
+          if (!pc || pc.slug !== slug || pc.status !== "ok") return json(req, { error: "parent", message: "답글을 달 댓글을 찾지 못했습니다." }, 400);
+          parent = pc.parent_id || pc.id;
+        }
         const status = needsHold(body) ? "held" : "ok";
-        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, created, status) VALUES (?, ?, ?, ?, ?, ?)")
-          .bind(slug, nick, body, ih, now, status).run();
+        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, created, status, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .bind(slug, nick, body, ih, now, status, parent).run();
         return json(req, {
           ok: true, status, id: r.meta?.last_row_id,
           message: status === "held" ? "링크·연락처·홍보로 보이는 내용이 있어 확인 뒤 게시됩니다." : "",
