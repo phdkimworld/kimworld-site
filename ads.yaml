@@ -42,7 +42,7 @@ coupang:
 
 # 자리별로 어떤 광고를 낼지 정한다. 쓸 수 있는 값:
 #   adsense_in_article, adsense_display, adfit_report_end, adfit_list, coupang_banner, coupang_products, none
-# 리포트 페이지 광고는 최대 4개(report_* 자리 합계). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
+# 리포트 본문 광고는 최대 5개(report_* 자리 합계, 짧은 리포트는 4개). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
 # 값을 [가, 나] 목록으로 쓰면 앞에서부터 실제로 낼 수 있는 첫 광고를 낸다.
 placements:
   report_mid: [adfit_report_mid, coupang_products]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
@@ -50,10 +50,14 @@ placements:
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)
   list: coupang_products                # 홈·테마·종목 목록 페이지 (한 개만)
-  feed_inline: coupang_products         # 홈 피드 사이 추가 자리(12번째·20번째 글 뒤). 홈 광고는 list 포함 최대 3개
+  report_late: coupang_products         # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 본문 상자와 다른 테마 상품
+  rail: coupang_products                # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
+  feed_inline: coupang_products         # 홈 피드 사이(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
   thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
 
-# 대화(댓글·종토방) 사이 광고 리듬. 글이 적을 때는 광고를 넣지 않는다(대화보다 광고가 먼저 보이지 않게).
+# 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).
+# 간격은 5개 이상, 최대 개수는 아래 값이 상한(빌드가 검사).
 rhythm:
-  report_comments: {first: 8, every: 8, max: 2}   # 리포트 댓글: 8번째 원 댓글 뒤부터 8개마다, 최대 2개(본문 광고 4개와 별도)
-  board: {first: 5, every: 8, max: 3}             # 종토방: 5번째 글 뒤, 이후 8개마다, 최대 3개(목록 광고 포함 페이지 최대 4개)
+  report_comments: {first: 6, every: 6, max: 3}   # 리포트 댓글
+  board: {first: 4, every: 6, max: 4}             # 종토방(종목 페이지 목록 광고와 별도)
+  home_feed: {first: 4, every: 6, max: 5}         # 홈 피드: 4번째 글 뒤(목록 광고) → 10·16·22·28번째 뒤

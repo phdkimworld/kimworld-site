@@ -209,8 +209,9 @@ def fold_event_cards(body_html: str) -> str:
     return body_html
 
 
-def split_for_ads(body_html: str, want_mid: bool, want_products: bool) -> list[tuple[str, str]]:
-    """본문을 광고 자리에서 나눈다. 반환: [("html", 조각) | ("ad", 자리이름)]"""
+def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late: bool = False) -> list[tuple[str, str]]:
+    """본문을 광고 자리에서 나눈다. 반환: [("html", 조각) | ("ad", 자리이름)]
+    want_late: 긴 리포트에서 본문 4분의 3쯤 소제목 앞에 한 자리 더(가운데 광고와 끝 광고 사이가 너무 멀지 않게)."""
     h2 = [m.start() for m in re.finditer(r"<h2[\s>]", body_html)]
     mid = h2[2] if want_mid and len(h2) >= 3 else -1
     prod = -1
@@ -230,7 +231,12 @@ def split_for_ads(body_html: str, want_mid: bool, want_products: bool) -> list[t
                 prod = min(later, key=lambda p: abs(p - len(body_html) / 2))
         if prod == mid:
             prod = -1  # 두 광고가 붙으면 아래쪽을 끈다
-    cuts = sorted([(p, n) for p, n in ((mid, "report_mid"), (prod, "report_products")) if p >= 0])
+    late = -1
+    if want_late:
+        cands = [p for p in h2 if p > max(mid, prod) + 1 and p < len(body_html) * 0.9]
+        if cands:
+            late = min(cands, key=lambda p: abs(p - len(body_html) * 0.75))
+    cuts = sorted([(p, n) for p, n in ((mid, "report_mid"), (prod, "report_products"), (late, "report_late")) if p >= 0])
     out, last = [], 0
     for p, n in cuts:
         if p > last:
@@ -312,9 +318,12 @@ class Ads:
         def _r(k, d):
             v = rh.get(k) or {}
             return {"first": int(v.get("first", d[0])), "every": int(v.get("every", d[1])), "max": int(v.get("max", d[2]))}
-        self.rhythm = {"report_comments": _r("report_comments", (8, 8, 2)), "board": _r("board", (5, 8, 3))}
-        if self.rhythm["report_comments"]["max"] > 2 or self.rhythm["board"]["max"] > 3:
-            log.err("ads.yaml rhythm: 리포트 댓글 사이 광고는 최대 2개, 종토방은 최대 3개")
+        self.rhythm = {"report_comments": _r("report_comments", (6, 6, 3)), "board": _r("board", (4, 6, 4)),
+                       "home_feed": _r("home_feed", (4, 6, 5))}
+        if self.rhythm["report_comments"]["max"] > 3 or self.rhythm["board"]["max"] > 4 or self.rhythm["home_feed"]["max"] > 5:
+            log.err("ads.yaml rhythm: 리포트 댓글 사이 최대 3개, 종토방 최대 4개, 홈 피드 최대 5개")
+        if min(self.rhythm[k]["every"] for k in self.rhythm) < 5:
+            log.err("ads.yaml rhythm: 광고 사이 간격(every)은 글 5개 이상")
         valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
@@ -643,22 +652,28 @@ def build(drafts=False, strict=False, out: Path = DIST):
         pieces = []
         mid_html = ads.render("report_mid", ad_ctx)
         prod_html = ads.render("report_products", ad_ctx)
-        for kind, val in split_for_ads(body, bool(mid_html), bool(prod_html)):
+        # 긴 리포트(본문 1만 5천 자 이상)만 4분의 3 지점에 한 자리 더. 본문 상자와 겹치지 않게 다른 테마 상품에서
+        far_ctx = {"theme": "*", "skip_theme": r["theme"], "exclude": exclude}
+        late_html = ads.render("report_late", far_ctx) if r["chars"] >= 15000 else ""
+        slot_html = {"report_mid": mid_html, "report_products": prod_html, "report_late": late_html}
+        for kind, val in split_for_ads(body, bool(mid_html), bool(prod_html), bool(late_html)):
             if kind == "html":
                 pieces.append(val)
             else:
-                pieces.append(mid_html if val == "report_mid" else prod_html)
+                pieces.append(slot_html[val])
+        # 넓은 화면 오른쪽 목차 아래에 따라 내려오는 상자(휴대폰에서는 안 보임)
+        rail_html = ads.render("rail", far_ctx)
         end_html = ads.render("report_end", ad_ctx)
         bottom_html = "" if r["sponsor"] else ads.render("report_bottom", ad_ctx)
         used_ads = [x for x in pieces if x.startswith('<aside class="ad')] + [x for x in (end_html, bottom_html) if x]
-        if len(used_ads) > 4:
-            log.err(f"{r['slug']}: 광고가 4개를 넘습니다")
+        if len(used_ads) > 5:
+            log.err(f"{r['slug']}: 본문 광고가 5개를 넘습니다")
         has_coupang = any("ad-coupang" in x for x in used_ads)
         og_rel = f"og/{r['slug']}.png"
         r["og_image"] = f"{site['site_url']}/{og_rel}" if make_og(og_dir / f"{r['slug']}.png", r, site, og_font) else f"{site['site_url']}/static/og-default.png"
         # 댓글 사이 광고(댓글이 쌓였을 때만 화면에서 끼워 넣음): 다른 테마 상품 묶음에서 골라 본문 상자와 겹치지 않게
         thread_ad = ads.render("thread_inline", {"theme": "*", "skip_theme": r["theme"], "exclude": exclude})
-        write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad,
+        write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad, rail_ad=rail_html,
               bottom_ad=bottom_html, has_coupang=has_coupang, terms=used_terms, today=today,
               stale=(today - r["data_as_of"]).days > int(site.get("stale_days", 180)))
 
@@ -676,8 +691,11 @@ def build(drafts=False, strict=False, out: Path = DIST):
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))
     home_ctx = {"theme": "*"}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
     home_list = ads.render("list", home_ctx)
-    feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(2)) if x]
-    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads, is_home=True)
+    hf = ads.rhythm["home_feed"]
+    feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(max(0, hf["max"] - 1))) if x]
+    home_rail = ads.render("rail", home_ctx)
+    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
+          feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, is_home=True)
     write("search/index.html", "search.html")
     if site.get("api_url"):
         write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)

@@ -57,16 +57,21 @@
     </div>
   </section>
   {% endif %}
-
+  {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
   </aside>
 
   <section class="feed" aria-labelledby="latest-h">
     <h2 id="latest-h" class="section-title">새 리포트</h2>
     {% if rs %}
     <div class="feed-list">
-      {% for r in rs[:30] %}{{ card(r, base) }}{% if loop.index == 4 %}{{ list_ad|safe }}{% elif loop.index == 12 and feed_ads|length > 0 %}{{ feed_ads[0]|safe }}{% elif loop.index == 20 and feed_ads|length > 1 %}{{ feed_ads[1]|safe }}{% endif %}{% endfor %}
+      {%- for r in rs[:30] %}{{ card(r, base) }}
+        {%- if loop.index == feed_first %}{{ list_ad|safe }}
+        {%- elif loop.index > feed_first and (loop.index - feed_first) % feed_every == 0 and not loop.last %}
+          {%- set k = (loop.index - feed_first) // feed_every - 1 %}{% if k < feed_ads|length %}{{ feed_ads[k]|safe }}{% endif %}
+        {%- endif %}
+      {%- endfor %}
     </div>
-    {% if rs|length < 4 %}{{ list_ad|safe }}{% endif %}
+    {% if rs|length < feed_first %}{{ list_ad|safe }}{% endif %}
     {% else %}
     <div class="empty">
       <p><strong>첫 리포트를 준비하고 있습니다.</strong></p>

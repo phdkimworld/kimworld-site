@@ -12,7 +12,8 @@ import yaml
 
 SRC = Path(__file__).resolve().parent.parent
 import re as _re0
-notpl = lambda h: _re0.sub(r"<template data-thread-ad>.*?</template>", "", h, flags=_re0.S)  # 대화 사이 광고 틀(화면에서만 끼워 넣음)은 페이지 광고 수에서 뺀다
+# 대화 사이 광고 틀(화면에서만 끼워 넣음)과 PC 오른쪽 칸 광고(rail)는 본문 광고 수에서 뺀다
+notpl = lambda h: _re0.sub(r'<div class="rail-ad">.*?</aside></div>', "", _re0.sub(r"<template data-thread-ad>.*?</template>", "", h, flags=_re0.S), flags=_re0.S)
 FAILS = []
 
 
@@ -100,8 +101,10 @@ check(all('rel="sponsored noopener"' in a for a in re.findall(r'<a class="cp-car
 check("google.com, pub-1234567890123456, DIRECT" in (t / "dist/ads.txt").read_text(), "ads.txt 애드센스 줄")
 mid = page.find('data-slot="report_mid"')
 check(page.rfind("<h2", 0, mid) > 0 and page.count("<h2", 0, mid) >= 2, "중간 광고는 두 번째 소제목 섹션 뒤")
-home = (t / "dist/index.html").read_text(encoding="utf-8")
-check(home.count('<aside class="ad ') == 3 and home.count("kakao_ad_area") == 1 and home.count('data-slot="feed_inline"') == 2, "홈 광고: 애드핏 하나(목록) + 피드 사이 쿠팡 2개")
+home_full = (t / "dist/index.html").read_text(encoding="utf-8"); home = notpl(home_full)
+_nf = home.count('data-slot="feed_inline"')
+check(home.count("kakao_ad_area") == 1 and 1 <= _nf <= 4 and home.count('<aside class="ad ') == 1 + _nf, f"홈 광고: 애드핏 하나(목록) + 피드 사이 쿠팡 {_nf}개(6개 글마다, 최대 4)")
+check('class="rail-ad"' in home_full, "홈 PC 오른쪽 칸 광고")
 check("adsbygoogle.js?client=ca-pub-1234567890123456" in home, "head에 애드센스 스크립트")
 check("adsbygoogle" not in (t / "dist/privacy/index.html").read_text(encoding="utf-8").split("</head>")[1], "고정 페이지 본문에 광고 없음")
 
@@ -113,7 +116,7 @@ t = make_project(FULL_ADS, {"zzzz-short-2026-02.md": two.replace("2026-01-15", "
 run(t)
 page = (t / "dist/r/zzzz-short-2026-02/index.html").read_text(encoding="utf-8")
 check('data-slot="report_mid"' not in page, "중간 광고 없음")
-check(page.count('<aside class="ad ') <= 4, "광고 4개 이하")
+check(notpl(page).count('<aside class="ad ') <= 4, "짧은 글은 본문 광고 4개 이하")
 
 print("4) 쿠팡 배너에 다른 도메인")
 bad = {"coupang": {"banner_html": '<script src="https://evil.example.com/x.js"></script>'}}
@@ -187,11 +190,11 @@ t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endte
 r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page_full = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 tpl = re.search(r"<template data-thread-ad>(.*?)</template>", page_full, flags=re.S)
-page = re.sub(r"<template data-thread-ad>.*?</template>", "", page_full, flags=re.S)  # 본문 광고 검사는 대화 사이 광고 틀을 빼고
-check(tpl is not None and 'data-ad-first="8"' in page_full and 'data-ad-max="2"' in page_full, "리포트 댓글 사이 광고 틀(8개 뒤부터, 최대 2개)")
+page = notpl(page_full)  # 본문 광고 검사는 대화 사이 광고 틀·오른쪽 칸 광고를 빼고
+check(tpl is not None and 'data-ad-first="6"' in page_full and 'data-ad-every="6"' in page_full and 'data-ad-max="3"' in page_full, "리포트 댓글 사이 광고 틀(6개 뒤부터 6개마다, 최대 3개)")
 check(tpl is not None and "quantum" not in tpl.group(1) and tpl.group(1).count("data-cp-group") >= 3, "댓글 사이 광고는 본문 상자와 다른 테마 묶음")
 tk_page = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
-check("<template data-thread-ad>" in tk_page and 'data-ad-first="5"' in tk_page and 'data-ad-max="3"' in tk_page, "종토방 사이 광고 틀(5개 뒤부터, 최대 3개)")
+check("<template data-thread-ad>" in tk_page and 'data-ad-first="4"' in tk_page and 'data-ad-max="4"' in tk_page, "종토방 사이 광고 틀(4개 뒤부터 6개마다, 최대 4개)")
 box = page[page.find('ad-coupang-products'):]
 box = box[: box.find("</aside>")]
 check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 리포트에 검색어 묶음 3개")
@@ -201,10 +204,10 @@ check(boxes == ["report_mid", "report_products", "report_end"], f"쿠팡 상자 
 shown = [re.search(r'data-cp-group data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
 check(len(set(shown)) == 3, "스크립트 없이도 상자마다 다른 검색어 묶음")
 check(all(b.count('class="cp-note"') == 1 for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)), "가격 기준일 문구는 상자마다 한 번")
-home = (t / "dist/index.html").read_text(encoding="utf-8")
-check(home.count('<aside class="ad ') == 3 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자(목록 1 + 피드 사이 2), 모든 테마 묶음에서")
+home = notpl((t / "dist/index.html").read_text(encoding="utf-8"))
+check(3 <= home.count('<aside class="ad ') <= 5 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자(목록 1 + 피드 사이), 모든 테마 묶음에서")
 _vis = [re.search(r'data-cp-group data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
-check(len(set(_vis)) == 3, "홈 쿠팡 상자 3개는 서로 다른 묶음")
+check(len(set(_vis)) == len(_vis) >= 3, "홈 쿠팡 상자는 서로 다른 묶음")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
 check(th.count("data-cp-group") == 3, "테마 페이지: 그 테마 묶음만")
 sp = (t / "dist").rglob("*.html")
@@ -223,7 +226,7 @@ groups_html = box.split("data-cp-group")[1:]
 check(groups_html[1].startswith(' data-cp-date="2026.10.09"') and "2026.10.09" not in groups_html[0] and box.count("기준이며 바뀔 수 있습니다") == 1,
       "가격 기준일은 묶음마다 data-cp-date로, 문구는 상자에 한 번(보이는 묶음 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
-check(page.count('<aside class="ad ') <= 4, "광고 4개 이하 유지")
+check(notpl(page).count('<aside class="ad ') <= 5, "본문 광고 5개 이하 유지")
 t = make_project({"adfit": {"units": {"report_mid": "DAN-midtest1", "report_end": "DAN-endtest1", "list": ""}}})
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 pm = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))

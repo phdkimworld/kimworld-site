@@ -179,6 +179,7 @@
       <p class="toc-side-title">목차</p>
       <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
       <button type="button" class="btn btn-small" data-action="top">맨 위로</button>
+      {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
     </div>
   </aside>
   {% endif %}

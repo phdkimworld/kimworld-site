@@ -491,3 +491,20 @@ button { font: inherit; color: inherit; }
 .kw-small { font-size: .8rem; }
 .cm-item-pinned { background: var(--surface-2); border-radius: 12px; padding: 12px; margin: 4px 0 8px; border-bottom: 0; }
 .cm-badge-notice { background: var(--text); color: var(--bg); }
+
+/* 오른쪽 칸 광고(PC 전용): 상품을 세로로 쌓고 작게 */
+.rail-ad { margin-top: 18px; }
+.rail-ad .ad { margin: 0; }
+.rail-ad .cp-grid { grid-template-columns: 1fr !important; gap: 8px; }
+.rail-ad .cp-card { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto auto; column-gap: 10px; align-items: start; padding: 8px; }
+.rail-ad .cp-img { grid-row: 1 / span 3; width: 64px; height: 64px; }
+.rail-ad .cp-img img { width: 64px; height: 64px; object-fit: contain; }
+.rail-ad .cp-name { font-size: .78rem; -webkit-line-clamp: 2; }
+.rail-ad .cp-go { display: none; }
+.rail-ad .ad-disclosure, .rail-ad .cp-note { font-size: .68rem; }
+@media (max-width: 999px) { .home-side .rail-ad { display: none; } }
+@media (min-width: 1100px) { .toc-sticky { max-height: calc(100vh - 150px); overflow-y: auto; scrollbar-width: thin; } }
+.rail-ad .cp-card > :not(.cp-img) { grid-column: 2; }
+.rail-ad .cp-card:not(:has(.cp-img)) { grid-template-columns: 1fr; }
+.rail-ad .cp-card:not(:has(.cp-img)) > * { grid-column: 1; }
+.rail-ad .cp-price, .rail-ad .cp-rocket { justify-self: start; }
