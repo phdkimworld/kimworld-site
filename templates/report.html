@@ -107,11 +107,13 @@
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">
       <h2 id="src-h">출처</h2>
+      <details class="fold src-fold"><summary><span class="fold-t">출처 {{ r.sources|length }}개 보기</span> <span class="fold-n">공시·보도·시세 자료</span></summary>
       <ol>
         {% for s in r.sources %}
         <li>{% if s.url %}<a href="{{ s.url }}" rel="noopener" target="_blank">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}{% if s.date %} <span class="muted">({{ s.date }})</span>{% endif %}</li>
         {% endfor %}
       </ol>
+      </details>
     </section>
     {% endif %}
 
@@ -165,8 +167,8 @@
     {% endif %}
 
     <nav class="prevnext" aria-label="이전·다음 리포트">
-      {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 새 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.title }}</strong></a>{% else %}<span></span>{% endif %}
-      {% if r.prev %}<a class="pn pn-prev" href="{{ r.prev.url }}"><span class="muted">이전 리포트 →</span><strong>{{ r.prev.ticker }} · {{ r.prev.title }}</strong></a>{% endif %}
+      {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 최근 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.title }}</strong></a>{% else %}<span></span>{% endif %}
+      {% if r.prev %}<a class="pn pn-prev" href="{{ r.prev.url }}"><span class="muted">지난 리포트 →</span><strong>{{ r.prev.ticker }} · {{ r.prev.title }}</strong></a>{% endif %}
     </nav>
 
     {{ bottom_ad|safe }}

@@ -190,15 +190,16 @@ check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 �
 check(box.count(" hidden") == 2, "스크립트 없이도 묶음 하나만 보임")
 boxes = re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)".*?</aside>', page, flags=re.S)
 check(boxes == ["report_mid", "report_products", "report_end"], f"쿠팡 상자 3개: 중간·본문 끝·출처 아래 ({boxes})")
-shown = [re.search(r'data-cp-group>(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
+shown = [re.search(r'data-cp-group data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
 check(len(set(shown)) == 3, "스크립트 없이도 상자마다 다른 검색어 묶음")
+check(all(b.count('class="cp-note"') == 1 for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)), "가격 기준일 문구는 상자마다 한 번")
 home = (t / "dist/index.html").read_text(encoding="utf-8")
 check(home.count('<aside class="ad ') == 1 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자 하나, 모든 테마 묶음에서 무작위")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
 check(th.count("data-cp-group") == 3, "테마 페이지: 그 테마 묶음만")
 sp = (t / "dist").rglob("*.html")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
-_c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith("과학 교양 책")}
+_c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith("양자역학 책")}
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
 t = make_project()
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
@@ -209,7 +210,8 @@ check("12,802원" in box and "로켓배송" in box and "data-cp-sub=\"quantum1\"
 grp = box[box.find("data-cp-group"):]
 check(grp.find("상품 2") < grp.find("상품 0"), "로켓배송 상품을 앞에")
 groups_html = box.split("data-cp-group")[1:]
-check(all("기준이며 바뀔 수 있습니다" in g for g in groups_html) and "2026.10.09 기준" in groups_html[1] and "2026.10.09" not in groups_html[0], "가격 기준일이 묶음마다 따로 붙음(보이는 묶음의 날짜)")
+check(groups_html[1].startswith(' data-cp-date="2026.10.09"') and "2026.10.09" not in groups_html[0] and box.count("기준이며 바뀔 수 있습니다") == 1,
+      "가격 기준일은 묶음마다 data-cp-date로, 문구는 상자에 한 번(보이는 묶음 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
 check(page.count('<aside class="ad ') <= 4, "광고 4개 이하 유지")
 t = make_project({"adfit": {"units": {"report_mid": "DAN-midtest1", "report_end": "DAN-endtest1", "list": ""}}})
@@ -242,6 +244,23 @@ pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("community.js" not in pg and "data-comments" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
 w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
 check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
+
+print("9) 읽기 편의: 접는 상자·표·고정 페이지 조건부 줄")
+sys.path.insert(0, str(SRC)); import build as B
+h = B.md_renderer().convert("## 3부. 이벤트 카드 3장\n\n**핵심** 요약\n\n### 2026년\n\n**2026.10.09 · 가 (P1)**\n\n- 무슨 일: 가\n\n**2026.09.01 · 나 (P2)**\n\n- 무슨 일: 나\n\n### 2025년 이전\n\n**2025.01.02 · 다 (P1)**\n\n- 무슨 일: 다\n\n### 같은 호재인데 왜 반응이 달랐나\n\n비교\n\n## 4부. 패턴\n\n본문")
+f = B.fold_event_cards(h)
+check(f.count('<details class="fold"') == 2 and "카드 2장" in f and "카드 1장" in f, "이벤트 카드를 연도별로 접고 장 수 표시")
+check('<h3 id="같은-호재인데-왜-반응이-달랐나">' in f or "같은 호재인데" in f.split("</details>")[-1], "비교 소절과 다른 부는 접지 않음")
+w = B.wrap_tables("<table><thead><tr><th>구분</th><th>목적</th></tr></thead><tbody><tr><td>가</td><td>나</td></tr></tbody></table>", "table-text")
+check('class="table-wrap table-text"' in w and 'data-label="목적"' in w, "글 위주 표는 감싸고 칸마다 머리글 이름")
+pv = (SRC / "dist/privacy/index.html")
+if pv.exists():
+    pvt = pv.read_text(encoding="utf-8")
+    check("Google Analytics" not in pvt and "스티비" not in pvt and "<!--if:" not in pvt, "안 쓰는 GA4·뉴스레터는 개인정보처리방침에 안 나옴")
+rp = (SRC / "dist/r/pltr-2026-10/index.html")
+if rp.exists():
+    rpt = rp.read_text(encoding="utf-8")
+    check('class="fold src-fold"' in rpt and 'class="chart-link"' in rpt, "출처 접기·차트 크게 보기")
 
 print()
 if FAILS:

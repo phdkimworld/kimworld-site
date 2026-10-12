@@ -11,7 +11,7 @@ language: "ko"
 # 운영자 개인정보(실명·이메일·전화·주소)와 종목 보유 여부는 이 사이트 어디에도 넣지 않습니다.
 operator:
   display_name: "김박사 월드 미스터리"   # 유튜브 채널 이름(공개 활동명)
-  youtube_url: ""                # 유튜브 채널 주소
+  youtube_url: "https://www.youtube.com/@drkimworld_2026"   # 유튜브 채널 주소
 
 analytics:
   ga4_id: ""                     # G-XXXXXXXXXX

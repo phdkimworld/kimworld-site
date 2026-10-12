@@ -168,7 +168,26 @@ button { font: inherit; color: inherit; }
 .prose li { margin: .35em 0; }
 .prose strong { font-weight: 750; }
 .prose blockquote { margin: 1.3em 0; padding: 4px 18px; border-left: 4px solid var(--line); color: var(--muted); }
-.prose table { width: 100%; border-collapse: collapse; font-size: .88rem; display: block; overflow-x: auto; margin: 1.3em 0; -webkit-overflow-scrolling: touch; }
+.table-wrap { overflow-x: auto; margin: 1.3em 0; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+.prose table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.prose .table-text td, .prose .table-text th { white-space: normal; text-align: left !important; vertical-align: top; min-width: 5.5em; }
+.prose .table-text table { font-size: .85rem; }
+@media (max-width: 640px) {
+  .prose .table-text thead { display: none; }
+  .prose .table-text tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .prose .table-text td { display: grid; grid-template-columns: 5.5em 1fr; gap: 10px; border: 0; padding: 3px 4px; }
+  .prose .table-text td::before { content: attr(data-label); font-weight: 700; color: var(--muted); }
+}
+.fold { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px; font-weight: 750; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::after { content: "펼치기"; margin-left: auto; font-size: .8rem; font-weight: 600; color: var(--accent); }
+.fold[open] > summary::after { content: "접기"; }
+.fold[open] > summary { border-bottom: 1px solid var(--line); }
+.fold-n { font-size: .8rem; font-weight: 500; color: var(--muted); }
+.fold > :not(summary) { margin-left: 16px; margin-right: 16px; }
+.fold > :nth-child(2) { margin-top: 14px; }
+.src-fold > ol { padding-left: 1.5em; }
 .prose th, .prose td { border-bottom: 1px solid var(--line); padding: 10px 12px; text-align: left; white-space: nowrap; }
 .prose th { background: var(--surface-2); font-weight: 700; }
 .prose td:not(:first-child), .prose th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
@@ -215,6 +234,7 @@ button { font: inherit; color: inherit; }
 .ad { margin: 2.2em 0; max-width: 100%; overflow: hidden; }
 .ad-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: .02em; }
 .ad-adfit { text-align: center; }
+.ad.hidden, .ad-adsense:has(ins[data-ad-status="unfilled"]) { display: none; }
 .ad-disclosure { font-size: .78rem; color: var(--muted); margin: 0 0 8px; }
 .ad iframe { width: 100%; border: 0; display: block; }
 .ad.hidden { display: none; }
@@ -304,7 +324,16 @@ button { font: inherit; color: inherit; }
 .rc-head { display: flex; gap: 8px; align-items: baseline; font-size: .8rem; }
 .rc-body { margin-top: 2px; font-size: .92rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .next-reads { margin: 28px 0; }
-@media (prefers-color-scheme: dark) { .rank-hot { color: #fb923c; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rank-hot { color: #fb923c; } }
+:root[data-theme="dark"] .rank-hot { color: #fb923c; }
+/* 차트 PNG는 흰 배경이라 어두운 화면에서는 색을 뒤집어 맞춘다(색상은 hue-rotate로 유지) */
+.chart-link { display: block; position: relative; }
+.chart-link::after { content: "크게 보기"; position: absolute; right: 8px; bottom: 8px; font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chart-link img { filter: invert(.9) hue-rotate(180deg); } }
+:root[data-theme="dark"] .chart-link img { filter: invert(.9) hue-rotate(180deg); }
+/* 휴대폰: 아래로 읽는 동안 머리글을 숨기고, 위로 올리면 다시 보인다 */
+.site-header { transition: transform .2s ease; }
+@media (max-width: 859px) { .site-header.hdr-hide { transform: translateY(-100%); } }
 .ins-sub { font-size: .75rem; font-weight: 400; }
 .rank { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .rank-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }

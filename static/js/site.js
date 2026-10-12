@@ -157,6 +157,17 @@
 
   // 애드핏 광고가 비면 자리를 접는다
   window.kwAdFail = function (el) { var box = el && el.closest ? el.closest('.ad') : null; if (box) box.classList.add('hidden'); };
+  // 광고 차단기·네트워크 오류로 광고가 아예 안 뜨면 빈 '광고' 상자를 접는다(채울 광고가 없을 때는 위 kwAdFail이 처리)
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      document.querySelectorAll('.ad-adfit, .ad-adsense').forEach(function (box) {
+        var ins = box.querySelector('ins');
+        // 광고가 채워지면 상자 안에 iframe이 생기거나(애드핏·애드센스) 숨겨 둔 ins가 보이게 바뀐다. 둘 다 아니면 빈 상자
+        if (!ins || box.querySelector('iframe') || ins.getAttribute('data-ad-status') === 'filled' || (box.classList.contains('ad-adfit') && ins.style.display !== 'none')) return;
+        box.classList.add('hidden');
+      });
+    }, 6000);
+  });
 
   // ---------- 홈: 이어서 읽기 ----------
   var rv = document.querySelector('.recent-viewed');
@@ -238,5 +249,36 @@
     if (gs.length < 2) return;
     var pick = (cpStart + bi) % gs.length;
     gs.forEach(function (g, i) { g.hidden = i !== pick; });
+    var note = box.parentNode && box.parentNode.querySelector('[data-cp-note]'), dd = gs[pick].getAttribute('data-cp-date');
+    if (note) { note.hidden = !dd; note.querySelector('span').textContent = dd || ''; }
   });
+})();
+
+// 접힌 상자(이벤트 카드·출처): 주소의 #앵커가 상자 안을 가리키면 펼치고, 인쇄할 때는 모두 펼친다
+(function () {
+  function openFor(hash) {
+    if (!hash || hash.length < 2) return;
+    var t = null; try { t = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) {}
+    for (var n = t; n; n = n.parentElement) if (n.tagName === 'DETAILS') n.open = true;
+    if (t && t.tagName === 'DETAILS') { t.open = true; t.scrollIntoView(); }
+  }
+  openFor(location.hash);
+  window.addEventListener('hashchange', function () { openFor(location.hash); });
+  window.addEventListener('beforeprint', function () { document.querySelectorAll('details.fold').forEach(function (d) { d.open = true; }); });
+})();
+
+// 휴대폰에서 아래로 스크롤하면 머리글(로고·테마 줄)을 숨기고, 위로 조금이라도 올리면 다시 보인다
+(function () {
+  var h = document.querySelector('.site-header'); if (!h) return;
+  var lastY = window.scrollY, tick = false;
+  window.addEventListener('scroll', function () {
+    if (tick) return; tick = true;
+    requestAnimationFrame(function () {
+      tick = false;
+      var y = window.scrollY, dy = y - lastY;
+      if (Math.abs(dy) < 6) return;
+      h.classList.toggle('hdr-hide', dy > 0 && y > 160 && !h.contains(document.activeElement));
+      lastY = y;
+    });
+  }, { passive: true });
 })();

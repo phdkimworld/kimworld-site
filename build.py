@@ -92,7 +92,7 @@ def md_renderer():
 
 # ---------------------------------------------------------------- 본문 가공
 
-SKIP_TAGS = {"a", "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre", "th", "button", "sup", "script", "style"}
+SKIP_TAGS = {"a", "summary", "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre", "th", "button", "sup", "script", "style"}
 
 
 def apply_glossary(body_html: str, glossary: list[dict]) -> tuple[str, list[dict]]:
@@ -150,6 +150,49 @@ def apply_glossary(body_html: str, glossary: list[dict]) -> tuple[str, list[dict
             )
         out.append(re.sub(r"\x00(\d+)\x00", put, text))
     return "".join(out), used
+
+
+def wrap_tables(html_in: str, extra: str = "") -> str:
+    """표를 가로 스크롤 상자로 감싼다(표 자체는 폭을 꽉 채우고, 넘칠 때만 상자 안에서 밀린다)."""
+    cls = ("table-wrap " + extra).strip()
+    if "table-text" in extra:
+        # 글 위주 표(개인정보처리방침 등): 휴대폰에서 칸마다 머리글을 붙인 카드로 보이도록 data-label을 단다
+        def label(tm: re.Match) -> str:
+            t = tm.group(0)
+            heads = [re.sub(r"<[^>]+>", "", h).strip() for h in re.findall(r"<th[^>]*>(.*?)</th>", t, flags=re.S)]
+            def row(rm: re.Match) -> str:
+                i = iter(heads)
+                return re.sub(r"<td(\s[^>]*)?>", lambda m: f'<td data-label="{html.escape(next(i, ""))}"{m.group(1) or ""}>', rm.group(0))
+            return re.sub(r"<tr>.*?</tr>", row, t, flags=re.S)
+        html_in = re.sub(r"<table>.*?</table>", label, html_in, flags=re.S)
+    return html_in.replace("<table>", f'<div class="{cls}"><table>').replace("</table>", "</table></div>")
+
+
+def fold_event_cards(body_html: str) -> str:
+    """'이벤트 카드' 부의 연도별 묶음(### 2026년 …)을 접힌 상자로 바꾼다. 모바일에서 길이를 줄이기 위해서다."""
+    h2s = [m.start() for m in re.finditer(r"<h2[\s>]", body_html)]
+    for i, pos in enumerate(h2s):
+        end_h = body_html.find("</h2>", pos)
+        if "이벤트 카드" not in body_html[pos:end_h]:
+            continue
+        sec_end = h2s[i + 1] if i + 1 < len(h2s) else len(body_html)
+        sec = body_html[pos:sec_end]
+        h3 = list(re.finditer(r'<h3( id="[^"]*")?>(.*?)</h3>', sec, flags=re.S))
+        out, last = [], 0
+        for j, m in enumerate(h3):
+            title = re.sub(r"<[^>]+>", "", m.group(2)).strip()
+            if not re.match(r"\d{4}", title):
+                continue
+            stop = h3[j + 1].start() if j + 1 < len(h3) else len(sec)
+            inner = sec[m.end():stop]
+            n = len(re.findall(r"<p><strong>\d{4}\.\d{1,2}", inner))
+            cnt = f' <span class="fold-n">카드 {n}장</span>' if n else ""
+            out.append(sec[last:m.start()])
+            out.append(f'<details class="fold"{m.group(1) or ""}><summary><span class="fold-t">{title}</span>{cnt}</summary>{inner}</details>\n')
+            last = stop
+        out.append(sec[last:])
+        return body_html[:pos] + "".join(out) + body_html[sec_end:]
+    return body_html
 
 
 def split_for_ads(body_html: str, want_mid: bool, want_products: bool) -> list[tuple[str, str]]:
@@ -233,6 +276,7 @@ class Ads:
                     log.err(f"ads.yaml coupang.products.{theme} 의 '{it.get('name')}' 주소가 쿠팡 https 주소가 아닙니다")
         self.c_per_box = int(c.get("products_per_box") or 3)
         self.c_blocked = [str(w).lower() for w in (c.get("blocked_words") or [])]
+        self.c_book_blocked = [str(w).lower() for w in (c.get("book_blocked_words") or [])]
         # 쿠팡 API 자동 상품(scripts/coupang_sync.py 결과). 없으면 위 수동 상품만 쓴다.
         self.c_auto: dict[str, list[dict]] = {}
         auto_path = Path(os.environ.get("COUPANG_CACHE") or ROOT / ".cache" / "coupang_auto.json")
@@ -312,7 +356,8 @@ class Ads:
         out = []
         src = [g for gs in self.c_auto.values() for g in gs] if theme == "*" else (self.c_auto.get(theme) or [])
         for g in src:
-            prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex)]
+            ex_g = ex + (self.c_book_blocked if "책" in str(g.get("keyword") or "") else [])
+            prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex_g)]
             prods.sort(key=lambda x: (not x.get("rocket"), int(x.get("rank") or 999)))
             if prods:
                 out.append({**g, "products": prods[: self.c_per_box]})
@@ -353,7 +398,7 @@ class Ads:
                 f'<aside class="ad ad-adfit" data-slot="{slot}" aria-label="광고" style="min-height:{h + 24}px">{label}'
                 f'<ins class="kakao_ad_area" style="display:none;" data-ad-unit="{unit}" '
                 f'data-ad-width="{w}" data-ad-height="{h}" data-ad-onfail="kwAdFail"></ins>'
-                f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js"></script></aside>'
+                f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js" onerror="this.parentNode.classList.add(\'hidden\')"></script></aside>'
             )
         if kind == "coupang_banner":
             doc = (
@@ -377,13 +422,14 @@ class Ads:
                     return ""  # 묶음이 상자 수보다 적으면 같은 상품이 두 번 보이지 않게 이 상자는 뺀다
                 ctx["_cp_i"] = first + 1
                 inner = "".join(
-                    f'<div class="cp-group" data-cp-group{"" if i == first else " hidden"}><div class="cp-grid">'
-                    + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div>"
-                    + (f'<p class="cp-note">가격은 {str(g["date"]).replace("-", ".")} 기준이며 바뀔 수 있습니다.</p>' if g.get("date") else "")
-                    + "</div>"
+                    f'<div class="cp-group" data-cp-group data-cp-date="{str(g.get("date") or "").replace("-", ".")}"{"" if i == first else " hidden"}><div class="cp-grid">'
+                    + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div></div>"
                     for i, g in enumerate(groups))
+                # 가격 기준일 문구는 상자에 한 번. 보이는 묶음이 바뀌면 site.js가 날짜를 바꾼다
+                d0 = str(groups[first].get("date") or "").replace("-", ".")
+                note = f'<p class="cp-note" data-cp-note{"" if d0 else " hidden"}>가격은 <span>{d0}</span> 기준이며 바뀔 수 있습니다.</p>'
                 return (f'<aside class="ad ad-coupang-products" data-slot="{slot}" aria-label="광고">{label}'
-                        f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p><div class="cp-rot">{inner}</div></aside>')
+                        f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p><div class="cp-rot">{inner}</div>{note}</aside>')
             items = self.products_for(ctx.get("theme", ""), ctx.get("exclude", []))
             if not items:
                 return ""
@@ -483,7 +529,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
             if ph in body or ph in str(meta.get("title")) or ph in str(meta.get("summary")):
                 log.err(f"{name}: 금지 표현 '{ph}'")
         md = md_renderer()
-        body_html = md.convert(body)
+        body_html = fold_event_cards(wrap_tables(md.convert(body)))
+        # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
+        body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
+                           r'<a class="chart-link" href="\2" target="_blank" rel="noopener" aria-label="차트 크게 보기">\1</a>', body_html)
         toc = [t for t in md.toc_tokens]
         chars = plain_len(body_html)
         min_chars = int(site.get("lint", {}).get("min_chars", 0))
@@ -598,12 +647,20 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "{{channel_name}}": op.get("display_name") or site.get("site_name", ""),
         "{{youtube_url}}": op.get("youtube_url") or "#",
     }
+    page_flags = {
+        "ga4": bool((site.get("analytics") or {}).get("ga4_id")),
+        "newsletter": bool((site.get("newsletter") or {}).get("url")),
+        "api": bool(site.get("api_url")),
+    }
     for p in sorted((ROOT / "content" / "pages").glob("*.md")):
         meta, body = parse_front(p)
         for k, v in repl.items():
             body = body.replace(k, v)
+        # 줄 끝에 <!--if:이름--> 이 붙은 줄은 그 기능을 켰을 때만 남긴다(안 쓰는 서비스를 방침·고지에 적지 않기 위해)
+        body = "\n".join(ln for ln in body.split("\n")
+                         if not (m := re.search(r"<!--if:(\w+)-->", ln)) or page_flags.get(m.group(1)))
         body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
-        html_body = md_renderer().convert(body)
+        html_body = wrap_tables(md_renderer().convert(body), "table-text")
         pages.append({"slug": p.stem, "title": meta.get("title", p.stem)})
         write(f"{p.stem}/index.html", "page.html", p={"title": meta.get("title"), "description": meta.get("description", ""),
               "updated": to_date(meta.get("updated")), "html": html_body})

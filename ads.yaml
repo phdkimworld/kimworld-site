@@ -36,6 +36,8 @@ coupang:
   #      url: "https://link.coupang.com/a/yyyyy"
   products_per_box: 3
   blocked_words: ["증권", "계좌", "코인", "비트코인", "가상자산", "리딩", "주식 추천", "급등", "종목 추천"]
+  # 검색어에 "책"이 들어간 묶음에서만 빼는 단어: 어린이·청소년용 책은 리포트 독자와 맞지 않는다
+  book_blocked_words: ["십 대", "10대", "청소년", "어린이", "초등", "중학생", "유아", "아동", "키즈", "그림책", "학습만화", "만화로", "만화 "]
   allowed_domains: ["coupang.com", "coupangcdn.com"]
 
 # 자리별로 어떤 광고를 낼지 정한다. 쓸 수 있는 값:
