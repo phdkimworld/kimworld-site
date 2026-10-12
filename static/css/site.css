@@ -482,3 +482,5 @@ button { font: inherit; color: inherit; }
 @media (max-width: 420px) { .header-nav .icon-btn { min-width: 42px; } .header-nav { gap: 0; } }
 .cm-form[hidden], .cm-form input[hidden] { display: none; }
 .profile-stats li span { white-space: nowrap; }
+.cm-ad { list-style: none; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.cm-ad .ad { margin: 10px 0; }

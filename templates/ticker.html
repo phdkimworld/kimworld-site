@@ -12,6 +12,6 @@
   </header>
   <div class="cards">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
-  {% if site.api_url %}<div class="board-wrap">{{ thread('b-' ~ code|lower, 'board', code ~ ' 종토방', 'board') }}</div>{% endif %}
+  {% if site.api_url %}<div class="board-wrap">{{ thread('b-' ~ code|lower, 'board', code ~ ' 종토방', 'board', thread_ad, ads.rhythm.board) }}</div>{% endif %}
 </div>
 {% endblock %}

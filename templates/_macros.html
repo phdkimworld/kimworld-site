@@ -43,8 +43,9 @@
 
 
 {# 댓글·종토방 공통 묶음. kind: report(익명 가능) | board(계정이 있어야 글쓰기) #}
-{% macro thread(slug, kind, title, sec_id) -%}
-<section class="comments{% if kind == 'board' %} board{% endif %}" id="{{ sec_id }}" data-comments data-thread="{{ slug }}" data-kind="{{ kind }}" hidden aria-labelledby="{{ sec_id }}-h">
+{% macro thread(slug, kind, title, sec_id, ad_html='', rhythm=none) -%}
+<section class="comments{% if kind == 'board' %} board{% endif %}" id="{{ sec_id }}" data-comments data-thread="{{ slug }}" data-kind="{{ kind }}"{% if ad_html and rhythm %} data-ad-first="{{ rhythm.first }}" data-ad-every="{{ rhythm.every }}" data-ad-max="{{ rhythm.max }}"{% endif %} hidden aria-labelledby="{{ sec_id }}-h">
+  {% if ad_html and rhythm %}<template data-thread-ad>{{ ad_html|safe }}</template>{% endif %}
   <h2 id="{{ sec_id }}-h">{{ title }} <span class="cm-count" data-cm-count></span></h2>
   {% if kind == 'board' %}
   <p class="cm-rule muted">이 종목에 대한 개인 의견을 나누는 곳입니다. 투자 권유가 아니며, 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려집니다. <a href="/terms/">이용약관</a></p>

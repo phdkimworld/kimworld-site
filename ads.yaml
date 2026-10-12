@@ -50,3 +50,10 @@ placements:
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)
   list: coupang_products                # 홈·테마·종목 목록 페이지 (한 개만)
+  feed_inline: coupang_products         # 홈 피드 사이 추가 자리(12번째·20번째 글 뒤). 홈 광고는 list 포함 최대 3개
+  thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
+
+# 대화(댓글·종토방) 사이 광고 리듬. 글이 적을 때는 광고를 넣지 않는다(대화보다 광고가 먼저 보이지 않게).
+rhythm:
+  report_comments: {first: 8, every: 8, max: 2}   # 리포트 댓글: 8번째 원 댓글 뒤부터 8개마다, 최대 2개(본문 광고 4개와 별도)
+  board: {first: 5, every: 8, max: 3}             # 종토방: 5번째 글 뒤, 이후 8개마다, 최대 3개(목록 광고 포함 페이지 최대 4개)

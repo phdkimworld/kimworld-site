@@ -137,7 +137,7 @@
       <p class="muted board-peek-sub" data-board-empty>{{ r.company }}에 대해 이야기하는 곳입니다. 첫 글을 남겨 보세요.</p>
       <ol class="cm-list board-peek-list" data-board-list></ol>
     </section>
-    {{ thread(r.slug, 'report', '댓글', 'comments') }}
+    {{ thread(r.slug, 'report', '댓글', 'comments', thread_ad, ads.rhythm.report_comments) }}
     {% endif %}
 
     {% if site.newsletter.url %}

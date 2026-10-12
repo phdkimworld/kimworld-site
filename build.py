@@ -307,11 +307,21 @@ class Ads:
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
         self.place = self.cfg.get("placements") or {}
+        # 대화 사이 광고 리듬(first번째 글 뒤부터 every개마다, 최대 max개)
+        rh = self.cfg.get("rhythm") or {}
+        def _r(k, d):
+            v = rh.get(k) or {}
+            return {"first": int(v.get("first", d[0])), "every": int(v.get("every", d[1])), "max": int(v.get("max", d[2]))}
+        self.rhythm = {"report_comments": _r("report_comments", (8, 8, 2)), "board": _r("board", (5, 8, 3))}
+        if self.rhythm["report_comments"]["max"] > 2 or self.rhythm["board"]["max"] > 3:
+            log.err("ads.yaml rhythm: 리포트 댓글 사이 광고는 최대 2개, 종토방은 최대 3개")
         valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
                     log.err(f"ads.yaml placements.{k} 값 '{one}' 을 알 수 없습니다")
+                if k == "thread_inline" and one not in ("coupang_products", "adsense_in_article", "none", None):
+                    log.err("ads.yaml placements.thread_inline 은 coupang_products·adsense_in_article·none 만 가능(화면에서 끼워 넣는 자리)")
 
     def bad_hosts(self, s: str) -> list[str]:
         hosts = {h.lower() for h in re.findall(r"(?:https?:)?//([A-Za-z0-9.-]+)", s)}
@@ -364,11 +374,12 @@ class Ads:
                 break
         return out
 
-    def auto_groups_for(self, theme: str, exclude_words: list[str]) -> list[dict]:
-        """테마의 자동 상품 묶음(검색어별). 다룬 회사·금지어 상품은 빼고, 로켓배송 → 쿠팡 순위 순으로 고른다."""
+    def auto_groups_for(self, theme: str, exclude_words: list[str], skip_theme: str = "") -> list[dict]:
+        """테마의 자동 상품 묶음(검색어별). 다룬 회사·금지어 상품은 빼고, 로켓배송 → 쿠팡 순위 순으로 고른다.
+        theme="*"이면 모든 테마, skip_theme은 뺄 테마(리포트 본문 상자와 겹치지 않게)."""
         ex = [w.lower() for w in exclude_words if w] + self.c_blocked
         out = []
-        src = [g for gs in self.c_auto.values() for g in gs] if theme == "*" else (self.c_auto.get(theme) or [])
+        src = [g for t, gs in self.c_auto.items() if t != skip_theme for g in gs] if theme == "*" else (self.c_auto.get(theme) or [])
         for g in src:
             ex_g = ex + (self.c_book_blocked if "책" in str(g.get("keyword") or "") else [])
             prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex_g)]
@@ -426,7 +437,7 @@ class Ads:
                 f'style="height:{self.c_banner_h}px" srcdoc="{html.escape(doc, quote=True)}"></iframe></aside>'
             )
         if kind == "coupang_products":
-            groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []))
+            groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))
             if groups:
                 # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
                 # 가격 기준일은 묶음마다 다르다(검색어마다 받은 날이 다름). 보이는 묶음의 날짜가 함께 보이도록 묶음 안에 둔다.
@@ -645,7 +656,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
         has_coupang = any("ad-coupang" in x for x in used_ads)
         og_rel = f"og/{r['slug']}.png"
         r["og_image"] = f"{site['site_url']}/{og_rel}" if make_og(og_dir / f"{r['slug']}.png", r, site, og_font) else f"{site['site_url']}/static/og-default.png"
-        write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html,
+        # 댓글 사이 광고(댓글이 쌓였을 때만 화면에서 끼워 넣음): 다른 테마 상품 묶음에서 골라 본문 상자와 겹치지 않게
+        thread_ad = ads.render("thread_inline", {"theme": "*", "skip_theme": r["theme"], "exclude": exclude})
+        write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad,
               bottom_ad=bottom_html, has_coupang=has_coupang, terms=used_terms, today=today,
               stale=(today - r["data_as_of"]).days > int(site.get("stale_days", 180)))
 
@@ -654,11 +667,17 @@ def build(drafts=False, strict=False, out: Path = DIST):
     for code, rs in sorted(by_ticker.items(), key=lambda kv: kv[1][0]["date"], reverse=True):
         t = tickers[code]
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
-        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs, list_ad=ads.render("list", {"theme": t.get("theme", ""), "exclude": [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]}))
+        tex = [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]
+        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs,
+              list_ad=ads.render("list", {"theme": t.get("theme", ""), "exclude": tex}),
+              thread_ad=ads.render("thread_inline", {"theme": "*", "exclude": tex}))
     for th in themes:
         rs = [r for r in public if r["theme"] == th["name"]]
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))
-    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=ads.render("list", {"theme": "*"}), is_home=True)
+    home_ctx = {"theme": "*"}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
+    home_list = ads.render("list", home_ctx)
+    feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(2)) if x]
+    write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads, is_home=True)
     write("search/index.html", "search.html")
     if site.get("api_url"):
         write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
