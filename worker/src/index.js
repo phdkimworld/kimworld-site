@@ -300,7 +300,8 @@ export default {
         if (body.length > LIMITS.bodyMax) return json(req, { error: "long", message: `${LIMITS.bodyMax}자까지 쓸 수 있습니다.` }, 400);
         const me = await userByActor(db, actor);
         if (me && me.status !== "ok") return json(req, { error: "banned", message: "이용이 제한된 계정입니다." }, 403);
-        if (isBoard(slug) && !me) return json(req, { error: "account", message: "종토방 글은 계정을 만든 뒤 쓸 수 있습니다." }, 401);
+        // 종토방은 로그인(구글·카카오)이 켜져 있으면 계정이 있어야 쓴다. 로그인을 준비하는 동안에는 익명으로도 쓸 수 있다
+        if (isBoard(slug) && !me && providers(env).length) return json(req, { error: "account", message: "종토방 글은 로그인한 뒤 쓸 수 있습니다." }, 401);
         let nick = cleanText(b.nick, LIMITS.nickMax).replace(/\s+/g, " ");
         if (!nick || /운영자|관리자|김박사/.test(nick) || needsHold(nick)) nick = `익명#${actor.slice(-4)}`;
         if (me) nick = me.nick; // 계정이 있으면 계정 닉네임으로

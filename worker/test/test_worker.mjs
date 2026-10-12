@@ -219,7 +219,12 @@ check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.sta
 r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
 const uB = r1.data.user.id;
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "로그인 없이 종토방 글", t: 8000 }, ip: "80.0.0.3" });
-check(r1.status === 401, "종토방 글은 로그인·계정이 있어야 씀");
+check(r1.status === 401, "로그인이 켜져 있으면 종토방 글은 로그인해야 씀");
+const savedKeys = [env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY];
+env.GOOGLE_CLIENT_ID = ""; env.KAKAO_REST_KEY = "";
+r1 = await call("POST", "/v1/comments", { body: { slug: "b-anon", nick: "지나가던개미", body: "로그인 준비 중에는 익명 글", t: 8000 }, ip: "80.0.0.4" });
+check(r1.data.ok && r1.data.status === "ok", "로그인을 아직 안 켰으면 종토방도 익명으로 씀");
+[env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY] = savedKeys;
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "요크빌 매각 규모가 관건이네요", t: 8000 }, ip: "80.0.0.1", cookie: LA.cookie });
 check(r1.data.ok, "계정으로 종토방 글");
 const post = r1.data.id;
@@ -240,7 +245,7 @@ sqlite.exec("INSERT INTO comments (slug, nick, body, ih, did, created, status, p
 list = await call("GET", "/v1/comments?slug=b-xndu&sort=new");
 check(list.data.comments[0].pinned === true && list.data.comments[0].nick === "김박사 월드", "공지는 맨 위");
 r1 = await call("GET", "/v1/comments/recent?kind=board&limit=5");
-check(r1.data.items.length === 1 && !r1.data.items.some((x) => x.body.includes("공지")), "홈 종토방 새 글에는 공지 제외");
+check(r1.data.items.length >= 1 && !r1.data.items.some((x) => x.body.includes("공지")), "홈 종토방 새 글에는 공지 제외");
 const dbRows = JSON.stringify((await DB.prepare("SELECT * FROM users").all()).results) + JSON.stringify((await DB.prepare("SELECT * FROM sessions").all()).results);
 check(!dbRows.includes("g-alice") && !dbRows.includes("4242") && !dbRows.includes(LA.cookie.slice(5)), "구글·카카오 회원 번호와 세션 원문은 저장 안 함");
 await call("POST", `/v1/admin/users/${uB}`, { auth: "Bearer adm", body: { status: "banned" } });

@@ -292,7 +292,7 @@
       if (canReply) {
         var rb = el('button', 'cm-link', '답글'); rb.type = 'button';
         rb.addEventListener('click', function () {
-          if (!isReport && !ME) { openAccount(); return; }
+          if (!isReport && !ME && PROVIDERS.length) { openAccount(); return; }
           openReply(c.parent || c.id, c.nick);
         });
         act.appendChild(rb);
@@ -346,7 +346,13 @@
         if (d._status !== 200) return;
         box.hidden = false;
         // 종토방 글쓰기는 계정이 있을 때만
-        if (!isReport) { form.hidden = !ME; var na = box.querySelector('[data-need-account]'); if (na) na.hidden = !!ME; }
+        // 종토방 글쓰기: 로그인이 켜져 있으면 계정이 있어야 하고, 로그인을 준비하는 동안에는 익명(닉네임 칸)으로 쓴다
+        if (!isReport) {
+          var canWrite = !!ME || !PROVIDERS.length;
+          form.hidden = !canWrite;
+          var na = box.querySelector('[data-need-account]'); if (na) na.hidden = canWrite;
+          var ni = form.querySelector('[name=nick]'); if (ni) ni.hidden = !!ME;
+        }
         liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
         var real = d.comments.filter(function (c) { return !c.pinned; }).length; // 공지는 글 수에서 뺀다
         countEl.textContent = real ? num(real) : '';
