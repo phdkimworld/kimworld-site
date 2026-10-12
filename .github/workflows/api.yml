@@ -35,8 +35,8 @@ jobs:
       run:
         working-directory: worker
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
       - name: Test
@@ -73,7 +73,8 @@ jobs:
         continue-on-error: true   # api.drkimworld.com 연결 전에는 실패해도 배포는 성공으로 둔다
         run: |
           for i in 1 2 3 4 5 6; do
-            if curl -fsS https://api.drkimworld.com/v1/health; then exit 0; fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://api.drkimworld.com/v1/health || true)
+            echo "health: HTTP $code"; [ "$code" = "200" ] && exit 0
             sleep 20
           done
           echo "api.drkimworld.com 응답 없음(도메인 연결이 몇 분 걸릴 수 있음)"; exit 1
@@ -85,7 +86,6 @@ jobs:
         run: |
           [[ "$CID" =~ ^[0-9]+$ ]] || { echo "댓글 번호는 숫자"; exit 1; }
           [[ "$ST" =~ ^(ok|hidden|deleted|held)$ ]] || { echo "상태 값 오류"; exit 1; }
-          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
-          curl -fsS -X POST "https://api.drkimworld.com/v1/admin/comments/$CID" \
-            -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" \
-            -d "{\"status\":\"$ST\"}"
+          # 웹 주소 대신 Cloudflare 도구로 데이터베이스를 직접 고친다(GitHub 서버에서 API 주소가 막혀도 동작)
+          R=""; [ "$ST" = "ok" ] && R=", reports = 0"
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --command "UPDATE comments SET status = '$ST'$R WHERE id = $CID"

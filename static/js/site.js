@@ -211,7 +211,7 @@
     }
     function norm(s) { return String(s || '').toLowerCase().replace(/[\s·\-_.,()]/g, ''); }
     var data = null;
-    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function card(r) {
       return '<article class="card"><a class="card-link" href="' + esc(r.u) + '"><div class="card-top"><span class="tick">' + esc(r.k) +
         '</span><span class="card-company">' + esc(r.c) + '</span><span class="card-theme">' + esc(r.th) + '</span></div><h3 class="card-title">' +

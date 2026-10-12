@@ -3,7 +3,8 @@
 // - 댓글: 닉네임만(회원 가입 없음), 링크·연락처·리딩방 유도 문구는 자동 보류, 신고 3건이면 숨김
 // - 좋아요·신고: 같은 사람은 댓글마다 한 번
 // - 검색어: 하루 한 사람 한 번만 세서 '요즘 찾는 종목'에 쓴다(화면에는 사이트 종목·테마와 맞는 것만 보인다)
-// 원래 IP는 저장하지 않는다. SALT(비밀값)로 만든 해시만 남긴다.
+// 원래 IP는 저장하지 않는다. 그날의 무작위 값으로 만든 해시만 남기고, 그 무작위 값은 이틀 뒤 지운다.
+// 내 댓글·좋아요는 기기에 저장한 무작위 번호(d=)로 구분한다(같은 공용 IP를 쓰는 사람끼리 섞이지 않게).
 
 const ALLOWED_ORIGINS = ["https://drkimworld.com", "https://www.drkimworld.com", "http://localhost:8765"];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
@@ -46,8 +47,8 @@ export function needsHold(text) {
   return HOLD_PATTERNS.some((re) => re.test(text));
 }
 
-function publicComment(c, ih) {
-  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, mine: !!ih && c.ih === ih };
+function publicComment(c, actor) {
+  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, mine: !!actor && !!c.did && c.did === actor };
 }
 
 async function readJson(req) {
@@ -59,14 +60,53 @@ async function readJson(req) {
   }
 }
 
+// 그날의 무작위 값(pepper). 같은 날 안에서만 같은 IP를 알아본다(중복 조회·도배 막기). 이틀 지난 값은 지운다.
+let pepperCache = { day: "", v: "" };
+async function dayPepper(db, day) {
+  if (pepperCache.day === day) return pepperCache.v;
+  const rnd = [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  await db.prepare("INSERT OR IGNORE INTO peppers (day, v) VALUES (?, ?)").bind(day, rnd).run();
+  const row = await db.prepare("SELECT v FROM peppers WHERE day = ?").bind(day).first();
+  pepperCache = { day, v: row.v };
+  return row.v;
+}
+
+// 기기 번호: 브라우저가 만든 무작위 값(d=). 형식이 맞을 때만 쓴다
+const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
+
+// 같은 키로 정해진 시간 안에 limit번까지만 허용
+async function allow(db, key, limit, ttlMs, now) {
+  await db.prepare("INSERT INTO rate (k, n, exp) VALUES (?, 1, ?) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN exp < ? THEN 1 ELSE n + 1 END, exp = CASE WHEN exp < ? THEN excluded.exp ELSE exp END")
+    .bind(key, now + ttlMs, now, now).run();
+  const r = await db.prepare("SELECT n FROM rate WHERE k = ?").bind(key).first();
+  return (r?.n || 0) <= limit;
+}
+
+function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let x = 0;
+  for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return x === 0;
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
     const now = Date.now();
     const ip = req.headers.get("CF-Connecting-IP") || "0.0.0.0";
-    const ih = (await sha256hex(`${env.SALT || "dev-salt"}|${ip}`)).slice(0, 24);
     const db = env.DB;
+    const today = kstDay(now);
+    // ih: 그날만 통하는 IP 해시(중복 조회·검색어·도배 막기). actor: 기기 번호 해시(내 댓글·좋아요의 주인)
+    const ih = (await sha256hex(`${await dayPepper(db, today)}|${ip}`)).slice(0, 24);
+    const dev = url.searchParams.get("d") || "";
+    const actor = DEVICE_RE.test(dev) ? (await sha256hex(`${env.SALT || "dev-salt"}|dev|${dev}`)).slice(0, 24) : `ip-${ih}`;
+    if (Math.random() < 0.01) {
+      await db.batch([
+        db.prepare("DELETE FROM peppers WHERE day < ?").bind(kstDay(now - 2 * 864e5)),
+        db.prepare("DELETE FROM rate WHERE exp < ?").bind(now),
+      ]);
+    }
     const p = url.pathname.replace(/\/+$/, "");
     try {
       // ---------- 조회수 ----------
@@ -94,7 +134,7 @@ export default {
           db.prepare(`SELECT slug, n FROM views_total WHERE slug IN (${q})`).bind(...slugs).all(),
           db.prepare(`SELECT slug, n FROM likes_total WHERE slug IN (${q})`).bind(...slugs).all(),
           db.prepare(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${q}) GROUP BY slug`).bind(...slugs).all(),
-          db.prepare(`SELECT slug FROM post_likes WHERE ih = ? AND slug IN (${q})`).bind(ih, ...slugs).all(),
+          db.prepare(`SELECT slug FROM post_likes WHERE ih = ? AND slug IN (${q})`).bind(actor, ...slugs).all(),
           db.prepare(`SELECT slug, nick, body, likes, created FROM (SELECT slug, nick, body, likes, created,
               ROW_NUMBER() OVER (PARTITION BY slug ORDER BY likes DESC, created DESC) AS rn
               FROM comments WHERE status = 'ok' AND parent_id IS NULL AND slug IN (${q})) WHERE rn = 1`).bind(...slugs).all(),
@@ -111,12 +151,13 @@ export default {
       if (p === "/v1/like" && req.method === "POST") {
         const { slug } = await readJson(req);
         if (!SLUG_RE.test(slug || "")) return json(req, { error: "slug" }, 400);
-        const ins = await db.prepare("INSERT OR IGNORE INTO post_likes (slug, ih, created) VALUES (?, ?, ?)").bind(slug, ih, now).run();
+        if (!(await allow(db, `like|${ih}`, 300, 864e5, now))) return json(req, { error: "rate", message: "잠시 뒤에 다시 눌러 주세요." }, 429);
+        const ins = await db.prepare("INSERT OR IGNORE INTO post_likes (slug, ih, created) VALUES (?, ?, ?)").bind(slug, actor, now).run();
         if (ins.meta?.changes) {
           await db.prepare("INSERT INTO likes_total (slug, n) VALUES (?, 1) ON CONFLICT(slug) DO UPDATE SET n = n + 1").bind(slug).run();
         } else { // 한 번 더 누르면 취소
           await db.batch([
-            db.prepare("DELETE FROM post_likes WHERE slug = ? AND ih = ?").bind(slug, ih),
+            db.prepare("DELETE FROM post_likes WHERE slug = ? AND ih = ?").bind(slug, actor),
             db.prepare("UPDATE likes_total SET n = MAX(n - 1, 0) WHERE slug = ?").bind(slug),
           ]);
         }
@@ -167,12 +208,12 @@ export default {
         const list = await db.prepare(`SELECT * FROM comments WHERE slug = ? AND status = 'ok' ORDER BY ${sort} LIMIT 200`).bind(slug).all();
         const best = await db.prepare("SELECT * FROM comments WHERE slug = ? AND status = 'ok' AND parent_id IS NULL AND likes >= ? ORDER BY likes DESC, created ASC LIMIT ?")
           .bind(slug, LIMITS.bestMinLikes, LIMITS.bestCount).all();
-        const liked = await db.prepare("SELECT l.cid FROM comment_likes l JOIN comments c ON c.id = l.cid WHERE c.slug = ? AND l.ih = ?").bind(slug, ih).all();
+        const liked = await db.prepare("SELECT l.cid FROM comment_likes l JOIN comments c ON c.id = l.cid WHERE c.slug = ? AND l.ih = ?").bind(slug, actor).all();
         return json(req, {
-          comments: (list.results || []).map((c) => publicComment(c, ih)),
-          best: (best.results || []).map((c) => publicComment(c, ih)),
+          comments: (list.results || []).map((c) => publicComment(c, actor)),
+          best: (best.results || []).map((c) => publicComment(c, actor)),
           liked: (liked.results || []).map((x) => x.cid),
-          me: `익명#${ih.slice(0, 4)}`,
+          me: `익명#${actor.slice(-4)}`,
         });
       }
       if (p === "/v1/comments" && req.method === "POST") {
@@ -185,10 +226,14 @@ export default {
         if (body.length < LIMITS.bodyMin) return json(req, { error: "short", message: "두 글자 이상 써 주세요." }, 400);
         if (body.length > LIMITS.bodyMax) return json(req, { error: "long", message: `${LIMITS.bodyMax}자까지 쓸 수 있습니다.` }, 400);
         let nick = cleanText(b.nick, LIMITS.nickMax).replace(/\s+/g, " ");
-        if (!nick || /운영자|관리자|김박사/.test(nick) || needsHold(nick)) nick = `익명#${ih.slice(0, 4)}`;
-        const recent = await db.prepare("SELECT SUM(created > ?) AS m, COUNT(*) AS d FROM comments WHERE ih = ? AND created > ?")
+        if (!nick || /운영자|관리자|김박사/.test(nick) || needsHold(nick)) nick = `익명#${actor.slice(-4)}`;
+        // 도배 막기: 기기 기준(1분 2개·하루 30개) + 같은 IP 기준은 넉넉하게(통신사 공용 IP는 여러 사람이 함께 쓴다)
+        const mine = await db.prepare("SELECT SUM(created > ?) AS m, COUNT(*) AS d FROM comments WHERE did = ? AND created > ?")
+          .bind(now - 60e3, actor, now - 864e5).first();
+        const sameIp = await db.prepare("SELECT SUM(created > ?) AS m, COUNT(*) AS d FROM comments WHERE ih = ? AND created > ?")
           .bind(now - 60e3, ih, now - 864e5).first();
-        if ((recent?.m || 0) >= LIMITS.perMinute || (recent?.d || 0) >= LIMITS.perDay)
+        if ((mine?.m || 0) >= LIMITS.perMinute || (mine?.d || 0) >= LIMITS.perDay ||
+            (sameIp?.m || 0) >= LIMITS.perMinute * 5 || (sameIp?.d || 0) >= LIMITS.perDay * 5)
           return json(req, { error: "rate", message: "잠시 뒤에 다시 써 주세요." }, 429);
         // 답글: 한 단계만. 답글에 단 답글은 원래 댓글 아래로 모은다
         let parent = null;
@@ -198,8 +243,8 @@ export default {
           parent = pc.parent_id || pc.id;
         }
         const status = needsHold(body) ? "held" : "ok";
-        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, created, status, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
-          .bind(slug, nick, body, ih, now, status, parent).run();
+        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, did, created, status, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+          .bind(slug, nick, body, ih, actor, now, status, parent).run();
         return json(req, {
           ok: true, status, id: r.meta?.last_row_id,
           message: status === "held" ? "링크·연락처·홍보로 보이는 내용이 있어 확인 뒤 게시됩니다." : "",
@@ -208,20 +253,23 @@ export default {
       const m = p.match(/^\/v1\/comments\/(\d+)\/(like|report)$/);
       if (m && req.method === "POST") {
         const cid = parseInt(m[1], 10);
-        const c = await db.prepare("SELECT id, ih, status FROM comments WHERE id = ?").bind(cid).first();
+        const c = await db.prepare("SELECT id, did, status FROM comments WHERE id = ?").bind(cid).first();
         if (!c || c.status !== "ok") return json(req, { error: "not_found" }, 404);
         if (m[2] === "like") {
-          if (c.ih === ih) return json(req, { error: "own", message: "내 댓글에는 좋아요를 누를 수 없습니다." }, 400);
-          const ins = await db.prepare("INSERT OR IGNORE INTO comment_likes (cid, ih) VALUES (?, ?)").bind(cid, ih).run();
+          if (c.did && c.did === actor) return json(req, { error: "own", message: "내 댓글에는 좋아요를 누를 수 없습니다." }, 400);
+          if (!(await allow(db, `like|${ih}`, 300, 864e5, now))) return json(req, { error: "rate", message: "잠시 뒤에 다시 눌러 주세요." }, 429);
+          const ins = await db.prepare("INSERT OR IGNORE INTO comment_likes (cid, ih) VALUES (?, ?)").bind(cid, actor).run();
           if (ins.meta?.changes) await db.prepare("UPDATE comments SET likes = likes + 1 WHERE id = ?").bind(cid).run();
           else {
-            await db.prepare("DELETE FROM comment_likes WHERE cid = ? AND ih = ?").bind(cid, ih).run(); // 한 번 더 누르면 취소
+            await db.prepare("DELETE FROM comment_likes WHERE cid = ? AND ih = ?").bind(cid, actor).run(); // 한 번 더 누르면 취소
             await db.prepare("UPDATE comments SET likes = MAX(likes - 1, 0) WHERE id = ?").bind(cid).run();
           }
           const row = await db.prepare("SELECT likes FROM comments WHERE id = ?").bind(cid).first();
           return json(req, { likes: row.likes, liked: !!ins.meta?.changes });
         }
-        const ins = await db.prepare("INSERT OR IGNORE INTO comment_reports (cid, ih) VALUES (?, ?)").bind(cid, ih).run();
+        // 신고로 숨기는 힘이 크므로, 기기 번호를 바꿔도 같은 IP(오늘)에서는 같은 댓글을 한 번만 신고할 수 있다
+        const ipOnce = await allow(db, `rep|${cid}|${ih}`, 1, 864e5, now);
+        const ins = ipOnce ? await db.prepare("INSERT OR IGNORE INTO comment_reports (cid, ih) VALUES (?, ?)").bind(cid, actor).run() : { meta: { changes: 0 } };
         if (ins.meta?.changes) {
           await db.prepare("UPDATE comments SET reports = reports + 1, status = CASE WHEN reports + 1 >= ? THEN 'hidden' ELSE status END WHERE id = ?")
             .bind(LIMITS.reportHide, cid).run();
@@ -230,14 +278,14 @@ export default {
       }
       if (p.startsWith("/v1/comments/") && p.endsWith("/delete") && req.method === "POST") {
         const cid = parseInt(p.split("/")[3], 10);
-        const r = await db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ? AND ih = ?").bind(cid, ih).run();
+        const r = await db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ? AND did = ?").bind(cid, actor).run();
         return json(req, { ok: !!r.meta?.changes });
       }
 
       // ---------- 관리 (Authorization: Bearer ADMIN_TOKEN) ----------
       if (p.startsWith("/v1/admin/")) {
         const auth = req.headers.get("Authorization") || "";
-        if (!env.ADMIN_TOKEN || auth !== `Bearer ${env.ADMIN_TOKEN}`) return json(req, { error: "auth" }, 401);
+        if (!env.ADMIN_TOKEN || !safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) return json(req, { error: "auth" }, 401);
         if (p === "/v1/admin/queue" && req.method === "GET") {
           const r = await db.prepare("SELECT id, slug, nick, body, likes, reports, status, created FROM comments WHERE status IN ('held','hidden') ORDER BY created DESC LIMIT 200").all();
           return json(req, { items: r.results || [] });

@@ -24,10 +24,14 @@ const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm" };
 
 let fails = 0;
 const check = (cond, msg) => { console.log((cond ? "  ok  " : "  FAIL ") + msg); if (!cond) fails++; };
-async function call(method, path, { body, ip = "1.1.1.1", auth, origin = "https://drkimworld.com" } = {}) {
+// 기기 번호(d=)는 따로 주지 않으면 IP마다 다른 기기로 본다(기존 검사가 "IP = 사람"으로 짜여 있어서)
+const devOf = (ip) => ("dev" + ip.replace(/\./g, "_") + "_".repeat(30)).slice(0, 30);
+async function call(method, path, { body, ip = "1.1.1.1", dev, auth, origin = "https://drkimworld.com" } = {}) {
   const headers = { "CF-Connecting-IP": ip, Origin: origin, "Content-Type": "application/json" };
   if (auth) headers.Authorization = auth;
-  const res = await worker.fetch(new Request("https://api.drkimworld.com" + path, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
+  const d = dev === null ? "" : (dev || devOf(ip));
+  const u = "https://api.drkimworld.com" + path + (d ? (path.includes("?") ? "&" : "?") + "d=" + d : "");
+  const res = await worker.fetch(new Request(u, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
   return { status: res.status, data: await res.json().catch(() => null), headers: res.headers };
 }
 
@@ -136,6 +140,31 @@ r = await call("GET", "/v1/stats?slugs=rgti-2026-10,soun-2026-10", { ip: "30.0.0
 const st = r.data.stats["rgti-2026-10"];
 check(st.likes === 1 && st.liked === true && st.comments >= 6 && st.top && !st.top.body.includes("답글"), "피드 숫자: 좋아요·내 좋아요·댓글 수·대표 댓글(답글 제외)");
 check(r.data.stats["soun-2026-10"].top === null && r.headers.get("Cache-Control") === "no-store", "댓글 없으면 대표 댓글 없음, 개인별 값이라 캐시 안 함");
+
+console.log("통신사 공용 IP(여러 사람이 같은 IP)");
+r = await call("POST", "/v1/comments", { body: { slug: "cgnat-2026-10", body: "A가 쓴 댓글", t: 8000 }, ip: "50.0.0.1", dev: "deviceA_aaaaaaaaaaaaaaaaaaaa" });
+const ca = r.data.id;
+list = await call("GET", "/v1/comments?slug=cgnat-2026-10", { ip: "50.0.0.1", dev: "deviceB_bbbbbbbbbbbbbbbbbbbb" });
+check(list.data.comments[0].mine === false, "같은 IP의 다른 사람에게는 '내 댓글'로 안 보임");
+r = await call("POST", `/v1/comments/${ca}/delete`, { ip: "50.0.0.1", dev: "deviceB_bbbbbbbbbbbbbbbbbbbb" });
+check(r.data.ok === false, "같은 IP의 다른 사람은 삭제 불가");
+r = await call("POST", `/v1/comments/${ca}/like`, { ip: "50.0.0.1", dev: "deviceB_bbbbbbbbbbbbbbbbbbbb" });
+check(r.data.likes === 1, "같은 IP의 다른 사람도 좋아요 가능");
+r = await call("POST", "/v1/comments", { body: { slug: "cgnat-2026-10", body: "B도 씀", t: 8000 }, ip: "50.0.0.1", dev: "deviceB_bbbbbbbbbbbbbbbbbbbb" });
+check(r.data.ok, "같은 IP의 다른 사람도 댓글 가능(1분 2개는 기기 기준)");
+list = await call("GET", "/v1/comments?slug=cgnat-2026-10", { ip: "50.0.0.1", dev: "deviceA_aaaaaaaaaaaaaaaaaaaa" });
+check(list.data.comments.find((c) => c.id === ca).mine === true, "쓴 사람에게는 '내 댓글'");
+await call("POST", `/v1/comments/${ca}/report`, { ip: "60.0.0.1", dev: "rep1_xxxxxxxxxxxxxxxxxxxxxxx" });
+await call("POST", `/v1/comments/${ca}/report`, { ip: "60.0.0.1", dev: "rep2_xxxxxxxxxxxxxxxxxxxxxxx" });
+await call("POST", `/v1/comments/${ca}/report`, { ip: "60.0.0.1", dev: "rep3_xxxxxxxxxxxxxxxxxxxxxxx" });
+list = await call("GET", "/v1/comments?slug=cgnat-2026-10");
+check(list.data.comments.some((c) => c.id === ca), "기기 번호만 바꿔 같은 IP에서 신고 3번 해도 숨겨지지 않음");
+const rows = JSON.stringify((await DB.prepare("SELECT * FROM comments").all()).results) + JSON.stringify((await DB.prepare("SELECT * FROM view_seen").all()).results);
+check(!rows.includes("50.0.0.1") && !rows.includes("deviceA"), "IP·기기 번호 원문은 저장 안 함");
+const pep = await DB.prepare("SELECT COUNT(*) AS n FROM peppers").first();
+check(pep.n === 1, "그날의 무작위 값 하나만 보관");
+r = await call("GET", "/v1/admin/queue", { auth: "Bearer adx" });
+check(r.status === 401, "관리 토큰이 한 글자만 달라도 거절");
 
 console.log("검색어");
 for (const ip of ["20.0.0.1", "20.0.0.2", "20.0.0.3"]) await call("POST", "/v1/search", { body: { q: "리게티" }, ip });

@@ -6,8 +6,21 @@
   var base = KW.base || '';
   if (!API) return;
 
+  // 기기 번호: 이 브라우저에만 저장하는 무작위 값. '내 댓글'·좋아요를 구분하는 데만 쓴다(같은 공용 IP를 쓰는 사람끼리 섞이지 않게)
+  var DEV = (function () {
+    var k = 'kw-did', v = '';
+    try { v = localStorage.getItem(k) || ''; } catch (e) {}
+    if (!/^[A-Za-z0-9_-]{22,64}$/.test(v)) {
+      var b = new Uint8Array(18);
+      (window.crypto || window.msCrypto).getRandomValues(b);
+      v = btoa(String.fromCharCode.apply(null, b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      try { localStorage.setItem(k, v); } catch (e) {}
+    }
+    return v;
+  })();
   function api(path, opt) {
     opt = opt || {};
+    path += (path.indexOf('?') >= 0 ? '&' : '?') + 'd=' + DEV;
     var ctl = window.AbortController ? new AbortController() : null;
     var t = ctl ? setTimeout(function () { ctl.abort(); }, 6000) : 0;
     return fetch(API + path, {

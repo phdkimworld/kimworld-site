@@ -247,6 +247,25 @@ check("community.js" not in pg and "data-comments" not in pg, "api_url을 비우
 w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
 check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
 
+print("10) 보안: 리포트 본문·출처 검사")
+for bad, why in [("<script>alert(1)</script>", "스크립트"), ('<img src=x onerror="alert(1)">', "이벤트 속성"),
+                 ("[누르기](javascript:alert(1))", "javascript 링크"), ("<iframe src=//x></iframe>", "iframe")]:
+    t = make_project()
+    f = t / "content/reports/zzzz-test-2026-01.md"
+    f.write_text(f.read_text(encoding="utf-8") + "\n\n" + bad + "\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_output=True, text=True)
+    check(r.returncode != 0 and "허용하지 않는" in r.stdout + r.stderr, f"본문에 {why} → 빌드 실패")
+t = make_project()
+f = t / "content/reports/zzzz-test-2026-01.md"
+f.write_text(f.read_text(encoding="utf-8").replace("sources:\n", "sources:\n  - title: 나쁜 출처\n    url: \"javascript:alert(1)\"\n", 1), encoding="utf-8")
+r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_output=True, text=True)
+check(r.returncode != 0 and "http(s)://" in r.stdout + r.stderr, "출처 주소가 javascript: → 빌드 실패")
+t = make_project()
+f = t / "content/reports/zzzz-test-2026-01.md"
+f.write_text(f.read_text(encoding="utf-8") + "\n\nMarket data: 숫자 정리, 자바스크립트 이야기\n", encoding="utf-8")
+r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_output=True, text=True)
+check("허용하지 않는" not in r.stdout + r.stderr, "평범한 'data:' 글자는 통과")
+
 print("9) 읽기 편의: 접는 상자·표·고정 페이지 조건부 줄")
 sys.path.insert(0, str(SRC)); import build as B
 h = B.md_renderer().convert("## 3부. 이벤트 카드 3장\n\n**핵심** 요약\n\n### 2026년\n\n**2026.10.09 · 가 (P1)**\n\n- 무슨 일: 가\n\n**2026.09.01 · 나 (P2)**\n\n- 무슨 일: 나\n\n### 2025년 이전\n\n**2025.01.02 · 다 (P1)**\n\n- 무슨 일: 다\n\n### 같은 호재인데 왜 반응이 달랐나\n\n비교\n\n## 4부. 패턴\n\n본문")

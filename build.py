@@ -531,6 +531,14 @@ def build(drafts=False, strict=False, out: Path = DIST):
         for i, s in enumerate(sources):
             if not isinstance(s, dict) or not s.get("title"):
                 log.err(f"{name}: sources[{i}] 에 title 이 없습니다")
+            elif s.get("url") and not re.match(r"https?://[^\s\"'<>]+$", str(s["url"])):
+                log.err(f"{name}: sources[{i}] 주소는 http(s):// 로 시작하는 정상 주소여야 합니다")
+        # 보안: 리포트 본문에 스크립트·외부 틀·이벤트 속성·위험한 링크를 넣지 못하게 한다(조사 중 섞여 들어온 악성 내용 차단)
+        for pat, why in ((r"<\s*(script|iframe|object|embed|form|meta|link|style|base)\b", "실행·삽입 태그"),
+                         (r"\son[a-z]+\s*=", "이벤트 속성(on...=)"),
+                         (r"(\]\(|<|href\s*=\s*[\"']?|src\s*=\s*[\"']?)\s*(javascript|vbscript|data)\s*:", "위험한 링크 주소")):
+            if re.search(pat, body, flags=re.I):
+                log.err(f"{name}: 본문에 허용하지 않는 {why}가 있습니다")
         is_draft = bool(meta.get("draft"))
         if is_draft and not drafts:
             continue
