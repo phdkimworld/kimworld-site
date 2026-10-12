@@ -228,3 +228,9 @@ NVAX:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["노바백스", "Novavax", "누백소비드", "매트릭스엠"]
+DVLT:
+  name: "데이터볼트 AI"
+  name_en: "Datavault AI Inc."
+  exchange: "NASDAQ"
+  theme: "코인·블록체인"
+  aliases: ["데이터볼트", "Datavault", "위사 테크놀로지스", "WiSA"]
