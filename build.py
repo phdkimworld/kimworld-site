@@ -209,6 +209,8 @@ class Ads:
         f = self.cfg.get("adfit") or {}
         self.adfit_w = int(f.get("width") or 320)
         self.adfit_h = int(f.get("height") or 100)
+        # 단위마다 크기가 다를 수 있다(예: 본문 중간 300x250). 없으면 width/height
+        self.adfit_sizes = {k: (int(v[0]), int(v[1])) for k, v in (f.get("sizes") or {}).items() if isinstance(v, (list, tuple)) and len(v) == 2}
         self.adfit_units = {k: str(v or "").strip() for k, v in (f.get("units") or {}).items()}
         for k, v in self.adfit_units.items():
             if v and not ADFIT_RE.match(v):
@@ -247,10 +249,11 @@ class Ads:
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
         self.place = self.cfg.get("placements") or {}
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
-            if v not in valid:
-                log.err(f"ads.yaml placements.{k} 값 '{v}' 을 알 수 없습니다")
+            for one in (v if isinstance(v, list) else [v]):
+                if one not in valid:
+                    log.err(f"ads.yaml placements.{k} 값 '{one}' 을 알 수 없습니다")
 
     def bad_hosts(self, s: str) -> list[str]:
         hosts = {h.lower() for h in re.findall(r"(?:https?:)?//([A-Za-z0-9.-]+)", s)}
@@ -258,7 +261,14 @@ class Ads:
 
     # 자리 → 광고 종류
     def kind(self, slot: str):
-        return self.place.get(slot) if self.on else None
+        """자리에 낼 광고 종류. 목록이면 앞에서부터 실제로 낼 수 있는 첫 번째(예: 애드핏 번호가 없으면 쿠팡)."""
+        if not self.on:
+            return None
+        v = self.place.get(slot)
+        for one in (v if isinstance(v, list) else [v]):
+            if self.available(one):
+                return one
+        return None
 
     def available(self, kind) -> bool:
         if not self.on or not kind or kind == "none":
@@ -267,6 +277,8 @@ class Ads:
             return bool(self.adsense_client and self.adsense_slots.get("in_article"))
         if kind == "adsense_display":
             return bool(self.adsense_client and self.adsense_slots.get("display"))
+        if kind == "adfit_report_mid":
+            return bool(self.adfit_units.get("report_mid"))
         if kind == "adfit_report_end":
             return bool(self.adfit_units.get("report_end"))
         if kind == "adfit_list":
@@ -333,12 +345,14 @@ class Ads:
                 f'data-ad-client="{self.adsense_client}" data-ad-slot="{slot_id}"></ins>'
                 f'<script>(adsbygoogle=window.adsbygoogle||[]).push({{}});</script></aside>'
             )
-        if kind in ("adfit_report_end", "adfit_list"):
-            unit = self.adfit_units.get("report_end") if kind == "adfit_report_end" else (self.adfit_units.get("list") or self.adfit_units.get("report_end"))
+        if kind in ("adfit_report_mid", "adfit_report_end", "adfit_list"):
+            key = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end"}.get(kind) or ("list" if self.adfit_units.get("list") else "report_end")
+            unit = self.adfit_units.get(key)
+            w, h = self.adfit_sizes.get(key, (self.adfit_w, self.adfit_h))
             return (
-                f'<aside class="ad ad-adfit" data-slot="{slot}" aria-label="광고" style="min-height:{self.adfit_h + 24}px">{label}'
+                f'<aside class="ad ad-adfit" data-slot="{slot}" aria-label="광고" style="min-height:{h + 24}px">{label}'
                 f'<ins class="kakao_ad_area" style="display:none;" data-ad-unit="{unit}" '
-                f'data-ad-width="{self.adfit_w}" data-ad-height="{self.adfit_h}" data-ad-onfail="kwAdFail"></ins>'
+                f'data-ad-width="{w}" data-ad-height="{h}" data-ad-onfail="kwAdFail"></ins>'
                 f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js"></script></aside>'
             )
         if kind == "coupang_banner":
@@ -357,9 +371,11 @@ class Ads:
             if groups:
                 # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
                 # 가격 기준일은 묶음마다 다르다(검색어마다 받은 날이 다름). 보이는 묶음의 날짜가 함께 보이도록 묶음 안에 둔다.
-                first = {"report_mid": 0, "report_products": 1, "report_end": 2}.get(slot, 0)  # 스크립트 없어도 상자마다 다른 묶음
+                # 이 페이지에서 몇 번째 쿠팡 상자인지(앞 자리가 다른 광고면 번호를 당긴다). 스크립트 없어도 상자마다 다른 묶음
+                first = int(ctx.get("_cp_i", 0))
                 if first >= len(groups):
                     return ""  # 묶음이 상자 수보다 적으면 같은 상품이 두 번 보이지 않게 이 상자는 뺀다
+                ctx["_cp_i"] = first + 1
                 inner = "".join(
                     f'<div class="cp-group" data-cp-group{"" if i == first else " hidden"}><div class="cp-grid">'
                     + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div>"

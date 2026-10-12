@@ -13,7 +13,10 @@ adsense:
 adfit:
   width: 320
   height: 100
+  sizes:                     # 단위별 크기 [가로, 세로]. 없으면 위 width/height
+    report_mid: [300, 250]
   units:
+    report_mid: ""           # DAN-xxxx  리포트 중간(300x250). 비어 있으면 그 자리는 쿠팡 상자
     report_end: "DAN-fLqYFcTk9aoRDmDT"   # DAN-xxxx  리포트 하단(320x100)
     list: ""                 # DAN-xxxx  홈·목록 (비어 있으면 report_end 단위를 씀)
 
@@ -38,8 +41,9 @@ coupang:
 # 자리별로 어떤 광고를 낼지 정한다. 쓸 수 있는 값:
 #   adsense_in_article, adsense_display, adfit_report_end, adfit_list, coupang_banner, coupang_products, none
 # 리포트 페이지 광고는 최대 4개(report_* 자리 합계). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
+# 값을 [가, 나] 목록으로 쓰면 앞에서부터 실제로 낼 수 있는 첫 광고를 낸다.
 placements:
-  report_mid: coupang_products          # 본문 세 번째 소제목 앞 (소제목 3개 미만이면 없음). 애드센스 승인 뒤 adsense_in_article 로 바꿀지 성과 비교
+  report_mid: [adfit_report_mid, coupang_products]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
   report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)

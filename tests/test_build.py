@@ -211,6 +211,14 @@ groups_html = box.split("data-cp-group")[1:]
 check(all("기준이며 바뀔 수 있습니다" in g for g in groups_html) and "2026.10.09 기준" in groups_html[1] and "2026.10.09" not in groups_html[0], "가격 기준일이 묶음마다 따로 붙음(보이는 묶음의 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
 check(page.count('<aside class="ad ') <= 4, "광고 4개 이하 유지")
+t = make_project({"adfit": {"units": {"report_mid": "DAN-midtest1", "report_end": "DAN-endtest1", "list": ""}}})
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+pm = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+slots = re.findall(r'<aside class="ad ([a-z-]+)" data-slot="([a-z_]+)"', pm)
+check(("ad-adfit", "report_mid") in slots and 'data-ad-unit="DAN-midtest1" data-ad-width="300" data-ad-height="250"' in pm,
+      "애드핏 중간 번호가 있으면 초반 자리는 애드핏 300x250")
+check(pm.count("ad-coupang-products") == 2 and len(slots) <= 4 and pm.count("DAN-midtest1") == 1 and pm.count("DAN-endtest1") == 1,
+      f"쿠팡 2개 + 애드핏 2개, 같은 단위 중복 없음 ({slots})")
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
     _os.environ.pop(k, None)
 
