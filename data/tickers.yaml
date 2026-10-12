@@ -198,3 +198,9 @@ OKLO:
   exchange: "NYSE"
   theme: "원자력·에너지"
   aliases: ["오클로", "Oklo", "Oklo Inc", "오로라 원자로"]
+SES:
+  name: "SES AI"
+  name_en: "SES AI Corporation"
+  exchange: "NYSE"
+  theme: "전기차·배터리"
+  aliases: ["에스이에스", "SES AI", "SES AI Corp", "솔리드에너지"]
