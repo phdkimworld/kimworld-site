@@ -5,6 +5,9 @@
 {%- elif name == 'eye' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
 {%- elif name == 'share' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.2c0 .9.7 1.6 1.6 1.6h10.8c.9 0 1.6-.7 1.6-1.6v-6.2"/></svg>
 {%- elif name == 'bookmark' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6.5 3.5h11v17L12 16.8l-5.5 3.7z"/></svg>
+{%- elif name == 'board' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.5 6.5c0-1.1.9-2 2-2h9c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2H9l-3.5 3v-3h0c-1.1 0-2-.9-2-2z"/><path d="M16.5 9.5h2c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2h0v3l-3.5-3H11c-1.1 0-2-.9-2-2v-.5"/></svg>
+{%- elif name == 'user' -%}<svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.6 4.1-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></svg>
+{%- elif name == 'bell' -%}<svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>
 {%- elif name == 'print' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5h15V17H17M7 14h10v6.5H7z"/></svg>
 {%- endif -%}
 {%- endmacro %}
@@ -36,4 +39,39 @@
     <button type="button" class="pa pa-share" data-action="share" data-share-url="{{ r.url }}" data-share-title="{{ r.title }}" aria-label="공유">{{ icon('share') }}</button>
   </footer>
 </article>
+{%- endmacro %}
+
+
+{# 댓글·종토방 공통 묶음. kind: report(익명 가능) | board(계정이 있어야 글쓰기) #}
+{% macro thread(slug, kind, title, sec_id) -%}
+<section class="comments{% if kind == 'board' %} board{% endif %}" id="{{ sec_id }}" data-comments data-thread="{{ slug }}" data-kind="{{ kind }}" hidden aria-labelledby="{{ sec_id }}-h">
+  <h2 id="{{ sec_id }}-h">{{ title }} <span class="cm-count" data-cm-count></span></h2>
+  {% if kind == 'board' %}
+  <p class="cm-rule muted">이 종목에 대한 개인 의견을 나누는 곳입니다. 투자 권유가 아니며, 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려집니다. <a href="/terms/">이용약관</a></p>
+  <div class="cm-need-account" data-need-account hidden>
+    <p>종토방 글은 <strong>계정</strong>을 만들면 쓸 수 있습니다. 이메일·전화번호 없이 닉네임만 정하면 됩니다.</p>
+    <button type="button" class="btn btn-primary" data-open-account>계정 만들기</button>
+  </div>
+  {% else %}
+  <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>
+  {% endif %}
+  <form class="cm-form" data-cm-form novalidate{% if kind == 'board' %} hidden{% endif %}>
+    <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임"{% if kind == 'board' %} hidden{% endif %}>
+    <textarea name="body" maxlength="500" rows="3" placeholder="{% if kind == 'board' %}이 종목에 대한 생각을 나눠 주세요{% else %}이 리포트에 대한 생각을 남겨 주세요{% endif %}" aria-label="글 내용"></textarea>
+    <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="cm-form-row"><span class="cm-len muted" data-cm-len>0/500</span><button class="btn btn-primary" type="submit">등록</button></div>
+    <p class="cm-msg" data-cm-msg role="status"></p>
+  </form>
+  <div class="cm-best" data-cm-best hidden><h3>베스트</h3><ol class="cm-list"></ol></div>
+  <div class="cm-tabs" role="tablist" aria-label="정렬">
+    {% if kind == 'board' %}
+    <button type="button" role="tab" data-sort="new" aria-selected="true">최신순</button>
+    <button type="button" role="tab" data-sort="top" aria-selected="false">인기순</button>
+    {% else %}
+    <button type="button" role="tab" data-sort="top" aria-selected="true">인기순</button>
+    <button type="button" role="tab" data-sort="new" aria-selected="false">최신순</button>
+    {% endif %}
+  </div>
+  <ol class="cm-list" data-cm-list></ol>
+</section>
 {%- endmacro %}

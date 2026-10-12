@@ -422,3 +422,63 @@ button { font: inherit; color: inherit; }
 .cm-reply-form .cm-msg { margin-right: auto; }
 @media print { .post-actions, .report-dock, .post-top { display: none !important; } }
 @media (max-width: 479px) { .hero { padding: 18px 0 2px; } .hero-title { font-size: 1.45rem; } .hero-sub { font-size: .9rem; margin-bottom: 14px; } }
+
+/* ---------- 계정·알림·종토방·프로필 ---------- */
+.icon-btn { position: relative; }
+.icon-btn[hidden] { display: none; }
+.bell-n { position: absolute; top: 0; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #e0245e; color: #fff; font-size: .62rem; font-weight: 800; line-height: 16px; text-align: center; }
+.bell-n[hidden] { display: none; }
+.kw-dlg { width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.kw-dlg::backdrop { background: rgba(0,0,0,.45); }
+.kw-dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+.kw-dlg-head h2 { margin: 0; font-size: 1.05rem; }
+.kw-dlg-x { font: inherit; font-size: 1.5rem; line-height: 1; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.kw-dlg-body { padding: 16px 18px 20px; display: grid; gap: 12px; }
+.kw-dlg-body p { margin: 0; }
+.kw-dlg-body hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.kw-field { display: grid; gap: 4px; font-size: .85rem; font-weight: 700; }
+.kw-field input { font: inherit; font-weight: 400; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); }
+.kw-check { display: flex; gap: 8px; align-items: center; font-size: .88rem; }
+.kw-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.kw-row .btn, .kw-dlg-body > .btn { justify-content: center; text-align: center; text-decoration: none; }
+.kw-msg { color: var(--accent); font-size: .88rem; min-height: 1em; }
+.kw-warn { color: #c2410c; font-size: .85rem; font-weight: 700; }
+.kw-key { display: block; padding: 12px; border-radius: 10px; background: var(--surface-2); font-size: .95rem; word-break: break-all; user-select: all; }
+.kw-me { display: flex; gap: 10px; align-items: center; }
+.kw-danger { color: #c2410c; }
+.kw-dlg-body > .cm-link { justify-self: start; }
+.kw-notifs { list-style: none; margin: 0; padding: 0; }
+.kw-notifs li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.kw-notifs li.unread a { font-weight: 800; }
+.kw-notifs a { color: var(--text); text-decoration: none; }
+.cm-nick-link { color: var(--text); font-weight: 750; text-decoration: none; }
+.cm-nick-link:hover { text-decoration: underline; }
+.cm-need-account { margin: 0 0 16px; padding: 14px; border-radius: 12px; background: var(--surface-2); display: grid; gap: 10px; justify-items: start; }
+.cm-need-account[hidden] { display: none; }
+.cm-need-account p { margin: 0; font-size: .9rem; }
+.board-wrap { margin-top: 28px; }
+.board-wrap .comments { margin-top: 0; }
+.board-peek { margin: 36px 0 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.board-peek-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.board-peek-head h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 1.05rem; }
+.board-peek-head .btn { text-decoration: none; }
+.board-peek-sub { margin: 10px 0 0; font-size: .88rem; }
+.board-peek-sub[hidden] { display: none; }
+.board-peek-list { margin-top: 6px; }
+.board-peek-body { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0; }
+.profile-wrap { max-width: 680px; padding-top: 24px; }
+.profile { display: grid; gap: 14px; }
+.profile-head { display: flex; gap: 14px; align-items: center; }
+.profile-av.cm-av { width: 64px; height: 64px; font-size: 1.6rem; }
+.profile-who h1 { margin: 0; font-size: 1.4rem; }
+.profile-bio { margin: 4px 0 0; }
+.profile-since { margin: 2px 0 0; font-size: .8rem; }
+.profile-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.profile-stats li { display: grid; justify-items: center; gap: 2px; padding: 10px 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: .78rem; }
+.profile-stats strong { font-size: 1.1rem; }
+.follow-btn { justify-self: start; min-width: 120px; justify-content: center; }
+.profile-h { margin: 10px 0 0; }
+.rc-empty { padding: 14px; }
+@media (max-width: 420px) { .header-nav .icon-btn { min-width: 42px; } .header-nav { gap: 0; } }
+.cm-form[hidden], .cm-form input[hidden] { display: none; }
+.profile-stats li span { white-space: nowrap; }

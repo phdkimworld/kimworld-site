@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}프로필 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ site.site_name }} 이용자 프로필{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
+{% block main %}
+<div class="wrap profile-wrap">
+  <section class="profile" data-profile>
+    <p class="muted" data-profile-msg>프로필을 불러오는 중입니다…</p>
+  </section>
+</div>
+{% endblock %}

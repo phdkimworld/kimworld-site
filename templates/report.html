@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card, icon %}
+{% from "_macros.html" import card, icon, thread %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.ticker }} {{ r.company }} — {{ r.title }} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ r.summary }}{% endblock %}
@@ -50,6 +50,7 @@
       <div class="report-actions post-actions report-bar" data-report-bar>
         <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span><span class="pa-txt">좋아요</span></button>
         <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span><span class="pa-txt">댓글</span></a>
+        {% if site.api_url %}<a class="pa" href="{{ base }}/t/{{ r.ticker|lower }}/#board" aria-label="{{ r.ticker }} 종토방">{{ icon('board') }}<span class="pa-txt">종토방</span></a>{% endif %}
         <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}<span class="pa-txt">공유</span></button>
         <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}<span class="pa-txt" data-save-label>저장</span></button>
         <button type="button" class="pa pa-print" data-action="print" aria-label="인쇄">{{ icon('print') }}</button>
@@ -128,23 +129,15 @@
     {% endif %}
 
     {% if site.api_url %}
-    <section class="comments" id="comments" data-comments hidden aria-labelledby="cm-h">
-      <h2 id="cm-h">댓글 <span class="cm-count" data-cm-count></span></h2>
-      <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>
-      <form class="cm-form" data-cm-form novalidate>
-        <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임">
-        <textarea name="body" maxlength="500" rows="3" placeholder="이 리포트에 대한 생각을 남겨 주세요" aria-label="댓글 내용"></textarea>
-        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <div class="cm-form-row"><span class="cm-len muted" data-cm-len>0/500</span><button class="btn btn-primary" type="submit">등록</button></div>
-        <p class="cm-msg" data-cm-msg role="status"></p>
-      </form>
-      <div class="cm-best" data-cm-best hidden><h3>베스트 댓글</h3><ol class="cm-list"></ol></div>
-      <div class="cm-tabs" role="tablist" aria-label="정렬">
-        <button type="button" role="tab" data-sort="top" aria-selected="true">인기순</button>
-        <button type="button" role="tab" data-sort="new" aria-selected="false">최신순</button>
+    <section class="board-peek" data-board-peek="b-{{ r.ticker|lower }}" aria-labelledby="bp-h">
+      <div class="board-peek-head">
+        <h2 id="bp-h">{{ icon('board') }} {{ r.ticker }} 종토방</h2>
+        <a class="btn btn-primary" href="{{ base }}/t/{{ r.ticker|lower }}/#board">종토방 가기<span data-board-n></span></a>
       </div>
-      <ol class="cm-list" data-cm-list></ol>
+      <p class="muted board-peek-sub" data-board-empty>{{ r.company }}에 대해 이야기하는 곳입니다. 첫 글을 남겨 보세요.</p>
+      <ol class="cm-list board-peek-list" data-board-list></ol>
     </section>
+    {{ thread(r.slug, 'report', '댓글', 'comments') }}
     {% endif %}
 
     {% if site.newsletter.url %}
@@ -193,6 +186,7 @@
 <nav class="report-dock post-actions" data-dock aria-label="리포트 반응" hidden data-slug="{{ r.slug }}">
   <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>
   <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span></a>
+  <a class="pa" href="{{ base }}/t/{{ r.ticker|lower }}/#board" aria-label="{{ r.ticker }} 종토방">{{ icon('board') }}</a>
   <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}</button>
   <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}</button>
   <button type="button" class="pa" data-action="top" aria-label="맨 위로"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>

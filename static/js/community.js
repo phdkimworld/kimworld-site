@@ -112,18 +112,157 @@
     }).catch(function () { b.disabled = false; });
   });
 
-  // ---------- 리포트: 댓글 ----------
-  var box = document.querySelector('[data-comments]');
-  if (box && slug) {
+  // ---------- 공통: 글 묶음(slug) → 주소 ----------
+  function threadUrl(sl) {
+    var m = /^b-(.+)$/.exec(sl || '');
+    return m ? base + '/t/' + m[1] + '/#board' : base + '/r/' + sl + '/#comments';
+  }
+  function threadLabel(sl) { var m = /^b-(.+)$/.exec(sl || ''); return m ? m[1].toUpperCase() + ' 종토방' : '리포트 댓글'; }
+  function profileUrl(uid) { return base + '/u/?id=' + uid; }
+  function nickEl(c, cls) {
+    if (!c.uid) return el('strong', cls, c.nick);
+    var a = el('a', cls + ' cm-nick-link', c.nick); a.href = profileUrl(c.uid); return a;
+  }
+
+  // ---------- 계정(계정 키): 이메일·전화 없이 닉네임만. 키는 이 브라우저에만 저장 ----------
+  var ME = null, UNREAD = 0;
+  var meReady = api('/v1/me').then(function (d) { ME = d.user || null; UNREAD = d.unread || 0; paintHeader(); return ME; }).catch(function () { return null; });
+  function paintHeader() {
+    var lab = document.querySelector('[data-account-label]'); if (lab) lab.textContent = ME ? '내 계정' : '계정';
+    var bell = document.querySelector('[data-open-bell]'); if (bell) bell.hidden = !ME;
+    var n = document.querySelector('[data-bell-n]');
+    if (n) { n.hidden = !UNREAD; n.textContent = UNREAD > 9 ? '9+' : String(UNREAD); }
+  }
+  var dlg = null;
+  function dialog(title) {
+    if (!dlg) {
+      dlg = el('dialog', 'kw-dlg');
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+    }
+    dlg.textContent = '';
+    var head = el('div', 'kw-dlg-head'); head.appendChild(el('h2', null, title));
+    var x = el('button', 'kw-dlg-x', '×'); x.type = 'button'; x.setAttribute('aria-label', '닫기'); x.addEventListener('click', function () { dlg.close(); });
+    head.appendChild(x); dlg.appendChild(head);
+    var body = el('div', 'kw-dlg-body'); dlg.appendChild(body);
+    if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+    return body;
+  }
+  function field(label, input) { var w = el('label', 'kw-field'); w.appendChild(el('span', null, label)); w.appendChild(input); return w; }
+  function btn(text, cls, fn) { var b = el('button', cls || 'btn', text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; }
+  function setKey(k) { try { localStorage.setItem('kw-did', k); } catch (e) {} location.reload(); }
+  function newKey() { var b = new Uint8Array(18); crypto.getRandomValues(b); return btoa(String.fromCharCode.apply(null, b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+  function openAccount() {
+    meReady.then(function () {
+      var body = dialog(ME ? '내 계정' : '계정 만들기');
+      var msg = el('p', 'kw-msg'); msg.setAttribute('role', 'status');
+      if (!ME) {
+        body.appendChild(el('p', 'muted', '이메일·전화번호·실명 없이 닉네임만 정하면 됩니다. 계정은 이 브라우저에 저장된 "계정 키"로 알아봅니다.'));
+        var nick = el('input'); nick.maxLength = 12; nick.placeholder = '한글·영문·숫자 2~12자'; nick.autocomplete = 'off';
+        var bio = el('input'); bio.maxLength = 80; bio.placeholder = '한 줄 소개 (선택)';
+        var agree = el('input'); agree.type = 'checkbox';
+        var ag = el('label', 'kw-check'); ag.appendChild(agree);
+        var agt = el('span'); agt.appendChild(document.createTextNode('이용약관에 동의합니다 ')); var tl = el('a', null, '(보기)'); tl.href = base + '/terms/'; tl.target = '_blank'; agt.appendChild(tl); ag.appendChild(agt);
+        body.appendChild(field('닉네임 (나중에 바꿀 수 없음)', nick)); body.appendChild(field('소개', bio)); body.appendChild(ag);
+        body.appendChild(btn('계정 만들기', 'btn btn-primary', function () {
+          if (!agree.checked) { msg.textContent = '이용약관에 동의해 주세요.'; return; }
+          api('/v1/me', { method: 'POST', body: { nick: nick.value.trim(), bio: bio.value } }).then(function (d) {
+            if (!d.ok) { msg.textContent = d.message || '만들지 못했습니다.'; return; }
+            ME = d.user; paintHeader(); showKey(true);
+          }).catch(function () { msg.textContent = '만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
+        }));
+        body.appendChild(msg);
+        body.appendChild(el('hr'));
+        body.appendChild(el('p', 'muted', '다른 기기에서 만든 계정이 있나요? 그 기기의 "계정 키"를 붙여 넣으세요.'));
+        var key = el('input'); key.placeholder = '계정 키'; key.autocomplete = 'off'; key.spellcheck = false;
+        body.appendChild(field('계정 키로 로그인', key));
+        body.appendChild(btn('로그인', 'btn', function () {
+          var k = key.value.trim();
+          if (!/^[A-Za-z0-9_-]{22,64}$/.test(k)) { msg.textContent = '계정 키 형식이 아닙니다.'; return; }
+          setKey(k);
+        }));
+        return;
+      }
+      var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick));
+      var nm = el('div'); nm.appendChild(el('strong', null, ME.nick)); nm.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입'));
+      info.appendChild(nm); body.appendChild(info);
+      var bio2 = el('input'); bio2.maxLength = 80; bio2.value = ME.bio || ''; bio2.placeholder = '한 줄 소개';
+      body.appendChild(field('소개', bio2));
+      var row = el('div', 'kw-row');
+      row.appendChild(btn('소개 저장', 'btn', function () {
+        api('/v1/me', { method: 'POST', body: { bio: bio2.value } }).then(function (d) { msg.textContent = d.ok ? '저장했습니다.' : (d.message || '저장하지 못했습니다.'); if (d.ok) ME.bio = bio2.value; });
+      }));
+      var pf = el('a', 'btn', '내 프로필'); pf.href = profileUrl(ME.id); row.appendChild(pf);
+      row.appendChild(btn('알림', 'btn', openBell));
+      body.appendChild(row); body.appendChild(msg);
+      body.appendChild(el('hr'));
+      body.appendChild(btn('계정 키 보기 (다른 기기에서 로그인)', 'btn', function () { showKey(false); }));
+      body.appendChild(btn('이 기기에서 로그아웃', 'cm-link', function () {
+        if (confirm('로그아웃하면 이 기기에서는 계정 키가 지워집니다. 키를 따로 저장해 두지 않았다면 계정을 다시 찾을 수 없습니다. 계속할까요?')) setKey(newKey());
+      }));
+      body.appendChild(btn('계정 삭제', 'cm-link kw-danger', function () {
+        var all = confirm('계정을 삭제합니다. 내가 쓴 글도 모두 지울까요?\n[확인] 글도 모두 삭제\n[취소] 글은 "탈퇴한 사용자"로 남김');
+        if (!confirm('정말 계정을 삭제할까요? 되돌릴 수 없습니다.')) return;
+        api('/v1/me/delete', { method: 'POST', body: { all: all } }).then(function () { setKey(newKey()); });
+      }));
+    });
+  }
+  function showKey(fresh) {
+    var body = dialog(fresh ? '계정을 만들었습니다' : '계정 키');
+    body.appendChild(el('p', null, '아래 계정 키가 곧 이 계정의 열쇠입니다. 다른 기기에서 로그인할 때 쓰고, 브라우저 기록을 지우면 이 키가 있어야 계정을 되찾을 수 있습니다.'));
+    body.appendChild(el('p', 'kw-warn', '키를 다른 사람에게 보여 주지 마세요. 운영자도 키를 다시 찾아 드릴 수 없습니다.'));
+    var k = ''; try { k = localStorage.getItem('kw-did') || ''; } catch (e) {}
+    var code = el('code', 'kw-key', k); body.appendChild(code);
+    var row = el('div', 'kw-row');
+    row.appendChild(btn('키 복사', 'btn btn-primary', function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(k).then(function () { alert('복사했습니다. 메모 앱 등 안전한 곳에 저장해 두세요.'); }, function () { prompt('아래 키를 복사하세요', k); });
+      else prompt('아래 키를 복사하세요', k);
+    }));
+    row.appendChild(btn('닫기', 'btn', function () { dlg.close(); if (fresh) location.reload(); }));
+    body.appendChild(row);
+  }
+  function openBell() {
+    var body = dialog('알림');
+    api('/v1/notifications').then(function (d) {
+      var items = d.items || [];
+      if (!items.length) { body.appendChild(el('p', 'muted', '아직 알림이 없습니다.')); return; }
+      var ul = el('ul', 'kw-notifs');
+      items.forEach(function (x) {
+        var li = el('li', x.seen ? '' : 'unread'), a = el('a');
+        var t = x.type === 'follow' ? x.from_nick + '님이 나를 팔로우했습니다'
+          : x.type === 'reply' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글에 답글을 달았습니다'
+          : '내 글에 좋아요 ' + x.n + '개';
+        a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : threadUrl(x.slug);
+        li.appendChild(a);
+        li.appendChild(el('span', 'muted', (x.slug ? ' · ' + threadLabel(x.slug) : '') + ' · ' + ago(x.updated)));
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+      api('/v1/notifications/read', { method: 'POST' }).then(function () { UNREAD = 0; paintHeader(); });
+    }).catch(function () { body.appendChild(el('p', 'muted', '알림을 불러오지 못했습니다.')); });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-open-account],[data-open-bell]');
+    if (!t) return;
+    e.preventDefault();
+    if (t.hasAttribute('data-open-bell')) openBell(); else openAccount();
+  });
+
+  // ---------- 댓글·종토방 묶음 ----------
+  function initThread(box) {
+    var tslug = box.getAttribute('data-thread'), kind = box.getAttribute('data-kind') || 'report';
+    var isReport = kind === 'report';
     var listEl = box.querySelector('[data-cm-list]');
     var bestEl = box.querySelector('[data-cm-best]');
     var countEl = box.querySelector('[data-cm-count]');
     var form = box.querySelector('[data-cm-form]');
     var msg = box.querySelector('[data-cm-msg]');
     var lenEl = box.querySelector('[data-cm-len]');
-    var sort = 'top';
+    var sort = isReport ? 'top' : 'new';
     var startedAt = 0;
     var liked = {};
+    var noun = isReport ? '댓글' : '글';
 
     function item(c, isBest, canReply) {
       var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : ''));
@@ -131,7 +270,7 @@
       var main = el('div', 'cm-main'); li.appendChild(main);
       var head = el('div', 'cm-head');
       if (isBest) head.appendChild(el('span', 'cm-badge', 'BEST'));
-      head.appendChild(el('strong', 'cm-nick', c.nick));
+      head.appendChild(nickEl(c, 'cm-nick'));
       head.appendChild(el('span', 'cm-time muted', ago(c.created)));
       main.appendChild(head);
       main.appendChild(el('p', 'cm-body', c.body));
@@ -154,20 +293,23 @@
       act.appendChild(like);
       if (canReply) {
         var rb = el('button', 'cm-link', '답글'); rb.type = 'button';
-        rb.addEventListener('click', function () { openReply(c.parent || c.id, c.nick); });
+        rb.addEventListener('click', function () {
+          if (!isReport && !ME) { openAccount(); return; }
+          openReply(c.parent || c.id, c.nick);
+        });
         act.appendChild(rb);
       }
       if (c.mine) {
         var del = el('button', 'cm-link', '삭제'); del.type = 'button';
         del.addEventListener('click', function () {
-          if (!confirm('이 댓글을 삭제할까요?')) return;
+          if (!confirm('이 ' + noun + '을 삭제할까요?')) return;
           api('/v1/comments/' + c.id + '/delete', { method: 'POST' }).then(load).catch(function () {});
         });
         act.appendChild(del);
       } else {
         var rep = el('button', 'cm-link', '신고'); rep.type = 'button';
         rep.addEventListener('click', function () {
-          if (!confirm('이 댓글을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
+          if (!confirm('이 ' + noun + '을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
           api('/v1/comments/' + c.id + '/report', { method: 'POST' }).then(function () { rep.textContent = '신고됨'; rep.disabled = true; }).catch(function () {});
         });
         act.appendChild(rep);
@@ -176,7 +318,7 @@
       return li;
     }
 
-    // 답글 쓰기: 원래 댓글의 답글 묶음 아래에 작은 입력 칸을 연다(답글은 한 단계)
+    // 답글 쓰기: 원래 글의 답글 묶음 아래에 작은 입력 칸을 연다(답글은 한 단계)
     function openReply(rootId, toNick) {
       var old = listEl.querySelector('.cm-reply-form'); if (old) old.remove();
       var wrap = listEl.querySelector('[data-root="' + rootId + '"]'); if (!wrap) return;
@@ -190,7 +332,7 @@
       f.appendChild(t); f.appendChild(row);
       f.addEventListener('submit', function (e) {
         e.preventDefault(); ok.disabled = true;
-        api('/v1/comments', { method: 'POST', body: { slug: slug, nick: form.nick.value, body: t.value, website: '', parent: rootId, t: started ? Date.now() - started : 0 } })
+        api('/v1/comments', { method: 'POST', body: { slug: tslug, nick: form.nick.value, body: t.value, website: '', parent: rootId, t: started ? Date.now() - started : 0 } })
           .then(function (d) {
             ok.disabled = false;
             if (!d.ok) { m.textContent = d.message || '등록하지 못했습니다.'; return; }
@@ -202,22 +344,25 @@
     }
 
     function load() {
-      return api('/v1/comments?slug=' + encodeURIComponent(slug) + '&sort=' + sort).then(function (d) {
+      return api('/v1/comments?slug=' + encodeURIComponent(tslug) + '&sort=' + sort).then(function (d) {
         if (d._status !== 200) return;
         box.hidden = false;
-        var jump = document.querySelector('[data-cm-jump]');
-        if (jump) { jump.hidden = false; jump.textContent = '댓글 ' + (d.comments.length ? num(d.comments.length) : ''); }
+        // 종토방 글쓰기는 계정이 있을 때만
+        if (!isReport) { form.hidden = !ME; var na = box.querySelector('[data-need-account]'); if (na) na.hidden = !!ME; }
         liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
         countEl.textContent = d.comments.length ? num(d.comments.length) : '';
-        document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === slug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
+        if (isReport) document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === tslug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
         var nickInput = form.querySelector('[name=nick]');
-        if (nickInput && !nickInput.value) nickInput.placeholder = '닉네임 (비우면 ' + d.me + ')';
+        if (nickInput && !nickInput.value) {
+          if (ME) { nickInput.value = ME.nick; nickInput.readOnly = true; nickInput.title = '계정 닉네임'; }
+          else nickInput.placeholder = '닉네임 (비우면 ' + d.me + ')';
+        }
         var bol = bestEl.querySelector('ol'); bol.textContent = '';
         (d.best || []).forEach(function (c) { bol.appendChild(item(c, true)); });
         bestEl.hidden = !(d.best && d.best.length);
         listEl.textContent = '';
-        if (!d.comments.length) listEl.appendChild(el('li', 'cm-empty muted', '첫 댓글을 남겨 주세요.'));
-        // 원 댓글(정렬 순서 유지) 아래에 답글을 시간순으로
+        if (!d.comments.length) listEl.appendChild(el('li', 'cm-empty muted', isReport ? '첫 댓글을 남겨 주세요.' : '아직 글이 없습니다. 첫 글을 남겨 보세요.'));
+        // 원 글(정렬 순서 유지) 아래에 답글을 시간순으로
         var roots = d.comments.filter(function (c) { return !c.parent; }), kids = {};
         d.comments.filter(function (c) { return c.parent; }).sort(function (a, b) { return a.created - b.created; })
           .forEach(function (c) { (kids[c.parent] = kids[c.parent] || []).push(c); });
@@ -234,19 +379,19 @@
           listEl.appendChild(li);
         });
         d.roots = roots;
-        if (sort === 'top') renderTop(d);
+        if (isReport && sort === 'top') renderTop(d);
       });
     }
 
-    // 요약 바로 아래 '인기 댓글': 베스트(좋아요 3개 이상) → 좋아요 받은 댓글 많은 순 2개 → 없으면 최근 댓글 1개
-    var topEl = document.querySelector('[data-cm-top]');
+    // (리포트만) 요약 바로 아래 '인기 댓글': 베스트 → 좋아요 받은 댓글 많은 순 2개 → 없으면 최근 댓글 1개
+    var topEl = isReport ? document.querySelector('[data-cm-top]') : null;
     function renderTop(d) {
       if (!topEl) return;
       var seen = {};
       var picks = (d.best || []).concat(d.roots.filter(function (c) { return c.likes > 0; }))
         .filter(function (c) { if (seen[c.id]) return false; seen[c.id] = 1; return true; }).slice(0, 2);
       var hot = picks.length > 0;
-      if (!hot) picks = d.roots.slice(0, 1); // 아직 좋아요가 없으면 가장 최근 댓글 하나
+      if (!hot) picks = d.roots.slice(0, 1);
       topEl.querySelector('.cm-top-title').textContent = hot ? '인기 댓글' : '최근 댓글';
       var ol = topEl.querySelector('ol'); ol.textContent = '';
       var bestIds = (d.best || []).map(function (b) { return b.id; });
@@ -267,24 +412,47 @@
     ta.addEventListener('input', function () { if (!startedAt) startedAt = Date.now(); lenEl.textContent = ta.value.length + '/500'; });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var btn = form.querySelector('[type=submit]'); btn.disabled = true; msg.textContent = '';
+      var btn2 = form.querySelector('[type=submit]'); btn2.disabled = true; msg.textContent = '';
       api('/v1/comments', { method: 'POST', body: {
-        slug: slug, nick: form.nick.value, body: ta.value, website: form.website.value,
+        slug: tslug, nick: form.nick.value, body: ta.value, website: form.website.value,
         t: startedAt ? Date.now() - startedAt : 0
       } }).then(function (d) {
-        btn.disabled = false;
+        btn2.disabled = false;
+        if (d.error === 'account') { openAccount(); return; }
         if (!d.ok) { msg.textContent = d.message || '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
         ta.value = ''; lenEl.textContent = '0/500'; startedAt = 0;
         msg.textContent = d.status === 'held' ? d.message : '등록했습니다.';
         sort = 'new';
         box.querySelectorAll('[data-sort]').forEach(function (x) { x.setAttribute('aria-selected', x.getAttribute('data-sort') === 'new' ? 'true' : 'false'); });
         load().catch(function () {});
-      }).catch(function () { btn.disabled = false; msg.textContent = '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
+      }).catch(function () { btn2.disabled = false; msg.textContent = '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
     });
 
-    // 첫 화면을 다 그린 뒤 불러온다(본문 표시를 늦추지 않게). #comments 로 들어오면 바로
-    var go = function () { load().then(function () { if (location.hash === '#comments') box.scrollIntoView(); }).catch(function () {}); };
-    if (location.hash === '#comments') go(); else setTimeout(go, 300);
+    // 첫 화면을 다 그린 뒤 불러온다(본문 표시를 늦추지 않게). 주소가 이 묶음을 가리키면 바로
+    var here = location.hash === '#' + box.id;
+    var go = function () { meReady.then(load).then(function () { if (location.hash === '#' + box.id) box.scrollIntoView(); }).catch(function () {}); };
+    if (here || !isReport) go(); else setTimeout(go, 300);
+  }
+  document.querySelectorAll('[data-comments]').forEach(initThread);
+
+  // ---------- 리포트: 이 종목 종토방 미리보기(최신 글 3개) ----------
+  var peek = document.querySelector('[data-board-peek]');
+  if (peek) {
+    api('/v1/comments?slug=' + peek.getAttribute('data-board-peek') + '&sort=new').then(function (d) {
+      var roots = (d.comments || []).filter(function (c) { return !c.parent; });
+      var n = peek.querySelector('[data-board-n]'); if (n && d.comments && d.comments.length) n.textContent = ' · 글 ' + num(d.comments.length);
+      if (!roots.length) return;
+      peek.querySelector('[data-board-empty]').hidden = true;
+      var ol = peek.querySelector('[data-board-list]');
+      roots.slice(0, 3).forEach(function (c) {
+        var li = el('li', 'cm-item'); li.appendChild(avatar(c.nick));
+        var main = el('div', 'cm-main'), head = el('div', 'cm-head');
+        head.appendChild(nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
+        if (c.likes) head.appendChild(el('span', 'muted', '♥ ' + num(c.likes)));
+        main.appendChild(head); main.appendChild(el('p', 'cm-body board-peek-body', c.body));
+        li.appendChild(main); ol.appendChild(li);
+      });
+    }).catch(function () {});
   }
 
   // ---------- 검색어 기록(검색 페이지) ----------
@@ -412,6 +580,90 @@
         show('[data-recent-cm]');
       }
     }).catch(function () {});
+
+    // 5) 종토방 새 글, 6) 팔로잉 소식(계정이 있을 때)
+    var rcRender = function (ul, items) {
+      items.forEach(function (c) {
+        var bm = /^b-(.+)$/.exec(c.slug), li = el('li', 'rc-item'), a = el('a', 'rc-link');
+        a.href = threadUrl(c.slug);
+        var head = el('span', 'rc-head');
+        head.appendChild(el('span', 'rank-tick', bm ? bm[1].toUpperCase() : (c.slug.split('-')[0] || '').toUpperCase()));
+        head.appendChild(el('strong', 'rc-nick', c.nick));
+        head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
+        a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
+        li.appendChild(a); ul.appendChild(li);
+      });
+    };
+    api('/v1/comments/recent?kind=board&limit=5').then(function (d) {
+      if (!(d.items || []).length) return;
+      rcRender(ins.querySelector('[data-board-latest-list]'), d.items);
+      ins.querySelector('[data-board-latest]').hidden = false; ins.hidden = false;
+    }).catch(function () {});
+    meReady.then(function (me) {
+      if (!me) return null;
+      return api('/v1/feed/following').then(function (d) {
+        if (!(d.items || []).length) return;
+        rcRender(ins.querySelector('[data-following-list]'), d.items.slice(0, 6));
+        ins.querySelector('[data-following]').hidden = false; ins.hidden = false;
+      });
+    }).catch(function () {});
+  }
+
+  // ---------- 프로필(/u/?id=번호) ----------
+  var prof = document.querySelector('[data-profile]');
+  if (prof) {
+    var pid = (/[?&]id=(\d+)/.exec(location.search) || [])[1];
+    var pmsg = prof.querySelector('[data-profile-msg]');
+    if (!pid) pmsg.textContent = '프로필 주소가 올바르지 않습니다.';
+    else Promise.all([meReady, api('/v1/users/' + pid)]).then(function (res) {
+      var d = res[1];
+      if (d._status !== 200) { pmsg.textContent = '찾을 수 없는 프로필입니다(탈퇴했거나 이용이 제한된 계정).'; return; }
+      prof.textContent = '';
+      document.title = d.user.nick + ' | ' + document.title.split('|').pop().trim();
+      var head = el('div', 'profile-head'), av = avatar(d.user.nick); av.className += ' profile-av';
+      head.appendChild(av);
+      var who = el('div', 'profile-who');
+      who.appendChild(el('h1', null, d.user.nick));
+      if (d.user.bio) who.appendChild(el('p', 'profile-bio', d.user.bio));
+      who.appendChild(el('p', 'muted profile-since', new Date(d.user.created).toLocaleDateString('ko-KR') + ' 가입'));
+      head.appendChild(who);
+      prof.appendChild(head);
+      var st = el('ul', 'profile-stats');
+      [['글', d.stats.posts], ['받은 좋아요', d.stats.likes], ['팔로워', d.stats.followers], ['팔로잉', d.stats.following]].forEach(function (x) {
+        var li = el('li'); li.appendChild(el('strong', null, num(x[1]))); li.appendChild(el('span', 'muted', x[0])); st.appendChild(li);
+      });
+      prof.appendChild(st);
+      var fcount = st.children[2].querySelector('strong');
+      if (d.self) {
+        prof.appendChild(btn('내 계정 설정', 'btn', openAccount));
+      } else {
+        var fb = btn(d.following ? '팔로잉' : '팔로우', 'btn ' + (d.following ? '' : 'btn-primary') + ' follow-btn', function () {
+          if (!ME) { openAccount(); return; }
+          fb.disabled = true;
+          api('/v1/follow', { method: 'POST', body: { uid: d.user.id } }).then(function (r) {
+            fb.disabled = false;
+            if (r._status !== 200) { if (r.message) alert(r.message); return; }
+            fb.textContent = r.following ? '팔로잉' : '팔로우';
+            fb.className = 'btn ' + (r.following ? '' : 'btn-primary') + ' follow-btn';
+            fcount.textContent = num(r.followers);
+          }).catch(function () { fb.disabled = false; });
+        });
+        fb.setAttribute('aria-pressed', d.following ? 'true' : 'false');
+        prof.appendChild(fb);
+      }
+      prof.appendChild(el('h2', 'section-title profile-h', '최근 글'));
+      var ul = el('ul', 'rc-list');
+      if (!d.items.length) ul.appendChild(el('li', 'rc-item muted rc-empty', '아직 쓴 글이 없습니다.'));
+      d.items.forEach(function (c) {
+        var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = threadUrl(c.slug);
+        var h = el('span', 'rc-head');
+        h.appendChild(el('span', 'rank-tick', threadLabel(c.slug)));
+        h.appendChild(el('span', 'muted', (c.reply ? '답글 · ' : '') + ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
+        a.appendChild(h); a.appendChild(el('span', 'rc-body', c.body));
+        li.appendChild(a); ul.appendChild(li);
+      });
+      prof.appendChild(ul);
+    }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
   }
 
   // ---------- 리포트 끝: 지금 많이 보는 리포트(지금 글 제외) ----------

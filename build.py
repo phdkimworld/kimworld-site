@@ -660,6 +660,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=ads.render("list", {"theme": "*"}), is_home=True)
     write("search/index.html", "search.html")
+    if site.get("api_url"):
+        write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
     write("404.html", "404.html")
 
     # ---- 고정 페이지
