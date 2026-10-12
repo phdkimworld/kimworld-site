@@ -186,3 +186,9 @@ LAES:
   exchange: "NASDAQ"
   theme: "양자컴퓨팅"
   aliases: ["씰에스큐", "실SQ", "씰SQ", "SEALSQ", "SEALSQ Corp", "위즈키 반도체"]
+LEU:
+  name: "센트러스 에너지"
+  name_en: "Centrus Energy"
+  exchange: "NYSE"
+  theme: "원자력·에너지"
+  aliases: ["센트러스", "센트러스에너지", "Centrus", "Centrus Energy"]
