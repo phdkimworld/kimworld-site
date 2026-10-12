@@ -174,3 +174,9 @@ INJ:
   exchange: "Binance"
   theme: "코인·블록체인"
   aliases: ["인젝티브", "인젝티브 프로토콜", "Injective", "Injective Protocol"]
+JOBY:
+  name: "조비 에비에이션"
+  name_en: "Joby Aviation"
+  exchange: "NYSE"
+  theme: "우주항공·방산"
+  aliases: ["조비 에비에이션", "조비", "Joby", "Joby Aviation"]
