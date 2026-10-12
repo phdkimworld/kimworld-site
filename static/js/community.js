@@ -177,51 +177,79 @@
     logTimer = setTimeout(function () { lastLogged = q; api('/v1/search', { method: 'POST', body: { q: q }, keepalive: true }).catch(function () {}); }, 1500);
   };
 
-  // ---------- 홈: 많이 본 리포트 / 요즘 많이 찾는 종목 ----------
+  // ---------- 공통: 리포트 목록(search.json)과 조회 순위 ----------
+  var idxP = null;
+  function loadIndex() {
+    if (!idxP) idxP = fetch(base + '/search.json').then(function (r) { return r.json(); }).then(function (idx) {
+      var bySlug = {};
+      (idx || []).forEach(function (r) { var m = String(r.u).match(/\/r\/([^/]+)\/?$/); if (m) bySlug[m[1]] = r; });
+      return { idx: idx || [], bySlug: bySlug };
+    });
+    return idxP;
+  }
+  function popular(days) {
+    return api('/v1/popular?days=' + days + '&limit=50').then(function (d) { return d.items || []; }).catch(function () { return []; });
+  }
+  // 오늘 조회가 3 이상이고, 지난 6일 하루 평균의 2배 이상이면 급상승
+  function rising(x, days) { var prev = (x.n - (x.today || 0)) / 6; return days === 7 && (x.today || 0) >= 3 && x.today >= prev * 2; }
+  function rankList(ol, items, I, days) {
+    ol.textContent = '';
+    var showN = items.length && items[0].n >= 10; // 숫자가 작을 때는 순위만 보여 준다
+    items.forEach(function (x, i) {
+      var r = I.bySlug[x.slug], li = el('li', 'rank-item');
+      li.appendChild(el('span', 'rank-no', String(i + 1)));
+      var a = el('a', 'rank-link'); a.href = r.u;
+      a.appendChild(el('span', 'rank-tick', r.k));
+      a.appendChild(el('span', 'rank-title', r.t.replace(/^.*?주가 내러티브와 패턴 투자전략:\s*/, '').replace(/^.*?가격 내러티브와 패턴 투자전략:\s*/, '')));
+      li.appendChild(a);
+      if (rising(x, days)) li.appendChild(el('span', 'rank-hot', '급상승'));
+      if (showN) li.appendChild(el('span', 'rank-n muted', '조회 ' + num(x.n)));
+      ol.appendChild(li);
+    });
+  }
+
+  // ---------- 홈: 많이 본 리포트 / 관심 종목 / 테마별 관심도 / 최근 댓글 ----------
   var ins = document.querySelector('[data-insights]');
   if (ins) {
     var norm = function (s) { return String(s || '').toLowerCase().replace(/[\s·\-_.,()]/g, ''); };
-    Promise.all([
-      fetch(base + '/search.json').then(function (r) { return r.json(); }),
-      api('/v1/popular?days=7&limit=5').catch(function () { return {}; }),
-      api('/v1/trending?days=7').catch(function () { return {}; })
+    var show = function (sel) { ins.querySelector(sel).hidden = false; ins.hidden = false; };
+    Promise.all([loadIndex(), popular(7), popular(1),
+      api('/v1/trending?days=7').catch(function () { return {}; }),
+      api('/v1/comments/recent?limit=5').catch(function () { return {}; })
     ]).then(function (res) {
-      var idx = res[0] || [], pop = res[1] || {}, tr = res[2] || {};
-      var bySlug = {};
-      idx.forEach(function (r) { var m = String(r.u).match(/\/r\/([^/]+)\/?$/); if (m) bySlug[m[1]] = r; });
-      var popItems = (pop.items || []).filter(function (x) { return bySlug[x.slug]; });
-      if (popItems.length >= 3) {
+      var I = res[0], keep = function (x) { return I.bySlug[x.slug]; };
+      var p7 = res[1].filter(keep), p1 = res[2].filter(keep), tr = res[3] || {}, rc = (res[4] || {}).items || [];
+
+      // 1) 많이 본 리포트 (오늘 / 7일)
+      if (p7.length >= 2) {
         var ol = ins.querySelector('[data-popular-list]');
-        popItems.forEach(function (x, i) {
-          var r = bySlug[x.slug], li = el('li', 'rank-item');
-          li.appendChild(el('span', 'rank-no', String(i + 1)));
-          var a = el('a', 'rank-link'); a.href = r.u;
-          a.appendChild(el('span', 'rank-tick', r.k));
-          a.appendChild(el('span', 'rank-title', r.t));
-          li.appendChild(a);
-          li.appendChild(el('span', 'rank-n muted', '조회 ' + num(x.n)));
-          ol.appendChild(li);
-        });
-        ins.querySelector('[data-popular]').hidden = false;
-        ins.hidden = false;
+        var tabs = ins.querySelectorAll('[data-pop-range]');
+        var pick = function (days) {
+          rankList(ol, (days === 1 ? p1 : p7).slice(0, 5), I, days);
+          tabs.forEach(function (t) { t.setAttribute('aria-selected', +t.getAttribute('data-pop-range') === days ? 'true' : 'false'); });
+        };
+        if (p1.length >= 2) tabs.forEach(function (t) { t.addEventListener('click', function () { pick(+t.getAttribute('data-pop-range')); }); });
+        else ins.querySelector('.ins-tabs').hidden = true;
+        pick(7);
+        show('[data-popular]');
       }
-      // 검색어를 사이트에 있는 종목에만 맞춰 보여 준다(엉뚱한 검색어·광고성 글자는 화면에 나오지 않음)
+
+      // 2) 관심 많은 종목: 7일 조회 + 사이트 검색(검색은 의도가 뚜렷해 3배로 셈). 사이트에 있는 종목만
       var tick = {};
-      idx.forEach(function (r) {
-        var names = [r.k, r.c, r.e].concat(r.a || []).map(norm).filter(function (s) { return s.length >= 2; });
+      I.idx.forEach(function (r) {
         if (!tick[r.k]) tick[r.k] = { k: r.k, c: r.c, names: [], n: 0 };
-        tick[r.k].names = tick[r.k].names.concat(names);
+        tick[r.k].names = tick[r.k].names.concat([r.k, r.c, r.e].concat(r.a || []).map(norm).filter(function (s) { return s.length >= 2; }));
       });
+      p7.forEach(function (x) { var r = I.bySlug[x.slug]; tick[r.k].n += x.n; });
       (tr.items || []).forEach(function (x) {
         var q = norm(x.q);
         Object.keys(tick).forEach(function (k) {
-          var t = tick[k];
-          if (t.names.some(function (nm) { return nm === q || (q.length >= 2 && nm.indexOf(q) === 0); })) t.n += x.n;
+          if (tick[k].names.some(function (nm) { return nm === q || (q.length >= 2 && nm.indexOf(q) === 0); })) tick[k].n += 3 * x.n;
         });
       });
       var hot = Object.keys(tick).map(function (k) { return tick[k]; }).filter(function (t) { return t.n > 0; })
         .sort(function (a, b) { return b.n - a.n; }).slice(0, 8);
-      if (hot.length >= 3) {
+      if (hot.length >= 2) {
         var ul = ins.querySelector('[data-trending-list]');
         hot.forEach(function (t, i) {
           var li = el('li'), a = el('a', 'chip'); a.href = base + '/t/' + t.k.toLowerCase() + '/';
@@ -229,9 +257,53 @@
           a.appendChild(document.createTextNode(' ' + t.c));
           li.appendChild(a); ul.appendChild(li);
         });
-        ins.querySelector('[data-trending]').hidden = false;
-        ins.hidden = false;
+        show('[data-trending]');
       }
+
+      // 3) 테마별 관심도: 7일 조회를 테마별로 합친 비중. 표본이 작으면(10회 미만) 숨김
+      var th = {}, ts = {}, total = 0;
+      p7.forEach(function (x) { var r = I.bySlug[x.slug]; if (!r.th) return; ts[r.th] = r.ts; th[r.th] = (th[r.th] || 0) + x.n; total += x.n; });
+      var ths = Object.keys(th).map(function (k) { return { name: k, n: th[k] }; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 6);
+      if (ths.length >= 2 && total >= 10) {
+        var bl = ins.querySelector('[data-theme-list]'), top = ths[0].n;
+        ths.forEach(function (t) {
+          var li = el('li', 'bar'), pct = Math.round(t.n / total * 100);
+          var a = el('a', 'bar-name', t.name); a.href = base + '/theme/' + ts[t.name] + '/';
+          var track = el('span', 'bar-track'), fill = el('span', 'bar-fill'); fill.style.width = Math.max(4, t.n / top * 100) + '%';
+          track.appendChild(fill);
+          li.appendChild(a); li.appendChild(track); li.appendChild(el('span', 'bar-pct', pct + '%'));
+          bl.appendChild(li);
+        });
+        show('[data-themes]');
+      }
+
+      // 4) 최근 댓글
+      var rcs = rc.filter(keep);
+      if (rcs.length) {
+        var cl = ins.querySelector('[data-recent-cm-list]');
+        rcs.forEach(function (c) {
+          var r = I.bySlug[c.slug], li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = r.u + '#comments';
+          var head = el('span', 'rc-head');
+          head.appendChild(el('span', 'rank-tick', r.k));
+          head.appendChild(el('strong', 'rc-nick', c.nick));
+          head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
+          a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
+          li.appendChild(a); cl.appendChild(li);
+        });
+        show('[data-recent-cm]');
+      }
+    }).catch(function () {});
+  }
+
+  // ---------- 리포트 끝: 지금 많이 보는 리포트(지금 글 제외) ----------
+  var nr = document.querySelector('[data-next-reads]');
+  if (nr && slug) {
+    Promise.all([loadIndex(), popular(7)]).then(function (res) {
+      var I = res[0];
+      var items = res[1].filter(function (x) { return x.slug !== slug && I.bySlug[x.slug]; }).slice(0, 5);
+      if (items.length < 2) return;
+      rankList(nr.querySelector('[data-next-list]'), items, I, 7);
+      nr.hidden = false;
     }).catch(function () {});
   }
 })();

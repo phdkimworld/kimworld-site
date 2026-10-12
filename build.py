@@ -611,7 +611,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     # ---- 검색 색인, 피드, 사이트맵, 기타
     index = [{
         "u": r["url"], "t": r["title"], "k": r["ticker"], "c": r["company"], "e": r["company_en"],
-        "a": r["aliases"], "th": r["theme"], "s": r["summary"], "d": r["date"].isoformat(),
+        "a": r["aliases"], "th": r["theme"], "ts": r["theme_slug"], "s": r["summary"], "d": r["date"].isoformat(),
     } for r in public]
     (out / "search.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 

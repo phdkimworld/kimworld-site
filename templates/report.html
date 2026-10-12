@@ -118,6 +118,13 @@
     {{ end_ad|safe }}
 
     {% if site.api_url %}
+    <section class="ins-card next-reads" data-next-reads hidden aria-labelledby="nr-h">
+      <h2 id="nr-h" class="section-title">지금 많이 보는 리포트 <span class="muted ins-sub">최근 7일</span></h2>
+      <ol class="rank" data-next-list></ol>
+    </section>
+    {% endif %}
+
+    {% if site.api_url %}
     <section class="comments" id="comments" data-comments hidden aria-labelledby="cm-h">
       <h2 id="cm-h">댓글 <span class="cm-count" data-cm-count></span></h2>
       <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>

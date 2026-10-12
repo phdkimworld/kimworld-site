@@ -99,9 +99,11 @@ export default {
       }
       if (p === "/v1/popular" && req.method === "GET") {
         const days = Math.min(30, Math.max(1, parseInt(url.searchParams.get("days") || "7", 10) || 7));
-        const limit = Math.min(20, Math.max(1, parseInt(url.searchParams.get("limit") || "5", 10) || 5));
+        const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") || "5", 10) || 5));
         const since = kstDay(now - (days - 1) * 864e5);
-        const r = await db.prepare("SELECT slug, SUM(n) AS n FROM views_daily WHERE day >= ? GROUP BY slug ORDER BY n DESC LIMIT ?").bind(since, limit).all();
+        // today: 오늘(한국 날짜) 조회수. 화면에서 '급상승' 표시에 쓴다
+        const r = await db.prepare("SELECT slug, SUM(n) AS n, SUM(CASE WHEN day = ? THEN n ELSE 0 END) AS today FROM views_daily WHERE day >= ? GROUP BY slug ORDER BY n DESC, slug LIMIT ?")
+          .bind(kstDay(now), since, limit).all();
         return json(req, { days, items: r.results || [] }, 200, { "Cache-Control": "public, max-age=300" });
       }
 
@@ -125,6 +127,13 @@ export default {
       }
 
       // ---------- 댓글 ----------
+      // 사이트 전체 최근 댓글(게시 상태만). 홈 화면 '최근 댓글'용
+      if (p === "/v1/comments/recent" && req.method === "GET") {
+        const limit = Math.min(10, Math.max(1, parseInt(url.searchParams.get("limit") || "5", 10) || 5));
+        const r = await db.prepare("SELECT id, slug, nick, body, likes, created FROM comments WHERE status = 'ok' ORDER BY created DESC LIMIT ?").bind(limit).all();
+        const items = (r.results || []).map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, body: c.body.length > 80 ? c.body.slice(0, 80) + "…" : c.body, likes: c.likes, created: c.created }));
+        return json(req, { items }, 200, { "Cache-Control": "public, max-age=60" });
+      }
       if (p === "/v1/comments" && req.method === "GET") {
         const slug = url.searchParams.get("slug") || "";
         if (!SLUG_RE.test(slug)) return json(req, { error: "slug" }, 400);

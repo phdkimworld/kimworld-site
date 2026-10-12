@@ -107,6 +107,13 @@ r = await call("POST", `/v1/comments/${c1}/delete`, { ip: "1.1.1.1" });
 list = await call("GET", "/v1/comments?slug=rgti-2026-10");
 check(r.data.ok && !list.data.comments.some((c) => c.id === c1), "내 댓글은 내가 삭제");
 
+console.log("홈 화면용");
+r = await call("GET", "/v1/comments/recent?limit=3");
+check(r.data.items.length === 3 && r.data.items.every((c) => !("ih" in c) && c.slug && !/010|https/.test(c.body)), "최근 댓글 3개(보류·숨김 제외, 해시 없음)");
+check(r.data.items[0].created >= r.data.items[1].created, "최근 댓글은 새 글 먼저");
+r = await call("GET", "/v1/popular?days=1&limit=50");
+check(r.data.items[0].today === 2 && r.data.days === 1, "오늘 조회수(today) 함께 보냄");
+
 console.log("검색어");
 for (const ip of ["20.0.0.1", "20.0.0.2", "20.0.0.3"]) await call("POST", "/v1/search", { body: { q: "리게티" }, ip });
 await call("POST", "/v1/search", { body: { q: "리게티" }, ip: "20.0.0.3" });

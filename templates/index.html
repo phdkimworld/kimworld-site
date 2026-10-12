@@ -20,14 +20,28 @@
   </section>
 
   {% if site.api_url %}
-  <section class="insights" data-insights hidden>
-    <div class="ins-col" data-popular hidden>
-      <h2 class="section-title">많이 본 리포트 <span class="muted ins-sub">최근 7일</span></h2>
+  <section class="insights" data-insights hidden aria-label="독자 인사이트">
+    <div class="ins-card" data-popular hidden>
+      <div class="ins-head">
+        <h2 class="section-title">많이 본 리포트</h2>
+        <div class="ins-tabs" role="tablist" aria-label="기간">
+          <button type="button" role="tab" data-pop-range="1" aria-selected="false">오늘</button>
+          <button type="button" role="tab" data-pop-range="7" aria-selected="true">7일</button>
+        </div>
+      </div>
       <ol class="rank" data-popular-list></ol>
     </div>
-    <div class="ins-col" data-trending hidden>
-      <h2 class="section-title">요즘 많이 찾는 종목 <span class="muted ins-sub">최근 7일 검색</span></h2>
+    <div class="ins-card" data-trending hidden>
+      <h2 class="section-title">관심 많은 종목 <span class="muted ins-sub">최근 7일 조회·검색</span></h2>
       <ul class="chip-list" data-trending-list></ul>
+    </div>
+    <div class="ins-card" data-themes hidden>
+      <h2 class="section-title">테마별 관심도 <span class="muted ins-sub">최근 7일 조회 비중</span></h2>
+      <ul class="bars" data-theme-list></ul>
+    </div>
+    <div class="ins-card" data-recent-cm hidden>
+      <h2 class="section-title">최근 댓글</h2>
+      <ul class="rc-list" data-recent-cm-list></ul>
     </div>
   </section>
   {% endif %}

@@ -1,5 +1,6 @@
 """빌드 검사: python3 tests/test_build.py
 실제 사이트 파일은 건드리지 않고, 임시 폴더에 복사해 가짜 광고 번호·테스트 글로 빌드해 본다."""
+import json
 import re
 import shutil
 import subprocess
@@ -230,6 +231,9 @@ home = (t / "dist/index.html").read_text(encoding="utf-8")
 check(0 < pg.find("data-cm-top hidden") < pg.find('class="prose"'), "요약 바로 아래 인기 댓글 자리(본문보다 위, 처음엔 숨김)")
 check('id="comments" data-comments hidden' in pg and "community.js" in pg and 'data-views hidden' in pg, "리포트에 댓글·조회수 자리(처음엔 숨김)")
 check("data-insights hidden" in home and "data-popular-list" in home and "data-trending-list" in home, "홈에 많이 본 리포트·많이 찾는 종목 자리(처음엔 숨김)")
+check("data-theme-list" in home and "data-recent-cm-list" in home and "data-pop-range" in home, "홈에 테마별 관심도·최근 댓글·오늘/7일 탭 자리")
+check(pg.find("data-next-reads hidden") > pg.find('class="prose"'), "리포트 끝에 '지금 많이 보는 리포트' 자리")
+check(all("ts" in x for x in json.loads((t / "dist/search.json").read_text(encoding="utf-8"))), "검색 색인에 테마 주소(ts)")
 check('name="website" class="hp"' in pg, "로봇 막는 숨은 칸")
 sy = yaml.safe_load((t / "site.yaml").read_text(encoding="utf-8")); sy["api_url"] = ""
 (t / "site.yaml").write_text(yaml.safe_dump(sy, allow_unicode=True), encoding="utf-8")
