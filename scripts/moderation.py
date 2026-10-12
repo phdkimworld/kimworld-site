@@ -21,17 +21,36 @@ def redact(t: str) -> str:
     return t.replace("\n", " ")[:300]
 
 
+def annotate(title: str, text: str) -> None:
+    """실행 기록 파일은 이 환경에서 못 읽을 수 있어, REST API로 읽히는 '주석(annotation)'으로도 남긴다."""
+    esc = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    print(f"::notice title={title}::{esc}")
+
+
 def cmd_list(path: str) -> None:
     raw = json.load(open(path, encoding="utf-8"))
     rows = raw[0]["results"] if isinstance(raw, list) else raw.get("results", [])
+    items = [{
+        "id": r["id"], "where": r["slug"], "nick": redact(str(r["nick"])), "account": r.get("uid"),
+        "status": r["status"], "reports": r["reports"], "likes": r["likes"],
+        "account_hidden_total": r.get("hid") or 0, "body": redact(str(r["body"])),
+    } for r in rows]
     print("=== QUEUE START ===")
-    for r in rows:
-        print(json.dumps({
-            "id": r["id"], "where": r["slug"], "nick": redact(str(r["nick"])), "account": r.get("uid"),
-            "status": r["status"], "reports": r["reports"], "likes": r["likes"],
-            "account_hidden_total": r.get("hid") or 0, "body": redact(str(r["body"])),
-        }, ensure_ascii=False))
-    print(f"=== QUEUE END ({len(rows)}) ===")
+    for it in items:
+        print(json.dumps(it, ensure_ascii=False))
+    print(f"=== QUEUE END ({len(items)}) ===")
+    # 주석 하나에 너무 길지 않게 나눠 담는다(주석은 단계당 10개까지라 최대 9묶음 + 개수)
+    chunks, cur = [], []
+    for it in items:
+        cur.append(it)
+        if len(json.dumps(cur, ensure_ascii=False)) > 6000:
+            chunks.append(cur[:-1]); cur = [it]
+    if cur:
+        chunks.append(cur)
+    chunks = chunks[:9]
+    for i, ch in enumerate(chunks):
+        annotate(f"QUEUE {i + 1}/{len(chunks)}", json.dumps(ch, ensure_ascii=False))
+    annotate("QUEUE COUNT", str(len(items)))
 
 
 def cmd_apply(decisions: str, out: str) -> None:
