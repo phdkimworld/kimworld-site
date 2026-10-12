@@ -64,7 +64,10 @@ FULL_ADS = {
 }
 
 print("1) 광고 설정이 비어 있을 때")
-t = make_project()
+EMPTY_ADS = {"adsense": {"client": "", "slots": {"in_article": "", "display": ""}},
+             "adfit": {"units": {"report_end": "", "list": ""}},
+             "coupang": {"banner_html": "", "products": {}}}
+t = make_project(EMPTY_ADS)
 r = run(t)
 check(r.returncode == 0, "빌드 성공 " + r.stdout[-200:] + r.stderr[-400:])
 page = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
