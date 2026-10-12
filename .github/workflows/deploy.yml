@@ -61,6 +61,21 @@ jobs:
           key: coupang-${{ github.run_id }}
       - name: Build
         run: python build.py --strict
+      - name: Board notices
+        # 새 종목 종토방에 첫 글(종목 소개 + 규칙 공지)을 올린다. 이미 공지가 있는 종토방은 건드리지 않는다
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: worker
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Cloudflare 비밀값 없음 → 건너뜀"; exit 0; }
+          python ../scripts/board_notices.py > /tmp/notices.sql
+          ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
+          test -n "$ID"
+          sed -i "s/__D1_ID__/$ID/" wrangler.toml
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/notices.sql
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         if: github.event_name != 'pull_request'
         with:

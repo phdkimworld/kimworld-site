@@ -20,19 +20,42 @@ function stmt(sql, args = []) {
   };
 }
 const DB = { prepare: (sql) => stmt(sql), batch: async (list) => Promise.all(list.map((s) => s.run())) };
-const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm" };
+const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey" };
+// 구글·카카오 서버 흉내
+const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+globalThis.fetch = async (u, opt = {}) => {
+  u = String(u);
+  if (u.startsWith("https://oauth2.googleapis.com/token")) {
+    const code = new URLSearchParams(String(opt.body)).get("code");
+    if (code === "bad") return new Response(JSON.stringify({ error: "invalid_grant" }));
+    const aud = code === "wrongaud" ? "other" : "gid";
+    return new Response(JSON.stringify({ id_token: "h." + b64u({ iss: "https://accounts.google.com", aud, sub: "g-" + code }) + ".s" }));
+  }
+  if (u.startsWith("https://kauth.kakao.com/oauth/token")) return new Response(JSON.stringify({ access_token: "at-" + new URLSearchParams(String(opt.body)).get("code") }));
+  if (u.startsWith("https://kapi.kakao.com/v2/user/me")) return new Response(JSON.stringify({ id: 4242 }));
+  throw new Error("unexpected fetch " + u);
+};
 
 let fails = 0;
 const check = (cond, msg) => { console.log((cond ? "  ok  " : "  FAIL ") + msg); if (!cond) fails++; };
 // 기기 번호(d=)는 따로 주지 않으면 IP마다 다른 기기로 본다(기존 검사가 "IP = 사람"으로 짜여 있어서)
 const devOf = (ip) => ("dev" + ip.replace(/\./g, "_") + "_".repeat(30)).slice(0, 30);
-async function call(method, path, { body, ip = "1.1.1.1", dev, auth, origin = "https://drkimworld.com" } = {}) {
+async function call(method, path, { body, ip = "1.1.1.1", dev, auth, cookie, origin = "https://drkimworld.com" } = {}) {
   const headers = { "CF-Connecting-IP": ip, Origin: origin, "Content-Type": "application/json" };
   if (auth) headers.Authorization = auth;
+  if (cookie) headers.Cookie = cookie;
   const d = dev === null ? "" : (dev || devOf(ip));
   const u = "https://api.drkimworld.com" + path + (d ? (path.includes("?") ? "&" : "?") + "d=" + d : "");
   const res = await worker.fetch(new Request(u, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
   return { status: res.status, data: await res.json().catch(() => null), headers: res.headers };
+}
+// 소셜 로그인: 시작 → (구글·카카오 화면) → 돌아오기. 쿠키를 돌려준다
+async function login(prov, code, ip = "80.0.0.1", ret = "/t/xndu/#board") {
+  const st = await call("GET", `/v1/auth/${prov}/start?return=${encodeURIComponent(ret)}`, { ip, dev: null });
+  const state = new URL(st.headers.get("Location")).searchParams.get("state");
+  const cb = await call("GET", `/v1/auth/${prov}/callback?code=${code}&state=${state}`, { ip, dev: null });
+  const sc = cb.headers.get("Set-Cookie") || "";
+  return { cookie: (sc.match(/kw_s=[0-9a-f]{64}/) || [""])[0], location: cb.headers.get("Location"), start: st.headers.get("Location") };
 }
 
 console.log("조회수");
@@ -166,58 +189,72 @@ check(pep.n === 1, "그날의 무작위 값 하나만 보관");
 r = await call("GET", "/v1/admin/queue", { auth: "Bearer adx" });
 check(r.status === 401, "관리 토큰이 한 글자만 달라도 거절");
 
-console.log("계정 키 계정·종토방·팔로우·알림");
-const KA = "acctA_aaaaaaaaaaaaaaaaaaaaaa", KB = "acctB_bbbbbbbbbbbbbbbbbbbbbb";
-r = await call("GET", "/v1/me", { ip: "70.0.0.1", dev: KA });
-check(r.data.user === null, "처음엔 계정 없음");
-r = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "계정 없이 종토방 글", t: 8000 }, ip: "70.0.0.1", dev: KA });
-check(r.status === 401, "종토방 글은 계정이 있어야 씀");
-await call("POST", "/v1/comments", { body: { slug: "xndu-2026-10", body: "계정 전 리포트 댓글", t: 8000 }, ip: "70.0.0.1", dev: KA });
-r = await call("POST", "/v1/me", { body: { nick: "운영자" }, ip: "70.0.0.1", dev: KA });
-check(r.status === 400, "운영자 사칭 닉네임 거절");
-r = await call("POST", "/v1/me", { body: { nick: "퀀텀개미", bio: "양자컴퓨팅 공부 중" }, ip: "70.0.0.1", dev: KA });
-check(r.data.ok && r.data.user.nick === "퀀텀개미", "닉네임만으로 계정 만들기");
-const uA = r.data.user.id;
-r = await call("POST", "/v1/me", { body: { nick: "퀀텀개미" }, ip: "70.0.0.2", dev: KB });
-check(r.status === 409, "같은 닉네임은 하나만");
-r = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "70.0.0.2", dev: KB });
-const uB = r.data.user.id;
-list = await call("GET", "/v1/comments?slug=xndu-2026-10", { ip: "70.0.0.1", dev: KA });
-check(list.data.comments.some((c) => c.uid === uA && c.nick === "퀀텀개미"), "계정 전 이 기기에서 쓴 댓글이 계정으로 이어짐");
-r = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "요크빌 매각 규모가 관건이네요", t: 8000 }, ip: "70.0.0.1", dev: KA });
-check(r.data.ok, "계정으로 종토방 글");
-const post = r.data.id;
-r = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "두 번째 글", t: 8000 }, ip: "70.0.0.1", dev: KA });
-check(r.status === 429, "새 계정은 종토방 글 10분에 한 번");
-r = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "동의합니다", parent: post, t: 8000 }, ip: "70.0.0.2", dev: KB });
-await call("POST", `/v1/comments/${post}/like`, { ip: "70.0.0.2", dev: KB });
-r = await call("POST", "/v1/follow", { body: { uid: uA }, ip: "70.0.0.2", dev: KB });
-check(r.data.following === true && r.data.followers === 1, "팔로우");
-r = await call("POST", "/v1/follow", { body: { uid: uB }, ip: "70.0.0.2", dev: KB });
-check(r.status === 400, "나 자신은 팔로우 불가");
-r = await call("GET", "/v1/me", { ip: "70.0.0.1", dev: KA });
-check(r.data.unread === 3, "알림 3개: 답글·좋아요·팔로우");
-r = await call("GET", "/v1/notifications", { ip: "70.0.0.1", dev: KA });
-check(["reply", "like", "follow"].every((t) => r.data.items.some((x) => x.type === t && (t !== "follow" || x.from_nick === "장투러"))), "알림 내용");
-await call("POST", "/v1/notifications/read", { ip: "70.0.0.1", dev: KA });
-r = await call("GET", "/v1/me", { ip: "70.0.0.1", dev: KA });
-check(r.data.unread === 0, "읽음 처리");
-r = await call("GET", "/v1/feed/following", { ip: "70.0.0.2", dev: KB });
-check(r.data.items.length >= 2 && r.data.items.every((x) => x.uid === uA), "팔로잉 소식: 팔로우한 사람 글만");
-r = await call("GET", `/v1/users/${uA}`, { ip: "70.0.0.2", dev: KB });
-check(r.data.user.nick === "퀀텀개미" && r.data.stats.followers === 1 && r.data.following === true && r.data.items.length >= 2 && !("actor" in r.data.user), "프로필(계정 키 해시는 안 보냄)");
-r = await call("GET", "/v1/comments/recent?kind=board&limit=5");
-check(r.data.items.length === 1 && r.data.items[0].slug === "b-xndu", "홈용 종토방 최신 글(답글 제외)");
-r = await call("POST", `/v1/admin/users/${uB}`, { auth: "Bearer adm", body: { status: "banned" } });
-r = await call("POST", "/v1/comments", { body: { slug: "xndu-2026-10", body: "정지 후 글", t: 8000 }, ip: "70.0.0.9", dev: KB });
-check(r.status === 403, "정지 계정은 글 못 씀");
+console.log("소셜 로그인·계정·종토방·팔로우·알림");
+let r0 = await call("GET", "/v1/me", { ip: "80.0.0.1" });
+check(r0.data.user === null && r0.data.loggedIn === false && r0.data.providers.join() === "google,kakao", "처음엔 로그인 안 됨, 켜진 로그인 종류");
+const LA = await login("google", "alice");
+check(LA.start.startsWith("https://accounts.google.com/") && LA.start.includes("scope=openid&") && !LA.start.includes("email"), "구글은 회원 번호(openid)만 요청");
+check(/^kw_s=[0-9a-f]{64}$/.test(LA.cookie) && LA.location === "https://drkimworld.com/t/xndu/?login=ok#board", "로그인 뒤 쿠키를 받고 원래 자리로");
+const bad = await login("google", "wrongaud");
+check(!bad.cookie && bad.location.includes("login=fail"), "다른 앱의 토큰은 거절");
+let r1 = await call("GET", `/v1/auth/google/callback?code=alice&state=forged`, { ip: "80.0.0.1" });
+check(!r1.headers.get("Set-Cookie") && r1.headers.get("Location").includes("login=fail"), "위조한 state 거절");
+r1 = await call("POST", "/v1/me", { body: { nick: "퀀텀개미" }, ip: "80.0.0.1" });
+check(r1.status === 401, "로그인 없이 계정 만들기 불가");
+await call("POST", "/v1/comments", { body: { slug: "xndu-2026-10", body: "로그인 전 익명 댓글", t: 8000 }, ip: "80.0.0.1", dev: "devAlice_aaaaaaaaaaaaaaaaaa" });
+r1 = await call("POST", "/v1/me", { body: { nick: "운영자" }, ip: "80.0.0.1", cookie: LA.cookie, dev: "devAlice_aaaaaaaaaaaaaaaaaa" });
+check(r1.status === 400, "운영자 사칭 닉네임 거절");
+r1 = await call("POST", "/v1/me", { body: { nick: "퀀텀개미", bio: "양자컴퓨팅 공부 중" }, ip: "80.0.0.1", cookie: LA.cookie, dev: "devAlice_aaaaaaaaaaaaaaaaaa" });
+check(r1.data.ok && r1.data.user.nick === "퀀텀개미", "로그인 후 닉네임 정하기");
+const uA = r1.data.user.id;
+r1 = await call("POST", "/v1/me", { body: { nick: "퀀텀개미" }, ip: "80.0.0.1", cookie: LA.cookie, origin: "https://evil.example" });
+check(r1.status === 403, "다른 사이트에서 보낸 로그인 요청 거절");
+list = await call("GET", "/v1/comments?slug=xndu-2026-10", { ip: "80.0.0.1", cookie: LA.cookie });
+check(list.data.comments.some((c) => c.uid === uA && c.nick === "퀀텀개미" && c.mine), "로그인 전 이 기기의 댓글이 계정으로 이어지고 '내 글'");
+const LA2 = await login("google", "alice", "80.0.0.9");
+r1 = await call("GET", "/v1/me", { ip: "80.0.0.9", cookie: LA2.cookie, dev: "otherdevice_xxxxxxxxxxxxxx" });
+check(r1.data.user && r1.data.user.id === uA, "다른 기기에서 같은 구글 계정으로 로그인하면 같은 계정");
+const LB = await login("kakao", "bob", "80.0.0.2");
+check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.start.includes("scope"), "카카오는 동의 항목 없이(회원 번호만)");
+r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
+const uB = r1.data.user.id;
+r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "로그인 없이 종토방 글", t: 8000 }, ip: "80.0.0.3" });
+check(r1.status === 401, "종토방 글은 로그인·계정이 있어야 씀");
+r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "요크빌 매각 규모가 관건이네요", t: 8000 }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.data.ok, "계정으로 종토방 글");
+const post = r1.data.id;
+r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "두 번째 글", t: 8000 }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.status === 429, "새 계정은 종토방 글 10분에 한 번");
+await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "동의합니다", parent: post, t: 8000 }, ip: "80.0.0.2", cookie: LB.cookie });
+await call("POST", `/v1/comments/${post}/like`, { ip: "80.0.0.2", cookie: LB.cookie });
+r1 = await call("POST", "/v1/follow", { body: { uid: uA }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.data.following === true && r1.data.followers === 1, "팔로우");
+r1 = await call("GET", "/v1/me", { ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.data.unread === 3, "알림 3개: 답글·좋아요·팔로우");
+await call("POST", "/v1/notifications/read", { ip: "80.0.0.1", cookie: LA.cookie });
+r1 = await call("GET", "/v1/feed/following", { ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.data.items.length >= 2 && r1.data.items.every((x) => x.uid === uA), "팔로잉 소식");
+r1 = await call("GET", `/v1/users/${uA}`, { ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.data.user.nick === "퀀텀개미" && r1.data.following === true && !("actor" in r1.data.user), "프로필(로그인 정보는 안 보냄)");
+sqlite.exec("INSERT INTO comments (slug, nick, body, ih, did, created, status, pinned) VALUES ('b-xndu', '김박사 월드', '[공지] 종토방 규칙', 'notice', 'notice', 1, 'ok', 1)");
+list = await call("GET", "/v1/comments?slug=b-xndu&sort=new");
+check(list.data.comments[0].pinned === true && list.data.comments[0].nick === "김박사 월드", "공지는 맨 위");
+r1 = await call("GET", "/v1/comments/recent?kind=board&limit=5");
+check(r1.data.items.length === 1 && !r1.data.items.some((x) => x.body.includes("공지")), "홈 종토방 새 글에는 공지 제외");
+const dbRows = JSON.stringify((await DB.prepare("SELECT * FROM users").all()).results) + JSON.stringify((await DB.prepare("SELECT * FROM sessions").all()).results);
+check(!dbRows.includes("g-alice") && !dbRows.includes("4242") && !dbRows.includes(LA.cookie.slice(5)), "구글·카카오 회원 번호와 세션 원문은 저장 안 함");
+await call("POST", `/v1/admin/users/${uB}`, { auth: "Bearer adm", body: { status: "banned" } });
+r1 = await call("POST", "/v1/comments", { body: { slug: "xndu-2026-10", body: "정지 후 글", t: 8000 }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.status === 403, "정지 계정은 글 못 씀");
+r1 = await call("POST", "/v1/auth/logout", { ip: "80.0.0.9", cookie: LA2.cookie });
+check((r1.headers.get("Set-Cookie") || "").includes("Max-Age=0"), "로그아웃하면 쿠키 지움");
+r1 = await call("GET", "/v1/me", { ip: "80.0.0.9", cookie: LA2.cookie });
+check(r1.data.loggedIn === false, "로그아웃한 세션은 더 못 씀");
+r1 = await call("POST", "/v1/me/delete", { body: { all: false }, ip: "80.0.0.1", cookie: LA.cookie });
 list = await call("GET", "/v1/comments?slug=b-xndu");
-check(!list.data.comments.some((c) => c.uid === uB), "정지 계정의 글은 숨김");
-r = await call("POST", "/v1/me/delete", { body: { all: false }, ip: "70.0.0.1", dev: KA });
-list = await call("GET", "/v1/comments?slug=b-xndu");
-check(r.data.ok && list.data.comments.some((c) => c.nick === "탈퇴한 사용자" && !c.uid), "탈퇴: 계정 지우고 글은 '탈퇴한 사용자'로");
-r = await call("GET", `/v1/users/${uA}`);
-check(r.status === 404, "탈퇴한 계정 프로필 없음");
+check(r1.data.ok && list.data.comments.some((c) => c.nick === "탈퇴한 사용자" && !c.uid), "탈퇴: 계정 지우고 글은 '탈퇴한 사용자'로");
+r1 = await call("GET", "/v1/me", { ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.data.loggedIn === false, "탈퇴하면 로그인도 끝남");
 
 console.log("검색어");
 for (const ip of ["20.0.0.1", "20.0.0.2", "20.0.0.3"]) await call("POST", "/v1/search", { body: { q: "리게티" }, ip });

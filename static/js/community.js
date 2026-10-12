@@ -28,6 +28,7 @@
       headers: opt.body ? { 'Content-Type': 'application/json' } : undefined,
       body: opt.body ? JSON.stringify(opt.body) : undefined,
       keepalive: !!opt.keepalive,
+      credentials: 'include', // 로그인 쿠키(api.drkimworld.com, HttpOnly)
       signal: ctl ? ctl.signal : undefined
     }).then(function (r) {
       clearTimeout(t);
@@ -125,10 +126,13 @@
   }
 
   // ---------- 계정(계정 키): 이메일·전화 없이 닉네임만. 키는 이 브라우저에만 저장 ----------
-  var ME = null, UNREAD = 0;
-  var meReady = api('/v1/me').then(function (d) { ME = d.user || null; UNREAD = d.unread || 0; paintHeader(); return ME; }).catch(function () { return null; });
+  var ME = null, UNREAD = 0, LOGGED = false, PROVIDERS = [];
+  var meReady = api('/v1/me').then(function (d) {
+    ME = d.user || null; UNREAD = d.unread || 0; LOGGED = !!d.loggedIn; PROVIDERS = d.providers || [];
+    paintHeader(); return ME;
+  }).catch(function () { return null; });
   function paintHeader() {
-    var lab = document.querySelector('[data-account-label]'); if (lab) lab.textContent = ME ? '내 계정' : '계정';
+    var lab = document.querySelector('[data-account-label]'); if (lab) lab.textContent = ME ? '내 계정' : '로그인';
     var bell = document.querySelector('[data-open-bell]'); if (bell) bell.hidden = !ME;
     var n = document.querySelector('[data-bell-n]');
     if (n) { n.hidden = !UNREAD; n.textContent = UNREAD > 9 ? '9+' : String(UNREAD); }
@@ -150,78 +154,71 @@
   }
   function field(label, input) { var w = el('label', 'kw-field'); w.appendChild(el('span', null, label)); w.appendChild(input); return w; }
   function btn(text, cls, fn) { var b = el('button', cls || 'btn', text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; }
-  function setKey(k) { try { localStorage.setItem('kw-did', k); } catch (e) {} location.reload(); }
-  function newKey() { var b = new Uint8Array(18); crypto.getRandomValues(b); return btoa(String.fromCharCode.apply(null, b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  var PNAME = { google: 'Google로 로그인', kakao: '카카오 로그인' };
+  function loginUrl(prov) { return API + '/v1/auth/' + prov + '/start?return=' + encodeURIComponent(location.pathname + location.search.replace(/[?&]login=\w+/, '') + location.hash); }
 
   function openAccount() {
     meReady.then(function () {
-      var body = dialog(ME ? '내 계정' : '계정 만들기');
       var msg = el('p', 'kw-msg'); msg.setAttribute('role', 'status');
-      if (!ME) {
-        body.appendChild(el('p', 'muted', '이메일·전화번호·실명 없이 닉네임만 정하면 됩니다. 계정은 이 브라우저에 저장된 "계정 키"로 알아봅니다.'));
+      if (!LOGGED) { // 로그인 전: 구글·카카오 버튼
+        var body = dialog('로그인');
+        body.appendChild(el('p', 'muted', '종토방 글쓰기·팔로우·알림은 로그인 후 쓸 수 있습니다. 로그인할 때 이메일·이름·전화번호는 받지 않고, 같은 사람인지 알아보는 회원 번호만 씁니다.'));
+        if (!PROVIDERS.length) body.appendChild(el('p', 'kw-warn', '로그인을 준비하고 있습니다. 잠시 뒤 다시 와 주세요.'));
+        PROVIDERS.forEach(function (pv) { var a = el('a', 'btn kw-login kw-login-' + pv, PNAME[pv] || pv); a.href = loginUrl(pv); body.appendChild(a); });
+        var tl = el('p', 'muted kw-small'); tl.appendChild(document.createTextNode('로그인하면 ')); var ta = el('a', null, '이용약관'); ta.href = base + '/terms/'; ta.target = '_blank'; tl.appendChild(ta); tl.appendChild(document.createTextNode('에 동의한 것으로 봅니다.')); body.appendChild(tl);
+        return;
+      }
+      if (!ME) { // 로그인은 했지만 닉네임을 아직 안 정함
+        var body2 = dialog('닉네임 정하기');
+        body2.appendChild(el('p', 'muted', '종토방과 댓글에 보일 이름입니다. 나중에 바꿀 수 없습니다.'));
         var nick = el('input'); nick.maxLength = 12; nick.placeholder = '한글·영문·숫자 2~12자'; nick.autocomplete = 'off';
         var bio = el('input'); bio.maxLength = 80; bio.placeholder = '한 줄 소개 (선택)';
         var agree = el('input'); agree.type = 'checkbox';
         var ag = el('label', 'kw-check'); ag.appendChild(agree);
-        var agt = el('span'); agt.appendChild(document.createTextNode('이용약관에 동의합니다 ')); var tl = el('a', null, '(보기)'); tl.href = base + '/terms/'; tl.target = '_blank'; agt.appendChild(tl); ag.appendChild(agt);
-        body.appendChild(field('닉네임 (나중에 바꿀 수 없음)', nick)); body.appendChild(field('소개', bio)); body.appendChild(ag);
-        body.appendChild(btn('계정 만들기', 'btn btn-primary', function () {
+        var agt = el('span'); agt.appendChild(document.createTextNode('이용약관에 동의합니다 ')); var tl2 = el('a', null, '(보기)'); tl2.href = base + '/terms/'; tl2.target = '_blank'; agt.appendChild(tl2); ag.appendChild(agt);
+        body2.appendChild(field('닉네임', nick)); body2.appendChild(field('소개', bio)); body2.appendChild(ag);
+        body2.appendChild(btn('시작하기', 'btn btn-primary', function () {
           if (!agree.checked) { msg.textContent = '이용약관에 동의해 주세요.'; return; }
           api('/v1/me', { method: 'POST', body: { nick: nick.value.trim(), bio: bio.value } }).then(function (d) {
             if (!d.ok) { msg.textContent = d.message || '만들지 못했습니다.'; return; }
-            ME = d.user; paintHeader(); showKey(true);
+            location.reload();
           }).catch(function () { msg.textContent = '만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
         }));
-        body.appendChild(msg);
-        body.appendChild(el('hr'));
-        body.appendChild(el('p', 'muted', '다른 기기에서 만든 계정이 있나요? 그 기기의 "계정 키"를 붙여 넣으세요.'));
-        var key = el('input'); key.placeholder = '계정 키'; key.autocomplete = 'off'; key.spellcheck = false;
-        body.appendChild(field('계정 키로 로그인', key));
-        body.appendChild(btn('로그인', 'btn', function () {
-          var k = key.value.trim();
-          if (!/^[A-Za-z0-9_-]{22,64}$/.test(k)) { msg.textContent = '계정 키 형식이 아닙니다.'; return; }
-          setKey(k);
-        }));
+        body2.appendChild(msg);
+        body2.appendChild(btn('로그아웃', 'cm-link', logout));
         return;
       }
+      var body3 = dialog('내 계정');
       var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick));
       var nm = el('div'); nm.appendChild(el('strong', null, ME.nick)); nm.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입'));
-      info.appendChild(nm); body.appendChild(info);
+      info.appendChild(nm); body3.appendChild(info);
       var bio2 = el('input'); bio2.maxLength = 80; bio2.value = ME.bio || ''; bio2.placeholder = '한 줄 소개';
-      body.appendChild(field('소개', bio2));
+      body3.appendChild(field('소개', bio2));
       var row = el('div', 'kw-row');
       row.appendChild(btn('소개 저장', 'btn', function () {
         api('/v1/me', { method: 'POST', body: { bio: bio2.value } }).then(function (d) { msg.textContent = d.ok ? '저장했습니다.' : (d.message || '저장하지 못했습니다.'); if (d.ok) ME.bio = bio2.value; });
       }));
       var pf = el('a', 'btn', '내 프로필'); pf.href = profileUrl(ME.id); row.appendChild(pf);
       row.appendChild(btn('알림', 'btn', openBell));
-      body.appendChild(row); body.appendChild(msg);
-      body.appendChild(el('hr'));
-      body.appendChild(btn('계정 키 보기 (다른 기기에서 로그인)', 'btn', function () { showKey(false); }));
-      body.appendChild(btn('이 기기에서 로그아웃', 'cm-link', function () {
-        if (confirm('로그아웃하면 이 기기에서는 계정 키가 지워집니다. 키를 따로 저장해 두지 않았다면 계정을 다시 찾을 수 없습니다. 계속할까요?')) setKey(newKey());
-      }));
-      body.appendChild(btn('계정 삭제', 'cm-link kw-danger', function () {
+      body3.appendChild(row); body3.appendChild(msg);
+      body3.appendChild(el('hr'));
+      body3.appendChild(btn('로그아웃', 'btn', logout));
+      body3.appendChild(btn('계정 삭제', 'cm-link kw-danger', function () {
         var all = confirm('계정을 삭제합니다. 내가 쓴 글도 모두 지울까요?\n[확인] 글도 모두 삭제\n[취소] 글은 "탈퇴한 사용자"로 남김');
         if (!confirm('정말 계정을 삭제할까요? 되돌릴 수 없습니다.')) return;
-        api('/v1/me/delete', { method: 'POST', body: { all: all } }).then(function () { setKey(newKey()); });
+        api('/v1/me/delete', { method: 'POST', body: { all: all } }).then(function () { location.reload(); });
       }));
     });
   }
-  function showKey(fresh) {
-    var body = dialog(fresh ? '계정을 만들었습니다' : '계정 키');
-    body.appendChild(el('p', null, '아래 계정 키가 곧 이 계정의 열쇠입니다. 다른 기기에서 로그인할 때 쓰고, 브라우저 기록을 지우면 이 키가 있어야 계정을 되찾을 수 있습니다.'));
-    body.appendChild(el('p', 'kw-warn', '키를 다른 사람에게 보여 주지 마세요. 운영자도 키를 다시 찾아 드릴 수 없습니다.'));
-    var k = ''; try { k = localStorage.getItem('kw-did') || ''; } catch (e) {}
-    var code = el('code', 'kw-key', k); body.appendChild(code);
-    var row = el('div', 'kw-row');
-    row.appendChild(btn('키 복사', 'btn btn-primary', function () {
-      if (navigator.clipboard) navigator.clipboard.writeText(k).then(function () { alert('복사했습니다. 메모 앱 등 안전한 곳에 저장해 두세요.'); }, function () { prompt('아래 키를 복사하세요', k); });
-      else prompt('아래 키를 복사하세요', k);
-    }));
-    row.appendChild(btn('닫기', 'btn', function () { dlg.close(); if (fresh) location.reload(); }));
-    body.appendChild(row);
-  }
+  function logout() { api('/v1/auth/logout', { method: 'POST' }).then(function () { location.reload(); }, function () { location.reload(); }); }
+  // 로그인에서 돌아왔을 때: 주소의 ?login= 을 지우고, 닉네임이 없으면 바로 정하게 한다
+  (function () {
+    var m = /[?&]login=(ok|fail)/.exec(location.search); if (!m) return;
+    var clean = location.pathname + location.search.replace(/([?&])login=\w+&?/, '$1').replace(/[?&]$/, '') + location.hash;
+    try { history.replaceState(null, '', clean); } catch (e) {}
+    if (m[1] === 'fail') { meReady.then(function () { var b = dialog('로그인하지 못했습니다'); b.appendChild(el('p', null, '잠시 뒤 다시 시도해 주세요.')); }); return; }
+    meReady.then(function () { if (LOGGED && !ME) openAccount(); });
+  })();
   function openBell() {
     var body = dialog('알림');
     api('/v1/notifications').then(function (d) {
@@ -265,10 +262,11 @@
     var noun = isReport ? '댓글' : '글';
 
     function item(c, isBest, canReply) {
-      var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : ''));
+      var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : '') + (c.pinned ? ' cm-item-pinned' : ''));
       li.appendChild(avatar(c.nick));
       var main = el('div', 'cm-main'); li.appendChild(main);
       var head = el('div', 'cm-head');
+      if (c.pinned) head.appendChild(el('span', 'cm-badge cm-badge-notice', '공지'));
       if (isBest) head.appendChild(el('span', 'cm-badge', 'BEST'));
       head.appendChild(nickEl(c, 'cm-nick'));
       head.appendChild(el('span', 'cm-time muted', ago(c.created)));
@@ -306,7 +304,7 @@
           api('/v1/comments/' + c.id + '/delete', { method: 'POST' }).then(load).catch(function () {});
         });
         act.appendChild(del);
-      } else {
+      } else if (!c.pinned) {
         var rep = el('button', 'cm-link', '신고'); rep.type = 'button';
         rep.addEventListener('click', function () {
           if (!confirm('이 ' + noun + '을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
@@ -350,7 +348,8 @@
         // 종토방 글쓰기는 계정이 있을 때만
         if (!isReport) { form.hidden = !ME; var na = box.querySelector('[data-need-account]'); if (na) na.hidden = !!ME; }
         liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
-        countEl.textContent = d.comments.length ? num(d.comments.length) : '';
+        var real = d.comments.filter(function (c) { return !c.pinned; }).length; // 공지는 글 수에서 뺀다
+        countEl.textContent = real ? num(real) : '';
         if (isReport) document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === tslug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
         var nickInput = form.querySelector('[name=nick]');
         if (nickInput && !nickInput.value) {
@@ -361,7 +360,6 @@
         (d.best || []).forEach(function (c) { bol.appendChild(item(c, true)); });
         bestEl.hidden = !(d.best && d.best.length);
         listEl.textContent = '';
-        if (!d.comments.length) listEl.appendChild(el('li', 'cm-empty muted', isReport ? '첫 댓글을 남겨 주세요.' : '아직 글이 없습니다. 첫 글을 남겨 보세요.'));
         // 원 글(정렬 순서 유지) 아래에 답글을 시간순으로
         var roots = d.comments.filter(function (c) { return !c.parent; }), kids = {};
         d.comments.filter(function (c) { return c.parent; }).sort(function (a, b) { return a.created - b.created; })
@@ -378,6 +376,7 @@
           li.querySelector('.cm-main').appendChild(rw);
           listEl.appendChild(li);
         });
+        if (!real) listEl.appendChild(el('li', 'cm-empty muted', isReport ? '첫 댓글을 남겨 주세요.' : '아직 글이 없습니다. 첫 글을 남겨 보세요.'));
         d.roots = roots;
         placeAds();
         if (isReport && sort === 'top') renderTop(d);
@@ -465,8 +464,9 @@
   var peek = document.querySelector('[data-board-peek]');
   if (peek) {
     api('/v1/comments?slug=' + peek.getAttribute('data-board-peek') + '&sort=new').then(function (d) {
-      var roots = (d.comments || []).filter(function (c) { return !c.parent; });
-      var n = peek.querySelector('[data-board-n]'); if (n && d.comments && d.comments.length) n.textContent = ' · 글 ' + num(d.comments.length);
+      var all = (d.comments || []).filter(function (c) { return !c.pinned; });
+      var roots = all.filter(function (c) { return !c.parent; });
+      var n = peek.querySelector('[data-board-n]'); if (n && all.length) n.textContent = ' · 글 ' + num(all.length);
       if (!roots.length) return;
       peek.querySelector('[data-board-empty]').hidden = true;
       var ol = peek.querySelector('[data-board-list]');

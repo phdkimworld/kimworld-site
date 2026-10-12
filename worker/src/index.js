@@ -29,6 +29,7 @@ function cors(req) {
     "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(o) ? o : ALLOWED_ORIGINS[0],
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -48,7 +49,7 @@ export function needsHold(text) {
 }
 
 function publicComment(c, actor) {
-  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, uid: c.uid || null, mine: !!actor && !!c.did && c.did === actor };
+  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, uid: c.uid || null, pinned: !!c.pinned, mine: !!actor && !!c.did && c.did === actor };
 }
 
 async function readJson(req) {
@@ -105,6 +106,51 @@ function safeEqual(a, b) {
   return x === 0;
 }
 
+// ---------- 소셜 로그인(구글·카카오). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
+const SITE = "https://drkimworld.com";
+const SESSION_DAYS = 180;
+function providers(env) {
+  const p = [];
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) p.push("google");
+  if (env.KAKAO_REST_KEY) p.push("kakao");
+  return p;
+}
+function cookieOf(req, name) {
+  const m = (req.headers.get("Cookie") || "").match(new RegExp("(?:^|;\\s*)" + name + "=([^;]+)"));
+  return m ? m[1] : "";
+}
+function randHex(n) { return [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+function safeReturn(r) { r = String(r || "/"); return /^\/(?!\/)[\w\-./?=&%#~]*$/.test(r) ? r : "/"; }
+function redirect(to, extra = {}) { return new Response(null, { status: 302, headers: { Location: to, "Cache-Control": "no-store", ...extra } }); }
+function b64urlJson(part) {
+  const s = part.replace(/-/g, "+").replace(/_/g, "/");
+  return JSON.parse(decodeURIComponent(escape(atob(s + "===".slice((s.length + 3) % 4)))));
+}
+async function oauthSubject(provider, code, env, redirectUri) {
+  if (provider === "google") {
+    const r = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ code, client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: redirectUri, grant_type: "authorization_code" }),
+    });
+    const t = await r.json();
+    if (!t.id_token) return null;
+    // 토큰 엔드포인트에서 TLS로 직접 받은 id_token이므로 서명 대신 발급자·대상만 확인한다(OIDC 3.1.3.7)
+    const pl = b64urlJson(t.id_token.split(".")[1]);
+    if (!["accounts.google.com", "https://accounts.google.com"].includes(pl.iss) || pl.aud !== env.GOOGLE_CLIENT_ID || !pl.sub) return null;
+    return "google:" + pl.sub;
+  }
+  if (provider === "kakao") {
+    const body = { grant_type: "authorization_code", client_id: env.KAKAO_REST_KEY, redirect_uri: redirectUri, code };
+    if (env.KAKAO_CLIENT_SECRET) body.client_secret = env.KAKAO_CLIENT_SECRET;
+    const r = await fetch("https://kauth.kakao.com/oauth/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" }, body: new URLSearchParams(body) });
+    const t = await r.json();
+    if (!t.access_token) return null;
+    const u = await (await fetch("https://kapi.kakao.com/v2/user/me", { headers: { Authorization: `Bearer ${t.access_token}` } })).json();
+    return u && u.id ? "kakao:" + u.id : null;
+  }
+  return null;
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -116,7 +162,17 @@ export default {
     // ih: 그날만 통하는 IP 해시(중복 조회·검색어·도배 막기). actor: 기기 번호 해시(내 댓글·좋아요의 주인)
     const ih = (await sha256hex(`${await dayPepper(db, today)}|${ip}`)).slice(0, 24);
     const dev = url.searchParams.get("d") || "";
-    const actor = DEVICE_RE.test(dev) ? (await sha256hex(`${env.SALT || "dev-salt"}|dev|${dev}`)).slice(0, 24) : `ip-${ih}`;
+    const devActor = DEVICE_RE.test(dev) ? (await sha256hex(`${env.SALT || "dev-salt"}|dev|${dev}`)).slice(0, 24) : `ip-${ih}`;
+    // 로그인(세션 쿠키)이 있으면 계정이 주인, 없으면 기기 번호가 주인(익명 리포트 댓글·좋아요)
+    const stoken = cookieOf(req, "kw_s");
+    let session = null;
+    if (/^[0-9a-f]{64}$/.test(stoken)) {
+      session = await db.prepare("SELECT th, actor FROM sessions WHERE th = ? AND exp > ?").bind(await sha256hex(stoken), now).first();
+    }
+    // 세션으로 상태를 바꾸는 요청은 우리 사이트에서 온 것만(다른 사이트가 몰래 보내는 요청 막기)
+    if (session && req.method === "POST" && !ALLOWED_ORIGINS.includes(req.headers.get("Origin") || "")) return json(req, { error: "origin" }, 403);
+    const actor = session ? session.actor : devActor;
+    const clearCookie = "kw_s=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax";
     if (Math.random() < 0.01) {
       await db.batch([
         db.prepare("DELETE FROM peppers WHERE day < ?").bind(kstDay(now - 2 * 864e5)),
@@ -214,7 +270,7 @@ export default {
       if (p === "/v1/comments/recent" && req.method === "GET") {
         const limit = Math.min(10, Math.max(1, parseInt(url.searchParams.get("limit") || "5", 10) || 5));
         const board = url.searchParams.get("kind") === "board";
-        const r = await db.prepare(`SELECT id, slug, nick, body, likes, created, uid FROM comments WHERE status = 'ok' ${board ? "AND slug LIKE 'b-%' AND parent_id IS NULL" : ""} ORDER BY created DESC LIMIT ?`).bind(limit).all();
+        const r = await db.prepare(`SELECT id, slug, nick, body, likes, created, uid FROM comments WHERE status = 'ok' ${board ? "AND slug LIKE 'b-%' AND parent_id IS NULL AND pinned = 0" : ""} ORDER BY created DESC LIMIT ?`).bind(limit).all();
         const items = (r.results || []).map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body.length > 80 ? c.body.slice(0, 80) + "…" : c.body, likes: c.likes, created: c.created }));
         return json(req, { items }, 200, { "Cache-Control": "public, max-age=60" });
       }
@@ -222,8 +278,8 @@ export default {
         const slug = url.searchParams.get("slug") || "";
         if (!SLUG_RE.test(slug)) return json(req, { error: "slug" }, 400);
         const sort = url.searchParams.get("sort") === "top" ? "likes DESC, created DESC" : "created DESC";
-        const list = await db.prepare(`SELECT * FROM comments WHERE slug = ? AND status = 'ok' ORDER BY ${sort} LIMIT 200`).bind(slug).all();
-        const best = await db.prepare("SELECT * FROM comments WHERE slug = ? AND status = 'ok' AND parent_id IS NULL AND likes >= ? ORDER BY likes DESC, created ASC LIMIT ?")
+        const list = await db.prepare(`SELECT * FROM comments WHERE slug = ? AND status = 'ok' ORDER BY pinned DESC, ${sort} LIMIT 200`).bind(slug).all();
+        const best = await db.prepare("SELECT * FROM comments WHERE slug = ? AND status = 'ok' AND parent_id IS NULL AND pinned = 0 AND likes >= ? ORDER BY likes DESC, created ASC LIMIT ?")
           .bind(slug, LIMITS.bestMinLikes, LIMITS.bestCount).all();
         const liked = await db.prepare("SELECT l.cid FROM comment_likes l JOIN comments c ON c.id = l.cid WHERE c.slug = ? AND l.ih = ?").bind(slug, actor).all();
         return json(req, {
@@ -314,14 +370,49 @@ export default {
       }
 
       // ---------- 계정(계정 키) ----------
+      // ---------- 로그인 ----------
+      const am0 = p.match(/^\/v1\/auth\/(google|kakao)\/(start|callback)$/);
+      if (am0 && req.method === "GET") {
+        const [, prov, step] = am0;
+        if (!providers(env).includes(prov)) return json(req, { error: "provider", message: "이 로그인은 아직 준비 중입니다." }, 404);
+        const redirectUri = `${url.origin}/v1/auth/${prov}/callback`;
+        if (step === "start") {
+          if (!(await allow(db, `login|${ih}`, 30, 3600e3, now))) return json(req, { error: "rate" }, 429);
+          const state = randHex(16);
+          await db.prepare("INSERT INTO oauth_state (state, provider, ret, exp) VALUES (?, ?, ?, ?)").bind(state, prov, safeReturn(url.searchParams.get("return")), now + 600e3).run();
+          const q = prov === "google"
+            ? new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: "code", scope: "openid", state, prompt: "select_account" })
+            : new URLSearchParams({ client_id: env.KAKAO_REST_KEY, redirect_uri: redirectUri, response_type: "code", state });
+          return redirect((prov === "google" ? "https://accounts.google.com/o/oauth2/v2/auth?" : "https://kauth.kakao.com/oauth/authorize?") + q);
+        }
+        const st = await db.prepare("SELECT provider, ret, exp FROM oauth_state WHERE state = ?").bind(url.searchParams.get("state") || "").first();
+        await db.prepare("DELETE FROM oauth_state WHERE state = ? OR exp < ?").bind(url.searchParams.get("state") || "", now).run();
+        const back = (r, flag) => { const [path, hash] = r.split("#"); return `${SITE}${path}${path.includes("?") ? "&" : "?"}login=${flag}${hash ? "#" + hash : ""}`; };
+        if (!st || st.provider !== prov || st.exp < now || !url.searchParams.get("code")) return redirect(back("/", "fail"));
+        let subject = null;
+        try { subject = await oauthSubject(prov, url.searchParams.get("code"), env, redirectUri); } catch { subject = null; }
+        if (!subject) return redirect(back(st.ret, "fail"));
+        const oActor = "o-" + (await sha256hex(`${env.SALT || "dev-salt"}|oauth|${subject}`)).slice(0, 30);
+        const token = randHex(32);
+        await db.prepare("INSERT INTO sessions (th, actor, created, exp) VALUES (?, ?, ?, ?)").bind(await sha256hex(token), oActor, now, now + SESSION_DAYS * 864e5).run();
+        if (Math.random() < 0.05) await db.prepare("DELETE FROM sessions WHERE exp < ?").bind(now).run();
+        return redirect(back(st.ret, "ok"), { "Set-Cookie": `kw_s=${token}; Path=/; Max-Age=${SESSION_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax` });
+      }
+      if (p === "/v1/auth/logout" && req.method === "POST") {
+        if (session) await db.prepare("DELETE FROM sessions WHERE th = ?").bind(session.th).run();
+        return json(req, { ok: true }, 200, { "Set-Cookie": clearCookie });
+      }
+
+      // ---------- 계정 ----------
       if (p === "/v1/me" && req.method === "GET") {
-        const me = await userByActor(db, actor);
-        if (!me) return json(req, { user: null }, 200, { "Cache-Control": "no-store" });
+        const me = session ? await userByActor(db, actor) : null;
+        const base = { providers: providers(env), loggedIn: !!session };
+        if (!me) return json(req, { ...base, user: null }, 200, { "Cache-Control": "no-store" });
         const un = await db.prepare("SELECT COUNT(*) AS n FROM notifs WHERE uid = ? AND seen = 0").bind(me.id).first();
-        return json(req, { user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status }, unread: un?.n || 0 }, 200, { "Cache-Control": "no-store" });
+        return json(req, { ...base, user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status }, unread: un?.n || 0 }, 200, { "Cache-Control": "no-store" });
       }
       if (p === "/v1/me" && req.method === "POST") {
-        if (!DEVICE_RE.test(dev)) return json(req, { error: "device", message: "브라우저 저장소를 쓸 수 없어 계정을 만들 수 없습니다." }, 400);
+        if (!session) return json(req, { error: "login", message: "구글 또는 카카오로 로그인한 뒤 계정을 만들 수 있습니다." }, 401);
         const b = await readJson(req);
         const bio = cleanText(b.bio, ACCOUNT.bioMax + 1).replace(/\s+/g, " ");
         if (bio.length > ACCOUNT.bioMax) return json(req, { error: "bio", message: `소개는 ${ACCOUNT.bioMax}자까지입니다.` }, 400);
@@ -338,7 +429,8 @@ export default {
         const ins = await db.prepare("INSERT OR IGNORE INTO users (actor, nick, nick_lc, bio, created) VALUES (?, ?, ?, ?, ?)").bind(actor, nick, nick.toLowerCase(), bio, now).run();
         if (!ins.meta?.changes) return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
         const u = await userByActor(db, actor);
-        await db.prepare("UPDATE comments SET uid = ?, nick = ? WHERE did = ? AND uid IS NULL").bind(u.id, nick, actor).run(); // 이 기기에서 쓴 댓글을 계정으로
+        // 이 기기에서 로그인 전에 쓴 익명 댓글을 계정으로 옮긴다
+        if (devActor && !devActor.startsWith("ip-")) await db.prepare("UPDATE comments SET uid = ?, nick = ?, did = ? WHERE did = ? AND uid IS NULL").bind(u.id, nick, actor, devActor).run();
         return json(req, { ok: true, user: u });
       }
       if (p === "/v1/me/delete" && req.method === "POST") {
@@ -351,8 +443,9 @@ export default {
           db.prepare("DELETE FROM follows WHERE follower = ? OR followee = ?").bind(me.id, me.id),
           db.prepare("DELETE FROM notifs WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM users WHERE id = ?").bind(me.id),
+          db.prepare("DELETE FROM sessions WHERE actor = ?").bind(actor),
         ]);
-        return json(req, { ok: true });
+        return json(req, { ok: true }, 200, { "Set-Cookie": clearCookie });
       }
       const um = p.match(/^\/v1\/users\/(\d+)$/);
       if (um && req.method === "GET") {
