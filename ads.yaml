@@ -5,7 +5,7 @@
 enabled: true
 
 adsense:
-  client: ""                 # ca-pub-0000000000000000  (넣으면 ads.txt도 자동 생성)
+  client: "ca-pub-7488269227696808"   # ca-pub-0000000000000000  (넣으면 ads.txt도 자동 생성)
   slots:
     in_article: ""           # 인아티클 광고 단위 번호 (본문 중간)
     display: ""              # 디스플레이 광고 단위 번호 (선택)
