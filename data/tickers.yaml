@@ -210,3 +210,9 @@ MP:
   exchange: "NYSE"
   theme: "광물·자원"
   aliases: ["엠피 머티리얼즈", "MP머티리얼즈", "MP Materials", "마운틴패스"]
+POET:
+  name: "포엣 테크놀로지스"
+  name_en: "POET Technologies Inc."
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["포엣", "포엣테크놀로지스", "POET Technologies", "피오이티"]
