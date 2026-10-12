@@ -498,7 +498,6 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "title": str(meta["title"]), "theme": meta["theme"], "theme_slug": theme_by_name[meta["theme"]]["slug"],
             "date": d, "updated": upd, "data_as_of": asof, "summary": str(meta["summary"]).strip(),
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],
-            "ai_use": str(meta.get("ai_use") or site.get("ai_use_default", "")),
             "youtube_id": str(meta.get("youtube_id") or "").strip(),
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,
