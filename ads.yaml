@@ -16,7 +16,7 @@ adfit:
   sizes:                     # 단위별 크기 [가로, 세로]. 없으면 위 width/height
     report_mid: [300, 250]
   units:
-    report_mid: ""           # DAN-xxxx  리포트 중간(300x250). 비어 있으면 그 자리는 쿠팡 상자
+    report_mid: "DAN-JnyyFywjMJcgsuJw"   # DAN-xxxx  리포트 중간(300x250). 비어 있으면 그 자리는 쿠팡 상자
     report_end: "DAN-fLqYFcTk9aoRDmDT"   # DAN-xxxx  리포트 하단(320x100)
     list: ""                 # DAN-xxxx  홈·목록 (비어 있으면 report_end 단위를 씀)
 

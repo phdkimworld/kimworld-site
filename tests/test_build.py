@@ -180,7 +180,7 @@ check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 �
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"]["양자컴퓨팅|반도체 전쟁 책"]["date"] = "2026-10-09"
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
-t = make_project()
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})  # 애드핏 중간 번호가 없을 때(쿠팡 3개)
 r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 box = page[page.find('ad-coupang-products'):]
