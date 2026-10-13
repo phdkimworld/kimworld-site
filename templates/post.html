@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}글 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ site.site_name }} 종토방·라운지 글{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
+{% block main %}
+<div class="wrap narrow post-page">
+  <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">← 홈 피드</a> <span data-pp-board></span></nav>
+  <section data-post-page{% if thread_ad %} data-ad-first="{{ rhythm.first }}" data-ad-every="{{ rhythm.every }}" data-ad-max="{{ rhythm.max }}"{% endif %}>
+    {% if thread_ad %}<template data-thread-ad>{{ thread_ad|safe }}</template>{% endif %}
+    <p class="muted" data-pp-msg>글을 불러오는 중입니다…</p>
+    <div data-pp-post></div>
+    <section class="comments board pp-replies" id="reply" data-pp-replies hidden aria-labelledby="pp-rh">
+      <h2 id="pp-rh">답글 <span class="cm-count" data-pp-count></span></h2>
+      <div class="cm-need-account" data-pp-need hidden>
+        <p>답글은 <strong>구글·카카오로 로그인</strong>하면 쓸 수 있습니다. 이메일·이름·전화번호는 받지 않습니다.</p>
+        <button type="button" class="btn btn-primary" data-open-account>로그인하고 답글 쓰기</button>
+      </div>
+      <form class="cm-form" data-pp-form novalidate hidden>
+        <textarea name="body" maxlength="500" rows="2" placeholder="답글을 남겨 주세요" aria-label="답글 내용"></textarea>
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="cm-form-row"><span class="cm-len muted" data-pp-len>0/500</span><button class="btn btn-primary" type="submit">답글</button></div>
+        <p class="cm-msg" data-pp-fmsg role="status"></p>
+      </form>
+      <ol class="cm-list" data-pp-list></ol>
+    </section>
+  </section>
+</div>
+{% endblock %}

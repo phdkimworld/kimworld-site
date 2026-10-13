@@ -670,6 +670,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "site": site, "base": base_path, "themes": themes, "ads": ads, "ads_head": ads.head_tags(),
         "asset_ver": asset_ver, "year": today.year, "tickers": tickers,
         "COUPANG_PAGE_NOTICE": COUPANG_PAGE_NOTICE,
+        # 종토방이 있는 종목(리포트가 있는 종목). 글 속 $TSLA 링크와 글쓰기 상자에 쓴다
+        "board_ticks": [{"c": c, "n": (tickers.get(c) or {}).get("name", "")} for c in sorted(by_ticker)],
     }
 
     def write(rel: str, tpl: str, **ctx):
@@ -740,6 +742,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
     write("search/index.html", "search.html")
     if site.get("api_url"):
         write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
+        # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
+        write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"])
     write("404.html", "404.html")
 
     # ---- 고정 페이지

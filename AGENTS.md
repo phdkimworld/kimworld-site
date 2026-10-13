@@ -84,7 +84,9 @@
 - 로그인 비밀값은 GitHub Secrets에만: `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`(리디렉션 URI `https://api.drkimworld.com/v1/auth/google/callback`), `KAKAO_REST_KEY`(+선택 `KAKAO_CLIENT_SECRET`, 리디렉션 URI `https://api.drkimworld.com/v1/auth/kakao/callback`). 넣은 뒤 API 워크플로를 한 번 실행하면 켜진다. 비밀값이 없으면 그 로그인 버튼은 안 보인다.
 - 종토방 첫 글: 사이트 배포 때 `scripts/board_notices.py`가 리포트가 있는 종목마다 공지(종목 소개 한 문장 + 규칙)를 한 번만 올린다(고정 글, `pinned`).
 - 종토방: 종목마다 `b-티커소문자` 묶음(댓글과 같은 저장소). 종목 페이지(`/t/티커/#board`)에 있고, 리포트의 반응 줄·고정 반응 줄·"종토방 미리보기"에서 연결한다. 글쓰기는 계정이 있어야 하며 새 계정(24시간)은 10분에 1개·하루 5개.
-- 팔로우·알림(답글·좋아요·팔로우)·프로필(`/u/?id=번호`, 검색 노출 안 함). 이용 규칙은 `content/pages/terms.md`.
+- 홈 = 피드(쓰레드·트위터식). 탭 '추천'(모든 종토방·라운지 원글)·'팔로잉'(팔로우한 사람 + 내 글), 김박사 월드 리포트 카드(메인 포스트)는 두 탭 모두에 섞인다. 사람 글은 시간순으로 리포트 사이에 끼우되 한 칸에 3개까지(`static/js/social.js`). 맨 위 글쓰기 상자: 종목을 고르거나 `$티커`를 쓰면 `b-티커`, 아니면 라운지 `b-talk`. 새 글 알림 줄은 화면을 볼 때만 1분마다 개수만 묻는다(`/v1/feed/new`, 최대 30번).
+- API: `/v1/feed?tab=all|following&before=`, `/v1/feed/new`, `/v1/post/번호`(글 상세 `/p/?id=번호`, 검색 노출 안 함, 답글 사이 광고는 종토방 리듬), `/v1/users/suggest`(팔로우 추천: 최근 30일 받은 좋아요 순). 글 속 `$티커`는 사이트에 있는 종목만 링크.
+- 팔로우·알림(답글·좋아요·팔로우, 누르면 글 상세로)·프로필(`/u/?id=번호`, 검색 노출 안 함). 이용 규칙은 `content/pages/terms.md`.
 - 계정 정지: `POST /v1/admin/users/번호 {"status":"banned"}`(그 계정 글도 숨김), 해제는 `"ok"`.
 - 매일 검토: 클로드 예약 작업이 `Moderate` 워크플로를 실행한다. 결정 없이 실행하면 검토 대기 목록(연락처·링크는 가림)을 출력하고, `decisions` JSON을 넣어 실행하면 적용한다. 기준:
   - 게시(ok): 투자 의견·질문·정보 공유. 사실과 다른 듯해도 의견이면 게시.

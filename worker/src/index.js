@@ -516,6 +516,55 @@ export default {
           WHERE f.follower = ? AND c.status = 'ok' ORDER BY c.created DESC LIMIT 30`).bind(me.id).all();
         return json(req, { items: (r.results || []).map((c) => ({ ...c, body: c.body.length > 120 ? c.body.slice(0, 120) + "…" : c.body })) }, 200, { "Cache-Control": "no-store" });
       }
+      // ---------- 홈 피드(쓰레드·트위터식): 종토방·라운지의 원글. tab=all(모두) | following(내가 팔로우한 사람 + 나) ----------
+      if ((p === "/v1/feed" || p === "/v1/feed/new") && req.method === "GET") {
+        const following = url.searchParams.get("tab") === "following";
+        const me = await userByActor(db, actor);
+        if (following && !me) return json(req, p === "/v1/feed" ? { items: [], more: false } : { n: 0 }, 200, { "Cache-Control": "no-store" });
+        const where = `c.slug LIKE 'b-%' AND c.parent_id IS NULL AND c.pinned = 0 AND c.status = 'ok'` +
+          (following ? " AND (c.uid = ? OR c.uid IN (SELECT followee FROM follows WHERE follower = ?))" : "");
+        const fb = following ? [me.id, me.id] : [];
+        if (p === "/v1/feed/new") { // 새 글 알림 줄: 이 시각 뒤에 올라온 글 수(최대 99)
+          const since = Math.max(0, parseInt(url.searchParams.get("since") || String(now), 10) || 0);
+          const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM comments c WHERE ${where} AND c.created > ? AND (c.did IS NULL OR c.did != ?) LIMIT 99)`).bind(...fb, since, actor).first();
+          return json(req, { n: r?.n || 0 }, 200, { "Cache-Control": "no-store" });
+        }
+        const limit = Math.min(30, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10) || 20));
+        const before = parseInt(url.searchParams.get("before") || "0", 10) || now + 1;
+        const r = await db.prepare(`SELECT c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did,
+            (SELECT COUNT(*) FROM comments x WHERE x.parent_id = c.id AND x.status = 'ok') AS replies,
+            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked
+            FROM comments c WHERE ${where} AND c.created < ? ORDER BY c.created DESC LIMIT ?`).bind(actor, ...fb, before, limit + 1).all();
+        const rows = r.results || [];
+        const items = rows.slice(0, limit).map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor }));
+        return json(req, { items, more: rows.length > limit }, 200, { "Cache-Control": "no-store" });
+      }
+      // 글 하나와 답글(글 상세 화면). 답글 번호로 열면 원글을 보여 준다
+      const pm = p.match(/^\/v1\/post\/(\d+)$/);
+      if (pm && req.method === "GET") {
+        let c = await db.prepare("SELECT * FROM comments WHERE id = ? AND status = 'ok'").bind(parseInt(pm[1], 10)).first();
+        if (c && c.parent_id) c = await db.prepare("SELECT * FROM comments WHERE id = ? AND status = 'ok'").bind(c.parent_id).first();
+        if (!c) return json(req, { error: "not_found" }, 404, { "Cache-Control": "no-store" });
+        const [rs, lk] = await Promise.all([
+          db.prepare("SELECT * FROM comments WHERE parent_id = ? AND status = 'ok' ORDER BY created ASC LIMIT 200").bind(c.id).all(),
+          db.prepare("SELECT l.cid FROM comment_likes l JOIN comments x ON x.id = l.cid WHERE (x.id = ? OR x.parent_id = ?) AND l.ih = ?").bind(c.id, c.id, actor).all(),
+        ]);
+        return json(req, {
+          post: { ...publicComment(c, actor), slug: c.slug },
+          replies: (rs.results || []).map((x) => publicComment(x, actor)),
+          liked: (lk.results || []).map((x) => x.cid),
+        }, 200, { "Cache-Control": "no-store" });
+      }
+      // 팔로우 추천: 최근 30일 받은 좋아요·글이 많은 사람(나와 이미 팔로우한 사람 제외)
+      if (p === "/v1/users/suggest" && req.method === "GET") {
+        const me = await userByActor(db, actor);
+        const mid = me ? me.id : 0;
+        const r = await db.prepare(`SELECT u.id, u.nick, u.bio, COALESCE(SUM(c.likes), 0) AS likes, COUNT(c.id) AS posts FROM users u
+            JOIN comments c ON c.uid = u.id AND c.status = 'ok' AND c.created > ?
+            WHERE u.status = 'ok' AND u.id != ? AND u.id NOT IN (SELECT followee FROM follows WHERE follower = ?)
+            GROUP BY u.id ORDER BY likes DESC, posts DESC, u.id DESC LIMIT 5`).bind(now - 30 * 864e5, mid, mid).all();
+        return json(req, { items: r.results || [] }, 200, { "Cache-Control": "no-store" });
+      }
       if (p === "/v1/notifications" && req.method === "GET") {
         const me = await userByActor(db, actor);
         if (!me) return json(req, { items: [], unread: 0 }, 200, { "Cache-Control": "no-store" });

@@ -266,6 +266,10 @@ check('data-board-peek="b-zzzz"' in pg and "/t/zzzz/#board" in pg, "리포트에
 tk = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
 check('data-thread="b-zzzz"' in tk and 'data-kind="board"' in tk and "data-need-account" in tk, "종목 페이지에 종토방(계정 없으면 글쓰기 대신 안내)")
 check((t / "dist/u/index.html").exists() and "noindex" in (t / "dist/u/index.html").read_text(encoding="utf-8"), "프로필 페이지(검색 노출 안 함)")
+pp = (t / "dist/p/index.html")
+check(pp.exists() and "noindex" in pp.read_text(encoding="utf-8") and "data-post-page" in pp.read_text(encoding="utf-8"), "글 상세 페이지(검색 노출 안 함)")
+check("data-feed-tabs" in home and 'data-tab="following"' in home and 'value="b-talk"' in home and "data-composer" in home, "홈 피드: 추천·팔로잉 탭과 글쓰기 상자(라운지·종목 선택)")
+check("social.js" in home and '"tk": [' in home.replace("tk: [", '"tk": ['), "홈에 피드 스크립트와 종목 목록($티커 링크용)")
 check((t / "dist/terms/index.html").exists() and "data-open-account" in home, "이용약관·계정 버튼")
 check('name="website" class="hp"' in pg, "로봇 막는 숨은 칸")
 sy = yaml.safe_load((t / "site.yaml").read_text(encoding="utf-8")); sy["api_url"] = ""

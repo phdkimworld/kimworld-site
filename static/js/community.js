@@ -55,6 +55,22 @@
     var d = new Date(ms); return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
   }
 
+  // $TSLA 같은 종목 표시를 그 종목 페이지 링크로(사이트에 있는 종목만). 나머지는 글자 그대로(HTML로 해석하지 않음)
+  var TK = {}; (KW.tk || []).forEach(function (t) { TK[t.c] = t.n; });
+  function richText(node, text) {
+    var re = /\$([A-Za-z]{1,6})(?![A-Za-z])/g, last = 0, m;
+    text = String(text || '');
+    while ((m = re.exec(text))) {
+      var code = m[1].toUpperCase();
+      if (!TK[code]) continue;
+      if (m.index > last) node.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var a = el('a', 'cashtag', '$' + code); a.href = base + '/t/' + code.toLowerCase() + '/'; a.title = TK[code];
+      node.appendChild(a); last = m.index + m[0].length;
+    }
+    if (last < text.length) node.appendChild(document.createTextNode(text.slice(last)));
+    return node;
+  }
+
   // ---------- 리포트: 조회수 ----------
   var art = document.querySelector('article.report[data-slug]');
   var slug = art && art.getAttribute('data-slug');
@@ -118,7 +134,10 @@
     var m = /^b-(.+)$/.exec(sl || '');
     return m ? base + '/t/' + m[1] + '/#board' : base + '/r/' + sl + '/#comments';
   }
-  function threadLabel(sl) { var m = /^b-(.+)$/.exec(sl || ''); return m ? m[1].toUpperCase() + ' 종토방' : '리포트 댓글'; }
+  function threadLabel(sl) { if (sl === 'b-talk') return '라운지'; var m = /^b-(.+)$/.exec(sl || ''); return m ? m[1].toUpperCase() + ' 종토방' : '리포트 댓글'; }
+  function postUrl(id) { return base + '/p/?id=' + id; }
+  // 글 하나로 가는 주소: 종토방·라운지 글은 글 상세, 리포트 댓글은 그 리포트 댓글 칸
+  function itemUrl(sl, id) { return /^b-/.test(sl || '') && id ? postUrl(id) : threadUrl(sl); }
   function profileUrl(uid) { return base + '/u/?id=' + uid; }
   function nickEl(c, cls) {
     if (!c.uid) return el('strong', cls, c.nick);
@@ -230,7 +249,7 @@
         var t = x.type === 'follow' ? x.from_nick + '님이 나를 팔로우했습니다'
           : x.type === 'reply' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글에 답글을 달았습니다'
           : '내 글에 좋아요 ' + x.n + '개';
-        a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : threadUrl(x.slug);
+        a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : itemUrl(x.slug, x.ref);
         li.appendChild(a);
         li.appendChild(el('span', 'muted', (x.slug ? ' · ' + threadLabel(x.slug) : '') + ' · ' + ago(x.updated)));
         ul.appendChild(li);
@@ -269,9 +288,10 @@
       if (c.pinned) head.appendChild(el('span', 'cm-badge cm-badge-notice', '공지'));
       if (isBest) head.appendChild(el('span', 'cm-badge', 'BEST'));
       head.appendChild(nickEl(c, 'cm-nick'));
-      head.appendChild(el('span', 'cm-time muted', ago(c.created)));
+      if (!isReport && !c.pinned) { var tl = el('a', 'cm-time muted', ago(c.created)); tl.href = postUrl(c.parent || c.id); head.appendChild(tl); }
+      else head.appendChild(el('span', 'cm-time muted', ago(c.created)));
       main.appendChild(head);
-      main.appendChild(el('p', 'cm-body', c.body));
+      main.appendChild(richText(el('p', 'cm-body'), c.body));
       var act = el('div', 'cm-act');
       var like = el('button', 'cm-like', '♥ ' + num(c.likes));
       like.type = 'button';
@@ -471,7 +491,7 @@
         var main = el('div', 'cm-main'), head = el('div', 'cm-head');
         head.appendChild(nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
         if (c.likes) head.appendChild(el('span', 'muted', '♥ ' + num(c.likes)));
-        main.appendChild(head); main.appendChild(el('p', 'cm-body board-peek-body', c.body));
+        main.appendChild(head); main.appendChild(richText(el('p', 'cm-body board-peek-body'), c.body));
         li.appendChild(main); ol.appendChild(li);
       });
     }).catch(function () {});
@@ -603,32 +623,6 @@
       }
     }).catch(function () {});
 
-    // 5) 종토방 새 글, 6) 팔로잉 소식(계정이 있을 때)
-    var rcRender = function (ul, items) {
-      items.forEach(function (c) {
-        var bm = /^b-(.+)$/.exec(c.slug), li = el('li', 'rc-item'), a = el('a', 'rc-link');
-        a.href = threadUrl(c.slug);
-        var head = el('span', 'rc-head');
-        head.appendChild(el('span', 'rank-tick', bm ? bm[1].toUpperCase() : (c.slug.split('-')[0] || '').toUpperCase()));
-        head.appendChild(el('strong', 'rc-nick', c.nick));
-        head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
-        a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
-        li.appendChild(a); ul.appendChild(li);
-      });
-    };
-    api('/v1/comments/recent?kind=board&limit=5').then(function (d) {
-      if (!(d.items || []).length) return;
-      rcRender(ins.querySelector('[data-board-latest-list]'), d.items);
-      ins.querySelector('[data-board-latest]').hidden = false; ins.hidden = false;
-    }).catch(function () {});
-    meReady.then(function (me) {
-      if (!me) return null;
-      return api('/v1/feed/following').then(function (d) {
-        if (!(d.items || []).length) return;
-        rcRender(ins.querySelector('[data-following-list]'), d.items.slice(0, 6));
-        ins.querySelector('[data-following]').hidden = false; ins.hidden = false;
-      });
-    }).catch(function () {});
   }
 
   // ---------- 프로필(/u/?id=번호) ----------
@@ -677,7 +671,7 @@
       var ul = el('ul', 'rc-list');
       if (!d.items.length) ul.appendChild(el('li', 'rc-item muted rc-empty', '아직 쓴 글이 없습니다.'));
       d.items.forEach(function (c) {
-        var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = threadUrl(c.slug);
+        var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = itemUrl(c.slug, c.id);
         var h = el('span', 'rc-head');
         h.appendChild(el('span', 'rank-tick', threadLabel(c.slug)));
         h.appendChild(el('span', 'muted', (c.reply ? '답글 · ' : '') + ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
@@ -687,6 +681,13 @@
       prof.appendChild(ul);
     }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
   }
+
+  // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
+  window.KWC = {
+    api: api, el: el, num: num, ago: ago, avatar: avatar, richText: richText, nickEl: nickEl,
+    profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
+    meReady: meReady, openAccount: openAccount, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS }; }
+  };
 
   // ---------- 리포트 끝: 지금 많이 보는 리포트(지금 글 제외) ----------
   var nr = document.querySelector('[data-next-reads]');

@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 {% from "_macros.html" import card %}
 {% block main %}
+<h1 class="sr-only">{{ site.site_name }} — {{ site.tagline }}</h1>
+{% if not site.api_url %}
 <section class="hero">
   <div class="wrap">
-    <h1 class="hero-title">{{ site.tagline }}</h1>
+    <p class="hero-title">{{ site.tagline }}</p>
     <p class="hero-sub">공시와 실적 자료로 정리한 미국 주식 리포트. 회원 가입 없이 모두 무료로 읽을 수 있습니다.</p>
-    <form class="search-form" action="{{ base }}/search/" role="search">
-      <label class="sr-only" for="q-home">종목 검색</label>
-      <input id="q-home" name="q" type="search" placeholder="종목명이나 티커" autocomplete="off" enterkeyhint="search">
-      <button type="submit" class="btn btn-primary">검색</button>
-    </form>
   </div>
 </section>
+{% endif %}
+
 
 <div class="wrap">
   <section class="recent-viewed" hidden aria-labelledby="rv-h">
@@ -22,6 +21,16 @@
 
 <div class="wrap home-grid">
   <aside class="home-side" aria-label="독자 인사이트">
+  <form class="side-search" action="{{ base }}/search/" role="search">
+    <label class="sr-only" for="q-home">종목 검색</label>
+    <input id="q-home" name="q" type="search" placeholder="종목명이나 티커 검색" autocomplete="off" enterkeyhint="search">
+  </form>
+  {% if site.api_url %}
+  <section class="ins-card suggest" data-suggest hidden aria-labelledby="sg-h">
+    <h2 id="sg-h" class="section-title">팔로우 추천 <span class="muted ins-sub">최근 30일 활발한 사람</span></h2>
+    <ul class="sg-list" data-suggest-list></ul>
+  </section>
+  {% endif %}
   <nav class="side-themes" aria-label="테마별 리포트">
     <h2 class="section-title">테마별 리포트</h2>
     <ul>
@@ -49,14 +58,6 @@
       <h2 class="section-title">테마별 관심도 <span class="muted ins-sub">최근 7일 조회 비중</span></h2>
       <ul class="bars" data-theme-list></ul>
     </div>
-    <div class="ins-card" data-following hidden>
-      <h2 class="section-title">팔로잉 소식</h2>
-      <ul class="rc-list" data-following-list></ul>
-    </div>
-    <div class="ins-card" data-board-latest hidden>
-      <h2 class="section-title">종토방 새 글</h2>
-      <ul class="rc-list" data-board-latest-list></ul>
-    </div>
     <div class="ins-card" data-recent-cm hidden>
       <h2 class="section-title">최근 댓글</h2>
       <ul class="rc-list" data-recent-cm-list></ul>
@@ -66,8 +67,33 @@
   {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
   </aside>
 
-  <section class="feed" aria-labelledby="latest-h">
-    <h2 id="latest-h" class="section-title">새 리포트</h2>
+  <section class="feed" aria-labelledby="latest-h" data-feed>
+    <h2 id="latest-h" class="sr-only">피드</h2>
+    {% if site.api_url %}
+    <div class="feed-tabs" role="tablist" aria-label="피드" data-feed-tabs hidden>
+      <button type="button" role="tab" data-tab="all" aria-selected="true">추천</button>
+      <button type="button" role="tab" data-tab="following" aria-selected="false">팔로잉</button>
+    </div>
+    <div class="composer card" data-composer hidden>
+      <span class="composer-av" data-composer-av aria-hidden="true"></span>
+      <form class="composer-form" data-composer-form novalidate>
+        <label class="sr-only" for="cp-body">새 글</label>
+        <textarea id="cp-body" name="body" rows="2" maxlength="500" placeholder="종목 이야기를 나눠 보세요. $TSLA처럼 쓰면 그 종목 종토방에도 올라갑니다."></textarea>
+        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="composer-row">
+          <label class="sr-only" for="cp-board">올릴 곳</label>
+          <select id="cp-board" name="board" data-composer-board>
+            <option value="b-talk">라운지 (종목 없이)</option>
+            {% for t in ticker_list %}<option value="b-{{ t.code|lower }}">${{ t.code }} {{ t.name }}</option>{% endfor %}
+          </select>
+          <span class="cm-len muted" data-composer-len>0/500</span>
+          <button class="btn btn-primary" type="submit" data-composer-submit>게시</button>
+        </div>
+        <p class="cm-msg" data-composer-msg role="status"></p>
+      </form>
+    </div>
+    <button type="button" class="feed-new" data-feed-new hidden>새 글 보기</button>
+    {% endif %}
     {% if rs %}
     <div class="feed-list">
       {%- for r in rs[:30] %}{{ card(r, base) }}
@@ -78,6 +104,7 @@
       {%- endfor %}
     </div>
     {% if rs|length < feed_first %}{{ list_ad|safe }}{% endif %}
+    {% if site.api_url %}<div class="feed-end" data-feed-end hidden><button type="button" class="btn" data-feed-more>글 더 보기</button></div>{% endif %}
     {% else %}
     <div class="empty">
       <p><strong>첫 리포트를 준비하고 있습니다.</strong></p>
