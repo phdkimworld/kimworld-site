@@ -75,7 +75,8 @@ jobs:
           printf '%s' "$SALT" | $W secret put SALT
           printf '%s' "$ADMIN" | $W secret put ADMIN_TOKEN
           for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET KAKAO_REST_KEY KAKAO_CLIENT_SECRET; do
-            v="${!k}"; [ -n "$v" ] && printf '%s' "$v" | $W secret put "$k" >/dev/null && echo "$k 설정함"
+            v="${!k}"
+            if [ -n "$v" ]; then printf '%s' "$v" | $W secret put "$k" >/dev/null && echo "::notice::$k 설정함"; else echo "::notice::$k 없음"; fi
           done
           true
       - name: Health check
@@ -84,7 +85,8 @@ jobs:
         run: |
           for i in 1 2 3 4 5 6; do
             code=$(curl -s -o /dev/null -w '%{http_code}' https://api.drkimworld.com/v1/health || true)
-            echo "health: HTTP $code"; [ "$code" = "200" ] && exit 0
+            echo "health: HTTP $code"
+            if [ "$code" = "200" ]; then echo "::notice::로그인 제공자: $(curl -s https://api.drkimworld.com/v1/me | jq -c .providers)"; exit 0; fi
             sleep 20
           done
           echo "api.drkimworld.com 응답 없음(도메인 연결이 몇 분 걸릴 수 있음)"; exit 1
