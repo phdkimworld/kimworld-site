@@ -49,9 +49,12 @@
     if (c.uid) { art.setAttribute('data-by-uid', c.uid); if (C.isBlocked(c.uid)) art.hidden = true; }
     var who = el('div', 'post-who');
     who.appendChild(C.nickEl(c, 'post-name'));
-    var tk = boardOf(c.slug);
-    if (tk) { var ta = el('a', 'tick', tk); ta.href = base + '/t/' + tk.toLowerCase() + '/#board'; ta.title = tk + ' 종토방'; who.appendChild(ta); }
-    else who.appendChild(el('span', 'post-lounge', '라운지'));
+    // 쓰레드처럼 '닉네임 › 그룹': 종토방 글은 종목 이름(누르면 그 종토방), 라운지 글은 '라운지'
+    var tk = boardOf(c.slug), TKN = {}; ((window.KW || {}).tk || []).forEach(function (t) { TKN[t.c] = t.n; });
+    who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
+    var grp = el(tk ? 'a' : 'span', 'post-group', tk ? (TKN[tk] || '$' + tk) : '라운지');
+    if (tk) { grp.href = base + '/t/' + tk.toLowerCase() + '/#board'; grp.title = tk + ' 종토방'; }
+    who.appendChild(grp);
     var tm = el(opt.detail ? 'span' : 'a', 'post-time muted', '· ' + ago(c.created));
     if (!opt.detail) tm.href = C.postUrl(c.id);
     tm.title = new Date(c.created).toLocaleString('ko-KR');
@@ -258,9 +261,8 @@
       var T = {}; topics.forEach(function (x) { T[x.kind + ':' + x.key] = 1; });
       var R = reports(), first = R[0] && R[0].node; if (!first) return;
       var pick = R.slice(1).filter(function (r) {
-        var tk = r.node.querySelector('.tick'), th = r.node.querySelector('.post-theme');
-        var thk = th ? (/\/theme\/([^/]+)\//.exec(th.getAttribute('href')) || [])[1] : '';
-        return (tk && T['t:' + tk.textContent.trim().toUpperCase()]) || (thk && T['th:' + thk]);
+        var tk = r.node.getAttribute('data-ticker'), thk = r.node.getAttribute('data-theme-slug');
+        return (tk && T['t:' + tk.toUpperCase()]) || (thk && T['th:' + thk]);
       }).slice(0, 2);
       pick.reverse().forEach(function (r) { first.after(r.node); });
     }

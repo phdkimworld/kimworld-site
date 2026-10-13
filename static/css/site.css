@@ -1093,3 +1093,9 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .quote-bar .qb:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
 .quote-bar .qb-main { background: var(--accent); color: var(--accent-ink); }
 .quote-bar .qb-main:hover { background: var(--accent); filter: brightness(1.06); }
+
+/* 쓰레드처럼 '작성자 › 그룹' */
+.post-chev { flex: none; color: var(--muted); font-size: 1.05em; line-height: 1; margin: 0 -1px; }
+.post-group { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; color: var(--text); text-decoration: none; }
+.post-group:hover { text-decoration: underline; }
+.post-who .post-time { flex: none; }

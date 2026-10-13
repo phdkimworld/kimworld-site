@@ -20,12 +20,14 @@
 
 {# 리포트 카드: SNS 게시물 모양(작성자 줄 → 제목·요약·대표 차트 → 대표 댓글 → 좋아요·댓글·조회·공유) #}
 {% macro card(r, base, show_theme=true, media=true) -%}
-<article class="card post" data-slug="{{ r.slug }}">
+<article class="card post" data-slug="{{ r.slug }}" data-ticker="{{ r.ticker }}" data-theme-slug="{{ r.theme_slug }}">
   <header class="post-head">
     <img class="post-av" src="{{ base }}/static/icon.svg" alt="" width="38" height="38">
     <div class="post-who">
       <span class="post-name">김박사 월드</span>
-      <a class="tick" href="{{ base }}/t/{{ r.ticker|lower }}/">{{ r.ticker }}</a>
+      {#- 쓰레드처럼 '작성자 › 그룹': 그룹(종목)을 누르면 그 종목 페이지로 #}
+      <span class="post-chev" aria-hidden="true">›</span>
+      <a class="post-group" href="{{ base }}/t/{{ r.ticker|lower }}/" title="{{ r.ticker }} 종목 페이지">{{ r.seo_name or r.company }}</a>
       <span class="post-time muted">· <time datetime="{{ r.date|iso }}" data-ago>{{ r.date|kdate }}</time></span>
     </div>
     {% if show_theme %}<a class="post-theme" href="{{ base }}/theme/{{ r.theme_slug }}/">{{ r.theme }}</a>{% endif %}
