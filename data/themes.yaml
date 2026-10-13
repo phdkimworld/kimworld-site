@@ -44,3 +44,6 @@
 - name: "바이오·헬스케어"
   slug: "biotech"
   description: "백신, 합성생물학, AI 신약 개발 등 임상·허가·파트너십이 주가를 움직이는 바이오 기업 분석."
+- name: "리츠·배당"
+  slug: "reit-dividend"
+  description: "모기지 리츠와 고배당주의 장부가치, 배당 정책, 금리와 증자가 주가를 움직이는 과정 분석."

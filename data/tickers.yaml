@@ -282,3 +282,9 @@ LCID:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["루시드", "Lucid", "Lucid Motors", "루시드 모터스"]
+AGNC:
+  name: "AGNC 인베스트먼트"
+  name_en: "AGNC Investment Corp."
+  exchange: "NASDAQ"
+  theme: "리츠·배당"
+  aliases: ["에이지엔씨", "에이지엔씨 인베스트먼트", "AGNC Investment", "AGNC 인베스트먼트"]
