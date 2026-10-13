@@ -181,13 +181,13 @@
   // ---------- 홈: 이어서 읽기 ----------
   var rv = document.querySelector('.recent-viewed');
   if (rv) {
+    // 가장 최근에 읽던 리포트 하나만(없으면 저장한 리포트 중 가장 최근 것)
     var saved = load(SAVED, []), recent = load(RECENT, []);
-    var seen = {}, items = [];
-    saved.forEach(function (x) { if (!seen[x.u]) { seen[x.u] = 1; items.push({ x: x, s: true }); } });
-    recent.forEach(function (x) { if (!seen[x.u]) { seen[x.u] = 1; items.push({ x: x, s: false }); } });
+    var items = recent.length ? [{ x: recent[0], s: saved.some(function (y) { return y.u === recent[0].u; }) }]
+      : saved.length ? [{ x: saved[0], s: true }] : [];
     if (items.length) {
       var ul = rv.querySelector('[data-recent]');
-      items.slice(0, 8).forEach(function (it) {
+      items.forEach(function (it) {
         var li = document.createElement('li'), a = document.createElement('a');
         a.href = it.x.u; a.textContent = (it.s ? '★ ' : '') + it.x.k + ' · ' + it.x.t;
         li.appendChild(a); ul.appendChild(li);
