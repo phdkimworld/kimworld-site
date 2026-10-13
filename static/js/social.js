@@ -173,7 +173,7 @@
     var oldest = 0, newest = 0, pollN = 0, loading = false, hotMode = false, loaded = 0, boardsQ = '';
     // 리포트 카드(메인 포스트)와 그 날짜(한국 시간 오전 9시로 본다)
     function reports() {
-      return Array.prototype.slice.call(list ? list.querySelectorAll(':scope > article.post:not(.upost)') : []).map(function (n) {
+      return Array.prototype.slice.call(list ? list.querySelectorAll(':scope > article.post:not(.upost):not(.featured)') : []).map(function (n) {
         var t = n.querySelector('time[datetime]'); return { node: n, t: t ? Date.parse(t.getAttribute('datetime') + 'T09:00:00+09:00') : 0 };
       });
     }
@@ -286,6 +286,24 @@
         }).catch(function () {});
       }, 60000);
     }
+
+    // 이번 주 가장 오래 읽힌 리포트를 피드 맨 위 '대표 글'로(실제로 본 시간 합계 기준, 매주 자동으로 바뀜)
+    api('/v1/popular/read').then(function (d) {
+      var top = (d.items || [])[0]; if (!top || list.querySelector('.featured')) return;
+      var orig = list.querySelector('article.post:not(.upost)[data-slug="' + top.slug + '"]'), card;
+      if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
+      else {
+        card = el('article', 'card post'); card.setAttribute('data-slug', top.slug);
+        var a = el('a', 'post-body card-link'); a.href = C.reportUrl(top.slug); var h = el('h3', 'card-title', '리포트'); a.appendChild(h); card.appendChild(a);
+        C.reportTitle(top.slug).then(function (r) { h.textContent = (r.k ? r.k + ' · ' : '') + C.shortTitle(r.t); });
+      }
+      card.classList.add('featured');
+      var m = Math.floor(top.avg / 60), sec = top.avg % 60;
+      var badge = el('p', 'featured-badge', '★ 이번 주 가장 오래 읽힌 리포트 · 평균 ' + (m ? m + '분 ' : '') + sec + '초');
+      card.insertBefore(badge, card.firstChild);
+      card.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('featured_click'); });
+      var first = list.firstElementChild; if (first) first.before(card); else list.appendChild(card);
+    }).catch(function () {});
 
     // 글쓰기 상자
     var cp = feedEl.querySelector('[data-composer]'), cf = cp.querySelector('form'), ta = cf.querySelector('textarea');

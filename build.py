@@ -489,11 +489,14 @@ class Ads:
             # 가로 크기가 고정(예: 680)이라 좁은 화면에서는 site.js가 비율대로 줄인다(.cp-banner)
             mw = re.search(r'"width"\s*:\s*"?(\d+)', self.c_banner)
             bw, bh = (int(mw.group(1)) if mw else 680), self.c_banner_h
+            # 쿠팡 스크립트가 막히면(광고 차단 등) 오류 없이 상자를 숨긴다
+            guarded = self.c_banner.replace("new PartnersCoupang.G(", "window.PartnersCoupang && new PartnersCoupang.G(") + \
+                '<script>if(!window.PartnersCoupang){var _a=document.currentScript.closest("aside");if(_a)_a.classList.add("hidden")}</script>'
             return (
                 f'<aside class="ad ad-coupang" data-slot="{slot}" aria-label="광고">{label}'
                 f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p>'
                 f'<div class="cp-banner" data-w="{bw}" style="max-width:{bw}px;aspect-ratio:{bw}/{bh}">'
-                f'<div class="cp-banner-in" style="width:{bw}px;height:{bh}px">{self.c_banner}</div></div></aside>'
+                f'<div class="cp-banner-in" style="width:{bw}px;height:{bh}px">{guarded}</div></div></aside>'
             )
         if kind == "coupang_products":
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))
@@ -661,6 +664,12 @@ def build(drafts=False, strict=False, out: Path = DIST):
         newer = [x for x in same if x["date"] > r["date"]]
         r["newer"] = newer[-1] if newer else None
         r["related"] = [x for x in public if x["theme"] == r["theme"] and x["ticker"] != r["ticker"]][:4]
+        # 목차에서 찾아 두는 자리: 리스크·체크리스트(요약 상자 바로가기), 영상에서 다 못 다룬 뒷부분(유튜브에서 온 독자 바로가기)
+        flat = []
+        for t in r["toc"]:
+            flat.append(t); flat.extend(t.get("children") or [])
+        r["check_id"] = next((t["id"] for t in flat if "체크리스트" in t["name"]), "") or next((t["id"] for t in flat if "리스크" in t["name"]), "")
+        r["yt_jump"] = [t for t in r["toc"] if re.match(r"^[3-6]부", t["name"])][:4] or r["toc"][2:6]
         idx = public.index(r) if r in public else -1
         r["prev"] = public[idx + 1] if idx >= 0 and idx + 1 < len(public) else None
         r["next"] = public[idx - 1] if idx > 0 else None

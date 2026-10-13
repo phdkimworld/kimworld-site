@@ -395,6 +395,9 @@ check(an.data.app.users30 === 1 && an.data.app.pv === 1 && an.data.events.instal
 check(an.data.tech.some((x) => x.os === "android" && x.br === "chrome") && an.data.entries.some((x) => x.path === "/r/rgti-2026-10/" && x.src === "youtube"), "운영체제·브라우저, 유튜브 → 리포트 첫 페이지");
 check(an.data.misses.length === 1 && an.data.misses[0].n === 1, "결과 없는 검색어(하루 한 사람 한 번)");
 check(an.data.cohorts.length >= 1 && an.data.reports.some((x) => x.slug === "rgti-2026-10" && "likes" in x), "코호트·리포트별 성과");
+for (const ip of ["91.1.0.1", "91.1.0.2", "91.1.0.3"]) await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 200 }, ip });
+an = await call("GET", "/v1/popular/read");
+check(an.data.items[0] && an.data.items[0].slug === "rgti-2026-10" && an.data.items[0].avg > 0, "이번 주 가장 오래 읽힌 리포트(3회 이상 본 것 중)");
 const own = await login("google", "alice", "91.0.0.5");
 r1 = await call("POST", "/v1/me", { body: { nick: "운영통계" }, ip: "91.0.0.5", cookie: own.cookie });
 an = await call("GET", "/v1/admin/whoami", { ip: "91.0.0.5", cookie: own.cookie });

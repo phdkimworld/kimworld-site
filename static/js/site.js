@@ -528,3 +528,13 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   }
   fit(); addEventListener('resize', fit); addEventListener('load', fit);
 })();
+
+// 유튜브에서 온 독자에게만: 리포트 위쪽에 "영상에서 다 못 다룬 내용" 바로가기 줄
+(function () {
+  var nav = document.querySelector('[data-yt-jump]'); if (!nav) return;
+  var src = ''; try { src = sessionStorage.getItem('kw-src') || ''; } catch (e) {}
+  var ref = ''; try { ref = document.referrer ? new URL(document.referrer).hostname : ''; } catch (e) {}
+  var utm = (new URLSearchParams(location.search).get('utm_source') || '').toLowerCase();
+  if (src === 'youtube' || /youtube\.com$|youtu\.be$/.test(ref) || utm === 'youtube') { nav.hidden = false; if (window.kwEv) kwEv('yt_jump_shown'); }
+  nav.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('yt_jump_click'); });
+})();

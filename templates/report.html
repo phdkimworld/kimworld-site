@@ -74,6 +74,7 @@
       {% else %}
       <p>{{ r.summary }}</p>
       {% endif %}
+      {% if r.check_id %}<p class="sum-jump"><a href="#{{ r.check_id }}">✓ 리스크와 매매 전 체크리스트 바로 보기</a></p>{% endif %}
       <div class="disclosure">
         {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
         <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>
@@ -98,11 +99,17 @@
     </div>
     {% endif %}
 
+    {% if r.yt_jump %}
+    <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
+      <p class="yt-jump-t">▶ 영상 보고 오셨나요? 영상에서 다 못 다룬 내용으로 바로 가기</p>
+      <div class="chip-row">{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
+    </nav>
+    {% endif %}
     {% if r.toc %}
-    <details class="toc toc-inline">
-      <summary>목차 <span class="muted toc-n">{{ r.toc|length }}개 항목</span></summary>
-      <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
-    </details>
+    <nav class="toc-chips" aria-label="목차">
+      <span class="toc-chips-t">목차</span>
+      <div class="chip-row">{% for t in r.toc %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
+    </nav>
     {% endif %}
 
     <div class="prose">
@@ -123,6 +130,13 @@
     {% endif %}
 
     {{ end_ad|safe }}
+
+    {% if r.related %}
+    <section class="more next-theme" aria-labelledby="more-r">
+      <h2 id="more-r">다음에 읽을 만한 {{ r.theme }} 리포트</h2>
+      <div class="cards cards-2">{% for x in r.related[:2] %}{{ card(x, base, false, true) }}{% endfor %}</div>
+    </section>
+    {% endif %}
 
     {% if site.api_url %}
     <section class="ins-card next-reads" data-next-reads hidden aria-labelledby="nr-h">
@@ -156,12 +170,6 @@
     </section>
     {% endif %}
 
-    {% if r.related %}
-    <section class="more" aria-labelledby="more-r">
-      <h2 id="more-r">같은 테마 리포트</h2>
-      <div class="cards cards-2">{% for x in r.related %}{{ card(x, base, false, false) }}{% endfor %}</div>
-    </section>
-    {% endif %}
 
     <nav class="prevnext" aria-label="이전·다음 리포트">
       {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 최근 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.title }}</strong></a>{% else %}<span></span>{% endif %}

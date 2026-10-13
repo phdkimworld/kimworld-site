@@ -812,3 +812,20 @@ a.cm-time:hover { text-decoration: underline; }
 .cp-banner { width: 100%; margin: 0 auto; overflow: hidden; position: relative; }
 .cp-banner-in { transform-origin: 0 0; }
 .cp-banner-in iframe { display: block; border: 0; }
+
+/* 리포트: 목차 칩·유튜브 바로가기·체크리스트 바로가기, 홈 대표 글 */
+.chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 2px 0 4px; }
+.chip-row::-webkit-scrollbar { display: none; }
+.chip-row .chip { flex: none; max-width: 15em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; padding: 7px 12px; }
+.toc-chips { margin: 16px 0 6px; display: flex; align-items: center; gap: 10px; }
+.toc-chips-t { flex: none; font-size: .78rem; font-weight: 800; color: var(--muted); }
+.toc-chips .chip-row { flex: 1; min-width: 0; }
+@media (min-width: 1000px) { .toc-chips { display: none; } }
+.yt-jump { margin: 16px 0; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, #e00 8%, var(--surface)); border: 1px solid color-mix(in srgb, #e00 25%, var(--line)); }
+.yt-jump[hidden] { display: none; }
+.yt-jump-t { margin: 0 0 8px; font-size: .86rem; font-weight: 700; }
+.sum-jump { margin: 10px 0 0; font-size: .86rem; font-weight: 700; }
+.sum-jump a { color: var(--accent); text-decoration: none; }
+.next-theme { margin-top: 24px; }
+.featured { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.featured-badge { margin: -2px 0 10px; font-size: .78rem; font-weight: 800; color: var(--accent); }

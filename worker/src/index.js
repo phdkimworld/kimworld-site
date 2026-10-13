@@ -357,6 +357,13 @@ export default {
         const row = await db.prepare("SELECT n FROM likes_total WHERE slug = ?").bind(slug).first();
         return json(req, { likes: row?.n || 0, liked: !!ins.meta?.changes });
       }
+      // 이번 주 가장 오래 읽힌 리포트(실제로 본 시간 합계, 최근 7일). 홈 피드 맨 위 '대표 글'
+      if (p === "/v1/popular/read" && req.method === "GET") {
+        const r = await db.prepare(`SELECT path, SUM(secs) AS secs, SUM(pv) AS pv FROM an_page WHERE day >= ? AND t = 'r' GROUP BY path
+            HAVING SUM(pv) >= 3 ORDER BY secs DESC LIMIT 3`).bind(kstDay(now - 6 * 864e5)).all();
+        const items = (r.results || []).map((x) => ({ slug: (x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1] || "", secs: x.secs, pv: x.pv, avg: x.pv ? Math.round(x.secs / x.pv) : 0 })).filter((x) => x.slug);
+        return json(req, { items }, 200, { "Cache-Control": "public, max-age=600" });
+      }
       if (p === "/v1/popular" && req.method === "GET") {
         const days = Math.min(30, Math.max(1, parseInt(url.searchParams.get("days") || "7", 10) || 7));
         const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") || "5", 10) || 5));
@@ -405,7 +412,8 @@ export default {
         const OS = new Set(["ios", "android", "windows", "mac", "linux", "other"]), BR = new Set(["chrome", "safari", "samsung", "edge", "firefox", "kakaotalk", "naver", "youtube", "instagram", "facebook", "whale", "other"]);
         const os = OS.has(b.os) ? b.os : "other", br = BR.has(b.br) ? b.br : "other";
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
-          "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like"]);
+          "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
+          "yt_jump_shown", "yt_jump_click", "featured_click"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
