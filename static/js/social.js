@@ -346,12 +346,19 @@
       var s = C.state();
       tabsEl.hidden = false; cp.hidden = false;
       var av = cp.querySelector('[data-composer-av]');
+      // 쓰레드처럼: 평소에는 '이름 + 한 줄'만, 누르면 펼쳐서 올릴 곳·게시 버튼이 나온다
+      var nameEl = el('span', 'composer-name', s.me ? s.me.nick : '익명으로 쓰기');
+      cp.querySelector('[data-composer-form]').insertBefore(nameEl, ta);
+      ta.placeholder = '새로운 소식이 있나요?'; ta.rows = 1;
       if (s.me) { var a = C.avatar(s.me.nick, s.me.id); a.className += ' post-av'; av.appendChild(a); }
       else { // 로그인 전: 익명으로 바로 쓴다(닉네임은 선택)
         av.className += ' composer-av-guest';
-        ta.placeholder = '종목 이야기를 나눠 보세요. 로그인 없이도 쓸 수 있어요.';
-        cp.addEventListener('focusin', function () { nickIn.hidden = false; cp.classList.add('composer-on'); });
+        cp.addEventListener('focusin', function () { nickIn.hidden = false; });
       }
+      cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '종목 이야기를 써 보세요. $TSLA처럼 쓰면 그 종목 종토방에도 올라가요.'; });
+      cp.addEventListener('focusout', function () {
+        setTimeout(function () { if (!cp.contains(document.activeElement) && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
+      });
       if (tab === 'following' && !s.me) tab = 'all';
       if (/[?&]compose=1/.test(location.search)) { // 아래 탭 줄의 '글쓰기'로 들어온 경우
         try { history.replaceState(null, '', location.pathname); } catch (e) {}

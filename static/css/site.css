@@ -1010,3 +1010,66 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .crop-zb { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 1.2rem; cursor: pointer; }
 .crop-hint { text-align: center; max-width: 300px; }
 .crop-acts { width: 100%; max-width: 300px; display: grid; grid-template-columns: 1fr 1fr; }
+
+/* ---------- 홈(랜딩): 쓰레드처럼 군더더기 없이 — 상자·그림자 없이 가는 줄로 나누고, 곁가지는 숨긴다 ---------- */
+@media (max-width: 999px) {
+  .home-grid .home-side { display: none !important; }   /* 휴대폰: 인사이트·테마 목록·팔로우 추천은 피드에 끼우지 않는다 */
+}
+.home-grid { margin-top: 0; }
+.home-grid .feed-list { gap: 0; }
+.home-grid .feed-list > .post, .home-grid .feed-list > .install-card, .home-grid .feed-list > .feed-skel, .home-grid .feed-list > .feed-note {
+  background: none; border: 0; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); }
+.home-grid .feed-list > .post { padding: 16px 2px 8px; }
+.home-grid .feed-list > .post:hover { border-color: var(--line); background: none; }
+.home-grid .feed-list > .ad { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.home-grid .post-theme, .home-grid .post-top { display: none !important; }
+.home-grid .post .post-body { padding-top: 2px; }
+.home-grid .post .card-company { display: none; }
+.home-grid .post .card-title { font-size: 1rem; line-height: 1.45; margin: 0 0 4px; }
+.home-grid .post .card-summary { color: var(--muted); font-size: .92rem; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.home-grid .post-media { margin-top: 10px; border-radius: 12px; }
+.home-grid .post-actions { gap: 10px; margin-top: 6px; }
+.home-grid .pa-min { display: none; }
+.home-grid .pa { padding-left: 4px; padding-right: 4px; }
+.home-grid .upost-body { margin-top: 2px; }
+.home-grid .upost-reply { background: none; padding-left: 0; }
+/* 대표 리포트: 상자 대신 위에 한 줄 표시 */
+.home-grid .featured { border-color: var(--line) !important; }
+.home-grid .featured-badge { margin: 0 0 8px 48px; font-size: .74rem; font-weight: 700; }
+/* 추천·팔로잉: 글자 탭 + 밑줄 */
+.home-grid .feed-tabs { background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; margin: 0; }
+.home-grid .feed-tabs button:hover { background: none; }
+.home-grid .feed-tabs button[aria-selected="true"]::after { width: 100%; left: 0; margin-left: 0; height: 2px; background: var(--text); border-radius: 0; }
+/* 글쓰기: 평소에는 이름 + "새로운 소식이 있나요?" 한 줄, 누르면 펼침 */
+.home-grid .composer { background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; margin: 0; padding: 14px 2px 12px; align-items: start; }
+.composer-name { display: block; font-weight: 800; font-size: .92rem; line-height: 1.3; }
+.home-grid .composer-form textarea { min-height: 0; padding: 2px 0 0; font-size: .98rem; resize: none; }
+.home-grid .composer:not(.composer-on) .composer-row, .home-grid .composer:not(.composer-on) .composer-nick { display: none; }
+.home-grid .composer.composer-on .composer-form textarea { min-height: 84px; }
+.home-grid .composer-row { border-top: 0; padding-top: 6px; }
+.home-grid .feed-new { margin: 10px auto; }
+/* 맨 아래 종목·테마 목록: 작은 글자 링크로만 */
+.tick-cloud, .theme-bottom { margin-top: 28px; }
+.tick-cloud .section-title, .theme-bottom .section-title { font-size: .86rem; color: var(--muted); }
+.tick-cloud .chip { border: 0; background: none; padding: 2px 0; font-size: .8rem; color: var(--muted); }
+.tick-cloud .chip-list { gap: 2px 12px; }
+.theme-bottom .theme-grid a { border: 0; background: none; padding: 4px 0; box-shadow: none; }
+.theme-bottom .theme-grid a span { display: none; }
+@media (min-width: 760px) { .home-grid .feed { max-width: 640px; } }
+/* 홈: 쓰레드처럼 본문·버튼을 프로필 사진 오른쪽 줄에 맞춘다(휴대폰 포함) */
+.home-grid .post .post-body { padding-left: 48px; }
+.home-grid .upost-body { margin-left: 48px; margin-top: 2px; }
+.home-grid .post-actions { margin-left: 42px; }
+.home-grid .post-menu { margin-left: 48px; }
+.home-grid .post-media { margin-left: 0; }
+.home-grid .composer { grid-template-columns: 38px minmax(0, 1fr) !important; }
+.home-grid .composer-av { display: block !important; }
+.home-grid .featured-badge { text-align: left; margin-left: 48px; }
+/* 홈 피드 속 앱 설치 안내: 한 줄로 작게 */
+.home-grid .feed-list > .install-card { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; padding: 14px 2px; }
+.home-grid .feed-list > .install-card img { width: 38px; height: 38px; border-radius: 10px; }
+.home-grid .feed-list > .install-card .ic-txt span { font-size: .8rem; }
+.home-grid .feed-list > .install-card .ic-row { grid-column: auto; display: flex; gap: 2px; align-items: center; }
+.home-grid .feed-list > .install-card .ic-row .btn-primary { min-height: 34px; padding: 0 14px; border-radius: 999px; font-size: .84rem; }
+.home-grid .feed-list > .install-card [data-install-x] { border: 0; background: none; min-height: 34px; padding: 0 6px; font-size: 0; color: var(--muted); }
+.home-grid .feed-list > .install-card [data-install-x]::before { content: "×"; font-size: 1.3rem; line-height: 1; }
