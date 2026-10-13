@@ -45,8 +45,8 @@
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
         <span>{{ r.minutes }}분 읽기</span>
         <span class="views" data-views hidden></span>
+        <span class="asof">숫자 기준 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></span>
       </p>
-      <p class="asof">숫자 기준일 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></p>
       <div class="report-actions post-actions report-bar" data-report-bar>
         <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span><span class="pa-txt">좋아요</span></button>
         <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span><span class="pa-txt">댓글</span></a>
@@ -96,8 +96,8 @@
     {% endif %}
 
     {% if r.toc %}
-    <details class="toc toc-inline" open>
-      <summary>목차</summary>
+    <details class="toc toc-inline">
+      <summary>목차 <span class="muted toc-n">{{ r.toc|length }}개 항목</span></summary>
       <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
     </details>
     {% endif %}

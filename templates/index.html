@@ -22,6 +22,12 @@
 
 <div class="wrap home-grid">
   <aside class="home-side" aria-label="독자 인사이트">
+  <nav class="side-themes" aria-label="테마별 리포트">
+    <h2 class="section-title">테마별 리포트</h2>
+    <ul>
+      {% for t in themes %}{% set n = rs|selectattr('theme', 'equalto', t.name)|list|length %}{% if n %}<li><a href="{{ base }}/theme/{{ t.slug }}/"><span>{{ t.name }}</span><span class="muted">{{ n }}</span></a></li>{% endif %}{% endfor %}
+    </ul>
+  </nav>
 
   {% if site.api_url %}
   <section class="insights" data-insights hidden aria-label="독자 인사이트">
@@ -83,17 +89,15 @@
 
 <div class="wrap">
   {% if ticker_list %}
-  <section aria-labelledby="tick-h">
-    <h2 id="tick-h" class="section-title">종목별로 보기</h2>
-    <ul class="ticker-grid">
-      {% for t in ticker_list %}
-      <li><a href="{{ base }}/t/{{ t.code|lower }}/"><span class="tick">{{ t.code }}</span><span class="tg-name">{{ t.name }}</span><span class="tg-meta">리포트 {{ t.count }}개 · {{ t.last|kdate }}</span></a></li>
-      {% endfor %}
+  <section aria-labelledby="tick-h" class="tick-cloud">
+    <h2 id="tick-h" class="section-title">종목별로 보기 <span class="muted ins-sub">{{ ticker_list|length }}개 종목</span></h2>
+    <ul class="chip-list">
+      {% for t in ticker_list %}<li><a class="chip" href="{{ base }}/t/{{ t.code|lower }}/"><strong>{{ t.code }}</strong> {{ t.name }}</a></li>{% endfor %}
     </ul>
   </section>
   {% endif %}
 
-  <section aria-labelledby="theme-h">
+  <section aria-labelledby="theme-h" class="theme-bottom">
     <h2 id="theme-h" class="section-title">테마별로 보기</h2>
     <ul class="theme-grid">
       {% for t in themes %}<li><a href="{{ base }}/theme/{{ t.slug }}/"><strong>{{ t.name }}</strong><span>{{ t.description }}</span></a></li>{% endfor %}

@@ -508,3 +508,43 @@ button { font: inherit; color: inherit; }
 .rail-ad .cp-card:not(:has(.cp-img)) { grid-template-columns: 1fr; }
 .rail-ad .cp-card:not(:has(.cp-img)) > * { grid-column: 1; }
 .rail-ad .cp-price, .rail-ad .cp-rocket { justify-self: start; }
+
+/* ---------- 배치 다듬기 ---------- */
+/* 홈: 첫 화면에 글이 더 빨리 보이게 */
+@media (max-width: 479px) {
+  .hero { padding: 14px 0 0; }
+  .hero-title { font-size: 1.22rem; margin-bottom: 10px; }
+  .hero-sub { display: none; }
+  .search-form input, .search-form .btn { min-height: 44px; }
+  .post-media img { aspect-ratio: 2 / 1; max-height: 170px; }
+}
+.feed-list > .ad { margin: 4px 0; }
+.feed-list > .ad .ad-label { margin-bottom: 2px; }
+/* 종목: 칩 한 덩어리로(길게 늘어선 카드 대신) */
+.tick-cloud .chip-list { gap: 6px; }
+.tick-cloud .chip { font-size: .82rem; padding: 6px 12px; }
+/* 테마: 휴대폰에서는 2열 작은 카드 */
+@media (max-width: 599px) {
+  .theme-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .theme-grid a { padding: 12px; }
+  .theme-grid strong { font-size: .9rem; }
+  .theme-grid span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .75rem; }
+}
+/* PC 홈 오른쪽 칸: 테마 바로가기(광고보다 먼저) */
+.side-themes { display: none; }
+@media (min-width: 1000px) {
+  .side-themes { display: block; margin-bottom: 20px; }
+  .side-themes ul { list-style: none; margin: 0; padding: 6px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .side-themes a { display: flex; justify-content: space-between; gap: 8px; padding: 8px 14px; color: var(--text); text-decoration: none; font-size: .9rem; }
+  .side-themes a:hover { background: var(--surface-2); }
+  .theme-bottom { display: none; }
+}
+/* 리포트 머리: 한 줄 정보로 묶고, 휴대폰에서 티커 배지를 작게 */
+.report-meta .asof { margin: 0; font-size: inherit; }
+.toc-n { font-weight: 400; font-size: .8rem; margin-left: 6px; }
+@media (max-width: 479px) {
+  .report-ticker { gap: 8px; margin-top: 4px; }
+  .report-ticker .tick-lg { font-size: .9rem; padding: 3px 9px; }
+  .report-company .muted { display: block; margin-top: 1px; }
+  .report-head h1 { font-size: 1.45rem; line-height: 1.38; margin: 10px 0 8px; }
+}
