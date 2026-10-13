@@ -342,8 +342,9 @@
     wrap.appendChild(b);
     file.addEventListener('change', function () {
       var f = file.files && file.files[0]; if (!f) return;
-      wrap.classList.add('busy'); say('사진을 올리는 중…');
-      squareImage(f, 256).then(function (blob) {
+      file.value = '';
+      cropImage(f, 256).then(function (blob) {
+        wrap.classList.add('busy'); say('사진을 올리는 중…');
         return fetch(API + '/v1/me/avatar?d=' + DEV, { method: 'POST', body: blob, headers: { 'Content-Type': blob.type }, credentials: 'include' }).then(function (r) { return r.json(); });
       }).then(function (d) {
         wrap.classList.remove('busy');
@@ -351,32 +352,100 @@
         ME.av = d.av; seedAv(ME.id, d.av); say('프로필 사진을 바꿨습니다.'); b.setAttribute('aria-label', '프로필 사진 바꾸기');
         if (window.kwEv) kwEv('avatar_set');
         if (after) after();
-      }).catch(function () { wrap.classList.remove('busy'); say('이 사진은 쓸 수 없습니다. 다른 사진(JPG·PNG)으로 해 보세요.'); });
-      file.value = '';
+      }).catch(function (e) { wrap.classList.remove('busy'); if (e !== 'cancel') say('이 사진은 쓸 수 없습니다. 다른 사진(JPG·PNG)으로 해 보세요.'); });
     });
   }
-  // 사진을 정사각형으로 잘라 size px로 줄인다. webp(안 되면 jpeg), 60KB를 넘으면 화질을 낮춘다
-  function squareImage(f, size) {
+  // 캔버스를 webp(안 되면 jpeg)로. 60KB를 넘으면 화질을 낮춘다
+  function encodeCanvas(c) {
+    return new Promise(function (ok, no) {
+      var q = 0.86, type = 'image/webp';
+      (function enc() {
+        c.toBlob(function (b) {
+          if (!b) { no(); return; }
+          if (type === 'image/webp' && b.type !== 'image/webp') { type = 'image/jpeg'; enc(); return; }
+          if (b.size > 60000 && q > 0.4) { q -= 0.15; enc(); return; }
+          ok(b);
+        }, type, q);
+      })();
+    });
+  }
+  // 사진 위치·크기 맞추기: 끌어서 옮기고, 막대·두 손가락·마우스 휠로 확대/축소. 동그라미 안이 프로필이 된다
+  function cropImage(f, size) {
     return new Promise(function (ok, no) {
       if (!/^image\//.test(f.type || 'image/')) { no(); return; }
       var url = URL.createObjectURL(f), img = new Image();
-      img.onload = function () {
-        var w = img.naturalWidth, h = img.naturalHeight, m = Math.min(w, h); if (!m) { no(); return; }
-        var c = document.createElement('canvas'); c.width = c.height = size;
-        var g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
-        g.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, size, size);
-        URL.revokeObjectURL(url);
-        var q = 0.86, type = 'image/webp';
-        (function enc() {
-          c.toBlob(function (b) {
-            if (!b) { no(); return; }
-            if (type === 'image/webp' && b.type !== 'image/webp') { type = 'image/jpeg'; enc(); return; }
-            if (b.size > 60000 && q > 0.4) { q -= 0.15; enc(); return; }
-            ok(b);
-          }, type, q);
-        })();
-      };
       img.onerror = function () { URL.revokeObjectURL(url); no(); };
+      img.onload = function () {
+        var W = img.naturalWidth, H = img.naturalHeight; if (!W || !H) { no(); return; }
+        var V = Math.min(280, window.innerWidth - 80);
+        var d = el('dialog', 'kw-dlg crop-dlg'); document.body.appendChild(d);
+        var head = el('div', 'kw-dlg-head'); head.appendChild(el('h2', null, '사진 위치 맞추기'));
+        var x0 = el('button', 'kw-dlg-x', '×'); x0.type = 'button'; x0.setAttribute('aria-label', '닫기'); head.appendChild(x0); d.appendChild(head);
+        var body = el('div', 'kw-dlg-body crop-body'); d.appendChild(body);
+        var stage = el('div', 'crop-stage'); stage.style.width = stage.style.height = V + 'px';
+        var pic = img; pic.className = 'crop-img'; pic.draggable = false; pic.alt = '';
+        stage.appendChild(pic); stage.appendChild(el('div', 'crop-ring'));
+        body.appendChild(stage);
+        var row = el('div', 'crop-zoom');
+        var minus = btn('−', 'crop-zb', null), plus = btn('+', 'crop-zb', null);
+        minus.setAttribute('aria-label', '축소'); plus.setAttribute('aria-label', '확대');
+        var range = el('input'); range.type = 'range'; range.min = '1'; range.max = '4'; range.step = '0.01'; range.value = '1'; range.setAttribute('aria-label', '확대/축소');
+        row.appendChild(minus); row.appendChild(range); row.appendChild(plus); body.appendChild(row);
+        body.appendChild(el('p', 'muted kw-small crop-hint', '사진을 끌어서 옮기고, 막대나 두 손가락으로 크기를 맞추세요. 동그라미 안이 프로필 사진이 됩니다.'));
+        var acts = el('div', 'kw-row crop-acts'); body.appendChild(acts);
+        var s0 = V / Math.min(W, H), z = 1, sc = s0, x = (V - W * sc) / 2, y = (V - H * sc) / 2;
+        function clamp() {
+          x = Math.min(0, Math.max(V - W * sc, x)); y = Math.min(0, Math.max(V - H * sc, y));
+        }
+        function draw() { clamp(); pic.style.width = W * sc + 'px'; pic.style.height = H * sc + 'px'; pic.style.transform = 'translate(' + x + 'px,' + y + 'px)'; range.value = String(z); }
+        function zoomTo(nz, fx, fy) { // (fx, fy) 점이 그 자리에 머물도록
+          nz = Math.max(1, Math.min(4, nz)); if (fx == null) { fx = V / 2; fy = V / 2; }
+          var ns = s0 * nz; x = fx - (fx - x) * (ns / sc); y = fy - (fy - y) * (ns / sc); z = nz; sc = ns; draw();
+        }
+        range.addEventListener('input', function () { zoomTo(+range.value); });
+        minus.addEventListener('click', function () { zoomTo(z / 1.2); }); plus.addEventListener('click', function () { zoomTo(z * 1.2); });
+        stage.addEventListener('wheel', function (e) { e.preventDefault(); var r = stage.getBoundingClientRect(); zoomTo(z * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+        var pts = {}, last = null, pinch = null;
+        function local(e) { var r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+        stage.addEventListener('pointerdown', function (e) { stage.setPointerCapture(e.pointerId); pts[e.pointerId] = local(e); last = null; pinch = null; });
+        stage.addEventListener('pointermove', function (e) {
+          if (!pts[e.pointerId]) return; pts[e.pointerId] = local(e);
+          var ids = Object.keys(pts);
+          if (ids.length >= 2) {
+            var a = pts[ids[0]], b = pts[ids[1]], dist = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            if (pinch) { x += mx - pinch.mx; y += my - pinch.my; zoomTo(pinch.z * dist / pinch.d, mx, my); }
+            else pinch = { d: dist, z: z, mx: mx, my: my };
+            pinch.mx = mx; pinch.my = my; if (!pinch.d) pinch.d = dist;
+            return;
+          }
+          var p = pts[e.pointerId];
+          if (last) { x += p.x - last.x; y += p.y - last.y; draw(); }
+          last = p;
+        });
+        var up = function (e) { delete pts[e.pointerId]; last = null; if (Object.keys(pts).length < 2) pinch = null; };
+        stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+        stage.addEventListener('keydown', function (e) { // 키보드: 화살표로 옮기기, +/- 확대
+          var k = e.key; if (k === 'ArrowLeft') x += 10; else if (k === 'ArrowRight') x -= 10; else if (k === 'ArrowUp') y += 10; else if (k === 'ArrowDown') y -= 10;
+          else if (k === '+' || k === '=') { zoomTo(z * 1.1); return; } else if (k === '-') { zoomTo(z / 1.1); return; } else return;
+          e.preventDefault(); draw();
+        });
+        stage.tabIndex = 0; stage.setAttribute('aria-label', '사진 위치(화살표로 옮기기, +/- 확대)');
+        var done = false;
+        function finish(blob, err) { if (done) return; done = true; d.close(); d.remove(); URL.revokeObjectURL(url); if (blob) ok(blob); else no(err || 'cancel'); }
+        acts.appendChild(btn('취소', 'btn', function () { finish(null, 'cancel'); }));
+        var saveB = acts.appendChild(btn('저장', 'btn btn-primary', function () {
+          var c = document.createElement('canvas'); c.width = c.height = size;
+          var g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+          var sx = -x / sc, sy = -y / sc, sw = V / sc;
+          g.drawImage(img, sx, sy, sw, sw, 0, 0, size, size);
+          encodeCanvas(c).then(function (b) { finish(b); }, function () { finish(null, 'encode'); });
+        }));
+        x0.addEventListener('click', function () { finish(null, 'cancel'); });
+        d.addEventListener('cancel', function (e) { e.preventDefault(); finish(null, 'cancel'); });
+        draw();
+        saveB.autofocus = true;
+        if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+      };
       img.src = url;
     });
   }
