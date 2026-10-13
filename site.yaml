@@ -16,7 +16,7 @@ operator:
 analytics:
   ga4_id: ""                     # G-XXXXXXXXXX
   google_site_verification: "GrHaS0_IOs7n6tcCGmwmypzbwchV66rVwQAKclO6nrk"
-  naver_site_verification: ""   # 네이버 서치어드바이저 HTML 태그의 content 값(공개값)
+  naver_site_verification: "874e3d1421c47d6184d0f2d106728ddd77150b08"   # 네이버 서치어드바이저 HTML 태그의 content 값(공개값)
   bing_site_verification: ""    # 빙 웹마스터 도구 msvalidate.01 값(공개값). 구글 서치 콘솔에서 가져오기를 쓰면 비워 둬도 된다
 
 # 검색 노출. 아래 값은 모두 공개값(웹에 그대로 보임)이다
