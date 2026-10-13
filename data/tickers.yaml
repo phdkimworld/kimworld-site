@@ -288,3 +288,9 @@ AGNC:
   exchange: "NASDAQ"
   theme: "리츠·배당"
   aliases: ["에이지엔씨", "에이지엔씨 인베스트먼트", "AGNC Investment", "AGNC 인베스트먼트"]
+CIFR:
+  name: "사이퍼 디지털"
+  name_en: "Cipher Digital Inc."
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["사이퍼", "사이퍼 마이닝", "Cipher Mining", "Cipher Digital", "사이퍼마이닝"]
