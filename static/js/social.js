@@ -29,7 +29,10 @@
   // 로그인했지만 닉네임을 아직 안 정한 경우에만 글쓰기 전에 닉네임 창을 연다
   function needNick() { var s = C.state(); if (s.logged && !s.me) { C.openAccount(); return true; } return false; }
   function share(url, title) {
-    var u = location.origin + url;
+    // 글은 API의 공유 미리보기 주소로(카카오톡·쓰레드에 글 내용이 보이게), 그 밖은 사이트 주소 + utm
+    var m = /\/p\/\?id=(\d+)/.exec(url);
+    var u = m && C.apiBase ? C.apiBase + '/s/p/' + m[1] : (window.kwShareUrl ? kwShareUrl(location.origin + url) : location.origin + url);
+    if (window.kwEv) kwEv('share');
     if (navigator.share) { navigator.share({ title: title, url: u }).catch(function () {}); return; }
     (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('주소를 복사했습니다'); }, function () { prompt('주소를 복사하세요', u); });
   }
@@ -165,11 +168,10 @@
   var feedEl = document.querySelector('[data-feed]'), feed = null;
   if (feedEl) {
     var list = feedEl.querySelector('.feed-list');
-    var tabsEl = feedEl.querySelector('[data-feed-tabs]');
     var newBtn = feedEl.querySelector('[data-feed-new]');
     var endEl = feedEl.querySelector('[data-feed-end]'), moreBtn = feedEl.querySelector('[data-feed-more]');
-    var tab = 'all';
-    try { if (localStorage.getItem('kw-tab') === 'following') tab = 'following'; } catch (e) {}
+    // 탭 없이 하나의 피드: 서버가 반응 × 나와의 관계(팔로우한 사람·종목·테마, 최근 반응한 사람) × 신선도로 줄 세운다
+    var tab = 'mix';
     feed = { dirty: false };
     var oldest = 0, newest = 0, pollN = 0, loading = false, hotMode = false, loaded = 0, boardsQ = '';
     // 리포트 카드(메인 포스트)와 그 날짜(한국 시간 오전 9시로 본다)
@@ -223,27 +225,13 @@
       return card;
     }
     function note(node) { var w = el('div', 'feed-note card'); w.appendChild(node); var first = list.firstElementChild; if (first) first.before(w); else list.appendChild(w); return w; }
-    function emptyNote() {
-      var s = C.state(), box = el('div');
-      if (tab !== 'following') return;
-      if (!s.me) {
-        box.appendChild(el('p', null, '팔로우한 사람의 글이 여기에 모입니다. 로그인하고 관심 가는 사람을 팔로우해 보세요.'));
-        var b = el('button', 'btn btn-primary', '로그인'); b.type = 'button'; b.addEventListener('click', function () { C.openAccount(); }); box.appendChild(b);
-        note(box); return;
-      }
-      box.appendChild(el('p', null, '아직 팔로우한 사람·종목의 글이 없습니다. 관심 종목 페이지에서 "+ 팔로우"를 누르거나, 활발한 사람을 팔로우해 보세요.'));
-      var w = note(box);
-      (sgItems ? Promise.resolve(sgItems) : loadSuggest()).then(function (items) {
-        if (!items.length) return; var ul = el('ul', 'sg-list'); suggestList(ul, items.slice(0, 3)); w.appendChild(ul);
-      });
-    }
     function load(reset) {
       if (loading) return Promise.resolve(); loading = true;
-      var q = '/v1/feed?tab=' + tab + '&limit=' + (reset ? 30 : 20) + (tab === 'all' ? '&rank=hot' : '');
+      var q = '/v1/feed?tab=mix&limit=' + (reset ? 30 : 20);
       if (!reset) q += hotMode ? '&offset=' + loaded : '&before=' + oldest;
       if (reset) { clear(); skeleton(); }
-      // 팔로잉 탭: 팔로우한 종목·테마의 종토방 글도 함께
-      var pre = tab === 'following' ? C.myTopics().then(function (items) { var b = C.topicBoards(items); boardsQ = b.length ? '&boards=' + b.join(',') : ''; return boardsQ; }) : Promise.resolve('');
+      // 팔로우한 종목·테마의 종토방 글은 점수를 더 받는다(로그인했을 때)
+      var pre = C.state().me ? C.myTopics().then(function (items) { var b = C.topicBoards(items); boardsQ = b.length ? '&boards=' + b.join(',') : ''; boostReports(items); return boardsQ; }) : Promise.resolve('');
       return pre.then(function (bq) { return api(q + bq); }).then(function (d) {
         loading = false;
         if (d._status !== 200) { clear(); return; }
@@ -255,7 +243,7 @@
           var have = {}; items.forEach(function (c) { have[c.id] = 1; });
           (d.reposts || []).forEach(function (x) { if (x.type === 'report' || !have[x.id]) { x._t = x.rp.at; items.push(x); if (x.id) have[x.id] = 1; } });
           if (d.reposts && d.reposts.length) items.sort(function (a, b) { return (b._t || b.created) - (a._t || a.created); });
-          place(items, hotMode); if (!items.length) emptyNote(); nudge();
+          place(items, hotMode); nudge();
         } else appendTail(items);
         loaded += items.length;
         var ts = items.filter(function (c) { return c.created && !c.rp; }).map(function (c) { return c.created; });
@@ -263,25 +251,26 @@
         endEl.hidden = !d.more;
       }).catch(function () { loading = false; });
     }
-    function setTab(t) {
-      tab = t; try { localStorage.setItem('kw-tab', t); } catch (e) {}
-      tabsEl.querySelectorAll('[data-tab]').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === t ? 'true' : 'false'); });
-      return load(true);
+    // 팔로우한 종목·테마의 최신 리포트를 위로(최대 2개, 대표 글 다음). 리포트 순서는 그 밖에는 최신순 그대로
+    var boosted = false;
+    function boostReports(topics) {
+      if (boosted || !topics || !topics.length) return; boosted = true;
+      var T = {}; topics.forEach(function (x) { T[x.kind + ':' + x.key] = 1; });
+      var R = reports(), first = R[0] && R[0].node; if (!first) return;
+      var pick = R.slice(1).filter(function (r) {
+        var tk = r.node.querySelector('.tick'), th = r.node.querySelector('.post-theme');
+        var thk = th ? (/\/theme\/([^/]+)\//.exec(th.getAttribute('href')) || [])[1] : '';
+        return (tk && T['t:' + tk.textContent.trim().toUpperCase()]) || (thk && T['th:' + thk]);
+      }).slice(0, 2);
+      pick.reverse().forEach(function (r) { first.after(r.node); });
     }
-    tabsEl.querySelectorAll('[data-tab]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var t = b.getAttribute('data-tab');
-        if (t === tab && !feed.dirty) { feedEl.scrollIntoView({ behavior: 'smooth' }); return; }
-        feed.dirty = false; setTab(t);
-      });
-    });
     moreBtn.addEventListener('click', function () { moreBtn.disabled = true; load(false).then(function () { moreBtn.disabled = false; }); });
     newBtn.addEventListener('click', function () { load(true).then(function () { feedEl.scrollIntoView({ behavior: 'smooth' }); }); });
     function poll() {
       if (pollN++ > 30) return;
       setTimeout(function () {
         if (document.hidden) { pollN--; poll(); return; }
-        api('/v1/feed/new?tab=' + tab + '&since=' + newest + (tab === 'following' ? boardsQ : '')).then(function (d) {
+        api('/v1/feed/new?tab=all&since=' + newest).then(function (d) {
           if (d.n > 0) { newBtn.textContent = '새 글 ' + (d.n >= 99 ? '99+' : d.n) + '개 보기'; newBtn.hidden = false; }
           poll();
         }).catch(function () {});
@@ -344,7 +333,7 @@
 
     C.meReady.then(function () {
       var s = C.state();
-      tabsEl.hidden = false; cp.hidden = false;
+      cp.hidden = false;
       var av = cp.querySelector('[data-composer-av]');
       // 쓰레드처럼: 평소에는 '이름 + 한 줄'만, 누르면 펼쳐서 올릴 곳·게시 버튼이 나온다
       var nameEl = el('span', 'composer-name', s.me ? s.me.nick : '익명으로 쓰기');
@@ -359,12 +348,11 @@
       cp.addEventListener('focusout', function () {
         setTimeout(function () { if (!cp.contains(document.activeElement) && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
       });
-      if (tab === 'following' && !s.me) tab = 'all';
       if (/[?&]compose=1/.test(location.search)) { // 아래 탭 줄의 '글쓰기'로 들어온 경우
         try { history.replaceState(null, '', location.pathname); } catch (e) {}
         cp.scrollIntoView({ block: 'center' }); ta.focus();
       }
-      return setTab(tab);
+      return load(true);
     }).then(poll).catch(function () {});
 
     // 오른쪽 칸(휴대폰에서는 피드 중간): 팔로우 추천

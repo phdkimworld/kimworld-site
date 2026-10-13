@@ -571,7 +571,19 @@ def seo_fields(r: dict) -> dict:
             name, hook = m.group(1).strip(), m.group(2).strip()
     name = name or r["company"] or r["ticker"]
     head = name if name.upper() == r["ticker"].upper() else f"{name}({r['ticker']})"
-    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook}"}
+    # 공유 미리보기(카카오톡·쓰레드·X)용: 검색 제목처럼 길게 쓰지 않고 '이름, 훅' 한 줄. 설명은 요약 앞 문장 + 무료 안내
+    share_title = hook if hook.startswith(name) else f"{name}, {hook}"
+    summ = re.sub(r"\s+", " ", str(r.get("summary") or "")).strip()
+    sents = re.findall(r".+?[.?!](?=\s|$)", summ) or [summ]  # "3.3배"의 점은 문장 끝이 아니다
+    desc = ""
+    for x in sents:
+        if len(desc) + len(x) > 92 and desc:
+            break
+        desc = (desc + " " + x.strip()).strip()
+    if len(desc) > 100:
+        desc = desc[:98].rstrip() + "…"
+    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook}", "seo_hook": hook,
+            "share_title": share_title, "share_desc": f"{desc} 회원 가입 없이 무료로 전문 보기"}
 
 
 def build(drafts=False, strict=False, out: Path = DIST):
@@ -892,8 +904,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
     host = urlparse(su).hostname or ""
     if host and not host.endswith("github.io"):
         (out / "CNAME").write_text(host + "\n", encoding="utf-8")
-    if not (out / "static" / "og-default.png").exists():
-        make_default_og(out / "static" / "og-default.png", site, og_font)
+    make_default_og(out / "static" / "og-default.png", site, og_font)
+    # 종토방·라운지 글 공유 그림(API의 /s/p/번호 공유 미리보기가 쓴다)
+    for t in ticker_list + [{"code": "talk", "name": "라운지"}]:
+        make_board_og(og_dir / f"b-{str(t['code']).lower()}.png", str(t["code"]), str(t.get("name") or t["code"]), og_font)
 
     # ---- 결과
     for w in log.warnings:
@@ -938,7 +952,55 @@ def _wrap(draw, text, font, width):
     return lines
 
 
+OG_BG, OG_AMBER, OG_INK = "#0b1220", "#f59e0b", "#0b1220"
+_HL = re.compile(r"\d|반토막|[두세네다섯]\s*배|배가|분의|최고|최저|급등|급락")
+
+
+def _og_words(d, text, font, maxw):
+    """한 줄씩 단어를 채운다. 반환: [[단어, ...], ...]"""
+    lines, cur = [], []
+    for w in text.split():
+        trial = " ".join(cur + [w])
+        if cur and d.textlength(trial, font=font) > maxw:
+            lines.append(cur); cur = [w]
+        else:
+            cur.append(w)
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _og_base(W=1200, H=630):
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (W, H), OG_BG)
+    d = ImageDraw.Draw(img)
+    for y in range(H):  # 위→아래로 아주 옅게 밝아지는 배경
+        t = y / H
+        d.line([(0, y), (W, y)], fill=(int(11 + 8 * t), int(18 + 10 * t), int(32 + 16 * t)))
+    return img, d
+
+
+def _og_brand(img, d, font, x, y):
+    from PIL import Image
+    ic = ROOT / "static" / "icon-192.png"
+    if ic.exists():
+        with Image.open(ic) as im:
+            im = im.convert("RGBA").resize((44, 44))
+            img.paste(im, (x, y), im)
+        x += 58
+    d.text((x, y + 4), "김박사 월드", font=font, fill="#cbd5e1")
+
+
+def _og_cta(d, font, x, y, text="무료 리포트 전문 보기 →"):
+    tw = d.textlength(text, font=font)
+    d.rounded_rectangle([x, y, x + tw + 56, y + 68], radius=34, fill=OG_AMBER)
+    d.text((x + 28, y + 13), text, font=font, fill=OG_INK)
+    return x + tw + 56
+
+
 def make_og(dest: Path, r: dict, site: dict, font_path) -> bool:
+    """공유 미리보기 그림(1200×630, 카카오톡·쓰레드·X·페이스북 공통 1.91:1).
+    작은 화면에서도 읽히게 훅을 크게, 숫자는 강조색, 오른쪽에 리포트 차트 일부, 아래에 '무료 리포트 전문 보기' 버튼."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except Exception:
@@ -946,37 +1008,101 @@ def make_og(dest: Path, r: dict, site: dict, font_path) -> bool:
     if not font_path:
         return False
     W, H = 1200, 630
-    img = Image.new("RGB", (W, H), "#0f172a")
-    d = ImageDraw.Draw(img)
-    f_small = ImageFont.truetype(font_path, 34, index=1)
-    f_tick = ImageFont.truetype(font_path, 84, index=1)
-    f_title = ImageFont.truetype(font_path, 54, index=1)
-    d.rectangle([0, 0, W, 10], fill="#f59e0b")
-    d.text((72, 64), f"{site.get('site_name', '')} · {r['theme']}", font=f_small, fill="#94a3b8")
-    d.text((72, 120), r["ticker"], font=f_tick, fill="#f59e0b")
-    tx = 72 + d.textlength(r["ticker"], font=f_tick) + 28
-    d.text((tx, 160), r["company"], font=f_small, fill="#e2e8f0")
-    lines = _wrap(d, r["title"], f_title, W - 144)[:3]
-    y = 262
+    img, d = _og_base(W, H)
+    F = lambda n: ImageFont.truetype(font_path, n, index=1)
+    f_brand, f_meta, f_tick, f_cta = F(30), F(30), F(34), F(32)
+    chart = ROOT / "static" / "charts" / f"{r['slug']}.png"
+    has_chart = chart.exists()
+    left_w = 640 if has_chart else W - 128
+    # 오른쪽: 리포트 대표 차트의 윗부분을 카드처럼(아래는 흐리게 사라짐) — '자료로 쓴 리포트'라는 신호
+    if has_chart:
+        cx, cy, cw, ch = 764, 64, 372, 502
+        with Image.open(chart) as im:
+            im = im.convert("RGB")
+            sc = cw / im.width
+            im = im.resize((cw, int(im.height * sc)))
+            im = im.crop((0, 0, cw, min(ch, im.height)))
+        card = Image.new("RGB", (cw, ch), "#ffffff"); card.paste(im, (0, 0))
+        fade = Image.new("L", (cw, ch), 255)
+        fd = ImageDraw.Draw(fade)
+        for yy in range(ch - 150, ch):
+            fd.line([(0, yy), (cw, yy)], fill=int(255 * (ch - yy) / 150))
+        mask = Image.new("L", (cw, ch), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=26, fill=255)
+        from PIL import ImageChops
+        mask = ImageChops.multiply(mask, fade)
+        img.paste(card, (cx, cy), mask)
+    _og_brand(img, d, f_brand, 64, 56)
+    # 티커 배지 + 회사·테마
+    tk = r["ticker"]; tw = d.textlength(tk, font=f_tick)
+    d.rounded_rectangle([64, 124, 64 + tw + 32, 176], radius=12, fill=OG_AMBER)
+    d.text((80, 128), tk, font=f_tick, fill=OG_INK)
+    meta = f"{r.get('seo_name') or r['company']} · {r['theme']}"
+    d.text((64 + tw + 52, 134), meta, font=f_meta, fill="#94a3b8")
+    # 훅: 3줄 안에 들어가는 가장 큰 글자. 숫자·변화 단어는 강조색
+    hook = r.get("share_title") or r["title"]
+    hook = re.sub(r"^" + re.escape(str(r.get("seo_name") or "")) + r"\s*[,，]\s*", "", hook) if r.get("seo_name") else hook
+    size, lines = 72, []
+    while size >= 46:
+        f_h = F(size)
+        lines = _og_words(d, hook, f_h, left_w)
+        if len(lines) <= 3:
+            break
+        size -= 4
+    lines = lines[:3]
+    if len(lines) == 3 and len(_og_words(d, hook, f_h, left_w)) > 3:
+        lines[2][-1] = lines[2][-1] + "…"
+    lh = int(size * 1.32)
+    y = 214 + (3 - len(lines)) * lh // 2
     for ln in lines:
-        d.text((72, y), ln, font=f_title, fill="#f8fafc")
-        y += 74
-    d.text((72, H - 76), f"{r['date'].isoformat()} · 무료 리포트 · 투자 권유 아님", font=f_small, fill="#94a3b8")
+        x = 64
+        for i, w in enumerate(ln):
+            col = OG_AMBER if _HL.search(w) else "#f8fafc"
+            d.text((x, y), w, font=f_h, fill=col)
+            x += d.textlength(w + " ", font=f_h)
+        y += lh
+    end = _og_cta(d, f_cta, 64, 520)
+    d.text((end + 24, 538), "drkimworld.com", font=f_meta, fill="#64748b")
+    img.save(dest, "PNG", optimize=True)
+    return True
+
+
+def make_board_og(dest: Path, code: str, name: str, font_path) -> bool:
+    """종토방·라운지 글을 공유할 때 쓰는 그림: '$티커 종토방' + 대화 보러 가기."""
+    try:
+        from PIL import ImageFont
+    except Exception:
+        return False
+    if not font_path:
+        return False
+    img, d = _og_base()
+    F = lambda n: ImageFont.truetype(font_path, n, index=1)
+    _og_brand(img, d, F(30), 64, 56)
+    title = "라운지" if code == "talk" else f"${code.upper()} 종토방"
+    d.text((64, 190), title, font=F(96), fill=OG_AMBER if code != "talk" else "#f8fafc")
+    sub = "종목 없이 나누는 투자 이야기" if code == "talk" else f"{name} 이야기를 나누는 개인 투자자들"
+    d.text((64, 320), sub, font=F(44), fill="#e2e8f0")
+    d.text((64, 384), "공시·실적으로 쓴 무료 리포트와 함께 읽는 커뮤니티", font=F(32), fill="#94a3b8")
+    end = _og_cta(d, F(32), 64, 520, "대화 보러 가기 →")
+    d.text((end + 24, 538), "drkimworld.com", font=F(30), fill="#64748b")
     img.save(dest, "PNG", optimize=True)
     return True
 
 
 def make_default_og(dest: Path, site: dict, font_path):
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import ImageFont
     except Exception:
         return
-    img = Image.new("RGB", (1200, 630), "#0f172a")
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, 1200, 10], fill="#f59e0b")
+    img, d = _og_base()
     if font_path:
-        d.text((72, 220), site.get("site_name", ""), font=ImageFont.truetype(font_path, 96, index=1), fill="#f8fafc")
-        d.text((72, 360), site.get("tagline", ""), font=ImageFont.truetype(font_path, 44, index=1), fill="#cbd5e1")
+        F = lambda n: ImageFont.truetype(font_path, n, index=1)
+        _og_brand(img, d, F(30), 64, 56)
+        d.text((64, 170), "주가가 왜 그렇게", font=F(76), fill="#f8fafc")
+        d.text((64, 270), "움직였는지", font=F(76), fill=OG_AMBER)
+        d.text((64, 384), site.get("tagline", ""), font=F(36), fill="#cbd5e1")
+        end = _og_cta(d, F(32), 64, 520, "무료 리포트 보기 →")
+        d.text((end + 24, 538), "drkimworld.com", font=F(30), fill="#64748b")
     img.save(dest, "PNG", optimize=True)
 
 

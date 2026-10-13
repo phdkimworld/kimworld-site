@@ -5,6 +5,10 @@
 {% set tname = nm if nm|upper == code else nm ~ '(' ~ code ~ ')' %}
 {% block title %}{{ tname }} {{ kd }} 분석·전망 리포트 | {{ site.site_name }}{% endblock %}
 {% block description %}{{ tname }} {{ kd }} 분석 리포트 {{ rs|length }}개({{ rs[0].date|kdate }} 최신). {{ rs[0].summary }}{% endblock %}
+{% block og_image %}{{ rs[0].og_image }}{% endblock %}
+{% block og_title %}{{ rs[0].share_title }}{% endblock %}
+{% block og_desc %}{{ tname }} 무료 분석 리포트 {{ rs|length }}개와 종토방 이야기. 회원 가입 없이 바로 보기{% endblock %}
+{% block og_alt %}{{ code }} {{ rs[0].share_title }}{% endblock %}
 {% block jsonld %}
 <script type="application/ld+json">
 {{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [

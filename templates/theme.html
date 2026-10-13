@@ -4,6 +4,8 @@
 {% block title %}{{ th.name }} 관련주 분석 리포트{% if rs %} {{ rs|length }}선{% endif %} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ th.description }}{% if rs %} 다루는 종목: {% for r in rs|unique(attribute="ticker") %}{{ r.seo_name }}({{ r.ticker }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endblock %}
 {% block robots %}{% if not rs %}<meta name="robots" content="noindex,follow">{% endif %}{% endblock %}
+{% block og_image %}{% if rs %}{{ rs[0].og_image }}{% else %}{{ site.site_url }}/static/og-default.png{% endif %}{% endblock %}
+{% block og_title %}{{ th.name }} 관련주, 주가는 왜 그렇게 움직였나{% if rs %} — 무료 리포트 {{ rs|length }}개{% endif %}{% endblock %}
 {% block jsonld %}{% if rs %}
 <script type="application/ld+json">
 {{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [

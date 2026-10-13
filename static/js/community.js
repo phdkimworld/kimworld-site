@@ -1011,6 +1011,12 @@
           var rep = function (what, label) { return btn(label, 'btn', function () {
             api('/v1/users/' + d.user.id + '/report', { method: 'POST', body: { what: what } }).then(function () { dlg.close(); flash('신고했습니다. 운영자가 확인합니다'); });
           }); };
+          b2.appendChild(btn('프로필 공유', 'btn', function () {
+            var su = API + '/s/u/' + d.user.id;
+            if (navigator.share) navigator.share({ title: d.user.nick + '님의 프로필 · 김박사 월드', url: su }).catch(function () {});
+            else if (navigator.clipboard) navigator.clipboard.writeText(su).then(function () { flash('링크를 복사했습니다'); });
+            if (window.kwEv) kwEv('share');
+          }));
           if (d.user.av) b2.appendChild(rep('avatar', '프로필 사진 신고'));
           b2.appendChild(rep('profile', '닉네임·소개 신고'));
           b2.appendChild(el('p', 'muted kw-small', '사진은 3명이 신고하면 바로 내려가고, 운영자가 다시 확인합니다.'));

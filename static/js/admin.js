@@ -120,12 +120,12 @@
 
   // ---------- 유입 분석: 이름표·색(채널 순서 고정, 색은 채널을 따라감) ----------
   var CH_ORDER = ['search', 'youtube', 'direct', 'messenger', 'social', 'community', 'ai', 'referral', 'other'];
-  var CHN = { search: '검색', youtube: '유튜브', direct: '직접·북마크', messenger: '메신저 공유', social: 'SNS', community: '커뮤니티·블로그', ai: 'AI 답변', referral: '다른 사이트', email: '이메일', internal: '사이트 안(새 탭)', other: '기타' };
+  var CHN = { search: '검색', youtube: '유튜브', direct: '직접·북마크', messenger: '메신저·공유 링크', social: 'SNS', community: '커뮤니티·블로그', ai: 'AI 답변', referral: '다른 사이트', email: '이메일', internal: '사이트 안(새 탭)', other: '기타' };
   var chKey = function (c) { return CH_ORDER.indexOf(c) >= 0 ? c : 'other'; };
   var SRCN = { 'naver-search': '네이버 검색', 'naver-blog': '네이버 블로그', 'naver-cafe': '네이버 카페', 'naver-finance': '네이버 증권·뉴스', 'naver-kin': '네이버 지식iN', 'naver-etc': '네이버 기타',
     'naver-app': '네이버 앱', 'google-search': '구글 검색', 'google-discover': '구글 디스커버', 'google-news': '구글 뉴스', 'google-etc': '구글 기타', 'daum-search': '다음 검색', 'daum-cafe': '다음 카페',
     'daum-etc': '다음 기타', 'daum-app': '다음 앱', 'kakao-web': '카카오(웹)', kakaotalk: '카카오톡 공유', line: '라인', band: '밴드', telegram: '텔레그램', bing: '빙', duckduckgo: '덕덕고', yahoo: '야후', zum: '줌',
-    youtube: '유튜브', x: 'X(트위터)', threads: '스레드', instagram: '인스타그램', facebook: '페이스북', tiktok: '틱톡', linkedin: '링크드인', reddit: '레딧', chatgpt: 'ChatGPT', perplexity: '퍼플렉시티',
+    youtube: '유튜브', share: '공유 링크', 'share-kakaotalk': '공유 → 카카오톡', 'share-instagram': '공유 → 인스타그램', 'share-facebook': '공유 → 페이스북', 'share-line': '공유 → 라인', 'share-naver': '공유 → 네이버 앱', 'share-threads': '공유 → 스레드', x: 'X(트위터)', threads: '스레드', instagram: '인스타그램', facebook: '페이스북', tiktok: '틱톡', linkedin: '링크드인', reddit: '레딧', chatgpt: 'ChatGPT', perplexity: '퍼플렉시티',
     gemini: '제미나이', claude: 'Claude', copilot: '코파일럿', dcinside: '디시인사이드', fmkorea: '에펨코리아', clien: '클리앙', ppomppu: '뽐뿌', theqoo: '더쿠', ruliweb: '루리웹', paxnet: '팍스넷',
     stocktwits: '스톡트윗츠', tistory: '티스토리', brunch: '브런치', postype: '포스타입', velog: '벨로그', investing: '인베스팅닷컴', toss: '토스', email: '이메일', direct: '직접·북마크', internal: '사이트 안(새 탭)' };
   var srcName = function (x) { return SRCN[x] || x; };

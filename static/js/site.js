@@ -63,16 +63,21 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     save(SAVED, list.slice(0, 50)); syncSaveBtn();
     toast(was ? '저장을 취소했습니다' : '저장했습니다. 아래 "내 정보 → 저장함"에서 찾을 수 있어요');
   }
+  // 공유 주소에 utm_source=share를 붙여 공유로 들어온 방문을 따로 센다(유입 분석 '공유')
+  function shareUrl(u) { u = u.split('#')[0].replace(/[?&]utm_[a-z]+=[^&]*/g, '').replace(/\?$/, ''); return u + (u.indexOf('?') < 0 ? '?' : '&') + 'utm_source=share&utm_medium=link'; }
+  window.kwShareUrl = shareUrl;
   function share(btn) {
     kwEv('share');
     var url = location.href.split('#')[0];
-    var title = document.title;
+    var ogt = document.querySelector('meta[property="og:title"]');
+    var title = (ogt && ogt.content) || document.title;
     var su = btn && btn.getAttribute('data-share-url');
     if (su) { // 피드 카드의 공유 버튼: 그 리포트 주소
       var bp = (window.KW && KW.base) || '';
       url = location.origin + (bp && su.indexOf(bp + '/') !== 0 ? bp : '') + su;
       title = btn.getAttribute('data-share-title') || title;
     }
+    url = shareUrl(url);
     if (navigator.share) {
       navigator.share({ title: title, url: url }).then(function () { track('share', { method: 'native' }); }).catch(function () {});
       return;
@@ -456,6 +461,10 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   function classify(h, ua, u) {
     if (u) { // utm_source가 있으면 그 값을 세부 출처로, 채널은 값으로 추정
       var us = u.toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40) || 'utm';
+      if (us === 'share') { // 사이트의 공유 버튼으로 퍼진 링크: 어느 앱에서 열었는지까지
+        var app = /kakaotalk/i.test(ua) ? 'kakaotalk' : /instagram/i.test(ua) ? 'instagram' : /FBAN|FBAV/.test(ua) ? 'facebook' : /Line\//.test(ua) ? 'line' : /NAVER\(inapp|naver/i.test(ua) ? 'naver' : /threads|barcelona/i.test(ua) ? 'threads' : '';
+        return ['messenger', 'share' + (app ? '-' + app : '')];
+      }
       var uc = /youtube|yt/.test(us) ? 'youtube' : /naver|google|daum|bing/.test(us) ? 'search' : /kakao|telegram|line|band/.test(us) ? 'messenger'
         : /mail|newsletter|stibee/.test(us) ? 'email' : /x|twitter|threads|instagram|facebook|tiktok/.test(us) ? 'social' : 'referral';
       return [uc, us];

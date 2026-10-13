@@ -936,6 +936,57 @@ export default {
             (SELECT COUNT(*) FROM reposts rp WHERE rp.kind = 'p' AND rp.ref = CAST(c.id AS TEXT)) AS reposts,
             EXISTS(SELECT 1 FROM reposts rq WHERE rq.kind = 'p' AND rq.ref = CAST(c.id AS TEXT) AND rq.uid = ?) AS reposted`;
         let rows = null, more = false, usedHot = false;
+        // ---- 하나의 피드(tab=mix): 추천과 팔로잉을 한 줄로 섞는다 ----
+        // 점수 = 반응 × 나와의 관계 × 신선도(팔로우한 사람 +3, 팔로우한 종목·테마 +0.8, 최근 반응한 사람 +0.7, 나를 팔로우한 사람 +0.4). 반응은 로그(인기 글이 끝없이 위에 머물지 않게), 관계는 팔로우한 사람·종목·테마,
+        // 최근 내가 좋아요·답글한 사람, 나를 팔로우한 사람. 팔로우한 사람의 글은 더 천천히 식는다. 고른 뒤 같은 사람·같은 종토방이 몰리지 않게 펼친다.
+        if (url.searchParams.get("tab") === "mix") {
+          const off = Math.max(0, Math.min(300, parseInt(url.searchParams.get("offset") || "0", 10) || 0));
+          const mixBoards = (url.searchParams.get("boards") || "").split(",").filter((x) => /^b-[a-z0-9.-]{1,12}$/.test(x)).slice(0, 80);
+          const mid = me ? me.id : 0;
+          const [cand, fol, fme, inter, blk] = await Promise.all([
+            db.prepare(`SELECT ${cols} FROM comments c WHERE c.slug LIKE 'b-%' AND c.parent_id IS NULL AND c.pinned = 0 AND c.status = 'ok'
+                AND (c.created > ? OR (c.uid IS NOT NULL AND c.uid IN (SELECT followee FROM follows WHERE follower = ?) AND c.created > ?)) ORDER BY c.created DESC LIMIT 400`)
+              .bind(actor, mid, now - 14 * 864e5, mid, now - 30 * 864e5).all(),
+            me ? db.prepare("SELECT followee AS id FROM follows WHERE follower = ?").bind(mid).all() : { results: [] },
+            me ? db.prepare("SELECT follower AS id FROM follows WHERE followee = ?").bind(mid).all() : { results: [] },
+            // 최근 30일 내가 좋아요·답글한 사람(관심의 신호)
+            db.prepare(`SELECT DISTINCT c.uid AS id FROM comment_likes l JOIN comments c ON c.id = l.cid WHERE l.ih = ? AND c.uid IS NOT NULL
+                UNION SELECT DISTINCT p2.uid FROM comments r JOIN comments p2 ON p2.id = r.parent_id WHERE r.did = ? AND r.created > ? AND p2.uid IS NOT NULL`).bind(actor, actor, now - 30 * 864e5).all(),
+            me ? db.prepare("SELECT blocked AS id FROM blocks WHERE blocker = ? UNION SELECT blocker FROM blocks WHERE blocked = ?").bind(mid, mid).all() : { results: [] },
+          ]);
+          const setOf = (r) => new Set((r.results || []).map((x) => x.id));
+          const F = setOf(fol), FM = setOf(fme), I = setOf(inter), B = setOf(blk), TB = new Set(mixBoards);
+          const scoreOf = (c) => {
+            if (c.uid && B.has(c.uid)) return -1;
+            const h = Math.max(0, (now - c.created) / 3600e3);
+            const eng = 1 + Math.log1p(c.likes + 2 * c.replies + 3 * (c.reposts || 0));
+            const followed = !!c.uid && F.has(c.uid);
+            let aff = 1;
+            if (followed) aff += 3;
+            if (TB.has(c.slug)) aff += 0.8;
+            if (c.uid && I.has(c.uid)) aff += 0.7;
+            if (c.uid && FM.has(c.uid)) aff += 0.4;
+            const mine = !!c.did && c.did === actor;
+            if (mine) aff = h < 1 ? 6 : 0.6;          // 방금 쓴 내 글은 맨 위, 지난 내 글은 덜
+            if (c.liked) aff *= 0.6;                  // 이미 좋아요한 글은 본 글로 보고 조금 내린다
+            return eng * aff / Math.pow(h + 2, followed ? 1.1 : 1.35);
+          };
+          const scored = (cand.results || []).map((c) => ({ c, s: scoreOf(c) })).filter((x) => x.s >= 0).sort((a, b) => b.s - a.s);
+          // 펼치기: 매번 남은 글 중 '점수 × 몰림 벌점'이 가장 큰 글을 고른다(최근 3개에 같은 사람 ×0.35, 최근 2개에 같은 종토방 ×0.7)
+          const out = [], pool = scored.slice(0, 300);
+          while (pool.length && out.length < off + limit + 1) {
+            let bi = 0, bv = -1;
+            for (let i = 0; i < Math.min(pool.length, 40); i++) {
+              const x = pool[i].c; let v = pool[i].s;
+              if (out.slice(-3).some((y) => (y.uid || y.did) === (x.uid || x.did))) v *= 0.35;
+              if (out.slice(-2).some((y) => y.slug === x.slug)) v *= 0.7;
+              if (v > bv) { bv = v; bi = i; }
+            }
+            out.push(pool.splice(bi, 1)[0].c);
+          }
+          if (out.length) { rows = out.slice(off, off + limit); more = out.length > off + limit || pool.length > 0; usedHot = true; }
+          else rows = [];
+        }
         // 추천 탭(rank=hot): 최근 7일 글을 반응(좋아요·답글)과 신선도로 줄 세운다(쓰레드 '추천'처럼). 7일 안 글이 없으면 최신순
         const hot = !following && url.searchParams.get("rank") === "hot";
         if (hot) {
@@ -963,7 +1014,7 @@ export default {
         const items = rows.map(pub);
         // 팔로잉 탭 첫 화면: 내가 팔로우한 사람이 리포스트한 리포트·글도 함께(쓰레드의 '○○님이 리포스트함')
         let reposts = [];
-        if (following && !url.searchParams.get("before")) {
+        if ((following || (url.searchParams.get("tab") === "mix" && me && !parseInt(url.searchParams.get("offset") || "0", 10))) && !url.searchParams.get("before")) {
           const rr = (await db.prepare(`SELECT r.uid, u.nick, r.kind, r.ref, r.created FROM reposts r JOIN follows f ON f.followee = r.uid JOIN users u ON u.id = r.uid
               WHERE f.follower = ? AND u.status = 'ok' ORDER BY r.created DESC LIMIT 20`).bind(me.id).all()).results || [];
           const pids = rr.filter((x) => x.kind === "p").map((x) => parseInt(x.ref, 10)).filter(Boolean);
@@ -1016,6 +1067,47 @@ export default {
         if (me) await db.prepare("UPDATE notifs SET seen = 1 WHERE uid = ?").bind(me.id).run();
         if (me && Math.random() < 0.05) await db.prepare("DELETE FROM notifs WHERE uid = ? AND seen = 1 AND updated < ?").bind(me.id, now - 30 * 864e5).run();
         return json(req, { ok: true });
+      }
+
+      // ---------- 공유 미리보기: 종토방·라운지 글(/s/p/번호)과 프로필(/s/u/번호) ----------
+      // 글·프로필 화면은 브라우저가 API로 채우는 정적 페이지라 카카오톡·쓰레드·X 미리보기가 '글 | 김박사 월드'로만 나온다.
+      // 공유 버튼은 이 주소를 쓰고, 미리보기 로봇에는 글 내용으로 만든 제목·설명·그림을, 사람에게는 바로 그 글로 넘겨 준다.
+      const shm = p.match(/^\/s\/(p|u)\/(\d+)$/);
+      if (shm && req.method === "GET") {
+        const esc = (x) => String(x || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        const cut = (x, n) => { x = String(x || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
+        const id = parseInt(shm[2], 10), q = "utm_source=share&utm_medium=link";
+        let title = "김박사 월드", desc = "주가가 왜 그렇게 움직였는지, 공시와 실적으로 쓴 무료 리포트와 투자자 커뮤니티", img = `${SITE}/static/og-default.png`, to = `${SITE}/`;
+        if (shm[1] === "p") {
+          let c = await db.prepare("SELECT id, slug, nick, uid, body, parent_id, status FROM comments WHERE id = ?").bind(id).first();
+          if (c && c.status === "ok" && /^b-/.test(c.slug)) {
+            const code = c.slug.slice(2), board = code === "talk" ? "라운지" : `$${code.toUpperCase()} 종토방`;
+            const replies = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE parent_id = ? AND status = 'ok'").bind(c.parent_id || c.id).first();
+            title = `${c.nick}님 · ${board}`;
+            desc = cut(c.body, 110) + (replies?.n ? ` (답글 ${replies.n}개)` : "");
+            img = `${SITE}/og/b-${code}.png`; to = `${SITE}/p/?id=${c.parent_id || c.id}&${q}`;
+          }
+        } else {
+          const u = await db.prepare("SELECT id, nick, bio, av, status FROM users WHERE id = ?").bind(id).first();
+          if (u && u.status === "ok") {
+            const st = await db.prepare("SELECT (SELECT COUNT(*) FROM follows WHERE followee = ?) AS f, (SELECT COUNT(*) FROM comments WHERE uid = ? AND status = 'ok') AS n").bind(u.id, u.id).first();
+            title = `${u.nick}님의 프로필 · 김박사 월드`;
+            desc = cut(u.bio || "김박사 월드에서 종목 이야기를 나누는 투자자", 80) + ` · 팔로워 ${st?.f || 0} · 글 ${st?.n || 0}`;
+            if (u.av) img = `${url.origin}/v1/avatar/${u.id}?v=${u.av}`;
+            to = `${SITE}/u/?id=${u.id}&${q}`;
+          }
+        }
+        const big = !img.includes("/v1/avatar/");
+        const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><meta name="robots" content="noindex">
+<meta property="og:site_name" content="김박사 월드"><meta property="og:locale" content="ko_KR"><meta property="og:type" content="article">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url.origin + p)}">
+<meta property="og:image" content="${esc(img)}">${big ? '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">' : ""}
+<meta name="twitter:card" content="${big ? "summary_large_image" : "summary"}"><meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}"><meta name="twitter:image" content="${esc(img)}">
+<link rel="canonical" href="${esc(to.split("?")[0] + (to.includes("?id=") ? "?id=" + to.split("?id=")[1].split("&")[0] : ""))}">
+<style>body{font-family:system-ui,sans-serif;background:#0b1220;color:#e2e8f0;display:grid;place-items:center;min-height:100vh;margin:0}a{color:#f59e0b}</style>
+</head><body><p><a href="${esc(to)}">김박사 월드에서 보기 →</a></p><script>location.replace(${JSON.stringify(to)})</script></body></html>`;
+        return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" } });
       }
 
       // ---------- 프로필 사진 ----------

@@ -540,6 +540,42 @@ check(!(await DB.prepare("SELECT 1 FROM dm_msgs WHERE tid = ?").bind(t13).first(
 await as(U2, "POST", "/v1/me/delete", { all: true });
 check(!(await DB.prepare("SELECT 1 FROM dm_msgs WHERE sender = ?").bind(U2.id).first()) && !(await DB.prepare("SELECT 1 FROM avatars WHERE uid = ?").bind(U2.id).first()), "탈퇴하면 쪽지 기록도 지움");
 
+console.log("하나의 피드(섞기)");
+{
+  const V1 = await mkUser("mx1", "피드보는이", "75.0.0.1"), V2 = await mkUser("mx2", "팔로우대상", "75.0.0.2"), V3 = await mkUser("mx3", "모르는사람", "75.0.0.3"), V4 = await mkUser("mx4", "도배왕", "75.0.0.4");
+  sqlite.exec(`UPDATE users SET created = created - 5 * 86400000 WHERE id IN (${V1.id}, ${V2.id}, ${V3.id}, ${V4.id})`);
+  const post = async (U, body, slug = "b-talk") => (await as(U, "POST", "/v1/comments", { slug, body, t: 8000 })).data.id;
+  const pFollow = await post(V2, "팔로우한 사람의 조금 지난 글");
+  const pStranger = await post(V3, "모르는 사람의 새 글");
+  const flood = []; for (let i = 0; i < 4; i++) { flood.push(await post(V4, "도배 " + i)); sqlite.exec(`UPDATE comments SET created = created - 60000 WHERE uid = ${V4.id}`); }
+  sqlite.exec(`UPDATE comments SET created = created - 5 * 3600000 WHERE id = ${pFollow}`);
+  await as(V1, "POST", "/v1/follow", { uid: V2.id });
+  let f = await as(V1, "GET", "/v1/feed?tab=mix&limit=20");
+  const ids = f.data.items.map((x) => x.id);
+  check(ids.indexOf(pFollow) >= 0 && ids.indexOf(pFollow) < ids.indexOf(pStranger), "팔로우한 사람의 글이 모르는 사람의 더 새 글보다 위");
+  const top6 = ids.slice(0, 6);
+  check(top6.filter((x) => flood.includes(x)).length <= 2 && !top6.some((x, i) => i && flood.includes(x) && flood.includes(top6[i - 1])), "같은 사람 글이 위쪽에 몰리지 않게 펼침");
+  await as(V1, "POST", "/v1/block", { uid: V3.id });
+  f = await as(V1, "GET", "/v1/feed?tab=mix&limit=20");
+  check(!f.data.items.some((x) => x.id === pStranger), "차단한 사람 글은 피드에서 빠짐");
+  const g = await call("GET", "/v1/feed?tab=mix&limit=20", { ip: "75.0.0.9" });
+  check(g.status === 200 && g.data.items.length > 0, "로그인 전에도 같은 피드(반응·신선도만)");
+  await as(V1, "POST", "/v1/block", { uid: V3.id });
+}
+
+console.log("공유 미리보기");
+{
+  const pid = (await DB.prepare("SELECT id FROM comments WHERE slug = 'b-talk' AND status = 'ok' AND parent_id IS NULL ORDER BY id DESC").first()).id;
+  let res = await worker.fetch(new Request("https://api.drkimworld.com/s/p/" + pid), env);
+  let h = await res.text();
+  check(res.status === 200 && /og:title" content="[^"]+님 · 라운지"/.test(h) && h.includes("/og/b-talk.png") && h.includes("location.replace") && h.includes("utm_source=share"), "글 공유: 글 내용으로 미리보기, 사람은 글로 이동");
+  check(!/<script>alert/.test(h), "미리보기 글자는 HTML로 해석하지 않음");
+  res = await worker.fetch(new Request("https://api.drkimworld.com/s/p/999999"), env); h = await res.text();
+  check(res.status === 200 && h.includes("og-default.png"), "없는 글은 기본 미리보기");
+  res = await worker.fetch(new Request("https://api.drkimworld.com/s/u/" + U1.id), env); h = await res.text();
+  check(h.includes("쪽지하나님의 프로필") && h.includes("/v1/avatar/" + U1.id), "프로필 공유: 사진이 있으면 사진");
+}
+
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

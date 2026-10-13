@@ -277,7 +277,7 @@ check("__VER__" not in _sw and "/offline/" in _sw and (t / "dist/offline/index.h
 check('data-repost' in home and 'data-kind="r"' in home, "리포트 카드에 리포스트·인용 버튼")
 pp = (t / "dist/p/index.html")
 check(pp.exists() and "noindex" in pp.read_text(encoding="utf-8") and "data-post-page" in pp.read_text(encoding="utf-8"), "글 상세 페이지(검색 노출 안 함)")
-check("data-feed-tabs" in home and 'data-tab="following"' in home and 'value="b-talk"' in home and "data-composer" in home, "홈 피드: 추천·팔로잉 탭과 글쓰기 상자(라운지·종목 선택)")
+check("data-feed-tabs" not in home and 'value="b-talk"' in home and "data-composer" in home, "홈 피드: 탭 없이 하나의 피드 + 글쓰기 상자(라운지·종목 선택)")
 check("social.js" in home and '"tk": [' in home.replace("tk: [", '"tk": ['), "홈에 피드 스크립트와 종목 목록($티커 링크용)")
 check((t / "dist/terms/index.html").exists() and "data-open-account" in home, "이용약관·계정 버튼")
 check('name="website" class="hp"' in pg, "로봇 막는 숨은 칸")
@@ -390,6 +390,16 @@ if (D / "index.html").exists():
     check("Disallow: /dm/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 쪽지함 차단")
     check("data-open-dm" in (D / "index.html").read_text(encoding="utf-8"), "머리줄 쪽지 버튼")
     check("/dm/" not in (D / "sitemap.xml").read_text(encoding="utf-8"), "사이트맵에 쪽지함 없음")
+
+print("16) 공유 미리보기")
+if (D / "r/stx-2026-10/index.html").exists():
+    h = (D / "r/stx-2026-10/index.html").read_text(encoding="utf-8")
+    t = re.search(r'og:title" content="([^"]+)"', h).group(1)
+    check("|" not in t and "김박사 월드" not in t and len(t) <= 60, "리포트 공유 제목: 훅 한 줄(검색 제목·사이트 이름 없이)")
+    dsc = re.search(r'og:description" content="([^"]+)"', h).group(1)
+    check(dsc.endswith("무료로 전문 보기") and len(dsc) <= 130 and "3.3배" in dsc, "공유 설명: 앞 문장 + 무료 안내(숫자 속 점에서 끊지 않음)")
+    check('og:image:alt' in h and 'twitter:image:alt' in h and 'article:tag' in h, "그림 설명·태그")
+    check((D / "og/b-talk.png").exists() and (D / "og/b-stx.png").exists(), "종토방·라운지 공유 그림")
 
 print()
 if FAILS:
