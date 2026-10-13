@@ -727,8 +727,64 @@
         fb.setAttribute('aria-pressed', d.following ? 'true' : 'false');
         prof.appendChild(fb);
       }
-      prof.appendChild(el('h2', 'section-title profile-h', '최근 글'));
+      // 내 프로필: 내 글 · 읽은 리포트 · 저장한 리포트(읽은·저장 기록은 이 기기에만 있음)
       var ul = el('ul', 'rc-list');
+      if (d.self) {
+        var LS = function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } };
+        var tabs = el('div', 'seg-tabs prof-tabs'); tabs.setAttribute('role', 'tablist');
+        var panes = {}, tbtn = {};
+        var mkPane = function (key, label, n) {
+          var b = el('button', null); b.type = 'button'; b.setAttribute('role', 'tab');
+          b.appendChild(document.createTextNode(label + ' ')); b.appendChild(el('strong', null, num(n)));
+          b.addEventListener('click', function () { show(key); });
+          tabs.appendChild(b); tbtn[key] = b;
+          var p = el('div', 'prof-pane'); p.setAttribute('role', 'tabpanel'); panes[key] = p; return p;
+        };
+        var show = function (key) {
+          Object.keys(panes).forEach(function (k) { panes[k].hidden = k !== key; tbtn[k].setAttribute('aria-selected', k === key ? 'true' : 'false'); });
+          try { sessionStorage.setItem('kw-prof-tab', key); } catch (e) {}
+        };
+        var reportList = function (pane, key, items, emptyText, removeLabel) {
+          pane.textContent = '';
+          if (!items.length) { pane.appendChild(el('p', 'muted rc-empty', emptyText)); return; }
+          var l = el('ul', 'rc-list hist-list');
+          items.forEach(function (x) {
+            var li = el('li', 'rc-item hist-item'), a = el('a', 'rc-link'); a.href = x.u;
+            var h = el('span', 'rc-head'); h.appendChild(el('span', 'rank-tick', x.k || ''));
+            if (x.at) h.appendChild(el('span', 'muted', ago(x.at)));
+            a.appendChild(h); a.appendChild(el('span', 'rc-body', String(x.t || '').replace(/^.*?(주가|가격) 내러티브와 패턴 투자전략:\s*/, '')));
+            li.appendChild(a);
+            var rm = el('button', 'cm-link hist-rm', removeLabel); rm.type = 'button'; rm.setAttribute('aria-label', removeLabel);
+            rm.addEventListener('click', function () {
+              var all = LS(key).filter(function (y) { return y.u !== x.u; });
+              try { localStorage.setItem(key, JSON.stringify(all)); } catch (e) {}
+              li.remove(); tbtn[key === 'kw-recent' ? 'read' : 'saved'].querySelector('strong').textContent = num(all.length);
+            });
+            li.appendChild(rm); l.appendChild(li);
+          });
+          pane.appendChild(l);
+        };
+        var recent = LS('kw-recent'), saved = LS('kw-saved');
+        var pPosts = mkPane('posts', '내 글', d.items.length);
+        var pRead = mkPane('read', '최근 읽음', recent.length);
+        var pSaved = mkPane('saved', '저장함', saved.length);
+        prof.appendChild(tabs); prof.appendChild(pPosts); prof.appendChild(pRead); prof.appendChild(pSaved);
+        reportList(pRead, 'kw-recent', recent, '아직 읽은 리포트가 없습니다. 리포트를 열면 여기에 쌓입니다.', '기록 지우기');
+        reportList(pSaved, 'kw-saved', saved, '저장한 리포트가 없습니다. 리포트의 "저장"을 누르면 여기에 모입니다.', '저장 취소');
+        if (recent.length) {
+          var clr = el('button', 'cm-link hist-clear', '읽은 기록 모두 지우기'); clr.type = 'button';
+          clr.addEventListener('click', function () { if (!confirm('이 기기의 읽은 기록을 모두 지울까요?')) return; try { localStorage.setItem('kw-recent', '[]'); } catch (e) {} reportList(pRead, 'kw-recent', [], '읽은 기록을 지웠습니다.', ''); tbtn.read.querySelector('strong').textContent = '0'; clr.remove(); });
+          pRead.appendChild(clr);
+        }
+        [pRead, pSaved].forEach(function (p) { p.appendChild(el('p', 'muted kw-small hist-note', '읽은 기록과 저장한 리포트는 이 기기(브라우저)에만 저장되고 서버로 보내지 않습니다.')); });
+        pPosts.appendChild(ul);
+        var last = ''; try { last = sessionStorage.getItem('kw-prof-tab') || ''; } catch (e) {}
+        var qt = (/[?&]tab=(read|saved)/.exec(location.search) || [])[1];
+        show(qt || (panes[last] ? last : 'posts'));
+      } else {
+        prof.appendChild(el('h2', 'section-title profile-h', '최근 글'));
+        prof.appendChild(ul);
+      }
       if (!d.items.length) ul.appendChild(el('li', 'rc-item muted rc-empty', '아직 쓴 글이 없습니다.'));
       d.items.forEach(function (c) {
         var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = itemUrl(c.slug, c.id);
@@ -738,7 +794,6 @@
         a.appendChild(h); a.appendChild(el('span', 'rc-body', c.body));
         li.appendChild(a); ul.appendChild(li);
       });
-      prof.appendChild(ul);
     }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
   }
 

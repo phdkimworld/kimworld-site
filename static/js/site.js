@@ -54,9 +54,9 @@
     var c = current(); if (!c) return;
     var list = load(SAVED, []).filter(function (x) { return x.u !== c.u; });
     var was = isSaved();
-    if (!was) list.unshift(c);
+    if (!was) { c.at = Date.now(); list.unshift(c); }
     save(SAVED, list.slice(0, 50)); syncSaveBtn();
-    toast(was ? '저장을 취소했습니다' : '저장했습니다. 홈의 "이어서 읽기"에서 찾을 수 있어요');
+    toast(was ? '저장을 취소했습니다' : '저장했습니다. 아래 "내 정보 → 저장함"에서 찾을 수 있어요');
   }
   function share(btn) {
     var url = location.href.split('#')[0];
@@ -82,8 +82,9 @@
   if (report) {
     // 최근 본 리포트 기록
     var c = current();
+    // 읽은 기록(이 기기에만 저장): 내 프로필의 '읽은 리포트'와 광고 테마 맞춤에 쓴다
     var rec = load(RECENT, []).filter(function (x) { return x.u !== c.u; });
-    rec.unshift(c); save(RECENT, rec.slice(0, 8));
+    c.at = Date.now(); rec.unshift(c); save(RECENT, rec.slice(0, 50));
     syncSaveBtn();
 
     // 숫자 기준일이 며칠 전인지
@@ -177,24 +178,6 @@
       });
     }, 6000);
   });
-
-  // ---------- 홈: 이어서 읽기 ----------
-  var rv = document.querySelector('.recent-viewed');
-  if (rv) {
-    // 가장 최근에 읽던 리포트 하나만(없으면 저장한 리포트 중 가장 최근 것)
-    var saved = load(SAVED, []), recent = load(RECENT, []);
-    var items = recent.length ? [{ x: recent[0], s: saved.some(function (y) { return y.u === recent[0].u; }) }]
-      : saved.length ? [{ x: saved[0], s: true }] : [];
-    if (items.length) {
-      var ul = rv.querySelector('[data-recent]');
-      items.forEach(function (it) {
-        var li = document.createElement('li'), a = document.createElement('a');
-        a.href = it.x.u; a.textContent = (it.s ? '★ ' : '') + it.x.k + ' · ' + it.x.t;
-        li.appendChild(a); ul.appendChild(li);
-      });
-      rv.hidden = false;
-    }
-  }
 
   // ---------- 검색 ----------
   var results = document.querySelector('[data-results]');

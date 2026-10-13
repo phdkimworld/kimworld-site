@@ -739,3 +739,14 @@ a.cm-time:hover { text-decoration: underline; }
 .composer-nick[hidden] { display: none; }
 .upost-new { animation: kw-in .4s ease; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 @keyframes kw-in { from { opacity: 0; transform: translateY(-6px); } }
+/* 내 프로필: 내 글·읽은 리포트·저장한 리포트 */
+.prof-tabs { margin-top: 18px; }
+.prof-tabs button { display: flex; justify-content: center; align-items: center; gap: 6px; min-height: 40px; border: 0; border-radius: 9px; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: .86rem; cursor: pointer; }
+.prof-tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.prof-pane[hidden] { display: none; }
+.hist-item { display: flex; align-items: center; gap: 8px; }
+.hist-item .rc-link { flex: 1; min-width: 0; }
+.hist-rm { flex: none; font-size: .76rem; color: var(--muted); }
+.hist-clear { margin-top: 10px; font-size: .8rem; color: var(--muted); }
+.hist-note { margin-top: 12px; }
+.prof-tabs button { white-space: nowrap; }
