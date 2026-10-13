@@ -252,3 +252,9 @@ BTQ:
   exchange: "NASDAQ"
   theme: "양자컴퓨팅"
   aliases: ["BTQ 테크놀로지스", "비티큐", "BTQ Technologies", "BTQQF", "QSSN", "QCIM"]
+RXRX:
+  name: "리커전 파마슈티컬스"
+  name_en: "Recursion Pharmaceuticals, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["리커전", "리커전 파마슈티컬스", "Recursion", "Recursion Pharmaceuticals", "엑스사이언티아", "Exscientia"]
