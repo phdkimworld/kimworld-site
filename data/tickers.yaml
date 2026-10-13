@@ -258,3 +258,9 @@ RXRX:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["리커전", "리커전 파마슈티컬스", "Recursion", "Recursion Pharmaceuticals", "엑스사이언티아", "Exscientia"]
+SMR:
+  name: "뉴스케일 파워"
+  name_en: "NuScale Power Corporation"
+  exchange: "NYSE"
+  theme: "원자력·에너지"
+  aliases: ["뉴스케일", "뉴스케일 파워", "NuScale", "NuScale Power", "엔트라원", "ENTRA1"]
