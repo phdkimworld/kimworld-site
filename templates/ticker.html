@@ -15,6 +15,7 @@
   </nav>
   <div class="cards" id="reports">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
+  {{ page_bottom|safe }}
   {% if site.api_url %}<div class="board-wrap">{{ thread('b-' ~ code|lower, 'board', code ~ ' 종토방', 'board', thread_ad, ads.rhythm.board) }}</div>{% endif %}
 </div>
 {% endblock %}

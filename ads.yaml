@@ -26,7 +26,12 @@ adfit:
 
 coupang:
   # 쿠팡 파트너스 대시보드에서 만든 카테고리 배너 코드를 그대로 붙여 넣는다. 쿠팡 도메인 밖 주소가 있으면 빌드가 실패한다.
-  banner_html: ""
+  # 다이내믹 배너(고객 관심 기반 추천 · 추천 상품 피드 · 680x140 · 테두리 없음). 화면 폭에 맞춰 비율대로 줄어든다
+  banner_html: |
+    <script src="https://ads-partners.coupang.com/g.js"></script>
+    <script>
+    	new PartnersCoupang.G({"id":1038868,"template":"carousel","trackingCode":"AF4489672","width":"680","height":"140","tsource":""});
+    </script>
   banner_height: 140
   # 테마별 상품 링크(대시보드 "상품 링크"로 만든 https://link.coupang.com/a/… 주소). 테마 이름은 data/themes.yaml과 같게.
   # 리포트가 다루는 종목명·티커가 상품명에 들어가면 자동으로 뺀다.
@@ -57,6 +62,7 @@ placements:
   report_late: coupang_products         # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 본문 상자와 다른 테마 상품
   rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
   feed_inline: [adfit_feed, coupang_products]   # 홈 피드 사이: 첫 자리는 애드핏 300x250, 나머지는 쿠팡(애드핏 단위는 한 페이지 한 번)(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
+  page_bottom: coupang_banner           # 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
   thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).

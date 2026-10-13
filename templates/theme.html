@@ -13,6 +13,7 @@
   {% if rs %}
   <div class="cards">{% for r in rs %}{{ card(r, base, false) }}{% endfor %}</div>
   {{ list_ad|safe }}
+  {{ page_bottom|safe }}
   {% else %}
   <div class="empty"><p>이 테마의 리포트를 준비하고 있습니다.</p><p><a href="{{ base }}/">다른 리포트 보기</a></p></div>
   {% endif %}

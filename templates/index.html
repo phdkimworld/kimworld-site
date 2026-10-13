@@ -100,6 +100,7 @@
     </div>
     {% if rs|length < feed_first %}{{ list_ad|safe }}{% endif %}
     {% if site.api_url %}<div class="feed-end" data-feed-end hidden><button type="button" class="btn" data-feed-more>글 더 보기</button></div>{% endif %}
+    {{ page_bottom|safe }}
     {% else %}
     <div class="empty">
       <p><strong>첫 리포트를 준비하고 있습니다.</strong></p>

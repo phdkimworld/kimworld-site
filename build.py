@@ -362,7 +362,7 @@ class Ads:
                        "home_feed": _r("home_feed", (4, 6, 5))}
         if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
             log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_rail", "coupang_banner", "coupang_products", "none", None}
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_rail", "coupang_banner", "coupang_products", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
@@ -485,15 +485,21 @@ class Ads:
                 f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js" onerror="this.parentNode.classList.add(\'hidden\')"></script></aside>'
             )
         if kind == "coupang_banner":
+            # 쿠팡 배너는 가로 크기가 고정(예: 680)이라, 휴대폰처럼 좁은 화면에서는 틀 안에서 비율대로 줄여 보인다
+            mw = re.search(r'"width"\s*:\s*"?(\d+)', self.c_banner)
+            bw, bh = (int(mw.group(1)) if mw else 680), self.c_banner_h
+            fit = ('<script>function k(){var s=Math.min(1,innerWidth/' + str(bw) + ');document.body.style.transform="scale("+s+")"}'
+                   'k();addEventListener("resize",k)</script>')
             doc = (
-                '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden}</style></head><body>'
-                + self.c_banner + "</body></html>"
+                '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden}'
+                f'body{{width:{bw}px;transform-origin:0 0}}</style></head><body>'
+                + self.c_banner + fit + "</body></html>"
             )
             return (
                 f'<aside class="ad ad-coupang" data-slot="{slot}" aria-label="광고">{label}'
                 f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p>'
                 f'<iframe title="쿠팡 파트너스 배너" loading="lazy" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" '
-                f'style="height:{self.c_banner_h}px" srcdoc="{html.escape(doc, quote=True)}"></iframe></aside>'
+                f'style="width:100%;max-width:{bw}px;aspect-ratio:{bw}/{bh};height:auto;border:0;display:block;margin:0 auto" srcdoc="{html.escape(doc, quote=True)}"></iframe></aside>'
             )
         if kind == "coupang_products":
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))
@@ -718,6 +724,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         rail_html = ads.render("rail", far_ctx)
         end_html = ads.render("report_end", ad_ctx)
         bottom_html = "" if r["sponsor"] else ads.render("report_bottom", ad_ctx)
+        page_bottom = "" if r["sponsor"] else ads.render("page_bottom", ad_ctx)
         used_ads = [x for x in pieces if x.startswith('<aside class="ad')] + [x for x in (end_html, bottom_html) if x]
         has_coupang = any("ad-coupang" in x for x in used_ads)
         og_rel = f"og/{r['slug']}.png"
@@ -725,7 +732,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         # 댓글 사이 광고(댓글이 쌓였을 때만 화면에서 끼워 넣음): 다른 테마 상품 묶음에서 골라 본문 상자와 겹치지 않게
         thread_ad = ads.render("thread_inline", {"theme": "*", "skip_theme": r["theme"], "exclude": exclude})
         write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad, rail_ad=rail_html,
-              bottom_ad=bottom_html, has_coupang=has_coupang, terms=used_terms, today=today,
+              bottom_ad=bottom_html, page_bottom=page_bottom, has_coupang=has_coupang, terms=used_terms, today=today,
               stale=(today - r["data_as_of"]).days > int(site.get("stale_days", 180)))
 
     # ---- 종목·테마·홈·검색
@@ -735,18 +742,18 @@ def build(drafts=False, strict=False, out: Path = DIST):
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
         tex = [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]
         write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs,
-              list_ad=ads.render("list", {"theme": t.get("theme", "")}),
+              list_ad=ads.render("list", {"theme": t.get("theme", "")}), page_bottom=ads.render("page_bottom", {}),
               thread_ad=ads.render("thread_inline", {"theme": "*"}))
     for th in themes:
         rs = [r for r in public if r["theme"] == th["name"]]
-        write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))
+        write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}), page_bottom=ads.render("page_bottom", {}))
     home_ctx = {"theme": "*"}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
     home_list = ads.render("list", home_ctx)
     hf = ads.rhythm["home_feed"]
     feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(max(0, hf["max"] - 1))) if x]
     home_rail = ads.render("rail", home_ctx)
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
-          feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, is_home=True)
+          feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, page_bottom=ads.render("page_bottom", home_ctx), is_home=True)
     write("search/index.html", "search.html")
     if site.get("api_url"):
         write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)

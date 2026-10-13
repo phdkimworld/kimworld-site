@@ -13,7 +13,8 @@ import yaml
 SRC = Path(__file__).resolve().parent.parent
 import re as _re0
 # 대화 사이 광고 틀(화면에서만 끼워 넣음)과 PC 오른쪽 칸 광고(rail)는 본문 광고 수에서 뺀다
-notpl = lambda h: _re0.sub(r'<div class="rail-ad">.*?</aside></div>', "", _re0.sub(r"<template data-thread-ad>.*?</template>", "", h, flags=_re0.S), flags=_re0.S)
+# 본문 광고 검사에서 빼는 것: 대화 사이 광고 틀, PC 오른쪽 칸, 페이지 맨 아래 쿠팡 배너(따로 검사)
+notpl = lambda h: _re0.sub(r'<aside class="ad ad-coupang" data-slot="page_bottom".*?</aside>', "", _re0.sub(r'<div class="rail-ad">.*?</aside></div>', "", _re0.sub(r"<template data-thread-ad>.*?</template>", "", h, flags=_re0.S), flags=_re0.S), flags=_re0.S)
 FAILS = []
 
 
@@ -90,6 +91,8 @@ check(r.returncode == 0, "빌드 성공 " + r.stdout[-300:])
 page = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
 n_ads = page.count('<aside class="ad ')
 check(n_ads == 4, f"리포트 광고 4개 (실제 {n_ads})")
+_pb = re.findall(r'<aside class="ad ad-coupang" data-slot="page_bottom".*?</aside>', (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"), flags=re.S)
+check(len(_pb) <= 1 and all("aspect-ratio" in x and "쿠팡 파트너스 활동" in x for x in _pb), "페이지 맨 아래 쿠팡 배너: 하나, 화면 폭에 맞춰 줄어듦, 표시 문구")
 check(page.find('data-slot="report_mid"') < page.find('data-slot="report_products"') < page.find('data-slot="report_end"') < page.find('data-slot="report_bottom"'), "광고 순서: 중간 → 쿠팡 상품 → 끝 → 맨 아래")
 check("양자역학 교양서" in page and "미국주식 투자 책" in page, "남은 상품 표시")
 check(page.count("이 영역은 쿠팡 파트너스 활동의 일환으로") == 2, "쿠팡 자리마다 표시 문구")
