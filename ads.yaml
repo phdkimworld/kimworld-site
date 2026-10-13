@@ -35,14 +35,14 @@ coupang:
   #    - name: "미국주식 투자 책"
   #      url: "https://link.coupang.com/a/yyyyy"
   products_per_box: 3
-  blocked_words: ["증권", "계좌", "코인", "비트코인", "가상자산", "리딩", "주식 추천", "급등", "종목 추천"]
+  blocked_words: []   # 법으로 막힌 상품만 막는다(쿠팡 판매 상품은 합법 상품이라 비워 둠)
   # 검색어에 "책"이 들어간 묶음에서만 빼는 단어: 어린이·청소년용 책은 리포트 독자와 맞지 않는다
   book_blocked_words: ["십 대", "10대", "청소년", "어린이", "초등", "중학생", "유아", "아동", "키즈", "그림책", "학습만화", "만화로", "만화 "]
   allowed_domains: ["coupang.com", "coupangcdn.com"]
 
 # 자리별로 어떤 광고를 낼지 정한다. 쓸 수 있는 값:
 #   adsense_in_article, adsense_display, adfit_report_end, adfit_list, coupang_banner, coupang_products, none
-# 리포트 본문 광고는 최대 5개(report_* 자리 합계, 짧은 리포트는 4개). 같은 위치에 두 광고가 붙으면 아래쪽을 끈다.
+# 같은 위치에 두 광고가 붙으면 아래쪽을 끈다. 광고 개수 상한은 법적 의무가 아니므로 빌드가 막지 않는다(광고 네트워크 정책은 따로 지킨다).
 # 값을 [가, 나] 목록으로 쓰면 앞에서부터 실제로 낼 수 있는 첫 광고를 낸다.
 placements:
   report_mid: [adfit_report_mid, coupang_products]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡

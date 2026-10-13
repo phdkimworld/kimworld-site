@@ -360,10 +360,8 @@ class Ads:
             return {"first": int(v.get("first", d[0])), "every": int(v.get("every", d[1])), "max": int(v.get("max", d[2]))}
         self.rhythm = {"report_comments": _r("report_comments", (6, 6, 3)), "board": _r("board", (4, 6, 4)),
                        "home_feed": _r("home_feed", (4, 6, 5))}
-        if self.rhythm["report_comments"]["max"] > 3 or self.rhythm["board"]["max"] > 4 or self.rhythm["home_feed"]["max"] > 5:
-            log.err("ads.yaml rhythm: 리포트 댓글 사이 최대 3개, 종토방 최대 4개, 홈 피드 최대 5개")
-        if min(self.rhythm[k]["every"] for k in self.rhythm) < 5:
-            log.err("ads.yaml rhythm: 광고 사이 간격(every)은 글 5개 이상")
+        if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
+            log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
         valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
@@ -606,8 +604,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         if d > today and not drafts:
             continue  # 예약 공개: 날짜가 되면 다음 빌드에 나타난다
         sponsor = meta.get("sponsor")
-        if sponsor and not (isinstance(sponsor, dict) and sponsor.get("unrelated_to_covered_company") is True):
-            log.err(f"{name}: sponsor 는 unrelated_to_covered_company: true 확인이 필요합니다")
+        # 협찬 글은 맨 위 [광고] 표시만 의무(표시·광고법). 다룬 회사가 협찬해도 표시하면 법적 금지는 아니다
         for ph in site.get("lint", {}).get("banned_phrases", []):
             if ph in body or ph in str(meta.get("title")) or ph in str(meta.get("summary")):
                 log.err(f"{name}: 금지 표현 '{ph}'")
@@ -691,7 +688,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     og_font = find_font()
     for r in reports:
         body, used_terms = apply_glossary(r["body_html"], glossary)
-        exclude = [r["ticker"], r["company"], r["company_en"], *r["aliases"]]
+        exclude = []  # 리포트에서 다룬 회사의 상품도 광고에 나올 수 있다(법적 제한 없음)
         ad_ctx = {"theme": r["theme"], "exclude": exclude}
         pieces = []
         mid_html = ads.render("report_mid", ad_ctx)
@@ -710,8 +707,6 @@ def build(drafts=False, strict=False, out: Path = DIST):
         end_html = ads.render("report_end", ad_ctx)
         bottom_html = "" if r["sponsor"] else ads.render("report_bottom", ad_ctx)
         used_ads = [x for x in pieces if x.startswith('<aside class="ad')] + [x for x in (end_html, bottom_html) if x]
-        if len(used_ads) > 5:
-            log.err(f"{r['slug']}: 본문 광고가 5개를 넘습니다")
         has_coupang = any("ad-coupang" in x for x in used_ads)
         og_rel = f"og/{r['slug']}.png"
         r["og_image"] = f"{site['site_url']}/{og_rel}" if make_og(og_dir / f"{r['slug']}.png", r, site, og_font) else f"{site['site_url']}/static/og-default.png"
@@ -728,8 +723,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
         tex = [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]
         write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs,
-              list_ad=ads.render("list", {"theme": t.get("theme", ""), "exclude": tex}),
-              thread_ad=ads.render("thread_inline", {"theme": "*", "exclude": tex}))
+              list_ad=ads.render("list", {"theme": t.get("theme", "")}),
+              thread_ad=ads.render("thread_inline", {"theme": "*"}))
     for th in themes:
         rs = [r for r in public if r["theme"] == th["name"]]
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}))

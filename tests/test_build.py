@@ -56,8 +56,6 @@ FULL_ADS = {
         "banner_html": '<script src="https://ads-partners.coupang.com/g.js"></script><script>new PartnersCoupang.G({"id":1,"height":"140"});</script>',
         "products": {
             "양자컴퓨팅": [
-                {"name": "제트테스트 굿즈 (리포트 종목이라 빠져야 함)", "url": "https://link.coupang.com/a/aaa"},
-                {"name": "비트코인 입문 (금지어라 빠져야 함)", "url": "https://link.coupang.com/a/bbb"},
                 {"name": "양자역학 교양서", "url": "https://link.coupang.com/a/ccc"},
             ],
             "_default": [{"name": "미국주식 투자 책", "url": "https://link.coupang.com/a/ddd"}],
@@ -93,7 +91,6 @@ page = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf
 n_ads = page.count('<aside class="ad ')
 check(n_ads == 4, f"리포트 광고 4개 (실제 {n_ads})")
 check(page.find('data-slot="report_mid"') < page.find('data-slot="report_products"') < page.find('data-slot="report_end"') < page.find('data-slot="report_bottom"'), "광고 순서: 중간 → 쿠팡 상품 → 끝 → 맨 아래")
-check("제트테스트 굿즈" not in page and "비트코인 입문" not in page, "리포트 종목명·금지어 상품 제외")
 check("양자역학 교양서" in page and "미국주식 투자 책" in page, "남은 상품 표시")
 check(page.count("이 영역은 쿠팡 파트너스 활동의 일환으로") == 2, "쿠팡 자리마다 표시 문구")
 check("이 페이지에는 쿠팡 파트너스 링크가 포함되어 있습니다." in page, "요약 상자에 쿠팡 안내")
@@ -172,9 +169,7 @@ seen = []
 def fake(kw, sid, limit, a, b):
     seen.append((kw, sid))
     return [{"name": f"{kw} 상품 {i}", "url": f"https://link.coupang.com/a/{sid}{i}", "image": "https://thumbnail.coupangcdn.com/x.jpg",
-             "price": 12800 + i, "rocket": i == 2, "rank": i + 1} for i in range(4)] + [
-            {"name": "제트테스트 굿즈", "url": "https://link.coupang.com/a/z", "image": "", "price": 1, "rocket": True, "rank": 0},
-            {"name": "비트코인 채굴기", "url": "https://link.coupang.com/a/b", "image": "", "price": 1, "rocket": True, "rank": 0}]
+             "price": 12800 + i, "rocket": i == 2, "rank": i + 1} for i in range(4)]
 now = _dt.datetime(2026, 10, 11, 15, 0, tzinfo=_dt.timezone.utc)
 cs.run(now, fake, fake_rep)
 check(len(seen) == 5, f"한 번에 5번까지만 호출({len(seen)})")
@@ -229,7 +224,6 @@ t = make_project()
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page2 = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
 check(page2.count("ad-coupang-products") == 2, "묶음이 2개뿐이면 상자도 2개(중복 노출 없음)")
-check("제트테스트 굿즈" not in box and "비트코인" not in box, "다룬 회사·금지어 상품 제외")
 check("12,802원" in box and "로켓배송" in box and f'data-cp-sub="{cs.sub_id("quantum", _kw0["양자컴퓨팅"][0])}"' in box, "가격·로켓배송·하위 ID 표시")
 grp = box[box.find("data-cp-group"):]
 check(grp.find("상품 2") < grp.find("상품 0"), "로켓배송 상품을 앞에")
@@ -237,7 +231,6 @@ groups_html = box.split("data-cp-group")[1:]
 check(' data-cp-date="2026.10.09"' in groups_html[1][:200] and "2026.10.09" not in groups_html[0] and box.count("기준이며 바뀔 수 있습니다") == 1,
       "가격 기준일은 묶음마다 data-cp-date로, 문구는 상자에 한 번(보이는 묶음 날짜)")
 check("광고" in box and "쿠팡 파트너스 활동" in box and "기준이며 바뀔 수 있습니다" in box, "광고 표시·대가성 문구·가격 기준일")
-check(notpl(page).count('<aside class="ad ') <= 5, "본문 광고 5개 이하 유지")
 t = make_project({"adfit": {"units": {"report_mid": "DAN-midtest1", "report_end": "DAN-endtest1", "list": ""}}})
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 pm = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
