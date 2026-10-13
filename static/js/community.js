@@ -126,6 +126,12 @@
       });
     }).catch(function () {});
   }
+  // 행동 이벤트: 로그인 시작·좋아요
+  document.addEventListener('click', function (e) {
+    if (!window.kwEv || !e.target.closest) return;
+    if (e.target.closest('.kw-login')) kwEv('login_start');
+    if (e.target.closest('[data-post-like], .pa-like, .cm-like')) kwEv('like');
+  }, true);
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-post-like]'); if (!b) return;
     var sl = postSlug(b); if (!sl || b.disabled) return;
@@ -269,7 +275,7 @@
     meReady.then(function () { if (LOGGED && !ME) openAccount(); });
   })();
   function openBell() {
-    var body = dialog('알림');
+    var body = dialog('알림'); if (window.kwEv) kwEv('notif_open');
     api('/v1/notifications').then(function (d) {
       var items = d.items || [];
       if (!items.length) { body.appendChild(el('p', 'muted', '아직 알림이 없습니다.')); return; }
@@ -526,7 +532,7 @@
         btn2.disabled = false;
         if (d.error === 'account') { openAccount(); return; }
         if (!d.ok) { msg.textContent = d.message || '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
-        ta.value = ''; lenEl.textContent = '0/500'; startedAt = 0;
+        ta.value = ''; lenEl.textContent = '0/500'; startedAt = 0; if (window.kwEv) kwEv('post_submit');
         msg.textContent = d.status === 'held' ? d.message : '등록했습니다.';
         if (d.status !== 'held' && !ME && PROVIDERS.length) { // 익명으로 쓴 뒤: 로그인하면 답글 알림을 받는다고 한 줄
           var lk = el('button', 'cm-link', ' 로그인하면 답글이 달릴 때 알림을 받아요 →'); lk.type = 'button'; lk.addEventListener('click', openAccount); msg.appendChild(lk);
@@ -570,8 +576,9 @@
   window.kwLogSearch = function (q, hits) {
     clearTimeout(logTimer);
     q = String(q || '').trim();
-    if (q.length < 2 || !hits || q === lastLogged) return;
-    logTimer = setTimeout(function () { lastLogged = q; api('/v1/search', { method: 'POST', body: { q: q }, keepalive: true }).catch(function () {}); }, 1500);
+    if (q.length < 2 || q === lastLogged) return;
+    // 결과가 없던 검색어도 따로 센다(어떤 종목 리포트를 원하는지 알 수 있음)
+    logTimer = setTimeout(function () { lastLogged = q; if (window.kwEv) kwEv('search'); api('/v1/search', { method: 'POST', body: hits ? { q: q } : { q: q, miss: 1 }, keepalive: true }).catch(function () {}); }, 1500);
   };
 
   // ---------- 공통: 리포트 목록(search.json)과 조회 순위 ----------
@@ -727,7 +734,7 @@
           api('/v1/follow', { method: 'POST', body: { uid: d.user.id } }).then(function (r) {
             fb.disabled = false;
             if (r._status !== 200) { if (r.message) alert(r.message); return; }
-            fb.textContent = r.following ? '팔로잉' : '팔로우';
+            fb.textContent = r.following ? '팔로잉' : '팔로우'; if (r.following && window.kwEv) kwEv('follow_user');
             fb.className = 'btn ' + (r.following ? '' : 'btn-primary') + ' follow-btn';
             fcount.textContent = num(r.followers);
           }).catch(function () { fb.disabled = false; });
@@ -875,7 +882,7 @@
       if (!ME) { openAccount(); return; }
       return api('/v1/repost', { method: 'POST', body: { kind: kind, ref: ref } }).then(function (d) {
         if (d._status !== 200) { alert(d.message || '리포스트하지 못했습니다.'); return; }
-        paintRepost(kind, ref, d.count, d.reposted);
+        paintRepost(kind, ref, d.count, d.reposted); if (d.reposted && window.kwEv) kwEv('repost');
         flash(d.reposted ? '내 프로필과 팔로워 피드에 리포스트했습니다' : '리포스트를 취소했습니다');
       });
     });
@@ -904,7 +911,7 @@
   function openQuote(q) {
     meReady.then(function () {
       if (LOGGED && !ME) { openAccount(); return; }
-      var body = dialog('인용하기');
+      var body = dialog('인용하기'); if (window.kwEv) kwEv('quote_open');
       var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); body.appendChild(pv);
       var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500; ta.placeholder = '이 부분에 대한 내 생각을 써 주세요';
       body.appendChild(ta);
@@ -927,6 +934,7 @@
           go.disabled = false;
           if (!d.ok) { m.textContent = d.message || '올리지 못했습니다.'; return; }
           if (d.status === 'held') { m.textContent = d.message; return; }
+          if (window.kwEv) kwEv('quote_submit');
           location.href = postUrl(d.id);
         }).catch(function () { go.disabled = false; m.textContent = '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
       });
@@ -1004,7 +1012,7 @@
       api('/v1/topics', { method: 'POST', body: { kind: kind, key: key } }).then(function (d) {
         b.disabled = false;
         if (d._status !== 200) { alert(d.message || '팔로우하지 못했습니다.'); return; }
-        paintTopic(kind, key, d); myTopics(true);
+        paintTopic(kind, key, d); myTopics(true); if (d.following && window.kwEv) kwEv('follow_topic');
         flash(d.following ? '팔로우했어요. 새 리포트 알림과 팔로잉 피드에 이 ' + (kind === 't' ? '종목' : '테마') + ' 글이 모입니다' : '팔로우를 취소했습니다');
       }).catch(function () { b.disabled = false; });
     });

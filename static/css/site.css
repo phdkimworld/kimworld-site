@@ -799,3 +799,13 @@ a.cm-time:hover { text-decoration: underline; }
 .theme-head h1 { margin: 0; }
 .my-topics { margin-top: 16px; }
 .my-topics .chip-list { margin-top: 6px; }
+/* 운영 통계: 구획 제목·깔때기 */
+.an-h2 { font-size: 1.1rem; margin: 26px 0 10px; letter-spacing: -0.01em; }
+.an-h2-sub { font-size: .76rem; font-weight: 500; }
+.fn-row { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr) 4.5em 3.8em; gap: 8px; align-items: center; padding: 6px 0; font-size: .82rem; }
+.fn-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-track { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.fn-fill { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
+.fn-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.fn-p { text-align: right; font-size: .74rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 599px) { .fn-row { grid-template-columns: minmax(0, 8em) minmax(0, 1fr) 3.6em 3.2em; } }

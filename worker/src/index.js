@@ -199,6 +199,53 @@ async function analytics(db, now, daysIn) {
          FROM users u LEFT JOIN comments c ON c.uid = u.id AND c.status = 'ok' AND c.created >= ? WHERE u.status = 'ok'
          GROUP BY u.id ORDER BY posts DESC, likes DESC LIMIT 10`, now - days * 864e5),
   ]);
+  // ---- 확장: 앱·행동 이벤트·리텐션·기기·유입 페이지·콘텐츠 성과·수요 신호·광고 추이 ----
+  const [appU, appPv, evs, evPrev, evDaily, cohorts, tech, entries, rpages, topics, topicNew, misses, adDaily, rpN, qN] = await Promise.all([
+    one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE app = 1 AND day >= ?", D(29)),
+    one("SELECT SUM(app) AS n FROM an_page WHERE day >= ?", since),
+    all("SELECT ev, SUM(n) AS n FROM an_event WHERE day >= ? GROUP BY ev", since),
+    all("SELECT ev, SUM(n) AS n FROM an_event WHERE day >= ? AND day < ? GROUP BY ev", prevSince, since),
+    all("SELECT day, ev, SUM(n) AS n FROM an_event WHERE day >= ? AND ev IN ('installed', 'install_accept', 'login_start', 'share') GROUP BY day, ev", since),
+    // 처음 본 날(이 기록이 있는 35일 안에서) 기준 코호트: 다음 날·7일 안에 다시 왔는지
+    all(`WITH f AS (SELECT vh, MIN(day) AS fd FROM an_seen GROUP BY vh)
+         SELECT f.fd AS day, COUNT(*) AS n,
+           SUM(EXISTS(SELECT 1 FROM an_seen s WHERE s.vh = f.vh AND s.day = date(f.fd, '+1 day'))) AS d1,
+           SUM(EXISTS(SELECT 1 FROM an_seen s WHERE s.vh = f.vh AND s.day > f.fd AND s.day <= date(f.fd, '+7 day'))) AS d7
+         FROM f WHERE f.fd >= ? GROUP BY f.fd ORDER BY f.fd`, D(27)),
+    all("SELECT os, br, SUM(pv) AS pv, SUM(sess) AS sess FROM an_tech WHERE day >= ? GROUP BY os, br ORDER BY pv DESC LIMIT 20", since),
+    all("SELECT path, src, SUM(n) AS n FROM an_entry WHERE day >= ? GROUP BY path, src ORDER BY n DESC LIMIT 40", since),
+    all("SELECT path, SUM(pv) AS pv, SUM(secs) AS secs, SUM(scroll) AS scroll, SUM(scroll_n) AS scroll_n, SUM(entries) AS entries, SUM(app) AS app FROM an_page WHERE day >= ? AND t = 'r' GROUP BY path ORDER BY pv DESC LIMIT 60", since),
+    all("SELECT kind, key, COUNT(*) AS n FROM topic_follows GROUP BY kind, key ORDER BY n DESC LIMIT 20"),
+    one("SELECT COUNT(*) AS n FROM topic_follows WHERE created >= ?", now - days * 864e5),
+    all("SELECT q, SUM(n) AS n FROM search_miss WHERE day >= ? GROUP BY q ORDER BY n DESC LIMIT 20", since),
+    all("SELECT day, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= ? GROUP BY day", since),
+    one("SELECT COUNT(*) AS n FROM reposts WHERE created >= ?", now - days * 864e5),
+    one("SELECT COUNT(*) AS n FROM comments WHERE q_kind IS NOT NULL AND status = 'ok' AND created >= ?", now - days * 864e5),
+  ]);
+  // 리포트별 반응(좋아요·댓글·리포스트)을 페이지 성과에 붙인다
+  const rslugs = rpages.map((x) => (x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1]).filter(Boolean);
+  const react = {};
+  if (rslugs.length) {
+    const qm = rslugs.map(() => "?").join(",");
+    const [lk, cm, rp] = await Promise.all([
+      all(`SELECT slug, n FROM likes_total WHERE slug IN (${qm})`, ...rslugs),
+      all(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${qm}) GROUP BY slug`, ...rslugs),
+      all(`SELECT ref, COUNT(*) AS n FROM reposts WHERE kind = 'r' AND ref IN (${qm}) GROUP BY ref`, ...rslugs),
+    ]);
+    for (const x of rslugs) react[x] = { likes: 0, comments: 0, reposts: 0 };
+    for (const x of lk) react[x.slug].likes = x.n;
+    for (const x of cm) react[x.slug].comments = x.n;
+    for (const x of rp) react[x.ref].reposts = x.n;
+  }
+  const evMap = (rows) => Object.fromEntries(rows.map((x) => [x.ev, x.n]));
+  const ext = {
+    app: { users30: appU?.n || 0, pv: appPv?.n || 0 },
+    events: evMap(evs), eventsPrev: evMap(evPrev), eventsDaily: evDaily,
+    cohorts, tech, entries,
+    reports: rpages.map((x) => ({ ...x, slug: (x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1] || "", ...(react[(x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1]] || { likes: 0, comments: 0, reposts: 0 }) })),
+    topics, topicNew: topicNew?.n || 0, misses, adDaily,
+    actions: { reposts: rpN?.n || 0, quotes: qN?.n || 0 },
+  };
   // 날짜 축을 빈 날 없이 채운다
   const axis = []; for (let k = days - 1; k >= 0; k--) axis.push(D(k));
   const by = (rows) => Object.fromEntries(rows.map((r) => [r.day, r]));
@@ -217,7 +264,7 @@ async function analytics(db, now, daysIn) {
     series, sources: srcs, pages, types, hours,
     community: { users: users?.n || 0, banned: users?.banned || 0, board: posts?.board || 0, replies: posts?.replies || 0, report: posts?.report || 0,
       writers: posts?.writers || 0, postLikes: likes?.n || 0, follows: follows?.total || 0, newFollows: follows?.recent || 0, held: queue?.held || 0, hidden: queue?.hidden || 0 },
-    topUsers, searches, ads,
+    topUsers, searches, ads, ...ext,
   };
 }
 
@@ -354,17 +401,25 @@ export default {
         if (path === "/admin/") return json(req, { ok: false });
         const t = path === "/" ? "h" : path.startsWith("/r/") ? "r" : path.startsWith("/t/") ? "t" : path.startsWith("/theme/") ? "th" : path === "/p/" ? "p" : path === "/u/" ? "u" : path === "/search/" ? "s" : "o";
         const src = /^[a-z0-9.-]{1,40}$/.test(String(b.r || "")) ? String(b.r) : "direct";
-        const m = b.m ? 1 : 0, n = b.n ? 1 : 0, s = Math.max(1, Math.min(999, parseInt(b.s, 10) || 1));
+        const m = b.m ? 1 : 0, n = b.n ? 1 : 0, s = Math.max(1, Math.min(999, parseInt(b.s, 10) || 1)), app = b.app ? 1 : 0;
+        const OS = new Set(["ios", "android", "windows", "mac", "linux", "other"]), BR = new Set(["chrome", "safari", "samsung", "edge", "firefox", "kakaotalk", "naver", "youtube", "instagram", "facebook", "whale", "other"]);
+        const os = OS.has(b.os) ? b.os : "other", br = BR.has(b.br) ? b.br : "other";
+        const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
+          "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like"]);
+        const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
         const hour = new Date(now + 9 * 3600e3).getUTCHours();
         const q = [
-          db.prepare("INSERT OR IGNORE INTO an_seen (day, vh) VALUES (?, ?)").bind(today, actor.slice(-16)),
-          db.prepare(`INSERT INTO an_page (day, path, t, pv, secs, mob, entries, scroll, scroll_n) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
-            ON CONFLICT(day, path) DO UPDATE SET pv = pv + 1, secs = secs + excluded.secs, mob = mob + excluded.mob, entries = entries + excluded.entries, scroll = scroll + excluded.scroll, scroll_n = scroll_n + excluded.scroll_n`)
-            .bind(today, path, t, a, m, s === 1 ? 1 : 0, sc, sc ? 1 : 0),
+          db.prepare("INSERT INTO an_seen (day, vh, app) VALUES (?, ?, ?) ON CONFLICT(day, vh) DO UPDATE SET app = MAX(app, excluded.app)").bind(today, actor.slice(-16), app),
+          db.prepare(`INSERT INTO an_page (day, path, t, pv, secs, mob, entries, scroll, scroll_n, app) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, path) DO UPDATE SET pv = pv + 1, secs = secs + excluded.secs, mob = mob + excluded.mob, entries = entries + excluded.entries, scroll = scroll + excluded.scroll, scroll_n = scroll_n + excluded.scroll_n, app = app + excluded.app`)
+            .bind(today, path, t, a, m, s === 1 ? 1 : 0, sc, sc ? 1 : 0, app),
+          db.prepare("INSERT INTO an_tech (day, os, br, pv, sess) VALUES (?, ?, ?, 1, ?) ON CONFLICT(day, os, br) DO UPDATE SET pv = pv + 1, sess = sess + excluded.sess").bind(today, os, br, s === 1 ? 1 : 0),
           db.prepare("INSERT INTO an_hour (day, h, pv) VALUES (?, ?, 1) ON CONFLICT(day, h) DO UPDATE SET pv = pv + 1").bind(today, hour),
         ];
+        if (s === 1) q.push(db.prepare("INSERT INTO an_entry (day, path, src, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, path, src) DO UPDATE SET n = n + 1").bind(today, path, src));
+        for (const e of evs) q.push(db.prepare("INSERT INTO an_event (day, ev, n) VALUES (?, ?, 1) ON CONFLICT(day, ev) DO UPDATE SET n = n + 1").bind(today, e));
         if (s <= 2) q.push(db.prepare(`INSERT INTO an_src (day, src, sess, multi, newv) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(day, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, newv = newv + excluded.newv`)
             .bind(today, src, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 1 ? n : 0));
@@ -375,9 +430,14 @@ export default {
 
       // ---------- 검색어 ----------
       if (p === "/v1/search" && req.method === "POST") {
-        const { q } = await readJson(req);
+        const { q, miss } = await readJson(req);
         const term = cleanText(q, 20).toLowerCase().replace(/\s+/g, " ");
         if (term.length < 2 || needsHold(term)) return json(req, { ok: false });
+        if (miss) { // 결과가 없던 검색어: 하루 한 사람 한 번만
+          if (await allow(db, `miss|${ih}|${term}`, 1, 864e5, now))
+            await db.prepare("INSERT INTO search_miss (day, q, n) VALUES (?, ?, 1) ON CONFLICT(day, q) DO UPDATE SET n = n + 1").bind(kstDay(now), term).run();
+          return json(req, { ok: true });
+        }
         const day = kstDay(now);
         const seen = await db.prepare("INSERT OR IGNORE INTO search_seen (day, q, ih) VALUES (?, ?, ?)").bind(day, term, ih).run();
         if (seen.meta?.changes) {

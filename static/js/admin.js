@@ -9,6 +9,7 @@
   var nf = function (n) { return Number(n || 0).toLocaleString('ko-KR'); };
   var pct = function (a, b) { return b ? Math.round(a / b * 1000) / 10 + '%' : '–'; };
   var dur = function (s) { s = Math.round(s || 0); return s >= 60 ? Math.floor(s / 60) + '분 ' + (s % 60) + '초' : s + '초'; };
+  function dayAgo(n) { return new Date(Date.now() + 9 * 3600e3 - n * 864e5).toISOString().slice(0, 10); }
   var TYPE = { h: '홈 피드', r: '리포트', t: '종목·종토방', th: '테마', p: '글 상세', u: '프로필', s: '검색', o: '기타' };
 
   // 이 기기 방문 빼기
@@ -95,6 +96,25 @@
     return t;
   }
   function link(text, href) { var a = el('a', null, text); a.href = href; return a; }
+  function heading(t, sub) { var h = el('h2', 'an-h2', t); if (sub) h.appendChild(el('span', 'muted an-h2-sub', ' ' + sub)); return h; }
+  // 단계별 깔때기: 단계마다 막대 + 앞 단계 대비 전환율
+  function funnel(title, steps, note) {
+    var card = el('section', 'an-card an-funnel'); card.appendChild(el('h3', 'an-ct', title));
+    if (note) card.appendChild(el('p', 'an-sub muted', note));
+    var top = Math.max(1, steps[0][1] || 0);
+    steps.forEach(function (st, i) {
+      var row = el('div', 'fn-row');
+      row.appendChild(el('span', 'fn-l', st[0]));
+      var tr = el('span', 'fn-track'), f = el('span', 'fn-fill'); f.style.width = Math.max(st[1] ? 2 : 0, (st[1] || 0) / top * 100) + '%'; tr.appendChild(f); row.appendChild(tr);
+      row.appendChild(el('span', 'fn-v', nf(st[1])));
+      row.appendChild(el('span', 'fn-p muted', i ? pct(st[1], steps[i - 1][1]) : ''));
+      card.appendChild(row);
+    });
+    return card;
+  }
+  var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
+    compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
+    install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내' };
 
   function render(d) {
     body.textContent = '';
@@ -116,6 +136,16 @@
     k.appendChild(tile('오늘 / 7일 / 30일 방문자', nf(d.active.dau) + ' / ' + nf(d.active.wau) + ' / ' + nf(d.active.mau), 'DAU · WAU · MAU'));
     k.appendChild(tile('새 글', nf(CM.board), '답글 ' + nf(CM.replies) + ' · 리포트 댓글 ' + nf(CM.report)));
     k.appendChild(tile('검토 대기', nf((CM.held || 0) + (CM.hidden || 0)), '보류 ' + nf(CM.held) + ' · 신고 숨김 ' + nf(CM.hidden)));
+    var E = d.events || {}, EP = d.eventsPrev || {}, A = d.app || {};
+    var inst = (E.installed || 0) + (E.install_accept && !E.installed ? E.install_accept : 0);
+    k.appendChild(tile('앱 설치', nf(inst), '아이폰 안내 ' + nf(E.ios_help) + '회 별도', delta(inst, (EP.installed || 0))));
+    k.appendChild(tile('앱 사용자', nf(A.users30), '최근 30일, 홈 화면 앱으로 연 기기'));
+    k.appendChild(tile('앱 페이지뷰 비율', pct(A.pv, T.pv), nf(A.pv) + '회'));
+    var co = (d.cohorts || []).filter(function (c) { return c.day <= dayAgo(7); }), cn = co.reduce(function (a, c) { return a + c.n; }, 0), c7 = co.reduce(function (a, c) { return a + c.d7; }, 0);
+    var co1 = (d.cohorts || []).filter(function (c) { return c.day <= dayAgo(1); }), c1n = co1.reduce(function (a, c) { return a + c.n; }, 0), c1 = co1.reduce(function (a, c) { return a + c.d1; }, 0);
+    k.appendChild(tile('재방문(다음 날 / 7일 안)', pct(c1, c1n) + ' / ' + pct(c7, cn), '처음 온 기기 중 다시 온 비율'));
+    k.appendChild(tile('충성도(DAU/MAU)', pct(d.active.dau, d.active.mau), '높을수록 매일 오는 사람이 많음'));
+    k.appendChild(tile('공유', nf(E.share), '기간 내 공유 누름', delta(E.share || 0, EP.share || 0)));
     body.appendChild(k);
 
     var g = el('div', 'an-grid2');
@@ -161,6 +191,62 @@
       return [a.slot, nf(a.imps), nf(a.clicks), pct(a.clicks, a.imps)];
     }), { note: '쿠팡 상자. 노출 = 화면에 절반 이상 1초' }));
     body.appendChild(g3);
+
+    // ---------- 전환·앱 ----------
+    body.appendChild(heading('전환과 앱', '횟수 기준(같은 사람이 여러 번 하면 여러 번)'));
+    var rpv = ((d.types || []).filter(function (x) { return x.t === 'r'; })[0] || {}).pv || 0;
+    var reacts = (E.like || 0) + (E.share || 0) + (E.save || 0) + (E.repost || 0);
+    var g4 = el('div', 'an-grid2');
+    g4.appendChild(funnel('방문 → 가입 깔때기', [['방문(세션)', T.sess], ['리포트 읽음(페이지뷰)', rpv], ['반응(좋아요·공유·저장·리포스트)', reacts], ['로그인 시작', E.login_start || 0], ['가입 완료', T.signups]],
+      '어느 단계에서 가장 많이 빠지는지 보면 다음에 손볼 곳이 보입니다.'));
+    g4.appendChild(funnel('앱 설치 깔때기', [['설치 가능 표시(안드로이드·PC)', E.install_prompt || 0], ['설치 카드 노출', E.install_card || 0], ['설치 누름', E.install_click || 0], ['설치 완료', inst]],
+      '아이폰은 설치 창을 띄울 수 없어 "아이폰 설치 안내"를 본 횟수만 따로 셉니다(' + nf(E.ios_help) + '회).'));
+    var ed = {}; (d.eventsDaily || []).forEach(function (x) { (ed[x.day] = ed[x.day] || {})[x.ev] = x.n; });
+    var sInst = d.series.map(function (r) { var e = ed[r.day] || {}; return { day: r.day, v: (e.installed || 0) || (e.install_accept || 0) }; });
+    g4.appendChild(bars('일별 앱 설치', sInst, 'v', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t); } }));
+    g4.appendChild(table('행동 이벤트', ['행동', '이번 기간', '앞 기간 대비'], Object.keys(EVN).filter(function (k2) { return E[k2] || EP[k2]; }).map(function (k2) {
+      return [EVN[k2], nf(E[k2] || 0), delta(E[k2] || 0, EP[k2] || 0)];
+    }).sort(function (a, b) { return 0; }), { note: '한 페이지에서 같은 행동은 한 번으로 셉니다.' }));
+    body.appendChild(g4);
+
+    // ---------- 리텐션 ----------
+    body.appendChild(heading('재방문(리텐션)', '처음 온 날 기준, 최근 4주'));
+    body.appendChild(table('처음 온 날별 재방문', ['처음 온 날', '새 기기', '다음 날 재방문', '7일 안 재방문'], (d.cohorts || []).slice().reverse().map(function (c) {
+      return [c.day.slice(5).replace('-', '.'), nf(c.n), c.day <= dayAgo(1) ? pct(c.d1, c.n) : '집계 중', c.day <= dayAgo(7) ? pct(c.d7, c.n) : '집계 중'];
+    }), { note: '방문 기록은 35일만 보관해서, 기록이 쌓이기 시작한 첫 주에는 예전부터 오던 사람도 "새 기기"로 잡힙니다.' }));
+
+    // ---------- 콘텐츠 성과 ----------
+    body.appendChild(heading('리포트 성과', '다음 영상·리포트 고를 때 참고'));
+    body.appendChild(table('리포트별 성과', ['리포트', '페이지뷰', '평균 체류', '평균 스크롤', '첫 페이지', '좋아요', '댓글', '리포스트', '반응률'], (d.reports || []).map(function (x) {
+      var r = x.likes + x.comments + x.reposts;
+      return [link(titles[x.path] || x.path, base + x.path), nf(x.pv), dur(x.pv ? x.secs / x.pv : 0), x.scroll_n ? Math.round(x.scroll / x.scroll_n) + '%' : '–', nf(x.entries), nf(x.likes), nf(x.comments), nf(x.reposts), pct(r, x.pv)];
+    }), { note: '반응률 = (좋아요+댓글+리포스트) ÷ 페이지뷰. 좋아요·댓글·리포스트는 전체 누적.' }));
+    var g5 = el('div', 'an-grid2');
+    g5.appendChild(table('첫 페이지 × 유입 경로', ['첫 페이지', '경로', '방문'], (d.entries || []).map(function (x) {
+      var nm = titles[x.path] || (x.path === '/' ? '홈 피드' : x.path);
+      return [link(nm, base + x.path), x.src === 'direct' ? '직접·북마크' : x.src, nf(x.n)];
+    }), { note: '유튜브 영상 설명란·고정 댓글 링크가 어느 리포트로 사람을 데려왔는지 보입니다.' }));
+    var thName = {}; document.querySelectorAll('.theme-nav a').forEach(function (a) { var m = /\/theme\/([^/]+)\//.exec(a.getAttribute('href')); if (m) thName[m[1]] = a.textContent.trim(); });
+    g5.appendChild(table('팔로워 많은 종목·테마', ['종목·테마', '팔로워'], (d.topics || []).map(function (x) {
+      return [x.kind === 't' ? link('$' + x.key, base + '/t/' + x.key.toLowerCase() + '/') : link('# ' + (thName[x.key] || x.key), base + '/theme/' + x.key + '/'), nf(x.n)];
+    }), { note: '기간 내 새 종목·테마 팔로우 ' + nf(d.topicNew) + '건. 수요가 큰 종목은 다음 리포트 후보.' }));
+    g5.appendChild(table('결과 없던 검색어', ['검색어', '사람 수'], (d.misses || []).map(function (x) { return [x.q, nf(x.n)]; }),
+      { note: '사이트에 아직 리포트가 없는 종목을 찾은 것 — 새 리포트·영상 후보.' }));
+    g5.appendChild(table('커뮤니티 활동(기간)', ['항목', '값'], [['리포스트', nf((d.actions || {}).reposts)], ['인용 글', nf((d.actions || {}).quotes)], ['종목·테마 팔로우', nf(d.topicNew)]]));
+    body.appendChild(g5);
+
+    // ---------- 기기·광고 ----------
+    body.appendChild(heading('기기와 광고'));
+    var g6 = el('div', 'an-grid2');
+    var OSN = { ios: '아이폰·아이패드', android: '안드로이드', windows: '윈도우', mac: '맥', linux: '리눅스', other: '기타' };
+    var BRN = { chrome: '크롬', safari: '사파리', samsung: '삼성 인터넷', edge: '엣지', firefox: '파이어폭스', kakaotalk: '카카오톡 안 브라우저', naver: '네이버 앱', youtube: '유튜브 앱', instagram: '인스타그램 앱', facebook: '페이스북 앱', whale: '웨일', other: '기타' };
+    g6.appendChild(table('운영체제 × 브라우저', ['기기·브라우저', '페이지뷰', '비율', '방문'], (d.tech || []).map(function (x) {
+      return [(OSN[x.os] || x.os) + ' · ' + (BRN[x.br] || x.br), nf(x.pv), share(x.pv, T.pv), nf(x.sess)];
+    }), { note: '카카오톡·네이버 앱 안 브라우저 비율이 높으면 "외부 브라우저로 열기" 안내를 고려하세요.' }));
+    var ad = {}; (d.adDaily || []).forEach(function (x) { ad[x.day] = x; });
+    var sAd = d.series.map(function (r) { var x = ad[r.day] || {}; return { day: r.day, clicks: x.clicks || 0, imps: x.imps || 0 }; });
+    g6.appendChild(bars('일별 쿠팡 상자 클릭', sAd, 'clicks', nf, { label: dayLabel, sub: function (t) { var im = sAd.reduce(function (a, x) { return a + x.imps; }, 0); return '클릭 ' + nf(t) + ' · 노출 ' + nf(im) + ' · 클릭률 ' + pct(t, im); } }));
+    body.appendChild(g6);
     body.hidden = false;
   }
 

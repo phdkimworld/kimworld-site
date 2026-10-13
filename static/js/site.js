@@ -1,3 +1,7 @@
+// 행동 이벤트(운영 통계용): 이 페이지에서 일어난 일의 이름만 모았다가, 페이지를 떠날 때 방문 기록과 함께 한 번 보낸다
+window.kwEvents = window.kwEvents || {};
+window.kwEv = function (name) { window.kwEvents[name] = 1; };
+
 /* 김박사 월드 — 화면 동작 (프레임워크 없이, 없어도 글은 다 읽힘) */
 (function () {
   'use strict';
@@ -52,6 +56,7 @@
   }
   function toggleSave() {
     var c = current(); if (!c) return;
+    kwEv('save');
     var list = load(SAVED, []).filter(function (x) { return x.u !== c.u; });
     var was = isSaved();
     if (!was) { c.at = Date.now(); list.unshift(c); }
@@ -59,6 +64,7 @@
     toast(was ? '저장을 취소했습니다' : '저장했습니다. 아래 "내 정보 → 저장함"에서 찾을 수 있어요');
   }
   function share(btn) {
+    kwEv('share');
     var url = location.href.split('#')[0];
     var title = document.title;
     var su = btn && btn.getAttribute('data-share-url');
@@ -139,6 +145,7 @@
     // 유튜브: 누를 때만 불러오기(페이지가 빨라짐)
     var yt = document.querySelector('.yt');
     if (yt) yt.querySelector('.yt-play').addEventListener('click', function () {
+      kwEv('yt_play');
       var f = document.createElement('iframe');
       f.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(yt.dataset.yt) + '?autoplay=1&rel=0';
       f.title = '유튜브 영상'; f.allow = 'autoplay; encrypted-media; picture-in-picture'; f.allowFullscreen = true;
@@ -420,6 +427,12 @@
   var SS = function (k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
   if (LS('kw-noan') === '1') return; // 운영자가 '내 방문 빼기'를 켠 기기
   var isNew = !LS('kw-did');
+  // 앱(홈 화면에 설치)으로 열었는지, 운영체제·브라우저 종류(카카오톡·네이버 앱 안 브라우저 포함)
+  var isApp = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var UA = navigator.userAgent;
+  var osName = /iphone|ipad|ipod/i.test(UA) || (/macintosh/i.test(UA) && navigator.maxTouchPoints > 1) ? 'ios' : /android/i.test(UA) ? 'android' : /windows/i.test(UA) ? 'windows' : /macintosh/i.test(UA) ? 'mac' : /linux/i.test(UA) ? 'linux' : 'other';
+  var brName = /kakaotalk/i.test(UA) ? 'kakaotalk' : /naver\(inapp|NAVER/.test(UA) ? 'naver' : /instagram/i.test(UA) ? 'instagram' : /FBAN|FBAV/.test(UA) ? 'facebook'
+    : /Whale/.test(UA) ? 'whale' : /SamsungBrowser/.test(UA) ? 'samsung' : /Edg\//.test(UA) ? 'edge' : /Firefox|FxiOS/.test(UA) ? 'firefox' : /CriOS|Chrome/.test(UA) ? 'chrome' : /Safari/.test(UA) ? 'safari' : 'other';
   // 이번 방문(탭 세션)의 몇 번째 페이지인지, 처음 들어온 경로
   var n = (parseInt(SS('kw-sn'), 10) || 0) + 1; SS('kw-sn', String(n));
   var src = SS('kw-src');
@@ -443,7 +456,8 @@
   function send() {
     if (sent) return; sent = true;
     var did = LS('kw-did') || '';
-    var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc });
+    var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc,
+      app: isApp ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}) });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
     try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}
     try { fetch(url, { method: 'POST', body: body, keepalive: true, credentials: 'include' }); } catch (e) {}
@@ -469,19 +483,20 @@
   function iosHelp() { return '사파리 아래쪽 공유 버튼(네모에 위 화살표)을 누른 뒤 "홈 화면에 추가"를 고르세요.'; }
   window.kwCanInstall = function () { return !!deferred || iosSafari; };
   window.kwInstall = function () {
+    kwEv('install_click');
     if (deferred) {
       deferred.prompt();
-      deferred.userChoice.then(function (c) { if (c && c.outcome === 'accepted') { toast('홈 화면에 추가했습니다'); hideAll(); } }).catch(function () {});
+      deferred.userChoice.then(function (c) { if (c && c.outcome === 'accepted') { kwEv('install_accept'); toast('홈 화면에 추가했습니다'); hideAll(); } else kwEv('install_dismiss'); }).catch(function () {});
       deferred = null; return;
     }
-    if (iosSafari) { toast(iosHelp(), 6000); return; }
+    if (iosSafari) { kwEv('ios_help'); toast(iosHelp(), 6000); return; }
     if (ios) { toast('사파리에서 이 사이트를 연 뒤 공유 → "홈 화면에 추가"를 고르세요.', 6000); return; }
     toast('브라우저 메뉴(⋮)에서 "홈 화면에 추가" 또는 "앱 설치"를 눌러 주세요.', 5000);
   };
   function hideAll() { document.querySelectorAll('[data-install], .install-card').forEach(function (n) { n.hidden = true; }); }
   function showButtons() { document.querySelectorAll('[data-install]').forEach(function (n) { n.hidden = false; }); }
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-install]'); if (b) { e.preventDefault(); window.kwInstall(); } });
-  addEventListener('appinstalled', hideAll);
+  addEventListener('appinstalled', function () { kwEv('installed'); hideAll(); });
   function dismissed() { try { return Date.now() - (+localStorage.getItem('kw-install-x') || 0) < 14 * 864e5; } catch (e) { return false; } }
   function card() { // 홈 피드 두 번째 글 뒤에 한 번
     var list = document.querySelector('.feed-list');
@@ -491,12 +506,12 @@
     w.innerHTML = '<img src="' + base + '/static/icon-192.png" alt="" width="44" height="44"><div class="ic-txt"><strong>김박사 월드를 앱처럼</strong><span>홈 화면에 추가하면 한 번에 열리고, 화면도 더 넓게 보여요.</span></div>'
       + '<div class="ic-row"><button type="button" class="btn btn-primary" data-install-go>' + (iosSafari ? '추가 방법 보기' : '설치') + '</button><button type="button" class="btn" data-install-x>닫기</button></div>';
     w.querySelector('[data-install-go]').addEventListener('click', function () {
-      if (iosSafari && !deferred) { w.querySelector('.ic-txt span').textContent = iosHelp(); return; }
+      if (iosSafari && !deferred) { kwEv('install_click'); kwEv('ios_help'); w.querySelector('.ic-txt span').textContent = iosHelp(); return; }
       window.kwInstall();
     });
     w.querySelector('[data-install-x]').addEventListener('click', function () { try { localStorage.setItem('kw-install-x', String(Date.now())); } catch (e) {} w.remove(); });
-    after.after(w);
+    after.after(w); kwEv('install_card');
   }
-  addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; showButtons(); card(); });
+  addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; kwEv('install_prompt'); showButtons(); card(); });
   if (iosSafari) { showButtons(); if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', card); else card(); }
 })();

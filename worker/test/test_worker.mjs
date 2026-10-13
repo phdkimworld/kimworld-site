@@ -386,6 +386,15 @@ check(an.data.sources.find((x) => x.src === "youtube").sess === 1 && an.data.sou
 check(an.data.pages.some((x) => x.path === "/(기타)") && an.data.pages.find((x) => x.path === "/r/rgti-2026-10/").scroll === 80, "모르는 주소는 기타로, 스크롤 100% 넘지 않음");
 check(an.data.series.length === 7 && an.data.active.dau === 2 && an.data.community.users >= 1, "날짜 축 7일, 오늘 방문자, 가입자 수");
 check(!JSON.stringify((await DB.prepare("SELECT * FROM an_seen").all()).results).includes("91.0.0"), "방문 기록에 IP 없음");
+// 확장 통계: 앱으로 연 방문·기기·행동 이벤트·유입 페이지·검색 실패
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", m: 1, n: 1, s: 1, a: 60, sc: 50, app: 1, os: "android", br: "chrome", ev: ["installed", "share", "share", "hack<script>"] }, ip: "91.0.0.6" });
+await call("POST", "/v1/search", { body: { q: "팔란티어", miss: 1 }, ip: "91.0.0.6" });
+await call("POST", "/v1/search", { body: { q: "팔란티어", miss: 1 }, ip: "91.0.0.6" });
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+check(an.data.app.users30 === 1 && an.data.app.pv === 1 && an.data.events.installed === 1 && an.data.events.share === 1 && !("hack<script>" in an.data.events), "앱 사용자·설치·이벤트(한 페이지 같은 이벤트는 1번, 모르는 이름은 버림)");
+check(an.data.tech.some((x) => x.os === "android" && x.br === "chrome") && an.data.entries.some((x) => x.path === "/r/rgti-2026-10/" && x.src === "youtube"), "운영체제·브라우저, 유튜브 → 리포트 첫 페이지");
+check(an.data.misses.length === 1 && an.data.misses[0].n === 1, "결과 없는 검색어(하루 한 사람 한 번)");
+check(an.data.cohorts.length >= 1 && an.data.reports.some((x) => x.slug === "rgti-2026-10" && "likes" in x), "코호트·리포트별 성과");
 const own = await login("google", "alice", "91.0.0.5");
 r1 = await call("POST", "/v1/me", { body: { nick: "운영통계" }, ip: "91.0.0.5", cookie: own.cookie });
 an = await call("GET", "/v1/admin/whoami", { ip: "91.0.0.5", cookie: own.cookie });

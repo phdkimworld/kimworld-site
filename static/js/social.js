@@ -138,7 +138,7 @@
       api('/v1/follow', { method: 'POST', body: { uid: u.id } }).then(function (r) {
         b.disabled = false;
         if (r._status !== 200) { if (r.message) toast(r.message); return; }
-        b.textContent = r.following ? '팔로잉' : '팔로우';
+        b.textContent = r.following ? '팔로잉' : '팔로우'; if (r.following && window.kwEv) kwEv('follow_user');
         b.className = 'btn sg-follow' + (r.following ? '' : ' btn-primary');
         if (onDone) onDone(r.following);
       }).catch(function () { b.disabled = false; });
@@ -292,6 +292,7 @@
     var sel = cf.querySelector('[data-composer-board]'), lenEl = cf.querySelector('[data-composer-len]'), cmsg = cf.querySelector('[data-composer-msg]');
     var started = 0;
     var nickIn = cf.querySelector('[name=nick]');
+    ta.addEventListener('focus', function () { if (window.kwEv) kwEv('compose_open'); });
     ta.addEventListener('input', function () {
       if (!started) started = Date.now();
       lenEl.textContent = ta.value.length + '/500';
@@ -311,7 +312,7 @@
         if (!d.ok) { cmsg.textContent = d.message || '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
         ta.value = ''; started = 0; lenEl.textContent = '0/500'; cp.classList.remove('composer-on');
         if (d.status === 'held') { cmsg.textContent = d.message; return; }
-        toast('올렸습니다');
+        toast('올렸습니다'); if (window.kwEv) kwEv('post_submit');
         // 방금 쓴 글은 순위와 상관없이 맨 위에 보여 준다
         var mine = { id: d.id, slug: sel.value, nick: d.nick || (C.state().me ? C.state().me.nick : '나'), uid: C.state().me ? C.state().me.id : null, body: sentBody, likes: 0, created: Date.now(), replies: 0, liked: false, mine: true };
         load(true).then(function () {
