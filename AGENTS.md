@@ -80,7 +80,7 @@
 
 ## 7. 조회수·댓글·좋아요·인기 (API)
 
-- 계정: 구글·카카오 로그인(받는 것은 회원 번호뿐: 구글 `openid` 범위, 카카오 동의 항목 없음). 회원 번호는 `SALT`로 해시해 `users.actor`(o-…)에 저장하고, 로그인은 api.drkimworld.com의 HttpOnly 쿠키 `kw_s`(180일). 닉네임은 첫 로그인 때 정하고 바꿀 수 없다. 이메일·이름·전화·사진·쪽지는 운영자 결정 없이 받지 않는다. 네이버 로그인은 네이버 검수가 필요해 넣지 않았다.
+- 계정: 구글·카카오 로그인(받는 것은 회원 번호뿐: 구글 `openid` 범위, 카카오 동의 항목 없음). 회원 번호는 `SALT`로 해시해 `users.actor`(o-…)에 저장하고, 로그인은 api.drkimworld.com의 HttpOnly 쿠키 `kw_s`(180일). 닉네임은 첫 로그인 때 정하고 14일에 한 번 바꿀 수 있다(`users.nick_changed`, 바꾸면 지난 글 `comments.nick`도 함께). 이메일·이름·전화·사진·쪽지는 운영자 결정 없이 받지 않는다. 네이버 로그인은 네이버 검수가 필요해 아직 넣지 않았다.
 - 로그인 비밀값은 GitHub Secrets에만: `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`(리디렉션 URI `https://api.drkimworld.com/v1/auth/google/callback`), `KAKAO_REST_KEY`(+선택 `KAKAO_CLIENT_SECRET`, 리디렉션 URI `https://api.drkimworld.com/v1/auth/kakao/callback`). 넣은 뒤 API 워크플로를 한 번 실행하면 켜진다. 비밀값이 없으면 그 로그인 버튼은 안 보인다.
 - 종토방 첫 글: 사이트 배포 때 `scripts/board_notices.py`가 리포트가 있는 종목마다 공지(종목 소개 한 문장 + 규칙)를 한 번만 올린다(고정 글, `pinned`).
 - 종토방: 종목마다 `b-티커소문자` 묶음(댓글과 같은 저장소). 종목 페이지(`/t/티커/#board`)에 있고, 리포트의 반응 줄·고정 반응 줄·"종토방 미리보기"에서 연결한다. 글쓰기는 계정이 있어야 하며 새 계정(24시간)은 10분에 1개·하루 5개.

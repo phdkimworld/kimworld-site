@@ -218,6 +218,21 @@ const LB = await login("kakao", "bob", "80.0.0.2");
 check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.start.includes("scope"), "카카오는 동의 항목 없이(회원 번호만)");
 r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
 const uB = r1.data.user.id;
+// 닉네임 변경: 14일에 한 번, 규칙·중복 검사, 지난 글 이름도 함께
+r1 = await call("POST", "/v1/me", { body: { nick: "장기투자자" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.status === 429 && r1.data.error === "nick_wait", "가입 직후에는 14일 동안 닉네임 변경 불가");
+sqlite.exec(`UPDATE users SET created = created - 15 * 86400000 WHERE id = ${uB}`);
+r1 = await call("POST", "/v1/me", { body: { nick: "퀀텀개미" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.status === 409, "남이 쓰는 닉네임으로는 못 바꿈");
+r1 = await call("POST", "/v1/me", { body: { nick: "김박사짱" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.status === 400, "운영자 흉내 닉네임으로는 못 바꿈");
+r1 = await call("POST", "/v1/me", { body: { nick: "장기투자자", bio: "소개" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.data.ok && r1.data.user.nick === "장기투자자" && r1.data.user.nickNext > Date.now() + 13 * 864e5, "14일 지나면 바꿀 수 있고 다음 변경은 14일 뒤");
+r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.status === 429, "바꾼 뒤 14일 안에는 다시 못 바꿈");
+r1 = await call("POST", "/v1/me", { body: { bio: "소개만 바꾸기" }, ip: "80.0.0.2", cookie: LB.cookie });
+check(r1.data.ok && r1.data.user.bio === "소개만 바꾸기", "소개는 언제든 바꿈");
+sqlite.exec(`UPDATE users SET nick = '장투러', nick_lc = '장투러' WHERE id = ${uB}`); // 이후 검사를 위해 원래대로
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "로그인 없이 종토방 글", t: 8000 }, ip: "80.0.0.3" });
 check(r1.status === 401, "로그인이 켜져 있으면 종토방 글은 로그인해야 씀");
 const savedKeys = [env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY];

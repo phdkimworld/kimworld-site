@@ -189,7 +189,7 @@
       }
       if (!ME) { // 로그인은 했지만 닉네임을 아직 안 정함
         var body2 = dialog('닉네임 정하기');
-        body2.appendChild(el('p', 'muted', '종토방과 댓글에 보일 이름입니다. 나중에 바꿀 수 없습니다.'));
+        body2.appendChild(el('p', 'muted', '종토방과 댓글에 보일 이름입니다. 닉네임은 14일에 한 번 바꿀 수 있습니다.'));
         var nick = el('input'); nick.maxLength = 12; nick.placeholder = '한글·영문·숫자 2~12자'; nick.autocomplete = 'off';
         var bio = el('input'); bio.maxLength = 80; bio.placeholder = '한 줄 소개 (선택)';
         var agree = el('input'); agree.type = 'checkbox';
@@ -211,6 +211,24 @@
       var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick));
       var nm = el('div'); nm.appendChild(el('strong', null, ME.nick)); nm.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입'));
       info.appendChild(nm); body3.appendChild(info);
+      // 닉네임 바꾸기: 14일에 한 번
+      var nk = el('input'); nk.maxLength = 12; nk.value = ME.nick; nk.autocomplete = 'off';
+      var canNick = !ME.nickNext || Date.now() >= ME.nickNext;
+      var nkRow = el('div', 'kw-row');
+      var nkHint = el('p', 'muted kw-small', canNick ? '닉네임은 14일에 한 번 바꿀 수 있습니다. 바꾸면 지난 글의 이름도 함께 바뀝니다.'
+        : new Date(ME.nickNext).toLocaleDateString('ko-KR') + '부터 다시 바꿀 수 있습니다(14일에 한 번).');
+      nk.disabled = !canNick;
+      body3.appendChild(field('닉네임', nk));
+      if (canNick) nkRow.appendChild(btn('닉네임 변경', 'btn', function () {
+        var v = nk.value.trim();
+        if (v === ME.nick) { msg.textContent = '지금과 같은 닉네임입니다.'; return; }
+        if (!confirm('닉네임을 "' + v + '"(으)로 바꿀까요? 바꾼 뒤 14일 동안은 다시 바꿀 수 없습니다.')) return;
+        api('/v1/me', { method: 'POST', body: { nick: v, bio: ME.bio || '' } }).then(function (d) {
+          if (!d.ok) { msg.textContent = d.message || '바꾸지 못했습니다.'; return; }
+          location.reload();
+        }).catch(function () { msg.textContent = '바꾸지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
+      }));
+      body3.appendChild(nkRow); body3.appendChild(nkHint);
       var bio2 = el('input'); bio2.maxLength = 80; bio2.value = ME.bio || ''; bio2.placeholder = '한 줄 소개';
       body3.appendChild(field('소개', bio2));
       var row = el('div', 'kw-row');

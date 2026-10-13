@@ -86,11 +86,19 @@ async function allow(db, key, limit, ttlMs, now) {
 // 종토방: 댓글과 같은 저장소를 쓰고 slug가 "b-티커"인 묶음. 글쓰기는 계정이 있어야 한다
 const isBoard = (slug) => slug.startsWith("b-");
 const NICK_RE = /^[가-힣A-Za-z0-9_]{2,12}$/;
-const ACCOUNT = { createPerIpDay: 3, newMs: 864e5, newPostsPerDay: 5, newPostGapMs: 10 * 60e3, followPerDay: 200, bioMax: 80 };
+const ACCOUNT = { nickChangeMs: 14 * 864e5, createPerIpDay: 3, newMs: 864e5, newPostsPerDay: 5, newPostGapMs: 10 * 60e3, followPerDay: 200, bioMax: 80 };
 
 async function userByActor(db, actor) {
-  return db.prepare("SELECT id, nick, bio, created, status FROM users WHERE actor = ?").bind(actor).first();
+  return db.prepare("SELECT id, nick, bio, created, status, nick_changed FROM users WHERE actor = ?").bind(actor).first();
 }
+// 닉네임 규칙: 한글·영문·숫자·_ 2~12자, 운영자·사이트 이름 흉내와 홍보 문구 금지. 문제가 없으면 null
+function nickProblem(nick) {
+  if (!NICK_RE.test(nick)) return "닉네임은 한글·영문·숫자·_ 2~12자입니다.";
+  if (/운영자|관리자|김박사|admin|drkim|kimworld/i.test(nick) || needsHold(nick)) return "쓸 수 없는 닉네임입니다.";
+  return null;
+}
+// 다음에 닉네임을 바꿀 수 있는 시각(가입 직후 정한 닉네임도 14일 뒤부터)
+const nickNext = (u) => (u.nick_changed || u.created) + ACCOUNT.nickChangeMs;
 // 알림: 같은 대상·종류는 한 줄로 모으고 개수만 늘린다(좋아요 100개 → 알림 1줄)
 async function notify(db, uid, type, ref, slug, fromNick, now) {
   if (!uid) return;
@@ -524,7 +532,7 @@ export default {
         const base = { providers: providers(env), loggedIn: !!session };
         if (!me) return json(req, { ...base, user: null }, 200, { "Cache-Control": "no-store" });
         const un = await db.prepare("SELECT COUNT(*) AS n FROM notifs WHERE uid = ? AND seen = 0").bind(me.id).first();
-        return json(req, { ...base, user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status }, unread: un?.n || 0 }, 200, { "Cache-Control": "no-store" });
+        return json(req, { ...base, user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status, nickNext: nickNext(me) }, unread: un?.n || 0 }, 200, { "Cache-Control": "no-store" });
       }
       if (p === "/v1/me" && req.method === "POST") {
         if (!session) return json(req, { error: "login", message: "구글 또는 카카오로 로그인한 뒤 계정을 만들 수 있습니다." }, 401);
@@ -533,13 +541,24 @@ export default {
         if (bio.length > ACCOUNT.bioMax) return json(req, { error: "bio", message: `소개는 ${ACCOUNT.bioMax}자까지입니다.` }, 400);
         if (bio && needsHold(bio)) return json(req, { error: "bio", message: "소개에는 링크·연락처·홍보 문구를 넣을 수 없습니다." }, 400);
         const me = await userByActor(db, actor);
-        if (me) { // 소개만 바꿀 수 있다(닉네임은 사칭·혼란을 막으려고 고정)
+        if (me) {
+          const nn = typeof b.nick === "string" ? b.nick.trim() : "";
+          if (nn && nn !== me.nick) { // 닉네임 변경: 14일에 한 번(사칭·혼란 막기)
+            if (me.status !== "ok") return json(req, { error: "banned", message: "이용이 제한된 계정입니다." }, 403);
+            if (now < nickNext(me)) return json(req, { error: "nick_wait", message: `닉네임은 14일에 한 번 바꿀 수 있습니다. ${kstDay(nickNext(me))}부터 다시 바꿀 수 있습니다.`, nickNext: nickNext(me) }, 429);
+            const prob = nickProblem(nn);
+            if (prob) return json(req, { error: "nick", message: prob }, 400);
+            const up = await db.prepare("UPDATE OR IGNORE users SET nick = ?, nick_lc = ?, nick_changed = ? WHERE id = ?").bind(nn, nn.toLowerCase(), now, me.id).run();
+            if (!up.meta?.changes) return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
+            await db.prepare("UPDATE comments SET nick = ? WHERE uid = ?").bind(nn, me.id).run(); // 지난 글의 이름도 함께
+          }
           await db.prepare("UPDATE users SET bio = ? WHERE id = ?").bind(bio, me.id).run();
-          return json(req, { ok: true, user: { ...me, bio } });
+          const u = await userByActor(db, actor);
+          return json(req, { ok: true, user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created, status: u.status, nickNext: nickNext(u) } });
         }
         const nick = String(b.nick || "").trim();
-        if (!NICK_RE.test(nick)) return json(req, { error: "nick", message: "닉네임은 한글·영문·숫자·_ 2~12자입니다." }, 400);
-        if (/운영자|관리자|김박사|admin|drkim|kimworld/i.test(nick) || needsHold(nick)) return json(req, { error: "nick", message: "쓸 수 없는 닉네임입니다." }, 400);
+        const prob = nickProblem(nick);
+        if (prob) return json(req, { error: "nick", message: prob }, 400);
         if (!(await allow(db, `acct|${ih}`, ACCOUNT.createPerIpDay, 864e5, now))) return json(req, { error: "rate", message: "오늘은 이 네트워크에서 더 만들 수 없습니다." }, 429);
         const ins = await db.prepare("INSERT OR IGNORE INTO users (actor, nick, nick_lc, bio, created) VALUES (?, ?, ?, ?, ?)").bind(actor, nick, nick.toLowerCase(), bio, now).run();
         if (!ins.meta?.changes) return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
