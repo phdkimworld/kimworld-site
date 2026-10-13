@@ -333,6 +333,24 @@ r1 = await call("POST", "/v1/comments", { body: { slug: "b-talk", body: "좋은 
 check(r1.data.status === "held", "인용 부분에 홍보 문구가 있으면 보류");
 fd = await call("GET", "/v1/feed?tab=all", { ip: "80.0.0.7" });
 check(fd.data.items.some((x) => x.id === qid && x.quote && x.quote.ref === "xndu-2026-10"), "피드 글에 인용 표시");
+// 종목·테마 팔로우: 로그인 필요, 다시 누르면 취소, 팔로워 수, 팔로잉 피드에 그 종토방 글
+r1 = await call("POST", "/v1/topics", { body: { kind: "t", key: "XNDU" }, ip: "80.0.0.7" });
+check(r1.status === 401, "로그인 없이 종목 팔로우 불가");
+r1 = await call("POST", "/v1/topics", { body: { kind: "t", key: "x'; drop" }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.status === 400, "이상한 종목 이름 거절");
+r1 = await call("POST", "/v1/topics", { body: { kind: "th", key: "quantum" }, ip: "80.0.0.1", cookie: LA.cookie });
+r1 = await call("POST", "/v1/topics", { body: { kind: "t", key: "ANON" }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.data.following === true && r1.data.followers === 1, "종목 팔로우");
+fd = await call("GET", "/v1/topics", { ip: "80.0.0.1", cookie: LA.cookie });
+check(fd.data.items.length === 2 && fd.data.items.some((x) => x.kind === "th" && x.key === "quantum"), "내가 팔로우한 종목·테마 목록");
+fd = await call("GET", "/v1/topics/stats?keys=t:ANON,th:quantum,t:NONE", { ip: "80.0.0.1", cookie: LA.cookie });
+check(fd.data.stats["t:ANON"].followers === 1 && fd.data.stats["t:ANON"].following && fd.data.stats["t:NONE"].followers === 0, "팔로워 수·내가 했는지");
+fd = await call("GET", "/v1/feed?tab=following&boards=b-anon", { ip: "80.0.0.1", cookie: LA.cookie });
+check(fd.data.items.some((x) => x.slug === "b-anon"), "팔로잉 탭에 팔로우한 종목 종토방 글");
+fd = await call("GET", "/v1/feed?tab=following", { ip: "80.0.0.1", cookie: LA.cookie });
+check(!fd.data.items.some((x) => x.slug === "b-anon"), "종목을 안 넘기면 그 종토방 글은 없음");
+r1 = await call("POST", "/v1/topics", { body: { kind: "t", key: "ANON" }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r1.data.following === false && r1.data.followers === 0, "다시 누르면 종목 팔로우 취소");
 fd = await call("GET", "/v1/users/suggest", { ip: "80.0.0.7" });
 check(fd.data.items.length >= 1 && fd.data.items[0].id === uA && !("actor" in fd.data.items[0]), "팔로우 추천: 좋아요 많이 받은 사람부터(로그인 정보 없음)");
 fd = await call("GET", "/v1/users/suggest", { ip: "80.0.0.2", cookie: LB.cookie });

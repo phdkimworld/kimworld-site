@@ -80,7 +80,7 @@ jobs:
       - name: Build
         run: python build.py --strict
       - name: Board notices
-        # 새 종목 종토방에 첫 글(종목 소개 + 규칙 공지)을 올린다. 이미 공지가 있는 종토방은 건드리지 않는다
+        # 새 종목 종토방에 첫 글(종목 소개 + 규칙 공지)을 올리고, 새로 공개된 리포트를 그 종목·테마 팔로워에게 한 번 알린다(여러 번 돌려도 안전)
         if: github.event_name != 'pull_request'
         continue-on-error: true
         env:

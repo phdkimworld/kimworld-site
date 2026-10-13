@@ -39,6 +39,7 @@
       <div class="report-ticker">
         <a class="tick tick-lg" href="{{ base }}/t/{{ r.ticker|lower }}/">{{ r.ticker }}</a>
         <span class="report-company">{{ r.company }} <span class="muted">{{ r.company_en }} · {{ r.exchange }}</span></span>
+        {% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="t" data-key="{{ r.ticker }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}
       </div>
       <h1>{{ r.title }}</h1>
       <p class="report-meta">

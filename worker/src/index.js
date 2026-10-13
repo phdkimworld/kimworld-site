@@ -595,6 +595,7 @@ export default {
               : db.prepare("UPDATE comments SET uid = NULL, did = NULL, nick = '탈퇴한 사용자' WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM follows WHERE follower = ? OR followee = ?").bind(me.id, me.id),
           db.prepare("DELETE FROM reposts WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM topic_follows WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM notifs WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM users WHERE id = ?").bind(me.id),
           db.prepare("DELETE FROM sessions WHERE actor = ?").bind(actor),
@@ -649,6 +650,44 @@ export default {
         const n = await db.prepare("SELECT COUNT(*) AS n FROM reposts WHERE kind = ? AND ref = ?").bind(kind, key).first();
         return json(req, { reposted: !!ins.meta?.changes, count: n?.n || 0 });
       }
+      // ---------- 종목·테마 팔로우 ----------
+      const TOPIC_RE = { t: /^[A-Z0-9.]{1,10}$/, th: /^[a-z0-9-]{2,40}$/ };
+      if (p === "/v1/topics" && req.method === "GET") { // 내가 팔로우한 종목·테마
+        const me = await userByActor(db, actor);
+        if (!me) return json(req, { items: [] }, 200, { "Cache-Control": "no-store" });
+        const r = await db.prepare("SELECT kind, key, created FROM topic_follows WHERE uid = ? ORDER BY created DESC LIMIT 200").bind(me.id).all();
+        return json(req, { items: r.results || [] }, 200, { "Cache-Control": "no-store" });
+      }
+      if (p === "/v1/topics" && req.method === "POST") { // 팔로우 / 다시 누르면 취소
+        const me = await userByActor(db, actor);
+        if (!me || me.status !== "ok") return json(req, { error: "account", message: "로그인하면 종목·테마를 팔로우할 수 있습니다." }, 401);
+        const { kind, key } = await readJson(req);
+        if (!TOPIC_RE[kind] || !TOPIC_RE[kind].test(String(key || ""))) return json(req, { error: "topic" }, 400);
+        const ins = await db.prepare("INSERT OR IGNORE INTO topic_follows (uid, kind, key, created) SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM topic_follows WHERE uid = ?) < 200")
+          .bind(me.id, kind, key, now, me.id).run();
+        if (!ins.meta?.changes) {
+          const del = await db.prepare("DELETE FROM topic_follows WHERE uid = ? AND kind = ? AND key = ?").bind(me.id, kind, key).run();
+          if (!del.meta?.changes) return json(req, { error: "limit", message: "종목·테마는 200개까지 팔로우할 수 있습니다." }, 429);
+        }
+        const n = await db.prepare("SELECT COUNT(*) AS n FROM topic_follows WHERE kind = ? AND key = ?").bind(kind, key).first();
+        return json(req, { following: !!ins.meta?.changes, followers: n?.n || 0 });
+      }
+      if (p === "/v1/topics/stats" && req.method === "GET") { // 여러 종목·테마의 팔로워 수와 내가 팔로우했는지. keys=t:PLTR,th:quantum
+        const keys = (url.searchParams.get("keys") || "").split(",").map((x) => x.split(":")).filter(([k, v]) => TOPIC_RE[k] && TOPIC_RE[k].test(v || "")).slice(0, 40);
+        const out = {};
+        if (keys.length) {
+          const me = await userByActor(db, actor);
+          const cond = keys.map(() => "(kind = ? AND key = ?)").join(" OR "), args = keys.flat();
+          const [cnt, mine] = await Promise.all([
+            db.prepare(`SELECT kind, key, COUNT(*) AS n FROM topic_follows WHERE ${cond} GROUP BY kind, key`).bind(...args).all(),
+            me ? db.prepare(`SELECT kind, key FROM topic_follows WHERE uid = ? AND (${cond})`).bind(me.id, ...args).all() : { results: [] },
+          ]);
+          for (const [k, v] of keys) out[k + ":" + v] = { followers: 0, following: false };
+          for (const r of cnt.results || []) out[r.kind + ":" + r.key].followers = r.n;
+          for (const r of mine.results || []) out[r.kind + ":" + r.key].following = true;
+        }
+        return json(req, { stats: out }, 200, { "Cache-Control": "no-store" });
+      }
       if (p === "/v1/follow" && req.method === "POST") {
         const me = await userByActor(db, actor);
         if (!me || me.status !== "ok") return json(req, { error: "account", message: "계정을 만든 뒤 팔로우할 수 있습니다." }, 401);
@@ -678,9 +717,11 @@ export default {
         const following = url.searchParams.get("tab") === "following";
         const me = await userByActor(db, actor);
         if (following && !me) return json(req, p === "/v1/feed" ? { items: [], more: false } : { n: 0 }, 200, { "Cache-Control": "no-store" });
+        // 팔로잉 탭: 팔로우한 사람 + 나 + 팔로우한 종목·테마의 종토방(화면이 boards=b-pltr,b-ionq로 알려 줌)
+        const boards = following ? (url.searchParams.get("boards") || "").split(",").filter((x) => /^b-[a-z0-9.-]{1,12}$/.test(x)).slice(0, 80) : [];
         const where = `c.slug LIKE 'b-%' AND c.parent_id IS NULL AND c.pinned = 0 AND c.status = 'ok'` +
-          (following ? " AND (c.uid = ? OR c.uid IN (SELECT followee FROM follows WHERE follower = ?))" : "");
-        const fb = following ? [me.id, me.id] : [];
+          (following ? ` AND (c.uid = ? OR c.uid IN (SELECT followee FROM follows WHERE follower = ?)${boards.length ? ` OR c.slug IN (${boards.map(() => "?").join(",")})` : ""})` : "");
+        const fb = following ? [me.id, me.id, ...boards] : [];
         if (p === "/v1/feed/new") { // 새 글 알림 줄: 이 시각 뒤에 올라온 글 수(최대 99)
           const since = Math.max(0, parseInt(url.searchParams.get("since") || String(now), 10) || 0);
           const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM comments c WHERE ${where} AND c.created > ? AND (c.did IS NULL OR c.did != ?) LIMIT 99)`).bind(...fb, since, actor).first();

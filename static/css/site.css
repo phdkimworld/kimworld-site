@@ -787,3 +787,15 @@ a.cm-time:hover { text-decoration: underline; }
 .ic-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .is-app .site-header { padding-top: env(safe-area-inset-top, 0px); }
 .kw-dlg-body { grid-template-columns: minmax(0, 1fr); } .kw-dlg-body > * { min-width: 0; }
+
+/* ---------- 종목·테마 팔로우 ---------- */
+.topic-follow { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; white-space: nowrap; flex: none; }
+.topic-follow[hidden] { display: none; }
+.topic-follow[aria-pressed="true"] { background: transparent; color: var(--text); border-color: var(--line); }
+.topic-n { font-weight: 600; opacity: .8; font-variant-numeric: tabular-nums; }
+.topic-n:empty { display: none; }
+.report-ticker { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.theme-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.theme-head h1 { margin: 0; }
+.my-topics { margin-top: 16px; }
+.my-topics .chip-list { margin-top: 6px; }

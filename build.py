@@ -671,7 +671,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "asset_ver": asset_ver, "year": today.year, "tickers": tickers,
         "COUPANG_PAGE_NOTICE": COUPANG_PAGE_NOTICE,
         # 종토방이 있는 종목(리포트가 있는 종목). 글 속 $TSLA 링크와 글쓰기 상자에 쓴다
-        "board_ticks": [{"c": c, "n": (tickers.get(c) or {}).get("name", "")} for c in sorted(by_ticker)],
+        "board_ticks": [{"c": c, "n": (tickers.get(c) or {}).get("name", ""),
+                         "s": next((t["slug"] for t in themes if t["name"] == (tickers.get(c) or {}).get("theme")), "")} for c in sorted(by_ticker)],
     }
 
     def write(rel: str, tpl: str, **ctx):

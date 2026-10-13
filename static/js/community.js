@@ -280,8 +280,9 @@
           : x.type === 'reply' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글에 답글을 달았습니다'
           : x.type === 'repost' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글을 리포스트했습니다'
           : x.type === 'quote' ? (x.from_nick || '누군가') + '님이 내 글을 인용했습니다'
+          : x.type === 'report' ? '새 리포트 · ' + shortTitle(x.from_nick || '')
           : '내 글에 좋아요 ' + x.n + '개';
-        a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : itemUrl(x.slug, x.ref);
+        a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : x.type === 'report' ? base + '/r/' + x.ref + '/' : itemUrl(x.slug, x.ref);
         li.appendChild(a);
         li.appendChild(el('span', 'muted', (x.slug ? ' · ' + threadLabel(x.slug) : '') + ' · ' + ago(x.updated)));
         ul.appendChild(li);
@@ -786,6 +787,23 @@
           });
           pane.appendChild(l);
         };
+        if (d.self) { // 팔로우한 종목·테마
+          var tw = el('section', 'my-topics'); tw.appendChild(el('h2', 'section-title', '팔로우한 종목·테마'));
+          var tl = el('ul', 'chip-list'); tw.appendChild(tl);
+          tl.appendChild(el('li', 'muted kw-small', '불러오는 중…'));
+          prof.appendChild(tw);
+          myTopics(true).then(function (items) {
+            tl.textContent = '';
+            if (!items.length) { tl.appendChild(el('li', 'muted kw-small', '아직 없습니다. 종목·테마 페이지나 리포트 제목 옆의 "+ 팔로우"를 눌러 보세요.')); return; }
+            var thName = {}; document.querySelectorAll('.theme-nav a').forEach(function (a) { var m = /\/theme\/([^/]+)\//.exec(a.getAttribute('href')); if (m) thName[m[1]] = a.textContent.trim(); });
+            items.forEach(function (x) {
+              var li = el('li'), a = el('a', 'chip');
+              if (x.kind === 't') { a.href = base + '/t/' + x.key.toLowerCase() + '/'; a.appendChild(el('strong', null, x.key)); var nm = (KW.tk || []).filter(function (t) { return t.c === x.key; })[0]; if (nm) a.appendChild(document.createTextNode(' ' + nm.n)); }
+              else { a.href = base + '/theme/' + x.key + '/'; a.textContent = '# ' + (thName[x.key] || x.key); }
+              li.appendChild(a); tl.appendChild(li);
+            });
+          });
+        }
         var recent = d.self ? LS('kw-recent') : [], saved = d.self ? LS('kw-saved') : [];
         var pPosts = mkPane('posts', '글', d.items.length);
         var pRp = mkPane('reposts', '리포스트', (d.reposts || []).length); pRp.appendChild(rpUl);
@@ -946,8 +964,55 @@
     chip.addEventListener('click', function () { if (!cur) return; var q = cur; chip.hidden = true; openQuote(q); });
   })();
 
+  // ---------- 종목·테마 팔로우 ----------
+  // 팔로우하면: 팔로잉 피드에 그 종목(테마면 그 테마 종목들) 종토방 글이 모이고, 새 리포트가 나오면 알림
+  var topicsP = null;
+  function myTopics(fresh) {
+    if (!topicsP || fresh) topicsP = meReady.then(function () { return ME ? api('/v1/topics').then(function (d) { return d.items || []; }) : []; }).catch(function () { return []; });
+    return topicsP;
+  }
+  // 팔로우한 종목·테마 → 그 종토방 묶음 이름들(b-pltr …)
+  function topicBoards(items) {
+    var set = {};
+    items.forEach(function (x) {
+      if (x.kind === 't') set['b-' + x.key.toLowerCase()] = 1;
+      else (KW.tk || []).forEach(function (t) { if (t.s === x.key) set['b-' + t.c.toLowerCase()] = 1; });
+    });
+    return Object.keys(set);
+  }
+  function paintTopic(kind, key, st) {
+    document.querySelectorAll('[data-topic][data-kind="' + kind + '"][data-key="' + key + '"]').forEach(function (b) {
+      b.hidden = false; b.setAttribute('aria-pressed', st.following ? 'true' : 'false');
+      b.querySelector('[data-topic-label]').textContent = st.following ? '✓ 팔로잉' : '+ 팔로우';
+      var n = b.querySelector('[data-topic-n]'); if (n) n.textContent = st.followers ? num(st.followers) : '';
+    });
+  }
+  (function () {
+    var bs = Array.prototype.slice.call(document.querySelectorAll('[data-topic]')); if (!bs.length) return;
+    var keys = bs.map(function (b) { return b.getAttribute('data-kind') + ':' + b.getAttribute('data-key'); }).filter(function (x, i, a) { return a.indexOf(x) === i; });
+    meReady.then(function () { return api('/v1/topics/stats?keys=' + encodeURIComponent(keys.join(','))); }).then(function (d) {
+      Object.keys(d.stats || {}).forEach(function (k) { var i = k.indexOf(':'); paintTopic(k.slice(0, i), k.slice(i + 1), d.stats[k]); });
+    }).catch(function () {});
+  })();
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-topic]'); if (!b || b.disabled) return;
+    e.preventDefault();
+    meReady.then(function () {
+      if (!ME) { openAccount(); return; }
+      var kind = b.getAttribute('data-kind'), key = b.getAttribute('data-key');
+      b.disabled = true;
+      api('/v1/topics', { method: 'POST', body: { kind: kind, key: key } }).then(function (d) {
+        b.disabled = false;
+        if (d._status !== 200) { alert(d.message || '팔로우하지 못했습니다.'); return; }
+        paintTopic(kind, key, d); myTopics(true);
+        flash(d.following ? '팔로우했어요. 새 리포트 알림과 팔로잉 피드에 이 ' + (kind === 't' ? '종목' : '테마') + ' 글이 모입니다' : '팔로우를 취소했습니다');
+      }).catch(function () { b.disabled = false; });
+    });
+  });
+
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
+    myTopics: myTopics, topicBoards: topicBoards,
     quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, richText: richText, nickEl: nickEl,
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,

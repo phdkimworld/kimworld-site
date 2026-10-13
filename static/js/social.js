@@ -170,7 +170,7 @@
     var tab = 'all';
     try { if (localStorage.getItem('kw-tab') === 'following') tab = 'following'; } catch (e) {}
     feed = { dirty: false };
-    var oldest = 0, newest = 0, pollN = 0, loading = false, hotMode = false, loaded = 0;
+    var oldest = 0, newest = 0, pollN = 0, loading = false, hotMode = false, loaded = 0, boardsQ = '';
     // 리포트 카드(메인 포스트)와 그 날짜(한국 시간 오전 9시로 본다)
     function reports() {
       return Array.prototype.slice.call(list ? list.querySelectorAll(':scope > article.post:not(.upost)') : []).map(function (n) {
@@ -230,7 +230,7 @@
         var b = el('button', 'btn btn-primary', '로그인'); b.type = 'button'; b.addEventListener('click', function () { C.openAccount(); }); box.appendChild(b);
         note(box); return;
       }
-      box.appendChild(el('p', null, '아직 팔로우한 사람의 글이 없습니다. 아래 리포트와 함께, 활발한 사람을 팔로우해 보세요.'));
+      box.appendChild(el('p', null, '아직 팔로우한 사람·종목의 글이 없습니다. 관심 종목 페이지에서 "+ 팔로우"를 누르거나, 활발한 사람을 팔로우해 보세요.'));
       var w = note(box);
       (sgItems ? Promise.resolve(sgItems) : loadSuggest()).then(function (items) {
         if (!items.length) return; var ul = el('ul', 'sg-list'); suggestList(ul, items.slice(0, 3)); w.appendChild(ul);
@@ -241,7 +241,9 @@
       var q = '/v1/feed?tab=' + tab + '&limit=' + (reset ? 30 : 20) + (tab === 'all' ? '&rank=hot' : '');
       if (!reset) q += hotMode ? '&offset=' + loaded : '&before=' + oldest;
       if (reset) { clear(); skeleton(); }
-      return api(q).then(function (d) {
+      // 팔로잉 탭: 팔로우한 종목·테마의 종토방 글도 함께
+      var pre = tab === 'following' ? C.myTopics().then(function (items) { var b = C.topicBoards(items); boardsQ = b.length ? '&boards=' + b.join(',') : ''; return boardsQ; }) : Promise.resolve('');
+      return pre.then(function (bq) { return api(q + bq); }).then(function (d) {
         loading = false;
         if (d._status !== 200) { clear(); return; }
         var items = d.items || [];
@@ -278,7 +280,7 @@
       if (pollN++ > 30) return;
       setTimeout(function () {
         if (document.hidden) { pollN--; poll(); return; }
-        api('/v1/feed/new?tab=' + tab + '&since=' + newest).then(function (d) {
+        api('/v1/feed/new?tab=' + tab + '&since=' + newest + (tab === 'following' ? boardsQ : '')).then(function (d) {
           if (d.n > 0) { newBtn.textContent = '새 글 ' + (d.n >= 99 ? '99+' : d.n) + '개 보기'; newBtn.hidden = false; }
           poll();
         }).catch(function () {});

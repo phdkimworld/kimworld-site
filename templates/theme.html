@@ -7,7 +7,7 @@
 <div class="wrap">
   <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ th.name }}</span></nav>
   <header class="page-head">
-    <h1>{{ th.name }}</h1>
+    <div class="theme-head"><h1>{{ th.name }}</h1>{% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="th" data-key="{{ th.slug }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}</div>
     <p class="muted">{{ th.description }}</p>
   </header>
   {% if rs %}

@@ -7,7 +7,7 @@
 <div class="wrap">
   <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ code }}</span></nav>
   <header class="page-head">
-    <div class="report-ticker"><span class="tick tick-lg">{{ code }}</span><span class="report-company">{{ t.name }} <span class="muted">{{ t.name_en }} · {{ t.exchange }}</span></span></div>
+    <div class="report-ticker"><span class="tick tick-lg">{{ code }}</span><span class="report-company">{{ t.name }} <span class="muted">{{ t.name_en }} · {{ t.exchange }}</span></span>{% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="t" data-key="{{ code }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}</div>
   </header>
   <nav class="seg-tabs" aria-label="{{ code }} 보기">
     <a href="#reports">리포트 <strong>{{ rs|length }}</strong></a>
