@@ -901,6 +901,15 @@
         sacts.appendChild(btn('프로필 편집', 'btn', openAccount));
         var sdm = el('a', 'btn', '쪽지함'); sdm.href = base + '/dm/'; sacts.appendChild(sdm);
         prof.appendChild(sacts);
+        // 운영자 계정이면 운영 통계(어드민)로 가는 바로가기를 맨 위에
+        api('/v1/admin/whoami').then(function (w) {
+          if (!w.owner) return;
+          var ad = el('a', 'admin-shortcut');
+          ad.href = base + '/admin/';
+          ad.appendChild(el('strong', null, '📊 운영 통계 열기'));
+          ad.appendChild(el('span', 'muted', '방문·유입 분석 · 신고 처리 · 앱 설치'));
+          prof.insertBefore(ad, prof.firstChild);
+        }).catch(function () {});
       } else {
         var fb = btn(d.following ? '팔로잉' : '팔로우', 'btn ' + (d.following ? '' : 'btn-primary') + ' follow-btn', function () {
           if (!ME) { openAccount(); return; }
