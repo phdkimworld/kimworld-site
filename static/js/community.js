@@ -37,13 +37,35 @@
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function num(n) { return Number(n || 0).toLocaleString('ko-KR'); }
-  // 닉네임 첫 글자 동그라미(닉네임마다 색이 정해짐)
-  function avatar(nick) {
+  // 프로필 동그라미: 사진이 있으면 사진, 없으면 닉네임 첫 글자(닉네임마다 색이 정해짐).
+  // 사진 여부는 화면에 나온 사람들을 모아 한 번에 묻는다(/v1/avatars) — 사진 없는 사람마다 요청하지 않게
+  var AV = {}, avWait = [], avTimer = 0;
+  function paintAv(span, uid) {
+    var v = AV[uid]; if (!v || span.getAttribute('data-av-v') === String(v)) return;
+    var img = new Image(); img.alt = ''; img.decoding = 'async'; img.className = 'cm-av-img'; // 화면에 붙기 전에 읽으므로 lazy는 쓰지 않는다
+    img.onload = function () { span.textContent = ''; span.appendChild(img); span.classList.add('has-img'); span.setAttribute('data-av-v', String(v)); };
+    img.src = API + '/v1/avatar/' + uid + '?v=' + v;
+  }
+  function avLoad() {
+    avTimer = 0;
+    var need = {}; avWait.forEach(function (x) { if (!(x.uid in AV)) need[x.uid] = 1; });
+    var ids = Object.keys(need).slice(0, 100), list = avWait; avWait = [];
+    var done = function () { list.forEach(function (x) { paintAv(x.span, x.uid); }); };
+    if (!ids.length) { done(); return; }
+    api('/v1/avatars?ids=' + ids.join(',')).then(function (d) { ids.forEach(function (i) { AV[i] = (d.av || {})[i] || 0; }); done(); }).catch(function () {});
+  }
+  function seedAv(uid, v) { if (!uid) return; AV[uid] = v || 0; document.querySelectorAll('[data-av-uid="' + uid + '"]').forEach(function (sp) { if (v) paintAv(sp, uid); else { sp.classList.remove('has-img'); sp.removeAttribute('data-av-v'); sp.textContent = sp.getAttribute('data-av-l') || '?'; } }); }
+  function avatar(nick, uid) {
     var n = String(nick || '?'), h = 0;
     for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
-    var a = el('span', 'cm-av', n.replace(/^익명#/, '익').charAt(0));
+    var letter = n.replace(/^익명#/, '익').charAt(0);
+    var a = el('span', 'cm-av', letter);
     a.style.background = 'hsl(' + (h % 360) + ' 42% 46%)';
-    a.setAttribute('aria-hidden', 'true');
+    a.setAttribute('aria-hidden', 'true'); a.setAttribute('data-av-l', letter);
+    if (uid) {
+      a.setAttribute('data-av-uid', uid);
+      if (uid in AV) paintAv(a, uid); else { avWait.push({ span: a, uid: uid }); if (!avTimer) avTimer = setTimeout(avLoad, 60); }
+    }
     return a;
   }
   // 선 하트 아이콘(누르면 채워짐)
@@ -66,13 +88,17 @@
   // $TSLA 같은 종목 표시를 그 종목 페이지 링크로(사이트에 있는 종목만). 나머지는 글자 그대로(HTML로 해석하지 않음)
   var TK = {}; (KW.tk || []).forEach(function (t) { TK[t.c] = t.n; });
   function richText(node, text) {
-    var re = /\$([A-Za-z]{1,6})(?![A-Za-z])/g, last = 0, m;
+    // $티커(사이트에 있는 종목) → 종목 페이지, @닉네임 → 그 사람 프로필
+    var re = /\$([A-Za-z]{1,6})(?![A-Za-z])|@([가-힣A-Za-z0-9_]{2,12})/g, last = 0, m;
     text = String(text || '');
     while ((m = re.exec(text))) {
-      var code = m[1].toUpperCase();
-      if (!TK[code]) continue;
+      var a;
+      if (m[1]) {
+        var code = m[1].toUpperCase();
+        if (!TK[code]) continue;
+        a = el('a', 'cashtag', '$' + code); a.href = base + '/t/' + code.toLowerCase() + '/'; a.title = TK[code];
+      } else { a = el('a', 'mention', '@' + m[2]); a.href = base + '/u/?n=' + encodeURIComponent(m[2]); }
       if (m.index > last) node.appendChild(document.createTextNode(text.slice(last, m.index)));
-      var a = el('a', 'cashtag', '$' + code); a.href = base + '/t/' + code.toLowerCase() + '/'; a.title = TK[code];
       node.appendChild(a); last = m.index + m[0].length;
     }
     if (last < text.length) node.appendChild(document.createTextNode(text.slice(last)));
@@ -160,16 +186,35 @@
   }
 
   // ---------- 계정(계정 키): 이메일·전화 없이 닉네임만. 키는 이 브라우저에만 저장 ----------
-  var ME = null, UNREAD = 0, LOGGED = false, PROVIDERS = [];
+  var ME = null, UNREAD = 0, LOGGED = false, PROVIDERS = [], DMN = 0, DMREQ = 0, BLOCKED = {};
   var meReady = api('/v1/me').then(function (d) {
     ME = d.user || null; UNREAD = d.unread || 0; LOGGED = !!d.loggedIn; PROVIDERS = d.providers || [];
-    paintHeader(); return ME;
+    DMN = d.dmUnread || 0; DMREQ = d.dmRequests || 0; BLOCKED = {}; (d.blocked || []).forEach(function (x) { BLOCKED[x] = 1; });
+    if (ME) seedAv(ME.id, ME.av);
+    paintHeader(); hideBlocked(); return ME;
   }).catch(function () { return null; });
+  // 머리줄 버튼이 많아 한 줄을 넘으면(로그인·앱 설치·탭 줄 없는 화면) 이름표를 숨기고, 그래도 넘으면 사이트 이름 글자를 숨긴다
+  function fitHeader() {
+    var row = document.querySelector('.header-row'); if (!row) return;
+    var over = function () { return row.scrollWidth > row.clientWidth + 1; };
+    row.classList.remove('hdr-compact', 'hdr-tight');
+    if (over()) row.classList.add('hdr-compact');
+    if (over()) row.classList.add('hdr-tight');
+  }
+  addEventListener('resize', fitHeader);
+  window.kwFitHeader = fitHeader;
+  function isBlocked(uid) { return !!(uid && BLOCKED[uid]); }
+  function hideBlocked() { // 차단한 사람의 글은 내 화면에서 숨긴다
+    document.querySelectorAll('[data-by-uid]').forEach(function (n) { if (isBlocked(+n.getAttribute('data-by-uid'))) n.hidden = true; });
+  }
   function paintHeader() {
     var lab = document.querySelector('[data-account-label]'); if (lab) lab.textContent = ME ? '내 계정' : '로그인';
     var bell = document.querySelector('[data-open-bell]'); if (bell) bell.hidden = !ME;
     document.querySelectorAll('[data-bell-n]').forEach(function (n) { n.hidden = !UNREAD; n.textContent = UNREAD > 9 ? '9+' : String(UNREAD); });
     var me = document.querySelector('[data-tab-me] span'); if (me) me.textContent = ME ? '내 정보' : '로그인';
+    var dm = document.querySelector('[data-open-dm]'); if (dm) dm.hidden = !ME;
+    fitHeader();
+    document.querySelectorAll('[data-dm-n]').forEach(function (n) { var k = DMN + DMREQ; n.hidden = !k; n.textContent = k > 9 ? '9+' : String(k); });
   }
   var dlg = null;
   function dialog(title) {
@@ -216,6 +261,7 @@
           if (!agree.checked) { msg.textContent = '이용약관에 동의해 주세요.'; return; }
           api('/v1/me', { method: 'POST', body: { nick: nick.value.trim(), bio: bio.value } }).then(function (d) {
             if (!d.ok) { msg.textContent = d.message || '만들지 못했습니다.'; return; }
+            if (window.kwEv) kwEv('signup');
             location.reload();
           }).catch(function () { msg.textContent = '만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
         }));
@@ -224,9 +270,34 @@
         return;
       }
       var body3 = dialog('내 계정');
-      var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick));
+      var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick, ME.id));
       var nm = el('div'); nm.appendChild(el('strong', null, ME.nick)); nm.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입'));
       info.appendChild(nm); body3.appendChild(info);
+      // 프로필 사진: 브라우저에서 가운데를 정사각형으로 잘라 256px로 줄인 뒤 올린다(원본 사진·위치 정보는 보내지 않음)
+      var phRow = el('div', 'kw-row kw-photo');
+      var file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
+      var phBtn = btn(ME.av ? '사진 바꾸기' : '프로필 사진 올리기', 'btn', function () { file.click(); });
+      phRow.appendChild(phBtn); phRow.appendChild(file);
+      var phDel = btn('사진 지우기', 'cm-link', function () {
+        if (!confirm('프로필 사진을 지울까요?')) return;
+        api('/v1/me/avatar/delete', { method: 'POST' }).then(function () { ME.av = 0; seedAv(ME.id, 0); phDel.hidden = true; phBtn.textContent = '프로필 사진 올리기'; msg.textContent = '사진을 지웠습니다.'; });
+      });
+      phDel.hidden = !ME.av; phRow.appendChild(phDel);
+      file.addEventListener('change', function () {
+        var f = file.files && file.files[0]; if (!f) return;
+        msg.textContent = '사진을 줄이는 중…';
+        squareImage(f, 256).then(function (blob) {
+          msg.textContent = '올리는 중…';
+          return fetch(API + '/v1/me/avatar?d=' + DEV, { method: 'POST', body: blob, headers: { 'Content-Type': blob.type }, credentials: 'include' }).then(function (r) { return r.json(); });
+        }).then(function (d) {
+          if (!d.ok) { msg.textContent = d.message || '사진을 올리지 못했습니다.'; return; }
+          ME.av = d.av; seedAv(ME.id, d.av); phDel.hidden = false; phBtn.textContent = '사진 바꾸기'; msg.textContent = '프로필 사진을 바꿨습니다.';
+          if (window.kwEv) kwEv('avatar_set');
+        }).catch(function () { msg.textContent = '이 사진은 쓸 수 없습니다. 다른 사진(JPG·PNG)으로 해 보세요.'; });
+        file.value = '';
+      });
+      body3.appendChild(phRow);
+      body3.appendChild(el('p', 'muted kw-small', '사진은 모든 사람에게 보입니다. 다른 사람의 얼굴·음란하거나 불쾌한 사진은 신고되면 내려갑니다.'));
       // 닉네임 바꾸기: 14일에 한 번
       var nk = el('input'); nk.maxLength = 12; nk.value = ME.nick; nk.autocomplete = 'off';
       var canNick = !ME.nickNext || Date.now() >= ME.nickNext;
@@ -252,9 +323,21 @@
         api('/v1/me', { method: 'POST', body: { bio: bio2.value } }).then(function (d) { msg.textContent = d.ok ? '저장했습니다.' : (d.message || '저장하지 못했습니다.'); if (d.ok) ME.bio = bio2.value; });
       }));
       var pf = el('a', 'btn', '내 프로필'); pf.href = profileUrl(ME.id); row.appendChild(pf);
+      var dmA = el('a', 'btn', '쪽지함'); dmA.href = base + '/dm/'; row.appendChild(dmA);
       row.appendChild(btn('알림', 'btn', openBell));
       if (window.kwCanInstall && kwCanInstall()) row.appendChild(btn('앱으로 설치', 'btn', function () { dlg.close(); kwInstall(); }));
-      body3.appendChild(row); body3.appendChild(msg);
+      body3.appendChild(row);
+      // 쪽지 받기 설정 + 차단 목록
+      var pref = el('select');
+      [['all', '누구나 (처음 보는 사람은 요청함으로)'], ['following', '내가 팔로우한 사람만'], ['none', '받지 않음 (내가 팔로우한 사람은 예외)']].forEach(function (o) {
+        var op = el('option', null, o[1]); op.value = o[0]; if ((ME.dmPref || 'all') === o[0]) op.selected = true; pref.appendChild(op);
+      });
+      pref.addEventListener('change', function () {
+        api('/v1/me', { method: 'POST', body: { dmPref: pref.value } }).then(function (d) { msg.textContent = d.ok ? '쪽지 받기 설정을 바꿨습니다.' : (d.message || '바꾸지 못했습니다.'); if (d.ok) ME.dmPref = pref.value; });
+      });
+      body3.appendChild(field('쪽지 받기', pref));
+      body3.appendChild(btn('차단한 사용자 관리', 'cm-link', openBlocks));
+      body3.appendChild(msg);
       api('/v1/admin/whoami').then(function (w) { if (!w.owner) return; var st = el('a', 'btn', '운영 통계'); st.href = base + '/admin/'; row.appendChild(st); }).catch(function () {});
       body3.appendChild(el('hr'));
       body3.appendChild(btn('로그아웃', 'btn', logout));
@@ -264,6 +347,72 @@
         api('/v1/me/delete', { method: 'POST', body: { all: all } }).then(function () { location.reload(); });
       }));
     });
+  }
+  // 사진을 정사각형으로 잘라 size px로 줄인다. webp(안 되면 jpeg), 60KB를 넘으면 화질을 낮춘다
+  function squareImage(f, size) {
+    return new Promise(function (ok, no) {
+      if (!/^image\//.test(f.type || 'image/')) { no(); return; }
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onload = function () {
+        var w = img.naturalWidth, h = img.naturalHeight, m = Math.min(w, h); if (!m) { no(); return; }
+        var c = document.createElement('canvas'); c.width = c.height = size;
+        var g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+        g.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        var q = 0.86, type = 'image/webp';
+        (function enc() {
+          c.toBlob(function (b) {
+            if (!b) { no(); return; }
+            if (type === 'image/webp' && b.type !== 'image/webp') { type = 'image/jpeg'; enc(); return; }
+            if (b.size > 60000 && q > 0.4) { q -= 0.15; enc(); return; }
+            ok(b);
+          }, type, q);
+        })();
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); no(); };
+      img.src = url;
+    });
+  }
+  function openBlocks() {
+    var body = dialog('차단한 사용자');
+    body.appendChild(el('p', 'muted', '차단한 사람과는 서로 팔로우·쪽지를 할 수 없고, 그 사람의 글은 내 화면에서 숨겨집니다. 상대에게 차단했다는 알림은 가지 않습니다.'));
+    var ul = el('ul', 'kw-users'); body.appendChild(ul);
+    api('/v1/blocks').then(function (d) {
+      if (!(d.items || []).length) { ul.appendChild(el('li', 'muted', '차단한 사용자가 없습니다.')); return; }
+      d.items.forEach(function (u) {
+        var li = el('li', 'kw-user'); li.appendChild(avatar(u.nick, u.id)); li.appendChild(el('strong', null, u.nick));
+        li.appendChild(btn('차단 해제', 'btn btn-small', function () { api('/v1/block', { method: 'POST', body: { uid: u.id } }).then(function (r) { if (!r.blocked) { delete BLOCKED[u.id]; li.remove(); } }); }));
+        ul.appendChild(li);
+      });
+    });
+  }
+  // 팔로워·팔로잉 목록 창
+  function openFollows(uid, type, nick) {
+    var body = dialog((nick ? nick + '님의 ' : '') + (type === 'following' ? '팔로잉' : '팔로워'));
+    var ul = el('ul', 'kw-users'); body.appendChild(ul);
+    var more = btn('더 보기', 'btn btn-small', function () { load(); }); more.hidden = true; body.appendChild(more);
+    var before = 0;
+    function load() {
+      api('/v1/users/' + uid + '/follows?type=' + type + (before ? '&before=' + before : '')).then(function (d) {
+        var items = d.items || [];
+        if (!items.length && !before) ul.appendChild(el('li', 'muted', type === 'following' ? '아직 팔로우한 사람이 없습니다.' : '아직 팔로워가 없습니다.'));
+        items.forEach(function (u) {
+          var li = el('li', 'kw-user'); li.appendChild(avatar(u.nick, u.id));
+          var who = el('div', 'kw-user-who'), a = el('a', null, u.nick); a.href = profileUrl(u.id); who.appendChild(a);
+          if (u.bio) who.appendChild(el('span', 'muted kw-small', u.bio)); li.appendChild(who);
+          if (ME && !u.self) {
+            var fb = btn(u.following ? '팔로잉' : '팔로우', 'btn btn-small' + (u.following ? '' : ' btn-primary'), function () {
+              fb.disabled = true;
+              api('/v1/follow', { method: 'POST', body: { uid: u.id } }).then(function (r) { fb.disabled = false; if (r._status !== 200) { if (r.message) alert(r.message); return; } fb.textContent = r.following ? '팔로잉' : '팔로우'; fb.className = 'btn btn-small' + (r.following ? '' : ' btn-primary'); });
+            });
+            li.appendChild(fb);
+          }
+          ul.appendChild(li); before = u.created;
+        });
+        more.hidden = !d.more;
+      }).catch(function () { ul.appendChild(el('li', 'muted', '불러오지 못했습니다.')); });
+    }
+    load();
   }
   function logout() { api('/v1/auth/logout', { method: 'POST' }).then(function () { location.reload(); }, function () { location.reload(); }); }
   // 로그인에서 돌아왔을 때: 주소의 ?login= 을 지우고, 닉네임이 없으면 바로 정하게 한다
@@ -286,6 +435,7 @@
           : x.type === 'reply' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글에 답글을 달았습니다'
           : x.type === 'repost' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글을 리포스트했습니다'
           : x.type === 'quote' ? (x.from_nick || '누군가') + '님이 내 글을 인용했습니다'
+          : x.type === 'mention' ? (x.from_nick || '누군가') + '님이 글에서 나를 언급했습니다'
           : x.type === 'report' ? '새 리포트 · ' + shortTitle(x.from_nick || '')
           : '내 글에 좋아요 ' + x.n + '개';
         a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : x.type === 'report' ? base + '/r/' + x.ref + '/' : itemUrl(x.slug, x.ref);
@@ -338,8 +488,8 @@
 
     function item(c, isBest, canReply) {
       var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : '') + (c.pinned ? ' cm-item-pinned' : ''));
-      li.setAttribute('data-cid', c.id);
-      li.appendChild(avatar(c.nick));
+      li.setAttribute('data-cid', c.id); if (c.uid) { li.setAttribute('data-by-uid', c.uid); if (isBlocked(c.uid)) li.hidden = true; }
+      li.appendChild(avatar(c.nick, c.uid));
       var main = el('div', 'cm-main'); li.appendChild(main);
       var head = el('div', 'cm-head');
       if (c.pinned) head.appendChild(el('span', 'cm-badge cm-badge-notice', '공지'));
@@ -561,7 +711,7 @@
       peek.querySelector('[data-board-empty]').hidden = true;
       var ol = peek.querySelector('[data-board-list]');
       roots.slice(0, 3).forEach(function (c) {
-        var li = el('li', 'cm-item'); li.appendChild(avatar(c.nick));
+        var li = el('li', 'cm-item'); li.appendChild(avatar(c.nick, c.uid)); if (c.uid) li.setAttribute('data-by-uid', c.uid);
         var main = el('div', 'cm-main'), head = el('div', 'cm-head');
         head.appendChild(nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
         if (c.likes) head.appendChild(el('span', 'muted', '♥ ' + num(c.likes)));
@@ -704,19 +854,27 @@
   var prof = document.querySelector('[data-profile]');
   if (prof) {
     var pid = (/[?&]id=(\d+)/.exec(location.search) || [])[1];
+    var pnick = (/[?&]n=([^&]+)/.exec(location.search) || [])[1];
     var pmsg = prof.querySelector('[data-profile-msg]');
-    if (!pid) pmsg.textContent = '프로필 주소가 올바르지 않습니다.';
-    else Promise.all([meReady, api('/v1/users/' + pid)]).then(function (res) {
+    var pidReady = pid ? Promise.resolve(pid) : pnick ? api('/v1/users/by-nick?n=' + pnick).then(function (d) { return d.id ? String(d.id) : null; }) : Promise.resolve(null);
+    pidReady.then(function (id) {
+    pid = id;
+    if (!pid) { pmsg.textContent = pnick ? '"' + decodeURIComponent(pnick) + '" 닉네임을 쓰는 사람을 찾지 못했습니다.' : '프로필 주소가 올바르지 않습니다.'; return; }
+    if (pnick && history.replaceState) { try { history.replaceState(null, '', location.pathname + '?id=' + pid); } catch (e) {} }
+    Promise.all([meReady, api('/v1/users/' + pid)]).then(function (res) {
       var d = res[1];
       if (d._status !== 200) { pmsg.textContent = '찾을 수 없는 프로필입니다(탈퇴했거나 이용이 제한된 계정).'; return; }
       prof.textContent = '';
       document.title = d.user.nick + ' | ' + document.title.split('|').pop().trim();
-      var head = el('div', 'profile-head'), av = avatar(d.user.nick); av.className += ' profile-av';
+      seedAv(d.user.id, d.user.av);
+      var head = el('div', 'profile-head'), av = avatar(d.user.nick, d.user.id); av.className += ' profile-av';
       head.appendChild(av);
       var who = el('div', 'profile-who');
       who.appendChild(el('h1', null, d.user.nick));
       if (d.user.bio) who.appendChild(el('p', 'profile-bio', d.user.bio));
-      who.appendChild(el('p', 'muted profile-since', new Date(d.user.created).toLocaleDateString('ko-KR') + ' 가입'));
+      var since = el('p', 'muted profile-since', new Date(d.user.created).toLocaleDateString('ko-KR') + ' 가입');
+      if (d.followsMe && !d.self) since.appendChild(el('span', 'profile-fm', '나를 팔로우함'));
+      who.appendChild(since);
       head.appendChild(who);
       prof.appendChild(head);
       var st = el('ul', 'profile-stats');
@@ -724,9 +882,17 @@
         var li = el('li'); li.appendChild(el('strong', null, num(x[1]))); li.appendChild(el('span', 'muted', x[0])); st.appendChild(li);
       });
       prof.appendChild(st);
+      [2, 3].forEach(function (i) { // 팔로워·팔로잉 수를 누르면 목록
+        var li = st.children[i]; li.classList.add('profile-stat-btn'); li.setAttribute('role', 'button'); li.tabIndex = 0;
+        var open = function () { openFollows(d.user.id, i === 2 ? 'followers' : 'following', d.user.nick); };
+        li.addEventListener('click', open); li.addEventListener('keydown', function (e) { if (e.key === 'Enter') open(); });
+      });
       var fcount = st.children[2].querySelector('strong');
       if (d.self) {
-        prof.appendChild(btn('내 계정 설정', 'btn', openAccount));
+        var sacts = el('div', 'profile-acts');
+        sacts.appendChild(btn(d.user.av ? '프로필 편집' : '프로필 사진 올리기', 'btn', openAccount));
+        var sdm = el('a', 'btn', '쪽지함'); sdm.href = base + '/dm/'; sacts.appendChild(sdm);
+        prof.appendChild(sacts);
       } else {
         var fb = btn(d.following ? '팔로잉' : '팔로우', 'btn ' + (d.following ? '' : 'btn-primary') + ' follow-btn', function () {
           if (!ME) { openAccount(); return; }
@@ -740,7 +906,32 @@
           }).catch(function () { fb.disabled = false; });
         });
         fb.setAttribute('aria-pressed', d.following ? 'true' : 'false');
-        prof.appendChild(fb);
+        var acts = el('div', 'profile-acts'); acts.appendChild(fb);
+        var dmb = el('a', 'btn', '쪽지'); dmb.href = base + '/dm/?to=' + d.user.id;
+        dmb.addEventListener('click', function (e) { if (!ME) { e.preventDefault(); openAccount(); } });
+        acts.appendChild(dmb);
+        var more = btn('⋯', 'btn profile-more', function () {
+          var b2 = dialog(d.user.nick);
+          b2.appendChild(btn(BLOCKED[d.user.id] ? '차단 해제' : '차단하기', 'btn', function () {
+            if (!ME) { openAccount(); return; }
+            if (!BLOCKED[d.user.id] && !confirm(d.user.nick + '님을 차단할까요? 서로 팔로우가 풀리고, 쪽지를 주고받을 수 없으며, 이 사람의 글이 내 화면에서 숨겨집니다.')) return;
+            api('/v1/block', { method: 'POST', body: { uid: d.user.id } }).then(function (r) {
+              if (r._status !== 200) { alert(r.message || '처리하지 못했습니다.'); return; }
+              if (r.blocked) BLOCKED[d.user.id] = 1; else delete BLOCKED[d.user.id];
+              if (window.kwEv && r.blocked) kwEv('block');
+              dlg.close(); flash(r.blocked ? '차단했습니다' : '차단을 풀었습니다'); setTimeout(function () { location.reload(); }, 600);
+            });
+          }));
+          var rep = function (what, label) { return btn(label, 'btn', function () {
+            api('/v1/users/' + d.user.id + '/report', { method: 'POST', body: { what: what } }).then(function () { dlg.close(); flash('신고했습니다. 운영자가 확인합니다'); });
+          }); };
+          if (d.user.av) b2.appendChild(rep('avatar', '프로필 사진 신고'));
+          b2.appendChild(rep('profile', '닉네임·소개 신고'));
+          b2.appendChild(el('p', 'muted kw-small', '사진은 3명이 신고하면 바로 내려가고, 운영자가 다시 확인합니다.'));
+        });
+        more.setAttribute('aria-label', '더 보기'); acts.appendChild(more);
+        prof.appendChild(acts);
+        if (BLOCKED[d.user.id]) prof.appendChild(el('p', 'kw-warn', '내가 차단한 사용자입니다. 이 사람의 글은 피드·댓글에서 숨겨집니다.'));
       }
       // 프로필 탭: 글 · 리포스트 (+ 내 프로필이면 최근 읽음 · 저장함 — 이 둘은 이 기기에만 있음)
       var ul = el('ul', 'rc-list');
@@ -844,6 +1035,7 @@
         li.appendChild(a); ul.appendChild(li);
       });
     }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
+    });
   }
 
   // ---------- 리포스트·인용 ----------
@@ -1022,9 +1214,9 @@
   window.KWC = {
     myTopics: myTopics, topicBoards: topicBoards,
     quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
-    api: api, el: el, num: num, ago: ago, avatar: avatar, richText: richText, nickEl: nickEl,
+    api: api, el: el, num: num, ago: ago, avatar: avatar, seedAv: seedAv, isBlocked: isBlocked, hideBlocked: hideBlocked, richText: richText, nickEl: nickEl, dialog: dialog, btn: btn, apiBase: API, openFollows: openFollows, dev: DEV, flash: function (t) { flash(t); },
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
-    setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS }; }
+    setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS, dmUnread: DMN, dmRequests: DMREQ }; }, setDm: function (n, r) { DMN = n; DMREQ = r; paintHeader(); }, setBlocked: function (uid, on) { if (on) BLOCKED[uid] = 1; else delete BLOCKED[uid]; hideBlocked(); }
   };
 
   // ---------- 리포트 끝: 지금 많이 보는 리포트(지금 글 제외) ----------

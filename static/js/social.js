@@ -42,7 +42,8 @@
       var rpl = el('a', 'rp-line'); rpl.href = C.profileUrl(c.rp.uid); rpl.textContent = '↻ ' + c.rp.nick + '님이 리포스트함'; art.appendChild(rpl);
     }
     var head = el('header', 'post-head');
-    var av = C.avatar(c.nick); av.className += ' post-av'; head.appendChild(av);
+    var av = C.avatar(c.nick, c.uid); av.className += ' post-av'; head.appendChild(av);
+    if (c.uid) { art.setAttribute('data-by-uid', c.uid); if (C.isBlocked(c.uid)) art.hidden = true; }
     var who = el('div', 'post-who');
     who.appendChild(C.nickEl(c, 'post-name'));
     var tk = boardOf(c.slug);
@@ -120,7 +121,7 @@
     // 대표 답글 미리보기(쓰레드처럼 글 아래 한 줄)
     if (c.top && !opt.detail) {
       var tr = el('a', 'upost-reply'); tr.href = C.postUrl(c.id) + '#reply';
-      var ra = C.avatar(c.top.nick); ra.className += ' upost-reply-av'; tr.appendChild(ra);
+      var ra = C.avatar(c.top.nick, c.top.uid); ra.className += ' upost-reply-av'; tr.appendChild(ra);
       var tx = el('span', 'upost-reply-tx'); tx.appendChild(el('strong', null, c.top.nick + ' ')); tx.appendChild(document.createTextNode(c.top.body)); tr.appendChild(tx);
       if (c.replies > 1) tr.appendChild(el('span', 'upost-reply-more', '답글 ' + num(c.replies) + '개 모두 보기'));
       art.appendChild(tr);
@@ -148,7 +149,7 @@
   function suggestList(ul, items) {
     ul.textContent = '';
     items.forEach(function (u) {
-      var li = el('li', 'sg-item'); li.appendChild(C.avatar(u.nick));
+      var li = el('li', 'sg-item'); li.appendChild(C.avatar(u.nick, u.id));
       var who = el('div', 'sg-who'); var a = el('a', 'sg-nick', u.nick); a.href = C.profileUrl(u.id); who.appendChild(a);
       who.appendChild(el('span', 'muted sg-sub', u.bio || ('글 ' + num(u.posts) + ' · 받은 좋아요 ' + num(u.likes))));
       li.appendChild(who); li.appendChild(followBtn(u, function (on) { if (on && feed) feed.dirty = true; }));
@@ -345,7 +346,7 @@
       var s = C.state();
       tabsEl.hidden = false; cp.hidden = false;
       var av = cp.querySelector('[data-composer-av]');
-      if (s.me) { var a = C.avatar(s.me.nick); a.className += ' post-av'; av.appendChild(a); }
+      if (s.me) { var a = C.avatar(s.me.nick, s.me.id); a.className += ' post-av'; av.appendChild(a); }
       else { // 로그인 전: 익명으로 바로 쓴다(닉네임은 선택)
         av.className += ' composer-av-guest';
         ta.placeholder = '종목 이야기를 나눠 보세요. 로그인 없이도 쓸 수 있어요.';
@@ -376,7 +377,7 @@
     var rta = rform.querySelector('textarea'), rlen = pp.querySelector('[data-pp-len]'), rmsg = pp.querySelector('[data-pp-fmsg]');
     var post = null, rstart = 0, adTpl = pp.querySelector('template[data-thread-ad]');
     function replyItem(c, liked) {
-      var li = el('li', 'cm-item'); li.appendChild(C.avatar(c.nick));
+      var li = el('li', 'cm-item'); li.appendChild(C.avatar(c.nick, c.uid)); if (c.uid) { li.setAttribute('data-by-uid', c.uid); if (C.isBlocked(c.uid)) li.hidden = true; }
       var main = el('div', 'cm-main'), head = el('div', 'cm-head');
       head.appendChild(C.nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
       main.appendChild(head); main.appendChild(C.richText(el('p', 'cm-body'), c.body));

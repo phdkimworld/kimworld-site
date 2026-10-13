@@ -90,7 +90,7 @@ const NICK_RE = /^[가-힣A-Za-z0-9_]{2,12}$/;
 const ACCOUNT = { nickChangeMs: 14 * 864e5, createPerIpDay: 3, newMs: 864e5, newPostsPerDay: 5, newPostGapMs: 10 * 60e3, followPerDay: 200, bioMax: 80 };
 
 async function userByActor(db, actor) {
-  return db.prepare("SELECT id, nick, bio, created, status, nick_changed FROM users WHERE actor = ?").bind(actor).first();
+  return db.prepare("SELECT id, nick, bio, created, status, nick_changed, av, dm_pref FROM users WHERE actor = ?").bind(actor).first();
 }
 // 닉네임 규칙: 한글·영문·숫자·_ 2~12자, 운영자·사이트 이름 흉내와 홍보 문구 금지. 문제가 없으면 null
 function nickProblem(nick) {
@@ -107,6 +107,75 @@ async function notify(db, uid, type, ref, slug, fromNick, now) {
     ON CONFLICT(uid, type, ref) DO UPDATE SET n = CASE WHEN seen = 1 THEN 1 ELSE n + 1 END, from_nick = excluded.from_nick, updated = excluded.updated, seen = 0`)
     .bind(uid, type, String(ref), slug || "", fromNick || "", now).run();
 }
+
+// ---------- 멘션(@닉네임): 있는 닉네임만 링크·알림. 있는 닉네임의 @는 홍보 판정에서 뺀다 ----------
+const MENTION_RE = /@([가-힣A-Za-z0-9_]{2,12})/g;
+async function mentionsOf(db, text) {
+  const names = [...new Set([...String(text || "").matchAll(MENTION_RE)].map((m) => m[1].toLowerCase()))].slice(0, 5);
+  if (!names.length) return [];
+  const r = await db.prepare(`SELECT id, nick_lc FROM users WHERE status = 'ok' AND nick_lc IN (${names.map(() => "?").join(",")})`).bind(...names).all();
+  return r.results || [];
+}
+const stripMentions = (text, known) => { const k = new Set(known.map((u) => u.nick_lc)); return String(text || "").replace(MENTION_RE, (m, n) => (k.has(n.toLowerCase()) ? "" : m)); };
+
+// ---------- 차단 ----------
+async function blockedEither(db, x, y) {
+  return !!(await db.prepare("SELECT 1 AS y FROM blocks WHERE (blocker = ? AND blocked = ?) OR (blocker = ? AND blocked = ?)").bind(x, y, y, x).first());
+}
+
+// ---------- 쪽지(DM): 사기 예방 규칙 ----------
+// 주식 커뮤니티 쪽지는 '리딩방'·외부 메신저 유도에 가장 많이 쓰인다. 그래서 링크·연락처·외부 채팅·입금 안내는 보내지 못하게 막는다(이 사이트 주소는 허용).
+const DM = { bodyMax: 1000, perHour: 60, perDay: 300, reqPerDay: 10, newMs: 864e5, reportBlock: 3 };
+const DM_BLOCK = [
+  /https?:\/\//i, /www\./i, /\b[a-z0-9-]+\.(com|net|kr|co|io|me|ly|gg|link|xyz|site|top|app|to)\b/i, /\bt\.me\b/i,
+  /01[016789][\s.-]?\d{3,4}[\s.-]?\d{4}/, /\d{2,3}[\s.-]\d{3,4}[\s.-]\d{4}/,
+  /(카톡|카카오\s*톡|오픈\s*채팅|오픈\s*톡|텔레\s*그램|텔레방|단톡|리딩\s*방|vip\s*방|브이아이피|수익\s*보장|원금\s*보장|선\s*입금|입금\s*(해|하)|계좌\s*번호|가입비|회비|유료\s*방)/i,
+];
+function dmProblem(text) {
+  const t = String(text || "").replace(/(https?:\/\/)?(www\.)?drkimworld\.com[^\s]*/gi, "");
+  return DM_BLOCK.some((re) => re.test(t)) ? "쪽지에는 링크·연락처·외부 채팅방·입금 안내를 보낼 수 없습니다(투자 사기 예방)." : null;
+}
+const pair = (x, y) => (x < y ? [x, y] : [y, x]);
+// 내가 상대에게 쪽지를 보낼 수 있는지. 없으면 이유
+async function dmPermission(db, me, other, thread, now) {
+  if (!other || other.status !== "ok" || other.id === me.id) return { can: false, reason: "쪽지를 보낼 수 없는 상대입니다." };
+  if (me.status !== "ok") return { can: false, reason: "이용이 제한된 계정입니다." };
+  if (await blockedEither(db, me.id, other.id)) return { can: false, reason: "쪽지를 보낼 수 없는 상대입니다." };
+  const theyFollowMe = !!(await db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(other.id, me.id).first());
+  if (thread && thread.accepted) return { can: true, theyFollowMe };
+  if (thread && thread.starter !== me.id) return { can: true, theyFollowMe, accepting: true }; // 받은 요청에 답하면 수락
+  if (!theyFollowMe) {
+    if (other.dm_pref === "none") return { can: false, reason: "이 사용자는 쪽지를 받지 않습니다." };
+    if (other.dm_pref === "following") return { can: false, reason: "이 사용자는 자신이 팔로우한 사람의 쪽지만 받습니다." };
+    if (now - me.created < DM.newMs) return { can: false, reason: "가입 하루 뒤부터 처음 보는 사람에게 쪽지를 보낼 수 있습니다." };
+    const rep = await db.prepare("SELECT COUNT(DISTINCT r.by_uid) AS n FROM dm_reports r JOIN dm_msgs m ON m.id = r.mid WHERE m.sender = ? AND r.created > ?").bind(me.id, now - 30 * 864e5).first();
+    if ((rep?.n || 0) >= DM.reportBlock) return { can: false, reason: "신고가 많아 처음 보는 사람에게는 쪽지를 보낼 수 없습니다." };
+    if (thread) { // 내가 보낸 요청이 아직 수락 전: 한 통만
+      const n = await db.prepare("SELECT COUNT(*) AS n FROM dm_msgs WHERE tid = ? AND sender = ? AND status = 'ok'").bind(thread.id, me.id).first();
+      if ((n?.n || 0) >= 1) return { can: false, reason: "상대가 요청을 수락하면 더 보낼 수 있습니다.", pending: true };
+    }
+    return { can: true, request: true, theyFollowMe };
+  }
+  return { can: true, theyFollowMe };
+}
+async function dmUnread(db, uid) {
+  const r = await db.prepare(`SELECT
+      SUM(CASE WHEN last_from != ? AND ((a = ? AND last_id > a_read AND last_id > a_del) OR (b = ? AND last_id > b_read AND last_id > b_del)) AND (accepted = 1 OR starter = ?) THEN 1 ELSE 0 END) AS unread,
+      SUM(CASE WHEN accepted = 0 AND starter != ? AND ((a = ? AND last_id > a_del) OR (b = ? AND last_id > b_del)) THEN 1 ELSE 0 END) AS requests
+      FROM dm_threads WHERE a = ? OR b = ?`).bind(uid, uid, uid, uid, uid, uid, uid, uid, uid).first();
+  return { dmUnread: r?.unread || 0, dmRequests: r?.requests || 0 };
+}
+
+// ---------- 프로필 사진: 정사각형 256px webp/jpeg/png, 64KB까지 ----------
+const AVATAR_MAX = 64 * 1024;
+function imageMime(u8) {
+  if (u8.length > 12 && u8[0] === 0x52 && u8[1] === 0x49 && u8[2] === 0x46 && u8[3] === 0x46 && u8[8] === 0x57 && u8[9] === 0x45 && u8[10] === 0x42 && u8[11] === 0x50) return "image/webp";
+  if (u8.length > 3 && u8[0] === 0xff && u8[1] === 0xd8 && u8[2] === 0xff) return "image/jpeg";
+  if (u8.length > 8 && u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4e && u8[3] === 0x47) return "image/png";
+  return null;
+}
+function toB64(u8) { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function fromB64(b) { const s = atob(b); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
 
 function safeEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
@@ -237,6 +306,28 @@ async function analytics(db, now, daysIn) {
     for (const x of cm) react[x.slug].comments = x.n;
     for (const x of rp) react[x.ref].reposts = x.n;
   }
+  // ---- 유입 분석(세분화) ----
+  const acqCols = "SUM(pv) AS pv, SUM(secs) AS secs, SUM(sess) AS sess, SUM(multi) AS multi, SUM(deep) AS deep, SUM(newv) AS newv, SUM(mob) AS mob, SUM(app) AS app, SUM(engaged) AS engaged";
+  const [acCh, acChPrev, acSrc, acSrcPrev, acDaily, acLand, acRef, acCamp, acEv, acDow] = await Promise.all([
+    all(`SELECT ch, ${acqCols} FROM an_acq WHERE day >= ? GROUP BY ch ORDER BY sess DESC`, since),
+    all(`SELECT ch, ${acqCols} FROM an_acq WHERE day >= ? AND day < ? GROUP BY ch`, prevSince, since),
+    all(`SELECT ch, src, ${acqCols} FROM an_acq WHERE day >= ? GROUP BY ch, src ORDER BY sess DESC LIMIT 80`, since),
+    all("SELECT src, SUM(sess) AS sess FROM an_acq WHERE day >= ? AND day < ? GROUP BY src", prevSince, since),
+    all("SELECT day, ch, SUM(sess) AS sess FROM an_acq WHERE day >= ? GROUP BY day, ch", since),
+    all("SELECT path, src, SUM(sess) AS sess, SUM(multi) AS multi, SUM(pv) AS pv, SUM(secs) AS secs FROM an_land WHERE day >= ? GROUP BY path, src HAVING SUM(sess) > 0 ORDER BY sess DESC LIMIT 120", since),
+    all("SELECT host, SUM(sess) AS sess FROM an_ref WHERE day >= ? GROUP BY host ORDER BY sess DESC LIMIT 50", since),
+    all("SELECT src, med, camp, cont, SUM(sess) AS sess, SUM(pv) AS pv, SUM(secs) AS secs, SUM(multi) AS multi FROM an_camp WHERE day >= ? GROUP BY src, med, camp, cont ORDER BY sess DESC LIMIT 50", since),
+    all("SELECT src, ev, SUM(n) AS n FROM an_srcev WHERE day >= ? GROUP BY src, ev", since),
+    all("SELECT CAST(strftime('%w', day) AS INTEGER) AS dow, ch, SUM(sess) AS sess FROM an_acq WHERE day >= ? GROUP BY dow, ch", since),
+  ]);
+  const prevBySrc = Object.fromEntries(acSrcPrev.map((x) => [x.src, x.sess]));
+  const evBySrc = {};
+  for (const x of acEv) (evBySrc[x.src] = evBySrc[x.src] || {})[x.ev] = x.n;
+  const acq = {
+    channels: acCh, channelsPrev: acChPrev,
+    sources: acSrc.map((x) => ({ ...x, prevSess: prevBySrc[x.src] || 0, ev: evBySrc[x.src] || {} })),
+    daily: acDaily, landings: acLand, refs: acRef, campaigns: acCamp, dow: acDow,
+  };
   const evMap = (rows) => Object.fromEntries(rows.map((x) => [x.ev, x.n]));
   const ext = {
     app: { users30: appU?.n || 0, pv: appPv?.n || 0 },
@@ -245,6 +336,7 @@ async function analytics(db, now, daysIn) {
     reports: rpages.map((x) => ({ ...x, slug: (x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1] || "", ...(react[(x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1]] || { likes: 0, comments: 0, reposts: 0 }) })),
     topics, topicNew: topicNew?.n || 0, misses, adDaily,
     actions: { reposts: rpN?.n || 0, quotes: qN?.n || 0 },
+    acq,
   };
   // 날짜 축을 빈 날 없이 채운다
   const axis = []; for (let k = days - 1; k >= 0; k--) axis.push(D(k));
@@ -403,7 +495,7 @@ export default {
       if (p === "/v1/hit" && req.method === "POST") {
         const b = await readJson(req);
         let path = String(b.p || "/").slice(0, 100).toLowerCase();
-        const PATHS = /^\/(|r\/[a-z0-9-]{2,60}\/|t\/[a-z0-9.-]{1,12}\/|theme\/[a-z0-9-]{2,40}\/|search\/|u\/|p\/|about\/|disclaimer\/|privacy\/|terms\/|contact\/|admin\/)$/;
+        const PATHS = /^\/(|dm\/|r\/[a-z0-9-]{2,60}\/|t\/[a-z0-9.-]{1,12}\/|theme\/[a-z0-9-]{2,40}\/|search\/|u\/|p\/|about\/|disclaimer\/|privacy\/|terms\/|contact\/|admin\/)$/;
         if (!PATHS.test(path)) path = "/(기타)";
         if (path === "/admin/") return json(req, { ok: false });
         const t = path === "/" ? "h" : path.startsWith("/r/") ? "r" : path.startsWith("/t/") ? "t" : path.startsWith("/theme/") ? "th" : path === "/p/" ? "p" : path === "/u/" ? "u" : path === "/search/" ? "s" : "o";
@@ -414,7 +506,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
@@ -432,7 +524,29 @@ export default {
         if (s <= 2) q.push(db.prepare(`INSERT INTO an_src (day, src, sess, multi, newv) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(day, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, newv = newv + excluded.newv`)
             .bind(today, src, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 1 ? n : 0));
+        // ---- 유입 분석(세분화): 채널 > 세부 출처, 랜딩 페이지 × 세부 출처, 리퍼러 도메인, UTM 캠페인, 출처별 전환 ----
+        const CH = new Set(["search", "ai", "youtube", "social", "messenger", "community", "referral", "email", "direct", "internal"]);
+        const ch = CH.has(b.ch) ? b.ch : "direct";
+        const sd = /^[a-z0-9.-]{1,40}$/.test(String(b.sd || "")) ? String(b.sd) : src;
+        let lp = String(b.lp || path).slice(0, 100).toLowerCase(); if (!PATHS.test(lp) || lp === "/admin/") lp = "/(기타)";
+        const eng = a >= 30 ? 1 : 0;
+        q.push(db.prepare(`INSERT INTO an_acq (day, ch, src, pv, secs, sess, multi, deep, newv, mob, app, engaged) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, ch, src) DO UPDATE SET pv = pv + 1, secs = secs + excluded.secs, sess = sess + excluded.sess, multi = multi + excluded.multi, deep = deep + excluded.deep,
+            newv = newv + excluded.newv, mob = mob + excluded.mob, app = app + excluded.app, engaged = engaged + excluded.engaged`)
+          .bind(today, ch, sd, a, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 3 ? 1 : 0, s === 1 ? n : 0, s === 1 ? m : 0, s === 1 ? app : 0, eng));
+        q.push(db.prepare(`INSERT INTO an_land (day, path, src, sess, multi, pv, secs) VALUES (?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(day, path, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, pv = pv + 1, secs = secs + excluded.secs`)
+          .bind(today, lp, sd, s === 1 ? 1 : 0, s === 2 ? 1 : 0, a));
+        const rh = String(b.rh || "").toLowerCase();
+        if (s === 1 && /^[a-z0-9.-]{3,80}$/.test(rh)) q.push(db.prepare("INSERT INTO an_ref (day, host, sess) VALUES (?, ?, 1) ON CONFLICT(day, host) DO UPDATE SET sess = sess + 1").bind(today, rh));
+        const U = b.u && typeof b.u === "object" ? b.u : null;
+        const ut = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9가-힣_.\-]/g, "").slice(0, 60);
+        if (U && (ut(U.s) || ut(U.c))) q.push(db.prepare(`INSERT INTO an_camp (day, src, med, camp, cont, sess, pv, secs, multi) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(day, src, med, camp, cont) DO UPDATE SET sess = sess + excluded.sess, pv = pv + 1, secs = secs + excluded.secs, multi = multi + excluded.multi`)
+          .bind(today, ut(U.s) || "-", ut(U.m) || "-", ut(U.c) || "-", ut(U.t) || "-", s === 1 ? 1 : 0, a, s === 2 ? 1 : 0));
+        for (const e of evs) q.push(db.prepare("INSERT INTO an_srcev (day, src, ev, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, src, ev) DO UPDATE SET n = n + 1").bind(today, sd, e));
         if (Math.random() < 0.003) q.push(db.prepare("DELETE FROM an_seen WHERE day < ?").bind(kstDay(now - 35 * 864e5)));
+        if (Math.random() < 0.001) for (const tb of ["an_ref", "an_land", "an_camp", "an_srcev"]) q.push(db.prepare(`DELETE FROM ${tb} WHERE day < ?`).bind(kstDay(now - 400 * 864e5)));
         await db.batch(q);
         return json(req, { ok: true });
       }
@@ -534,11 +648,15 @@ export default {
             q = { kind: "p", ref: String(qTarget.id), text: qt };
           } else return json(req, { error: "quote" }, 400);
         }
-        const status = needsHold(body) || (q && needsHold(q.text)) ? "held" : "ok";
+        const known = await mentionsOf(db, body);
+        const status = needsHold(stripMentions(body, known)) || (q && needsHold(q.text)) ? "held" : "ok";
         const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, did, uid, created, status, parent_id, q_kind, q_ref, q_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
           .bind(slug, nick, body, ih, actor, me ? me.id : null, now, status, parent, q ? q.kind : null, q ? q.ref : null, q ? q.text : null).run();
         if (status === "ok" && parent && parentUid && parentDid !== actor) await notify(db, parentUid, "reply", parent, slug, nick, now);
         if (status === "ok" && qTarget && qTarget.uid && qTarget.did !== actor) await notify(db, qTarget.uid, "quote", r.meta?.last_row_id, slug, nick, now);
+        if (status === "ok" && me && known.length) { // @멘션 알림(계정 글만, 나·차단 관계 제외)
+          for (const u of known) if (u.id !== me.id && !(await blockedEither(db, me.id, u.id))) await notify(db, u.id, "mention", r.meta?.last_row_id, slug, nick, now);
+        }
         return json(req, {
           ok: true, status, id: r.meta?.last_row_id, nick,
           message: status === "held" ? "링크·연락처·홍보로 보이는 내용이 있어 확인 뒤 게시됩니다." : "",
@@ -619,8 +737,13 @@ export default {
         const me = session ? await userByActor(db, actor) : null;
         const base = { providers: providers(env), loggedIn: !!session };
         if (!me) return json(req, { ...base, user: null }, 200, { "Cache-Control": "no-store" });
-        const un = await db.prepare("SELECT COUNT(*) AS n FROM notifs WHERE uid = ? AND seen = 0").bind(me.id).first();
-        return json(req, { ...base, user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status, nickNext: nickNext(me) }, unread: un?.n || 0 }, 200, { "Cache-Control": "no-store" });
+        const [un, dmc, bl] = await Promise.all([
+          db.prepare("SELECT COUNT(*) AS n FROM notifs WHERE uid = ? AND seen = 0").bind(me.id).first(),
+          dmUnread(db, me.id),
+          db.prepare("SELECT blocked FROM blocks WHERE blocker = ? LIMIT 500").bind(me.id).all(),
+        ]);
+        return json(req, { ...base, user: { id: me.id, nick: me.nick, bio: me.bio, created: me.created, status: me.status, nickNext: nickNext(me), av: me.av || 0, dmPref: me.dm_pref || "all" },
+          unread: un?.n || 0, ...dmc, blocked: (bl.results || []).map((x) => x.blocked) }, 200, { "Cache-Control": "no-store" });
       }
       if (p === "/v1/me" && req.method === "POST") {
         if (!session) return json(req, { error: "login", message: "구글 또는 카카오로 로그인한 뒤 계정을 만들 수 있습니다." }, 401);
@@ -640,9 +763,10 @@ export default {
             if (!up.meta?.changes) return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
             await db.prepare("UPDATE comments SET nick = ? WHERE uid = ?").bind(nn, me.id).run(); // 지난 글의 이름도 함께
           }
-          await db.prepare("UPDATE users SET bio = ? WHERE id = ?").bind(bio, me.id).run();
+          if (["all", "following", "none"].includes(b.dmPref)) await db.prepare("UPDATE users SET dm_pref = ? WHERE id = ?").bind(b.dmPref, me.id).run();
+          if (typeof b.bio === "string") await db.prepare("UPDATE users SET bio = ? WHERE id = ?").bind(bio, me.id).run();
           const u = await userByActor(db, actor);
-          return json(req, { ok: true, user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created, status: u.status, nickNext: nickNext(u) } });
+          return json(req, { ok: true, user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created, status: u.status, nickNext: nickNext(u), av: u.av || 0, dmPref: u.dm_pref || "all" } });
         }
         const nick = String(b.nick || "").trim();
         const prob = nickProblem(nick);
@@ -666,6 +790,12 @@ export default {
           db.prepare("DELETE FROM reposts WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM topic_follows WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM notifs WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM avatars WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM blocks WHERE blocker = ? OR blocked = ?").bind(me.id, me.id),
+          db.prepare("DELETE FROM user_reports WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM dm_reports WHERE mid IN (SELECT m.id FROM dm_msgs m JOIN dm_threads t ON t.id = m.tid WHERE t.a = ? OR t.b = ?)").bind(me.id, me.id),
+          db.prepare("DELETE FROM dm_msgs WHERE tid IN (SELECT id FROM dm_threads WHERE a = ? OR b = ?)").bind(me.id, me.id),
+          db.prepare("DELETE FROM dm_threads WHERE a = ? OR b = ?").bind(me.id, me.id),
           db.prepare("DELETE FROM users WHERE id = ?").bind(me.id),
           db.prepare("DELETE FROM sessions WHERE actor = ?").bind(actor),
         ]);
@@ -673,7 +803,7 @@ export default {
       }
       const um = p.match(/^\/v1\/users\/(\d+)$/);
       if (um && req.method === "GET") {
-        const u = await db.prepare("SELECT id, nick, bio, created, status FROM users WHERE id = ?").bind(parseInt(um[1], 10)).first();
+        const u = await db.prepare("SELECT id, nick, bio, created, status, av, dm_pref FROM users WHERE id = ?").bind(parseInt(um[1], 10)).first();
         if (!u || u.status !== "ok") return json(req, { error: "not_found" }, 404);
         const me = await userByActor(db, actor);
         const [st, fr, fg, posts, fol, rps] = await Promise.all([
@@ -687,9 +817,11 @@ export default {
             WHERE r.uid = ? ORDER BY r.created DESC LIMIT 30`).bind(u.id).all(),
         ]);
         return json(req, {
-          user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created },
+          user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created, av: u.av || 0 },
           stats: { posts: st?.n || 0, likes: st?.likes || 0, followers: fr?.n || 0, following: fg?.n || 0 },
           following: !!fol, self: !!me && me.id === u.id,
+          followsMe: me ? !!(await db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(u.id, me.id).first()) : false,
+          blocked: me ? !!(await db.prepare("SELECT 1 AS y FROM blocks WHERE blocker = ? AND blocked = ?").bind(me.id, u.id).first()) : false,
           items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, created: c.created, reply: !!c.parent_id, quote: quoteOf(c) })),
           reposts: (rps.results || []).filter((x) => x.kind === "r" || x.pid).map((x) => x.kind === "r" ? { kind: "r", slug: x.ref, at: x.created }
             : { kind: "p", at: x.created, post: { id: x.pid, slug: x.slug, nick: x.nick, uid: x.puid || null, body: x.body } }),
@@ -763,6 +895,7 @@ export default {
         const { uid } = await readJson(req);
         const target = await db.prepare("SELECT id, status FROM users WHERE id = ?").bind(parseInt(uid, 10) || 0).first();
         if (!target || target.status !== "ok" || target.id === me.id) return json(req, { error: "target" }, 400);
+        if (await blockedEither(db, me.id, target.id)) return json(req, { error: "blocked", message: "차단 관계에서는 팔로우할 수 없습니다." }, 403);
         const ins = await db.prepare("INSERT OR IGNORE INTO follows (follower, followee, created) VALUES (?, ?, ?)").bind(me.id, target.id, now).run();
         if (ins.meta?.changes) {
           if (!(await allow(db, `follow|${me.id}`, ACCOUNT.followPerDay, 864e5, now))) {
@@ -885,6 +1018,240 @@ export default {
         return json(req, { ok: true });
       }
 
+      // ---------- 프로필 사진 ----------
+      const avm = p.match(/^\/v1\/avatar\/(\d+)$/);
+      if (avm && req.method === "GET") { // <img>로 직접 부른다. 버전(?v=)이 맞으면 1년 캐시
+        const uid = parseInt(avm[1], 10), v = parseInt(url.searchParams.get("v") || "0", 10) || 0;
+        const cache = typeof caches !== "undefined" ? caches.default : null;
+        if (cache && v) { const hit = await cache.match(req.url); if (hit) return hit; }
+        // raw=1: 운영자가 신고로 내려간 사진을 확인할 때(운영자 계정만, 캐시 안 함)
+        let raw = false;
+        if (url.searchParams.get("raw") && session) { const me = await userByActor(db, actor); raw = !!me && !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first()); }
+        if (raw) {
+          const r0 = await db.prepare("SELECT mime, data FROM avatars WHERE uid = ?").bind(uid).first();
+          return r0 ? new Response(fromB64(r0.data), { headers: { "Content-Type": r0.mime, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } }) : new Response("", { status: 404 });
+        }
+        const row = await db.prepare("SELECT a.mime, a.data, a.v FROM avatars a JOIN users u ON u.id = a.uid WHERE a.uid = ? AND u.status = 'ok' AND u.av = a.v").bind(uid).first();
+        if (!row) return new Response("", { status: 404, headers: { "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" } });
+        const res = new Response(fromB64(row.data), { headers: { "Content-Type": row.mime, "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff",
+          "Cache-Control": v === row.v ? "public, max-age=31536000, immutable" : "public, max-age=300" } });
+        if (cache && v === row.v) await cache.put(req.url, res.clone());
+        return res;
+      }
+      if (p === "/v1/avatars" && req.method === "GET") { // 여러 사람의 사진 버전(화면이 글자 동그라미를 사진으로 바꿀 때)
+        const ids = [...new Set((url.searchParams.get("ids") || "").split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 100);
+        const out = {};
+        if (ids.length) for (const r of (await db.prepare(`SELECT id, av FROM users WHERE av > 0 AND status = 'ok' AND id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results || []) out[r.id] = r.av;
+        return json(req, { av: out }, 200, { "Cache-Control": "public, max-age=60" });
+      }
+      if (p === "/v1/me/avatar" && req.method === "POST") {
+        const me = await userByActor(db, actor);
+        if (!me || me.status !== "ok") return json(req, { error: "account", message: "로그인한 계정만 사진을 올릴 수 있습니다." }, 401);
+        if (+(req.headers.get("Content-Length") || 0) > AVATAR_MAX) return json(req, { error: "size", message: "사진이 너무 큽니다." }, 413);
+        const u8 = new Uint8Array(await req.arrayBuffer());
+        if (u8.length > AVATAR_MAX || u8.length < 100) return json(req, { error: "size", message: "사진을 올리지 못했습니다. 다른 사진으로 해 보세요." }, 400);
+        const mime = imageMime(u8);
+        if (!mime) return json(req, { error: "type", message: "JPG·PNG·WEBP 사진만 올릴 수 있습니다." }, 400);
+        if (!(await allow(db, `av|${me.id}`, 10, 864e5, now))) return json(req, { error: "rate", message: "사진은 하루 10번까지 바꿀 수 있습니다." }, 429);
+        await db.batch([
+          db.prepare("INSERT INTO avatars (uid, mime, data, v, reports) VALUES (?, ?, ?, ?, 0) ON CONFLICT(uid) DO UPDATE SET mime = excluded.mime, data = excluded.data, v = excluded.v, reports = 0").bind(me.id, mime, toB64(u8), now),
+          db.prepare("UPDATE users SET av = ? WHERE id = ?").bind(now, me.id),
+          db.prepare("DELETE FROM user_reports WHERE uid = ? AND what = 'avatar'").bind(me.id),
+        ]);
+        return json(req, { ok: true, av: now });
+      }
+      if (p === "/v1/me/avatar/delete" && req.method === "POST") {
+        const me = await userByActor(db, actor);
+        if (!me) return json(req, { ok: false }, 401);
+        await db.batch([db.prepare("DELETE FROM avatars WHERE uid = ?").bind(me.id), db.prepare("UPDATE users SET av = 0 WHERE id = ?").bind(me.id)]);
+        return json(req, { ok: true, av: 0 });
+      }
+      // 이용자 신고: 사진(3명이 신고하면 사진을 내림) · 닉네임·소개(운영자 검토)
+      const urm = p.match(/^\/v1\/users\/(\d+)\/report$/);
+      if (urm && req.method === "POST") {
+        const uid = parseInt(urm[1], 10), { what } = await readJson(req);
+        if (!["avatar", "profile"].includes(what)) return json(req, { error: "what" }, 400);
+        const t = await db.prepare("SELECT id, av FROM users WHERE id = ? AND status = 'ok'").bind(uid).first();
+        if (!t) return json(req, { error: "not_found" }, 404);
+        const me = await userByActor(db, actor);
+        if (me && me.id === uid) return json(req, { error: "own" }, 400);
+        if (!(await allow(db, `urep|${uid}|${what}|${ih}`, 1, 864e5, now))) return json(req, { ok: true });
+        const ins = await db.prepare("INSERT OR IGNORE INTO user_reports (uid, by_actor, what, created) VALUES (?, ?, ?, ?)").bind(uid, actor, what, now).run();
+        if (ins.meta?.changes && what === "avatar" && t.av) {
+          const n = await db.prepare("SELECT COUNT(*) AS n FROM user_reports WHERE uid = ? AND what = 'avatar'").bind(uid).first();
+          await db.prepare("UPDATE avatars SET reports = ? WHERE uid = ?").bind(n?.n || 0, uid).run();
+          if ((n?.n || 0) >= LIMITS.reportHide) await db.prepare("UPDATE users SET av = 0 WHERE id = ?").bind(uid).run(); // 사진만 내린다(운영자가 보고 되돌릴 수 있음)
+        }
+        return json(req, { ok: true });
+      }
+      // ---------- 차단: 다시 누르면 해제. 차단하면 서로 팔로우가 풀리고 쪽지를 주고받을 수 없다 ----------
+      if (p === "/v1/block" && req.method === "POST") {
+        const me = await userByActor(db, actor);
+        if (!me) return json(req, { error: "account", message: "로그인하면 차단할 수 있습니다." }, 401);
+        const uid = parseInt((await readJson(req)).uid, 10) || 0;
+        if (!uid || uid === me.id || !(await db.prepare("SELECT 1 AS y FROM users WHERE id = ?").bind(uid).first())) return json(req, { error: "target" }, 400);
+        const ins = await db.prepare("INSERT OR IGNORE INTO blocks (blocker, blocked, created) SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM blocks WHERE blocker = ?) < 500").bind(me.id, uid, now, me.id).run();
+        if (ins.meta?.changes) await db.prepare("DELETE FROM follows WHERE (follower = ? AND followee = ?) OR (follower = ? AND followee = ?)").bind(me.id, uid, uid, me.id).run();
+        else await db.prepare("DELETE FROM blocks WHERE blocker = ? AND blocked = ?").bind(me.id, uid).run();
+        return json(req, { blocked: !!ins.meta?.changes });
+      }
+      if (p === "/v1/blocks" && req.method === "GET") {
+        const me = await userByActor(db, actor);
+        if (!me) return json(req, { items: [] }, 200, { "Cache-Control": "no-store" });
+        const r = await db.prepare("SELECT u.id, u.nick, u.av, b.created FROM blocks b JOIN users u ON u.id = b.blocked WHERE b.blocker = ? ORDER BY b.created DESC LIMIT 500").bind(me.id).all();
+        return json(req, { items: r.results || [] }, 200, { "Cache-Control": "no-store" });
+      }
+      // ---------- 팔로워·팔로잉 목록 ----------
+      const flm = p.match(/^\/v1\/users\/(\d+)\/follows$/);
+      if (flm && req.method === "GET") {
+        const uid = parseInt(flm[1], 10), type = url.searchParams.get("type") === "following" ? "following" : "followers";
+        const before = parseInt(url.searchParams.get("before") || "0", 10) || now + 1;
+        const me = await userByActor(db, actor);
+        const col = type === "following" ? ["followee", "follower"] : ["follower", "followee"]; // [보여 줄 사람, 이 프로필]
+        const r = await db.prepare(`SELECT u.id, u.nick, u.bio, u.av, f.created,
+            EXISTS(SELECT 1 FROM follows x WHERE x.follower = ? AND x.followee = u.id) AS following
+            FROM follows f JOIN users u ON u.id = f.${col[0]} WHERE f.${col[1]} = ? AND u.status = 'ok' AND f.created < ? ORDER BY f.created DESC LIMIT 51`).bind(me ? me.id : 0, uid, before).all();
+        const rows = r.results || [];
+        return json(req, { type, items: rows.slice(0, 50).map((x) => ({ ...x, following: !!x.following, self: !!me && me.id === x.id })), more: rows.length > 50 }, 200, { "Cache-Control": "no-store" });
+      }
+      // ---------- 사용자 찾기(쪽지 상대·@멘션 고르기) ----------
+      if (p === "/v1/users/search" && req.method === "GET") {
+        const q = cleanText(url.searchParams.get("q"), 12).toLowerCase().replace(/[%_\\\s]/g, "");
+        if (q.length < 1) return json(req, { items: [] });
+        if (!(await allow(db, `usearch|${ih}`, 600, 3600e3, now))) return json(req, { items: [] }, 429);
+        const r = await db.prepare(`SELECT id, nick, bio, av FROM users WHERE status = 'ok' AND nick_lc LIKE ? ORDER BY (nick_lc = ?) DESC, length(nick_lc), id LIMIT 10`).bind(q + "%", q).all();
+        let items = r.results || [];
+        if (items.length < 10 && q.length >= 2) {
+          const more = await db.prepare(`SELECT id, nick, bio, av FROM users WHERE status = 'ok' AND nick_lc LIKE ? AND nick_lc NOT LIKE ? ORDER BY id LIMIT ?`).bind("%" + q + "%", q + "%", 10 - items.length).all();
+          items = items.concat(more.results || []);
+        }
+        return json(req, { items }, 200, { "Cache-Control": "no-store" });
+      }
+      if (p === "/v1/users/by-nick" && req.method === "GET") {
+        const n = String(url.searchParams.get("n") || "").trim().toLowerCase();
+        const u = NICK_RE.test(n) ? await db.prepare("SELECT id FROM users WHERE nick_lc = ? AND status = 'ok'").bind(n).first() : null;
+        return u ? json(req, { id: u.id }, 200, { "Cache-Control": "public, max-age=60" }) : json(req, { error: "not_found" }, 404);
+      }
+
+      // ---------- 쪽지(DM) ----------
+      if (p.startsWith("/v1/dm")) {
+        const me = await userByActor(db, actor);
+        if (!me) return json(req, { error: "account", message: "로그인하면 쪽지를 쓸 수 있습니다." }, 401, { "Cache-Control": "no-store" });
+        const side = (t) => (t.a === me.id ? "a" : "b");
+        const otherOf = (t) => (t.a === me.id ? t.b : t.a);
+        const userCard = (u) => (u ? { id: u.id, nick: u.nick, av: u.status === "ok" ? u.av || 0 : 0, active: u.status === "ok" } : { id: 0, nick: "탈퇴한 사용자", av: 0, active: false });
+        const getThread = async (tid) => {
+          const t = await db.prepare("SELECT * FROM dm_threads WHERE id = ?").bind(tid).first();
+          return t && (t.a === me.id || t.b === me.id) ? t : null;
+        };
+        const getUser = (id) => db.prepare("SELECT id, nick, bio, av, status, dm_pref, created FROM users WHERE id = ?").bind(id).first();
+        if (p === "/v1/dm" && req.method === "GET") { // 대화 목록
+          const r = await db.prepare(`SELECT t.*, u.nick AS o_nick, u.av AS o_av, u.status AS o_status FROM dm_threads t
+              LEFT JOIN users u ON u.id = CASE WHEN t.a = ? THEN t.b ELSE t.a END
+              WHERE (t.a = ? AND t.last_id > t.a_del) OR (t.b = ? AND t.last_id > t.b_del) ORDER BY t.last_at DESC LIMIT 100`).bind(me.id, me.id, me.id).all();
+          const items = (r.results || []).map((t) => {
+            const sd = side(t), read = t[sd + "_read"];
+            return {
+              id: t.id, other: userCard(t.o_nick != null ? { id: otherOf(t), nick: t.o_nick, av: t.o_av, status: t.o_status } : null),
+              last: { body: t.last_body, at: t.last_at, mine: t.last_from === me.id },
+              unread: t.last_from !== me.id && t.last_id > read, request: !t.accepted && t.starter !== me.id, pending: !t.accepted && t.starter === me.id,
+            };
+          });
+          return json(req, { items, ...(await dmUnread(db, me.id)) }, 200, { "Cache-Control": "no-store" });
+        }
+        const wm = p.match(/^\/v1\/dm\/with\/(\d+)$/);
+        if (wm && req.method === "GET") { // 이 사람과의 대화방(없으면 null)과 보낼 수 있는지
+          const o = await getUser(parseInt(wm[1], 10));
+          if (!o) return json(req, { error: "not_found" }, 404);
+          const [x, y] = pair(me.id, o.id);
+          const t = await db.prepare("SELECT * FROM dm_threads WHERE a = ? AND b = ?").bind(x, y).first();
+          const perm = await dmPermission(db, me, o, t, now);
+          return json(req, { tid: t ? t.id : null, other: userCard(o), can: perm.can, reason: perm.reason || "", request: !!perm.request }, 200, { "Cache-Control": "no-store" });
+        }
+        const tm = p.match(/^\/v1\/dm\/(\d+)$/);
+        if (tm && req.method === "GET") { // 대화 내용. after=번호(새 쪽지만), before=번호(이전 쪽지)
+          const t = await getThread(parseInt(tm[1], 10));
+          if (!t) return json(req, { error: "not_found" }, 404, { "Cache-Control": "no-store" });
+          const sd = side(t), del = t[sd + "_del"];
+          const after = parseInt(url.searchParams.get("after") || "0", 10) || 0, before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
+          const r = before
+            ? await db.prepare("SELECT * FROM dm_msgs WHERE tid = ? AND id > ? AND id < ? ORDER BY id DESC LIMIT 50").bind(t.id, del, before).all()
+            : await db.prepare("SELECT * FROM dm_msgs WHERE tid = ? AND id > ? ORDER BY id DESC LIMIT 50").bind(t.id, Math.max(del, after)).all();
+          const msgs = (r.results || []).reverse();
+          if (t.last_id > t[sd + "_read"]) await db.prepare(`UPDATE dm_threads SET ${sd}_read = last_id WHERE id = ?`).bind(t.id).run();
+          const o = await getUser(otherOf(t));
+          const perm = await dmPermission(db, me, o, t, now);
+          const oRead = t[(sd === "a" ? "b" : "a") + "_read"];
+          return json(req, {
+            thread: { id: t.id, other: userCard(o), accepted: !!t.accepted, request: !t.accepted && t.starter !== me.id, pending: !t.accepted && t.starter === me.id, can: perm.can, reason: perm.reason || "", seenUpTo: oRead },
+            items: msgs.map((m) => ({ id: m.id, mine: m.sender === me.id, body: m.status === "ok" ? m.body : "", status: m.status, at: m.created })),
+            more: !after && msgs.length === 50,
+          }, 200, { "Cache-Control": "no-store" });
+        }
+        if (p === "/v1/dm/send" && req.method === "POST") {
+          const b = await readJson(req);
+          const body = cleanText(b.body, DM.bodyMax + 1);
+          if (body.length < 1) return json(req, { error: "short", message: "내용을 써 주세요." }, 400);
+          if (body.length > DM.bodyMax) return json(req, { error: "long", message: `쪽지는 ${DM.bodyMax}자까지 쓸 수 있습니다.` }, 400);
+          const prob = dmProblem(body);
+          if (prob) return json(req, { error: "blocked_content", message: prob }, 400);
+          let t = b.tid ? await getThread(parseInt(b.tid, 10)) : null;
+          const oid = t ? otherOf(t) : parseInt(b.to, 10) || 0;
+          const o = await getUser(oid);
+          const [x, y] = pair(me.id, oid);
+          if (!t && o) t = await db.prepare("SELECT * FROM dm_threads WHERE a = ? AND b = ?").bind(x, y).first();
+          const perm = await dmPermission(db, me, o, t, now);
+          if (!perm.can) return json(req, { error: "cannot", message: perm.reason }, 403);
+          if (!(await allow(db, `dm|${me.id}`, DM.perHour, 3600e3, now)) || !(await allow(db, `dmd|${me.id}`, DM.perDay, 864e5, now)))
+            return json(req, { error: "rate", message: "쪽지를 너무 많이 보냈습니다. 잠시 뒤에 다시 보내 주세요." }, 429);
+          if (!t) {
+            if (perm.request && !(await allow(db, `dmreq|${me.id}`, DM.reqPerDay, 864e5, now))) return json(req, { error: "rate", message: "처음 보는 사람에게는 하루 10명까지 쪽지를 보낼 수 있습니다." }, 429);
+            await db.prepare("INSERT OR IGNORE INTO dm_threads (a, b, starter, accepted, created, last_at) VALUES (?, ?, ?, ?, ?, ?)").bind(x, y, me.id, perm.request ? 0 : 1, now, now).run();
+            t = await db.prepare("SELECT * FROM dm_threads WHERE a = ? AND b = ?").bind(x, y).first();
+          }
+          const accept = !t.accepted && (perm.accepting || perm.theyFollowMe);
+          const ins = await db.prepare("INSERT INTO dm_msgs (tid, sender, body, created) VALUES (?, ?, ?, ?)").bind(t.id, me.id, body, now).run();
+          const mid = ins.meta?.last_row_id, sd = side(t);
+          await db.prepare(`UPDATE dm_threads SET last_at = ?, last_id = ?, last_from = ?, last_body = ?, ${sd}_read = ?${accept ? ", accepted = 1" : ""} WHERE id = ?`)
+            .bind(now, mid, me.id, body.length > 80 ? body.slice(0, 80) + "…" : body, mid, t.id).run();
+          return json(req, { ok: true, id: mid, tid: t.id, accepted: !!(t.accepted || accept), at: now });
+        }
+        const am2 = p.match(/^\/v1\/dm\/(\d+)\/(accept|delete)$/);
+        if (am2 && req.method === "POST") {
+          const t = await getThread(parseInt(am2[1], 10));
+          if (!t) return json(req, { error: "not_found" }, 404);
+          const sd = side(t);
+          if (am2[2] === "accept") {
+            if (t.starter !== me.id) await db.prepare("UPDATE dm_threads SET accepted = 1 WHERE id = ?").bind(t.id).run();
+            return json(req, { ok: true });
+          }
+          // 대화 삭제: 내 화면에서만 지운다. 둘 다 지우면 서버에서도 지운다
+          await db.prepare(`UPDATE dm_threads SET ${sd}_del = last_id, ${sd}_read = last_id WHERE id = ?`).bind(t.id).run();
+          const t2 = await db.prepare("SELECT * FROM dm_threads WHERE id = ?").bind(t.id).first();
+          if (t2 && t2.a_del >= t2.last_id && t2.b_del >= t2.last_id) {
+            const reported = await db.prepare("SELECT 1 AS y FROM dm_reports r JOIN dm_msgs m ON m.id = r.mid WHERE m.tid = ? AND r.reviewed = 0").bind(t.id).first();
+            if (!reported) await db.batch([db.prepare("DELETE FROM dm_msgs WHERE tid = ?").bind(t.id), db.prepare("DELETE FROM dm_threads WHERE id = ?").bind(t.id)]);
+          }
+          return json(req, { ok: true });
+        }
+        const mm = p.match(/^\/v1\/dm\/msg\/(\d+)\/(delete|report)$/);
+        if (mm && req.method === "POST") {
+          const m = await db.prepare("SELECT * FROM dm_msgs WHERE id = ?").bind(parseInt(mm[1], 10)).first();
+          const t = m ? await getThread(m.tid) : null;
+          if (!m || !t) return json(req, { error: "not_found" }, 404);
+          if (mm[2] === "delete") { // 보낸 사람만, 내용을 지운다(상대 화면에는 '삭제된 쪽지')
+            if (m.sender !== me.id) return json(req, { error: "own" }, 403);
+            await db.prepare("UPDATE dm_msgs SET status = 'deleted', body = '' WHERE id = ?").bind(m.id).run();
+            if (t.last_id === m.id) await db.prepare("UPDATE dm_threads SET last_body = '삭제된 쪽지' WHERE id = ?").bind(t.id).run();
+            return json(req, { ok: true });
+          }
+          if (m.sender === me.id) return json(req, { error: "own" }, 400);
+          await db.prepare("INSERT OR IGNORE INTO dm_reports (mid, by_uid, created) VALUES (?, ?, ?)").bind(m.id, me.id, now).run();
+          return json(req, { ok: true, message: "신고했습니다. 운영자가 확인합니다. 원하시면 이 사람을 차단할 수도 있어요." });
+        }
+        return json(req, { error: "not_found" }, 404);
+      }
+
       // ---------- 운영자 애널리틱스: 운영자 계정(owners) 로그인 또는 관리 토큰 ----------
       if (p === "/v1/admin/analytics" && req.method === "GET") {
         const auth = req.headers.get("Authorization") || "";
@@ -902,6 +1269,49 @@ export default {
         return json(req, { loggedIn: !!session, user: me ? { id: me.id, nick: me.nick } : null, owner: own }, 200, { "Cache-Control": "no-store" });
       }
 
+      // ---------- 신고 처리(운영자 계정 로그인 또는 관리 토큰): 신고된 쪽지는 공개 기록(Actions)에 남기지 않고 운영 통계 화면에서만 본다 ----------
+      if (p === "/v1/admin/reports" || /^\/v1\/admin\/(dm\/\d+|users\/\d+\/(avatar|profile))$/.test(p)) {
+        const auth = req.headers.get("Authorization") || "";
+        let ok = !!env.ADMIN_TOKEN && safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`);
+        if (!ok && session) { const me = await userByActor(db, actor); ok = !!me && !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first()); }
+        if (!ok) return json(req, { error: "owner" }, 403, { "Cache-Control": "no-store" });
+      // 신고된 쪽지·프로필(사진·닉네임·소개). 쪽지는 신고된 것만 운영자가 본다
+      if (p === "/v1/admin/reports" && req.method === "GET") {
+        const [dm, ur] = await Promise.all([
+          db.prepare(`SELECT m.id, m.tid, m.sender, su.nick AS sender_nick, m.body, m.status, m.created, COUNT(r.by_uid) AS n, MIN(r.created) AS first
+              FROM dm_reports r JOIN dm_msgs m ON m.id = r.mid LEFT JOIN users su ON su.id = m.sender WHERE r.reviewed = 0 GROUP BY m.id ORDER BY first DESC LIMIT 100`).all(),
+          db.prepare(`SELECT u.id, u.nick, u.bio, u.av, (SELECT v FROM avatars a WHERE a.uid = u.id) AS av_stored, ur.what, COUNT(*) AS n, MAX(ur.created) AS last FROM user_reports ur JOIN users u ON u.id = ur.uid
+              GROUP BY ur.uid, ur.what ORDER BY last DESC LIMIT 100`).all(),
+        ]);
+        return json(req, { dm: dm.results || [], users: ur.results || [] });
+      }
+      const adm = p.match(/^\/v1\/admin\/dm\/(\d+)$/);
+      if (adm && req.method === "POST") { // 신고 쪽지 처리: hidden(가림) | ok(문제 없음)
+        const { status } = await readJson(req);
+        if (!["ok", "hidden"].includes(status)) return json(req, { error: "status" }, 400);
+        const mid = parseInt(adm[1], 10);
+        await db.batch([
+          db.prepare("UPDATE dm_msgs SET status = ? WHERE id = ? AND status != 'deleted'").bind(status, mid),
+          db.prepare("UPDATE dm_reports SET reviewed = 1 WHERE mid = ?").bind(mid),
+        ]);
+        return json(req, { ok: true });
+      }
+      const aav = p.match(/^\/v1\/admin\/users\/(\d+)\/(avatar|profile)$/);
+      if (aav && req.method === "POST") { // 사진 내리기·되돌리기, 프로필 신고 정리
+        const id = parseInt(aav[1], 10), { action } = await readJson(req);
+        if (aav[2] === "avatar") {
+          if (action === "remove") await db.batch([db.prepare("DELETE FROM avatars WHERE uid = ?").bind(id), db.prepare("UPDATE users SET av = 0 WHERE id = ?").bind(id)]);
+          else if (action === "restore") await db.prepare("UPDATE users SET av = (SELECT v FROM avatars WHERE uid = ?) WHERE id = ? AND EXISTS(SELECT 1 FROM avatars WHERE uid = ?)").bind(id, id, id).run();
+          else return json(req, { error: "action" }, 400);
+          await db.prepare("DELETE FROM user_reports WHERE uid = ? AND what = 'avatar'").bind(id).run();
+        } else {
+          if (action === "clear_bio") await db.prepare("UPDATE users SET bio = '' WHERE id = ?").bind(id).run();
+          await db.prepare("DELETE FROM user_reports WHERE uid = ? AND what = 'profile'").bind(id).run();
+        }
+        return json(req, { ok: true });
+      }
+        return json(req, { error: "not_found" }, 404);
+      }
       // ---------- 관리 (Authorization: Bearer ADMIN_TOKEN) ----------
       if (p.startsWith("/v1/admin/")) {
         const auth = req.headers.get("Authorization") || "";

@@ -51,6 +51,9 @@ jobs:
           npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command "
             SELECT u.id, u.nick, date((u.created + 32400000) / 1000, 'unixepoch') AS joined, (SELECT 1 FROM owners o WHERE o.uid = u.id) AS own
             FROM users u ORDER BY u.id DESC LIMIT 20" > /tmp/u.json && python3 ../scripts/moderation.py users /tmp/u.json || true
+          # 신고된 쪽지·프로필은 개수만(내용은 공개 기록에 남기지 않음 — 운영 통계 화면 '신고 처리'에서 본다)
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command "
+            SELECT (SELECT COUNT(DISTINCT mid) FROM dm_reports WHERE reviewed = 0) AS dm, (SELECT COUNT(DISTINCT uid) FROM user_reports) AS users" > /tmp/r.json && python3 ../scripts/moderation.py reports /tmp/r.json || true
       - name: Apply decisions
         if: env.DECISIONS != ''
         working-directory: worker

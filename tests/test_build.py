@@ -381,6 +381,16 @@ if (D / "index.html").exists():
     wk = (SRC / "worker/src/index.js").read_text(encoding="utf-8")
     check(all(f'"{e}"' in wk for e in ["install_bar", "install_inapp", "ic_header", "ic_bar", "ic_report"]), "설치 자리별 기록을 API가 받음")
 
+print("15) SNS·쪽지·읽는 시간")
+if (D / "index.html").exists():
+    htmls = [p.read_text(encoding="utf-8") for p in D.rglob("*.html")]
+    check(not any("분 읽기" in h for h in htmls), "몇 분 읽기 표시 없음")
+    dm = (D / "dm/index.html")
+    check(dm.exists() and "noindex" in dm.read_text(encoding="utf-8") and "dm.js" in dm.read_text(encoding="utf-8"), "쪽지함 페이지(검색 노출 안 함)")
+    check("Disallow: /dm/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 쪽지함 차단")
+    check("data-open-dm" in (D / "index.html").read_text(encoding="utf-8"), "머리줄 쪽지 버튼")
+    check("/dm/" not in (D / "sitemap.xml").read_text(encoding="utf-8"), "사이트맵에 쪽지함 없음")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

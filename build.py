@@ -782,7 +782,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
           feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, page_bottom=ads.render("page_bottom", home_ctx), is_home=True)
     write("search/index.html", "search.html")
     if site.get("api_url"):
-        write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
+        write("u/index.html", "user.html")
+        write("dm/index.html", "dm.html")  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
         write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
         write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"])
@@ -859,7 +860,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         + "".join(items) + "</channel></rss>"
     )
     (out / "rss.xml").write_text(rss, encoding="utf-8")
-    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
+    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /dm/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
     if seo.get("daum_webmaster_pin"):  # 다음 웹마스터도구 소유 확인 줄(공개값)
         robots += f"\n#DaumWebMasterTool:{seo['daum_webmaster_pin']}\n"
     (out / "robots.txt").write_text(robots, encoding="utf-8")

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% set no_tabbar = true %}{# 쪽지 화면은 아래 입력 칸을 쓰므로 탭 줄을 띄우지 않는다 #}
+{% block title %}쪽지 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ site.site_name }} 쪽지함{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block main %}
+<div class="wrap dm-wrap" data-dm>
+  <p class="muted dm-msg" data-dm-msg>쪽지함을 불러오는 중입니다…</p>
+  <div class="dm-app" data-dm-app hidden>
+    <aside class="dm-side" aria-label="대화 목록">
+      <div class="dm-side-head">
+        <h1>쪽지</h1>
+        <button type="button" class="btn btn-small btn-primary" data-dm-new>새 쪽지</button>
+      </div>
+      <div class="seg-tabs dm-tabs" role="tablist">
+        <button type="button" role="tab" data-dm-tab="inbox" aria-selected="true">대화</button>
+        <button type="button" role="tab" data-dm-tab="req" aria-selected="false">요청 <strong data-dm-reqn></strong></button>
+      </div>
+      <ul class="dm-list" data-dm-list></ul>
+      <p class="muted kw-small dm-note">처음 보는 사람의 쪽지는 '요청'에 따로 모입니다. 수락하기 전에는 읽어도 상대에게 읽음 표시가 가지 않아요.</p>
+    </aside>
+    <section class="dm-conv" data-dm-conv aria-label="대화" hidden>
+      <header class="dm-conv-head">
+        <button type="button" class="icon-btn dm-back" data-dm-back aria-label="목록으로">←</button>
+        <a class="dm-who" data-dm-who href="#"></a>
+        <button type="button" class="icon-btn dm-menu" data-dm-menu aria-label="대화 메뉴">⋯</button>
+      </header>
+      <div class="dm-banner" data-dm-banner hidden></div>
+      <ol class="dm-msgs" data-dm-msgs aria-live="polite"></ol>
+      <form class="dm-form" data-dm-form>
+        <textarea rows="1" maxlength="1000" placeholder="쪽지 보내기" aria-label="쪽지 내용" data-dm-input></textarea>
+        <button type="submit" class="btn btn-primary" data-dm-send>보내기</button>
+      </form>
+      <p class="dm-cant muted" data-dm-cant hidden></p>
+    </section>
+    <div class="dm-pick muted" data-dm-pick>왼쪽에서 대화를 고르거나 "새 쪽지"를 눌러 보세요.</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ base }}/static/js/dm.js?v={{ asset_ver }}" defer></script>{% endblock %}

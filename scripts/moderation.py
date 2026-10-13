@@ -6,6 +6,7 @@ apply : 결정 JSON을 검증해 SQL 파일로 만든다. 형식:
         {"comments": [{"id": 12, "status": "ok|hidden|deleted"}], "ban": [3], "unban": [],
          "owner_nick": ["닉네임"], "owner": [1], "unowner": []}   ← 운영자(애널리틱스 화면) 지정·해제
 users : 최근 가입한 계정(번호·닉네임·가입일)을 출력한다(닉네임은 프로필에 공개되는 값).
+reports: 처리 안 한 쪽지·프로필 신고 '개수'만 출력한다(쪽지 내용은 공개 기록에 남기지 않는다. 처리는 /admin/ 화면).
 """
 import json
 import re
@@ -91,10 +92,20 @@ def cmd_users(path: str) -> None:
     annotate("USERS", json.dumps(items, ensure_ascii=False))
 
 
+def cmd_reports(path: str) -> None:
+    raw = json.load(open(path, encoding="utf-8"))
+    rows = raw[0]["results"] if isinstance(raw, list) else raw.get("results", [])
+    r = rows[0] if rows else {}
+    annotate("REPORTS", json.dumps({"dm_reports": r.get("dm") or 0, "profile_reports": r.get("users") or 0,
+                                    "where": "운영 통계(/admin/) 화면 맨 위 '신고 처리'"}, ensure_ascii=False))
+
+
 if __name__ == "__main__":
     if sys.argv[1] == "users":
         cmd_users(sys.argv[2])
     elif sys.argv[1] == "list":
         cmd_list(sys.argv[2])
+    elif sys.argv[1] == "reports":
+        cmd_reports(sys.argv[2])
     elif sys.argv[1] == "apply":
         cmd_apply(sys.argv[2], sys.argv[3])

@@ -445,6 +445,48 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     src = u ? u.toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40) : 'direct';
     if (!u && h) { src = h.replace(/^www\./, '').slice(0, 40); for (var i = 0; i < map.length; i++) if (map[i][0].test(h)) { src = map[i][1].replace('·', '-'); break; } }
     SS('kw-src', src);
+    // 세분화 유입: 채널 > 세부 출처(네이버 검색/블로그/카페, 구글 검색/디스커버, 카톡 공유 등). 리퍼러는 도메인만 쓴다
+    var fine = classify(h, UA, u);
+    SS('kw-ch', fine[0]); SS('kw-sd', fine[1]); SS('kw-rh', h ? h.replace(/^www\./, '').slice(0, 80) : '');
+    SS('kw-lp', location.pathname.toLowerCase());
+    var qs = new URLSearchParams(location.search), utm = {};
+    ['source', 'medium', 'campaign', 'content'].forEach(function (k) { var v = qs.get('utm_' + k); if (v) utm[k.charAt(0) === 'c' && k !== 'campaign' ? 't' : k.charAt(0)] = v.slice(0, 60); });
+    SS('kw-utm', Object.keys(utm).length ? JSON.stringify(utm) : '');
+  }
+  function classify(h, ua, u) {
+    if (u) { // utm_source가 있으면 그 값을 세부 출처로, 채널은 값으로 추정
+      var us = u.toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40) || 'utm';
+      var uc = /youtube|yt/.test(us) ? 'youtube' : /naver|google|daum|bing/.test(us) ? 'search' : /kakao|telegram|line|band/.test(us) ? 'messenger'
+        : /mail|newsletter|stibee/.test(us) ? 'email' : /x|twitter|threads|instagram|facebook|tiktok/.test(us) ? 'social' : 'referral';
+      return [uc, us];
+    }
+    if (!h) { // 리퍼러 없음: 앱 안 브라우저면 그 앱에서 공유된 링크로 본다
+      if (/kakaotalk/i.test(ua)) return ['messenger', 'kakaotalk'];
+      if (/NAVER\(inapp|naver/i.test(ua)) return ['search', 'naver-app'];
+      if (/instagram/i.test(ua)) return ['social', 'instagram'];
+      if (/FBAN|FBAV/.test(ua)) return ['social', 'facebook'];
+      if (/Line\//.test(ua)) return ['messenger', 'line'];
+      if (/DaumApps/.test(ua)) return ['search', 'daum-app'];
+      return ['direct', 'direct'];
+    }
+    var R = [
+      [/chatgpt\.com$|openai\.com$/, 'ai', 'chatgpt'], [/perplexity\.ai$/, 'ai', 'perplexity'], [/gemini\.google\.com$/, 'ai', 'gemini'], [/claude\.ai$/, 'ai', 'claude'], [/copilot\.microsoft\.com$/, 'ai', 'copilot'],
+      [/^(m\.)?search\.naver\.com$|^search\.naver\.com$/, 'search', 'naver-search'], [/^(m\.)?blog\.naver\.com$/, 'community', 'naver-blog'], [/^(m\.)?cafe\.naver\.com$|^cafe\.naver\.com$/, 'community', 'naver-cafe'],
+      [/^(m\.|n\.)?news\.naver\.com$|^(m\.)?finance\.naver\.com$|^(m\.)?stock\.naver\.com$/, 'referral', 'naver-finance'], [/^(m\.)?kin\.naver\.com$/, 'community', 'naver-kin'], [/naver\.com$/, 'search', 'naver-etc'],
+      [/^(www\.)?google\.[a-z.]+$/, 'search', 'google-search'], [/^news\.google\.com$/, 'referral', 'google-news'], [/googlequicksearchbox|discover\.google/, 'search', 'google-discover'], [/google\./, 'search', 'google-etc'],
+      [/^(m\.)?search\.daum\.net$/, 'search', 'daum-search'], [/^(m\.)?cafe\.daum\.net$/, 'community', 'daum-cafe'], [/daum\.net$/, 'search', 'daum-etc'], [/kakao\.com$/, 'messenger', 'kakao-web'],
+      [/bing\.com$/, 'search', 'bing'], [/duckduckgo\.com$/, 'search', 'duckduckgo'], [/yahoo\./, 'search', 'yahoo'], [/zum\.com$/, 'search', 'zum'],
+      [/youtube\.com$|youtu\.be$/, 'youtube', 'youtube'],
+      [/(^|\.)(x|twitter)\.com$|^t\.co$/, 'social', 'x'], [/threads\.(net|com)$/, 'social', 'threads'], [/instagram\.com$/, 'social', 'instagram'], [/facebook\.com$|fb\.com$/, 'social', 'facebook'],
+      [/tiktok\.com$/, 'social', 'tiktok'], [/linkedin\.com$/, 'social', 'linkedin'], [/reddit\.com$/, 'community', 'reddit'], [/band\.us$/, 'messenger', 'band'], [/t\.me$|telegram/, 'messenger', 'telegram'],
+      [/dcinside\.com$/, 'community', 'dcinside'], [/fmkorea\.com$/, 'community', 'fmkorea'], [/clien\.net$/, 'community', 'clien'], [/ppomppu\.co\.kr$/, 'community', 'ppomppu'],
+      [/theqoo\.net$/, 'community', 'theqoo'], [/ruliweb\.com$/, 'community', 'ruliweb'], [/paxnet\.co\.kr$/, 'community', 'paxnet'], [/stocktwits\.com$/, 'community', 'stocktwits'],
+      [/tistory\.com$/, 'community', 'tistory'], [/brunch\.co\.kr$/, 'community', 'brunch'], [/postype\.com$/, 'community', 'postype'], [/velog\.io$/, 'community', 'velog'],
+      [/investing\.com$/, 'referral', 'investing'], [/tossinvest\.com$|toss\.im$/, 'referral', 'toss'], [/stibee\.com$|mail\./, 'email', 'email'],
+      [/drkimworld\.com$/, 'internal', 'internal']
+    ];
+    for (var i = 0; i < R.length; i++) if (R[i][0].test(h)) return [R[i][1], R[i][2]];
+    return ['referral', h.replace(/^www\./, '').replace(/^m\./, '').slice(0, 40)];
   }
   var active = 0, last = Date.now(), maxSc = 0, sent = false;
   ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove'].forEach(function (e) { addEventListener(e, function () { last = Date.now(); }, { passive: true }); });
@@ -457,7 +499,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     if (sent) return; sent = true;
     var did = LS('kw-did') || '';
     var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc,
-      app: isApp ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}) });
+      app: isApp ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}),
+      ch: SS('kw-ch') || 'direct', sd: SS('kw-sd') || src, rh: n === 1 ? (SS('kw-rh') || '') : '', lp: SS('kw-lp') || location.pathname, u: (function () { try { return JSON.parse(SS('kw-utm') || 'null'); } catch (e) { return null; } })() });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
     try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}
     try { fetch(url, { method: 'POST', body: body, keepalive: true, credentials: 'include' }); } catch (e) {}
@@ -553,6 +596,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   function refresh() { // 설치 가능 여부가 바뀔 때마다(설치 창 거절 뒤엔 크롬이 다시 허용할 때까지 숨김)
     var on = !!mode();
     document.querySelectorAll('[data-install]').forEach(function (n) { n.hidden = !on; });
+    if (window.kwFitHeader) kwFitHeader();
     if (on) { feedCard(); reportCard(); armBar(); }
   }
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-install]'); if (b) { e.preventDefault(); window.kwInstall(b.getAttribute('data-src') || ''); } });

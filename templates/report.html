@@ -55,7 +55,6 @@
       <p class="report-meta">
         <span>공개 <time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time></span>
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
-        <span>{{ r.minutes }}분 읽기</span>
         <span class="views" data-views hidden></span>
         <span class="asof">숫자 기준 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></span>
       </p>

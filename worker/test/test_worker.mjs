@@ -406,6 +406,21 @@ sqlite.exec(`INSERT INTO owners (uid) VALUES (${r1.data.user.id})`);
 an = await call("GET", "/v1/admin/analytics?days=30", { ip: "91.0.0.5", cookie: own.cookie });
 check(an.status === 200 && an.data.days === 30 && an.data.series.length === 30, "운영자 계정은 로그인만으로 통계를 봄");
 
+console.log("유입 분석(세분화)");
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "naver", ch: "search", sd: "naver-search", rh: "m.search.naver.com", lp: "/r/rgti-2026-10/", m: 1, n: 1, s: 1, a: 50, sc: 80, ev: ["signup"] }, ip: "92.0.0.1" });
+await call("POST", "/v1/hit", { body: { p: "/", r: "naver", ch: "search", sd: "naver-search", lp: "/r/rgti-2026-10/", m: 1, n: 1, s: 2, a: 10, sc: 30 }, ip: "92.0.0.1" });
+await call("POST", "/v1/hit", { body: { p: "/r/ionq-2026-10/", r: "youtube", ch: "youtube", sd: "youtube", rh: "www.youtube.com", lp: "/r/ionq-2026-10/", m: 1, n: 0, s: 1, a: 200, sc: 90,
+  u: { s: "YouTube", m: "video", c: "ionq-2026-10", t: "pinned<script>" } }, ip: "92.0.0.2" });
+await call("POST", "/v1/hit", { body: { p: "/", r: "direct", ch: "hacker", sd: "BAD SRC!", lp: "/../etc", s: 1, a: 5 }, ip: "92.0.0.3" });
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+const A = an.data.acq;
+const ns = A.sources.find((x) => x.src === "naver-search");
+check(ns && ns.ch === "search" && ns.sess === 1 && ns.multi === 1 && ns.pv === 2 && ns.secs === 60 && ns.ev.signup === 1, "세부 출처: 세션·2페이지·체류·가입");
+check(A.landings.some((x) => x.path === "/r/ionq-2026-10/" && x.src === "youtube" && x.sess === 1 && x.secs === 200), "랜딩 페이지 × 출처(유튜브 영상별)");
+check(A.refs.some((x) => x.host === "m.search.naver.com"), "리퍼러 도메인");
+check(A.campaigns.some((x) => x.src === "youtube" && x.camp === "ionq-2026-10" && x.cont === "pinnedscript"), "UTM 캠페인(이상한 글자는 지움)");
+check(A.channels.some((x) => x.ch === "direct") && !A.channels.some((x) => x.ch === "hacker") && A.landings.some((x) => x.path === "/(기타)"), "모르는 채널·경로는 기본값으로");
+
 console.log("광고 성과");
 r = await call("POST", "/v1/ad/events", { body: { seg: "m.r", e: [{ g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "c" }, { g: "spacec3d4", s: "rail", k: "i" }, { g: "BAD!", s: "report_end", k: "i" }, { g: "x1", s: "nowhere", k: "i" }] }, ip: "90.0.0.1" });
 check(r.data.ok && r.data.n === 2, "올바른 묶음·자리만 받음");
@@ -424,6 +439,106 @@ await call("POST", "/v1/search", { body: { q: "카톡 리딩방" }, ip: "20.0.0.
 r = await call("GET", "/v1/trending?days=7");
 check(r.data.items[0].q === "리게티" && r.data.items[0].n === 3, "하루 한 사람 한 번만 세서 순위");
 check(r.data.items.some((x) => x.q === "ionq") && !r.data.items.some((x) => x.q.includes("카톡")), "소문자로 묶고, 홍보성 검색어는 안 셈");
+
+console.log("SNS: 프로필 사진·차단·멘션·쪽지");
+async function mkUser(code, nick, ip) {
+  const L = await login("google", code, ip);
+  const r = await call("POST", "/v1/me", { body: { nick }, ip, cookie: L.cookie });
+  return { cookie: L.cookie, ip, id: r.data.user.id, nick };
+}
+const U1 = await mkUser("dm1", "쪽지하나", "70.0.0.1"), U2 = await mkUser("dm2", "쪽지둘", "70.0.0.2"), U3 = await mkUser("dm3", "쪽지셋", "70.0.0.3");
+const as = (U, m, path, body) => call(m, path, { body, ip: U.ip, cookie: U.cookie });
+// 프로필 사진
+async function upload(U, bytes, type = "image/webp") {
+  const res = await worker.fetch(new Request("https://api.drkimworld.com/v1/me/avatar", { method: "POST", headers: { "CF-Connecting-IP": U.ip, Origin: "https://drkimworld.com", Cookie: U.cookie, "Content-Type": type }, body: bytes }), env);
+  return { status: res.status, data: await res.json() };
+}
+const webp = new Uint8Array(400); webp.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+let up = await upload(U1, webp);
+check(up.status === 200 && up.data.av > 0, "사진 올리기(webp)");
+check((await upload(U1, new Uint8Array(400).fill(7))).status === 400, "사진이 아닌 파일은 거절");
+check((await upload(U1, new Uint8Array(70000))).status >= 400, "64KB 넘으면 거절");
+let img = await worker.fetch(new Request(`https://api.drkimworld.com/v1/avatar/${U1.id}?v=${up.data.av}`), env);
+check(img.status === 200 && img.headers.get("Content-Type") === "image/webp" && /immutable/.test(img.headers.get("Cache-Control")) && (await img.arrayBuffer()).byteLength === 400, "사진 주소: 버전이 맞으면 1년 캐시");
+let avs = await call("GET", `/v1/avatars?ids=${U1.id},${U2.id}`);
+check(avs.data.av[U1.id] === up.data.av && !avs.data.av[U2.id], "여러 사람 사진 버전 한 번에");
+for (const ip of ["71.0.0.1", "71.0.0.2", "71.0.0.3"]) await call("POST", `/v1/users/${U1.id}/report`, { body: { what: "avatar" }, ip });
+avs = await call("GET", `/v1/avatars?ids=${U1.id}`);
+check(!avs.data.av[U1.id], "사진 신고 3건이면 사진을 내림");
+up = await upload(U1, webp);
+// 멘션
+sqlite.exec(`UPDATE users SET created = created - 2 * 86400000 WHERE id = ${U2.id}`);
+r = await as(U2, "POST", "/v1/comments", { slug: "b-talk", body: "@쪽지하나 님 이 글 보셨어요? @vip_room77", t: 8000 });
+check(r.data.status === "held", "없는 영문 @아이디는 여전히 보류(텔레그램 유도 막기)");
+r = await as(U2, "POST", "/v1/comments", { slug: "b-talk", body: "@쪽지하나 님 의견 궁금해요", t: 8000 });
+check(r.data.status === "ok", "있는 닉네임 멘션은 그대로 게시");
+let nt = await as(U1, "GET", "/v1/notifications");
+check(nt.data.items.some((x) => x.type === "mention" && x.from_nick === "쪽지둘"), "멘션 알림");
+r = await call("GET", "/v1/users/by-nick?n=" + encodeURIComponent("쪽지하나"));
+check(r.data.id === U1.id, "닉네임으로 프로필 찾기");
+r = await call("GET", "/v1/users/search?q=" + encodeURIComponent("쪽지"));
+check(r.data.items.length === 3 && r.data.items.every((x) => "av" in x), "사용자 찾기");
+// 쪽지: 새 계정은 처음 보는 사람에게 못 보냄
+r = await as(U3, "POST", "/v1/dm/send", { to: U1.id, body: "안녕하세요" });
+check(r.status === 403 && /하루 뒤/.test(r.data.message), "가입 하루 안에는 처음 보는 사람에게 쪽지 불가");
+sqlite.exec(`UPDATE users SET created = created - 2 * 86400000 WHERE id IN (${U1.id}, ${U3.id})`);
+r = await as(U2, "POST", "/v1/dm/send", { to: U1.id, body: "오픈채팅으로 오세요 open.kakao.com/xyz" });
+check(r.status === 400 && /사기 예방/.test(r.data.message), "쪽지에 링크·외부 채팅 안내 불가");
+r = await as(U2, "POST", "/v1/dm/send", { to: U1.id, body: "IONQ 리포트 잘 봤어요 https://drkimworld.com/r/ionq-2026-10/" });
+check(r.status === 200 && r.data.accepted === false, "처음 보는 사람에게는 요청으로(이 사이트 주소는 허용)");
+const tid = r.data.tid;
+r = await as(U2, "POST", "/v1/dm/send", { tid, body: "두 번째" });
+check(r.status === 403 && /수락/.test(r.data.message), "수락 전에는 한 통만");
+let li = await as(U1, "GET", "/v1/me");
+check(li.data.dmRequests === 1 && li.data.dmUnread === 0, "받는 사람: 요청함 1(안 읽음 숫자와 따로)");
+let th = await as(U1, "GET", `/v1/dm/${tid}`);
+check(th.data.thread.request && th.data.items.length === 1 && !th.data.items[0].mine, "요청 내용 보기");
+r = await as(U1, "POST", "/v1/dm/send", { tid, body: "네 반갑습니다" });
+check(r.status === 200 && r.data.accepted, "답장하면 수락");
+r = await as(U2, "POST", "/v1/dm/send", { tid, body: "감사합니다!" });
+check(r.status === 200, "수락 뒤에는 자유롭게");
+li = await as(U1, "GET", "/v1/me");
+check(li.data.dmUnread === 1, "안 읽은 대화 1");
+th = await as(U1, "GET", `/v1/dm/${tid}?after=0`);
+li = await as(U1, "GET", "/v1/me");
+check(th.data.items.length === 3 && li.data.dmUnread === 0, "열면 읽음");
+check((await as(U3, "GET", `/v1/dm/${tid}`)).status === 404, "남의 대화는 못 봄");
+// 받는 설정
+await as(U3, "POST", "/v1/me", { dmPref: "none" });
+r = await as(U1, "POST", "/v1/dm/send", { to: U3.id, body: "안녕" });
+check(r.status === 403 && /받지 않습니다/.test(r.data.message), "쪽지 받지 않음 설정");
+await as(U3, "POST", "/v1/follow", { uid: U1.id });
+r = await as(U1, "POST", "/v1/dm/send", { to: U3.id, body: "안녕" });
+check(r.status === 200 && r.data.accepted, "받지 않음이어도 내가 팔로우한 사람은 바로 대화");
+// 신고·삭제
+const mid = th.data.items.find((x) => !x.mine).id;
+r = await as(U1, "POST", `/v1/dm/msg/${mid}/report`);
+check(r.data.ok, "쪽지 신고");
+let rep = await call("GET", "/v1/admin/reports", { auth: "Bearer adm" });
+check(rep.data.dm.some((x) => x.id === mid && x.sender === U2.id), "운영자는 신고된 쪽지만 봄");
+r = await as(U1, "POST", `/v1/dm/msg/${mid}/delete`);
+check(r.status === 403, "남의 쪽지는 지울 수 없음");
+// 차단
+r = await as(U1, "POST", "/v1/block", { uid: U2.id });
+check(r.data.blocked, "차단");
+r = await as(U2, "POST", "/v1/dm/send", { tid, body: "왜요" });
+check(r.status === 403, "차단하면 쪽지 불가");
+r = await as(U2, "POST", "/v1/follow", { uid: U1.id });
+check(r.status === 403, "차단하면 팔로우 불가");
+li = await as(U1, "GET", "/v1/me");
+check(li.data.blocked.includes(U2.id), "내 차단 목록");
+r = await as(U1, "POST", "/v1/block", { uid: U2.id });
+check(!r.data.blocked, "다시 누르면 차단 해제");
+// 팔로워 목록
+r = await call("GET", `/v1/users/${U1.id}/follows?type=followers`, { ip: U2.ip, cookie: U2.cookie });
+check(r.data.items.length === 1 && r.data.items[0].id === U3.id, "팔로워 목록");
+// 대화 삭제(둘 다 지우면 서버에서도). 신고 안 된 대화로 확인
+const t13 = (await as(U1, "GET", `/v1/dm/with/${U3.id}`)).data.tid;
+await as(U1, "POST", `/v1/dm/${t13}/delete`); await as(U3, "POST", `/v1/dm/${t13}/delete`);
+check(!(await DB.prepare("SELECT 1 FROM dm_msgs WHERE tid = ?").bind(t13).first()), "둘 다 대화를 지우면 서버에서도 지움");
+// 탈퇴하면 쪽지·사진도 지움
+await as(U2, "POST", "/v1/me/delete", { all: true });
+check(!(await DB.prepare("SELECT 1 FROM dm_msgs WHERE sender = ?").bind(U2.id).first()) && !(await DB.prepare("SELECT 1 FROM avatars WHERE uid = ?").bind(U2.id).first()), "탈퇴하면 쪽지 기록도 지움");
 
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
