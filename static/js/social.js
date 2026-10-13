@@ -74,7 +74,7 @@
     } else body.addEventListener('dblclick', dblLike);
     var act = el('footer', 'post-actions');
     var rp = el('a', 'pa'); rp.href = C.postUrl(c.id) + '#reply'; rp.setAttribute('aria-label', '답글');
-    rp.appendChild(icon('comment')); rp.appendChild(el('span', null, c.replies ? num(c.replies) : '')); act.appendChild(rp);
+    rp.appendChild(icon('comment')); rp.appendChild(el('span', null, c.replies ? num(c.replies) : ''));
     var lk = el('button', 'pa pa-like'); lk.type = 'button'; lk.setAttribute('aria-label', '좋아요');
     lk.setAttribute('aria-pressed', c.liked ? 'true' : 'false'); lk.appendChild(icon('heart'));
     var ln = el('span', null, c.likes ? num(c.likes) : ''); lk.appendChild(ln);
@@ -89,7 +89,7 @@
         lk.setAttribute('aria-pressed', d.liked ? 'true' : 'false'); ln.textContent = d.likes ? num(d.likes) : '';
       }).catch(function () { lk.disabled = false; });
     });
-    act.appendChild(lk);
+    act.appendChild(lk); act.appendChild(rp); // 하트 왼쪽, 답글 오른쪽(리포트 카드와 같은 순서)
     // 리포스트·인용(누르면 고르는 창). 내 글은 리포스트할 수 없다
     var rb = el('button', 'pa pa-repost'); rb.type = 'button'; rb.setAttribute('aria-label', '리포스트·인용');
     rb.setAttribute('data-repost', ''); rb.setAttribute('data-kind', 'p'); rb.setAttribute('data-ref', c.id); rb.setAttribute('data-quote-src', c.body);
