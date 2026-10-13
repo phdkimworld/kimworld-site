@@ -7,7 +7,7 @@
 <title>{% block title %}{{ site.site_name }} — {{ site.tagline }}{% endblock %}</title>
 <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
 <link rel="canonical" href="{{ page_url }}">
-{% block robots %}{% endblock %}
+{% block robots %}{% endblock %}{% if not self.robots()|trim %}<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">{% endif %}
 <meta property="og:site_name" content="{{ site.site_name }}">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:title" content="{{ self.title() }}">
@@ -18,6 +18,10 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ self.title() }}">
+<meta name="twitter:description" content="{{ self.description() }}">
+<meta name="twitter:image" content="{{ self.og_image() }}">
+{% block jsonld %}{% endblock %}
 <meta name="theme-color" content="#0f172a">
 <link rel="icon" href="{{ base }}/static/icon.svg" type="image/svg+xml">
 <link rel="manifest" href="{{ base }}/manifest.webmanifest">
@@ -28,6 +32,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="alternate" type="application/rss+xml" title="{{ site.site_name }}" href="{{ site.site_url }}/rss.xml">
 {% if site.analytics.google_site_verification %}<meta name="google-site-verification" content="{{ site.analytics.google_site_verification }}">{% endif %}
+{% if site.analytics.bing_site_verification %}<meta name="msvalidate.01" content="{{ site.analytics.bing_site_verification }}">{% endif %}
 {% if site.analytics.naver_site_verification %}<meta name="naver-site-verification" content="{{ site.analytics.naver_site_verification }}">{% endif %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">

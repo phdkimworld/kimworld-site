@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% from "_macros.html" import card %}
 {% set current_theme = th.name %}
-{% block title %}{{ th.name }} 리포트 | {{ site.site_name }}{% endblock %}
-{% block description %}{{ th.description }}{% endblock %}
+{% block title %}{{ th.name }} 관련주 분석 리포트{% if rs %} {{ rs|length }}선{% endif %} | {{ site.site_name }}{% endblock %}
+{% block description %}{{ th.description }}{% if rs %} 다루는 종목: {% for r in rs|unique(attribute="ticker") %}{{ r.seo_name }}({{ r.ticker }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% endblock %}
+{% block robots %}{% if not rs %}<meta name="robots" content="noindex,follow">{% endif %}{% endblock %}
+{% block jsonld %}{% if rs %}
+<script type="application/ld+json">
+{{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+  {"@type": "ListItem", "position": 1, "name": "홈", "item": site.site_url ~ "/"},
+  {"@type": "ListItem", "position": 2, "name": th.name ~ " 관련주", "item": page_url}]}|tojson }}
+</script>
+<script type="application/ld+json">
+{{ {"@context": "https://schema.org", "@type": "ItemList", "name": th.name ~ " 관련주 분석 리포트",
+  "itemListElement": rs|map(attribute="slug")|map("string")|list|seo_items(site.site_url)} |tojson }}
+</script>
+{% endif %}{% endblock %}
 {% block main %}
 <div class="wrap">
   <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ th.name }}</span></nav>
   <header class="page-head">
-    <div class="theme-head"><h1>{{ th.name }}</h1>{% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="th" data-key="{{ th.slug }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}</div>
+    <div class="theme-head"><h1>{{ th.name }} 관련주</h1>{% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="th" data-key="{{ th.slug }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}</div>
     <p class="muted">{{ th.description }}</p>
   </header>
   {% if rs %}

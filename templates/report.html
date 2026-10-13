@@ -2,7 +2,7 @@
 {% set no_tabbar = true %}{# 리포트는 아래 반응 줄(좋아요·댓글·공유)을 쓰므로 탭 줄을 띄우지 않는다 #}
 {% from "_macros.html" import card, icon, thread %}
 {% set current_theme = r.theme %}
-{% block title %}{{ r.ticker }} {{ r.company }} — {{ r.title }} | {{ site.site_name }}{% endblock %}
+{% block title %}{{ r.seo_title }} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ r.summary }}{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_image %}{{ r.og_image }}{% endblock %}
@@ -14,16 +14,26 @@
 {{ {
   "@context": "https://schema.org",
   "@type": "Article",
-  "headline": r.title,
+  "headline": r.seo_title[:110],
+  "alternativeHeadline": r.title,
+  "inLanguage": "ko-KR",
+  "keywords": [r.seo_name ~ " " ~ r.seo_kind, r.ticker ~ " " ~ r.seo_kind, r.seo_name ~ " " ~ r.seo_kind ~ " 전망", r.theme ~ " 관련주", r.ticker],
   "description": r.summary,
   "datePublished": r.date|iso,
   "dateModified": (r.updated or r.date)|iso,
   "image": r.og_image,
-  "author": {"@type": "Organization", "name": site.site_name},
-  "publisher": {"@type": "Organization", "name": site.site_name},
+  "author": {"@type": "Organization", "name": site.site_name, "url": site.site_url ~ "/"},
+  "publisher": {"@type": "Organization", "name": site.site_name, "url": site.site_url ~ "/", "logo": {"@type": "ImageObject", "url": site.site_url ~ "/static/icon-512.png", "width": 512, "height": 512}},
   "mainEntityOfPage": page_url,
-  "about": {"@type": "Corporation", "name": r.company_en or r.company, "tickerSymbol": r.ticker}
+  "about": {"@type": "Corporation", "name": r.company_en or r.company, "alternateName": [r.seo_name, r.company]|unique|list, "tickerSymbol": r.ticker}
 }|tojson }}
+</script>
+<script type="application/ld+json">
+{{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+  {"@type": "ListItem", "position": 1, "name": "홈", "item": site.site_url ~ "/"},
+  {"@type": "ListItem", "position": 2, "name": r.theme ~ " 관련주", "item": site.site_url ~ "/theme/" ~ r.theme_slug ~ "/"},
+  {"@type": "ListItem", "position": 3, "name": r.seo_name ~ "(" ~ r.ticker ~ ")", "item": site.site_url ~ "/t/" ~ r.ticker|lower ~ "/"},
+  {"@type": "ListItem", "position": 4, "name": r.title, "item": page_url}]}|tojson }}
 </script>
 {% endblock %}
 {% block main %}

@@ -829,3 +829,8 @@ a.cm-time:hover { text-decoration: underline; }
 .next-theme { margin-top: 24px; }
 .featured { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .featured-badge { margin: -2px 0 10px; font-size: .78rem; font-weight: 800; color: var(--accent); }
+
+/* 종목 페이지 제목(h1)은 기존 회사명 줄 모양을 그대로 쓴다 */
+.page-h1 { margin: 0; line-height: 1.35; }
+.t-latest { margin: 4px 0 18px; }
+.t-latest .summary-title .muted { font-weight: 400; font-size: .8rem; margin-left: 4px; }

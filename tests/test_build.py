@@ -356,6 +356,21 @@ if rp.exists():
     rpt = rp.read_text(encoding="utf-8")
     check('class="fold src-fold"' in rpt and 'class="chart-link"' in rpt, "출처 접기·차트 크게 보기")
 
+print("13) 검색 노출")
+sf = B.seo_fields
+check(sf({"title": "세레브라스 주가 내러티브와 패턴 투자전략: 일감이 쌓인 이유", "company": "세레브라스", "ticker": "CBRS", "theme": "AI 반도체"})["seo_title"] == "세레브라스(CBRS) 주가 분석 — 일감이 쌓인 이유", "검색 제목: 옛 제목 형식")
+check(sf({"title": "스택스, 왜 3배? | 가격 내러티브와 패턴 투자전략", "company": "스택스", "ticker": "STX", "theme": "코인·블록체인"})["seo_title"] == "스택스(STX) 가격 분석 — 왜 3배?", "검색 제목: 새 제목 형식·코인은 가격")
+check(sf({"title": "AMC 주가 내러티브와 패턴 투자전략: 이유", "company": "AMC", "ticker": "AMC", "theme": "x"})["seo_title"] == "AMC 주가 분석 — 이유", "검색 제목: 이름이 티커와 같으면 한 번만")
+D = SRC / "dist"
+if (D / "sitemap.xml").exists():
+    smx = (D / "sitemap.xml").read_text(encoding="utf-8"); rb = (D / "robots.txt").read_text(encoding="utf-8")
+    check("<image:image>" in smx and "/u/" not in smx and "/p/" not in smx and "/admin/" not in smx, "사이트맵: 대표 이미지, 비공개·회원 페이지 제외")
+    check("Sitemap: https://drkimworld.com/rss.xml" in rb and "Disallow: /admin/" in rb, "robots: 사이트맵·RSS 안내")
+    key = B.load_yaml(SRC / "site.yaml", {}).get("seo", {}).get("indexnow_key")
+    check(not key or (D / f"{key}.txt").read_text() == key, "IndexNow 키 파일")
+    hm = (D / "index.html").read_text(encoding="utf-8")
+    check('"SearchAction"' in hm and "max-image-preview:large" in hm, "홈: 사이트 검색 구조화 자료·큰 미리보기 허용")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

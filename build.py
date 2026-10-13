@@ -553,6 +553,27 @@ class Ads:
 
 # ---------------------------------------------------------------- 빌드
 
+SERIES_RE = re.compile(r"\s*\|\s*(주가|가격) 내러티브와 패턴 투자전략\s*$")
+
+
+def seo_fields(r: dict) -> dict:
+    """검색 결과 제목용: '<한글 이름>(<티커>) 주가 분석 — <훅>'. 사람들이 치는 말(이름·티커·주가)을 맨 앞에 둔다."""
+    t = r["title"].strip()
+    kind = "가격" if "가격 내러티브" in t else "주가"
+    t = SERIES_RE.sub("", t)
+    name, hook = "", t
+    m = re.match(r"^(.+?)\s+(?:주가|가격) 내러티브와 패턴 투자전략\s*[:：]\s*(.+)$", t)
+    if m:
+        name, hook = m.group(1).strip(), m.group(2).strip()
+    else:
+        m = re.match(r"^([^,，]{1,20})[,，]\s*(.+)$", t)
+        if m:
+            name, hook = m.group(1).strip(), m.group(2).strip()
+    name = name or r["company"] or r["ticker"]
+    head = name if name.upper() == r["ticker"].upper() else f"{name}({r['ticker']})"
+    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook}"}
+
+
 def build(drafts=False, strict=False, out: Path = DIST):
     log = Log()
     site = load_yaml(ROOT / "site.yaml", {})
@@ -648,6 +669,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,
             "minutes": max(1, math.ceil(chars / 600)), "url": f"{base_path}/r/{slug}/",
         })
+        reports[-1].update(seo_fields(reports[-1]))
         if reports[-1]["youtube_id"] and not re.fullmatch(r"[A-Za-z0-9_-]{11}", reports[-1]["youtube_id"]):
             log.err(f"{name}: youtube_id 는 11자리 영상 ID")
 
@@ -683,6 +705,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html", "xml"]))
     env.filters["kdate"] = lambda d: f"{d.year}년 {d.month}월 {d.day}일" if d else ""
     env.filters["iso"] = lambda d: d.isoformat() if d else ""
+    env.filters["seo_items"] = lambda slugs, su: [{"@type": "ListItem", "position": i + 1, "url": f"{su}/r/{x}/"} for i, x in enumerate(slugs)]
     asset_ver = str(int(dt.datetime.now().timestamp()))
     common = {
         "site": site, "base": base_path, "themes": themes, "ads": ads, "ads_head": ads.head_tags(),
@@ -800,32 +823,49 @@ def build(drafts=False, strict=False, out: Path = DIST):
     (out / "ad-weights.json").write_text(json.dumps(ad_weights(ads), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     su = site["site_url"]
-    urls = [(f"{su}/", today)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"]) for r in public]
-    urls += [(f"{su}/t/{c.lower()}/", rs[0]["date"]) for c, rs in by_ticker.items()]
-    urls += [(f"{su}/theme/{t['slug']}/", None) for t in themes]
-    urls += [(f"{su}/{p['slug']}/", None) for p in pages]
-    sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for u, lm in urls:
-        sm.append(f"<url><loc>{html.escape(u)}</loc>" + (f"<lastmod>{lm.isoformat()}</lastmod>" if lm else "") + "</url>")
+    seo = site.get("seo") or {}
+    theme_last = {}
+    for r in public:
+        theme_last.setdefault(r["theme"], r["updated"] or r["date"])
+    # (주소, 마지막 수정일, 대표 이미지). 리포트가 없는 테마 페이지는 내용이 없으므로 넣지 않는다(noindex)
+    urls = [(f"{su}/", today, None)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"], r.get("og_image")) for r in public]
+    urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items()]
+    urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
+    urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
+    sm = ['<?xml version="1.0" encoding="UTF-8"?>',
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
+    for u, lm, img in urls:
+        sm.append(f"<url><loc>{html.escape(u)}</loc>" + (f"<lastmod>{lm.isoformat()}</lastmod>" if lm else "")
+                  + (f"<image:image><image:loc>{html.escape(img)}</image:loc></image:image>" if img else "") + "</url>")
     sm.append("</urlset>")
     (out / "sitemap.xml").write_text("\n".join(sm), encoding="utf-8")
 
     items = []
-    for r in public[:30]:
+    for r in public[:50]:
         pub = dt.datetime.combine(r["date"], dt.time(9, 0), KST)
         items.append(
-            f"<item><title>{html.escape(r['ticker'] + ' · ' + r['title'])}</title><link>{su}/r/{r['slug']}/</link>"
-            f"<guid>{su}/r/{r['slug']}/</guid><pubDate>{format_datetime(pub)}</pubDate>"
+            f"<item><title>{html.escape(r['seo_title'])}</title><link>{su}/r/{r['slug']}/</link>"
+            f"<guid isPermaLink=\"true\">{su}/r/{r['slug']}/</guid><pubDate>{format_datetime(pub)}</pubDate>"
+            f"<category>{html.escape(r['theme'])}</category><category>{html.escape(r['ticker'])}</category>"
             f"<description>{html.escape(r['summary'])}</description></item>"
         )
+    last = dt.datetime.combine(public[0]["date"], dt.time(9, 0), KST) if public else dt.datetime.now(KST)
     rss = (
-        '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>'
+        '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
         f"<title>{html.escape(site['site_name'])}</title><link>{su}/</link>"
+        f'<atom:link href="{su}/rss.xml" rel="self" type="application/rss+xml"/>'
         f"<description>{html.escape(site.get('description', ''))}</description><language>ko</language>"
+        f"<lastBuildDate>{format_datetime(last)}</lastBuildDate>"
         + "".join(items) + "</channel></rss>"
     )
     (out / "rss.xml").write_text(rss, encoding="utf-8")
-    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {su}/sitemap.xml\n", encoding="utf-8")
+    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
+    if seo.get("daum_webmaster_pin"):  # 다음 웹마스터도구 소유 확인 줄(공개값)
+        robots += f"\n#DaumWebMasterTool:{seo['daum_webmaster_pin']}\n"
+    (out / "robots.txt").write_text(robots, encoding="utf-8")
+    key = str(seo.get("indexnow_key") or "")
+    if re.fullmatch(r"[A-Za-z0-9-]{8,128}", key):  # IndexNow 키 파일(공개값): 빙·네이버에 새 글을 바로 알린다
+        (out / f"{key}.txt").write_text(key, encoding="utf-8")
     (out / "ads.txt").write_text(ads.ads_txt(), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     # 웹앱(홈 화면에 설치): 앱 정보 + 서비스 워커(오프라인 대비, 정적 파일 캐시) + 오프라인 안내 페이지
