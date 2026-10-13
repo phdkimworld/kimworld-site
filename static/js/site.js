@@ -218,7 +218,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       var url = new URL(location.href);
       if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
       history.replaceState(null, '', url);
-      if (!q) { results.innerHTML = ''; countEl.textContent = '리포트 ' + data.length + '개가 있습니다. 위에 검색어를 입력하세요.'; return; }
+      var ex = document.querySelector('[data-explore]'); if (ex) ex.hidden = !!q; // 검색어가 있으면 탐색 탭을 숨기고 결과만
+      if (!q) { results.innerHTML = ''; countEl.textContent = ''; return; }
       var terms = q.split(/\s+/).map(norm).filter(Boolean);
       var choOnly = /^[ㄱ-ㅎ\s]+$/.test(q);
       var hits = data.map(function (r) {
@@ -240,6 +241,18 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     }
     var timer;
     input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(run, 120); });
+    // 탐색 탭(인기 종목·테마·많이 본 리포트·최근 이야기). 고른 탭은 주소(#tab=)와 이 탭 세션에 기억
+    (function () {
+      var tabs = document.querySelectorAll('[data-ex-tab]'); if (!tabs.length) return;
+      function pick(k) {
+        tabs.forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-ex-tab') === k ? 'true' : 'false'); });
+        document.querySelectorAll('[data-ex-pane]').forEach(function (p) { p.hidden = p.getAttribute('data-ex-pane') !== k; });
+        try { sessionStorage.setItem('kw-ex', k); history.replaceState(null, '', location.pathname + location.search + '#tab=' + k); } catch (e) {}
+      }
+      tabs.forEach(function (b) { b.addEventListener('click', function () { pick(b.getAttribute('data-ex-tab')); }); });
+      var start = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { start = start || sessionStorage.getItem('kw-ex'); } catch (e) {}
+      if (start && document.querySelector('[data-ex-pane="' + start + '"]')) pick(start);
+    })();
     input.value = new URLSearchParams(location.search).get('q') || '';
     fetch(base + '/search.json').then(function (r) { return r.json(); }).then(function (d) { data = d; run(); })
       .catch(function () { countEl.textContent = '검색 자료를 불러오지 못했습니다. 잠시 뒤 다시 시도하세요.'; });

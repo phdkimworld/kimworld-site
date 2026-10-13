@@ -1,20 +1,82 @@
 {% extends "base.html" %}
-{% block title %}리포트 검색 | {{ site.site_name }}{% endblock %}
+{% set hide_theme_nav = true %}{# 테마는 아래 탐색 탭에 있다 #}
+{% block title %}검색·탐색 | {{ site.site_name }}{% endblock %}
 {% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
 {% block main %}
 <div class="wrap search-page">
-  <h1>리포트 검색</h1>
+  <h1 class="sr-only">검색·탐색</h1>
   <form class="search-form" role="search" onsubmit="return false">
     <label class="sr-only" for="q">검색어</label>
-    <input id="q" name="q" type="search" placeholder="종목명·티커·테마·초성" autocomplete="off" enterkeyhint="search" autofocus>
+    <input id="q" name="q" type="search" placeholder="종목명·티커·테마·초성으로 검색" autocomplete="off" enterkeyhint="search">
   </form>
   <p class="search-count muted" aria-live="polite"></p>
   <div class="cards" data-results></div>
-  <div class="search-tips">
-    <p class="muted">이렇게 찾아보세요</p>
-    <ul class="chip-list">
-      {% for t in themes %}<li><a class="chip" href="?q={{ t.name|urlencode }}">{{ t.name }}</a></li>{% endfor %}
-    </ul>
-  </div>
+
+  {# 검색어가 없을 때: 쓰레드 검색 화면처럼 탭으로 나눠 보는 탐색 #}
+  <section class="explore" data-explore aria-label="탐색">
+    <div class="explore-tabs" role="tablist" aria-label="탐색">
+      <button type="button" role="tab" data-ex-tab="tickers" aria-selected="true">인기 종목</button>
+      <button type="button" role="tab" data-ex-tab="themes" aria-selected="false">테마</button>
+      <button type="button" role="tab" data-ex-tab="reports" aria-selected="false">많이 본 리포트</button>
+      {% if site.api_url %}<button type="button" role="tab" data-ex-tab="talk" aria-selected="false">최근 이야기</button>{% endif %}
+    </div>
+    <div class="insights" data-insights>
+      <div class="ex-pane" data-ex-pane="tickers" role="tabpanel">
+        <div class="ex-block" data-trending hidden>
+          <h2 class="ex-h">요즘 많이 찾는 종목 <span class="muted ex-sub">최근 7일 조회·검색</span></h2>
+          <ul class="chip-list ex-rank" data-trending-list></ul>
+        </div>
+        <h2 class="ex-h">전체 종목 <span class="muted ex-sub">{{ ticker_list|length }}개 · 최근 리포트 순</span></h2>
+        <ul class="ex-list">
+          {% for t in ticker_list|sort(attribute='last', reverse=true) %}
+          <li><a href="{{ base }}/t/{{ t.code|lower }}/"><span class="ex-ic">{{ t.code[:4] }}</span><span class="ex-txt"><strong>{{ t.name }}</strong><span class="muted">${{ t.code }}{% if t.theme %} · {{ t.theme }}{% endif %} · 리포트 {{ t.count }}개</span></span><span class="ex-go" aria-hidden="true">›</span></a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="ex-pane" data-ex-pane="themes" role="tabpanel" hidden>
+        <div class="ex-block" data-themes hidden>
+          <h2 class="ex-h">테마별 관심도 <span class="muted ex-sub">최근 7일 조회 비중</span></h2>
+          <ul class="bars" data-theme-list></ul>
+        </div>
+        <h2 class="ex-h">모든 테마</h2>
+        <ul class="ex-list">
+          {% for t in themes %}{% set n = rs|selectattr('theme', 'equalto', t.name)|list|length %}{% if n %}
+          <li><a href="{{ base }}/theme/{{ t.slug }}/"><span class="ex-ic ex-ic-th">#</span><span class="ex-txt"><strong>{{ t.name }}</strong><span class="muted">{{ t.description }}</span></span><span class="ex-n muted">{{ n }}</span></a></li>
+          {% endif %}{% endfor %}
+        </ul>
+      </div>
+      <div class="ex-pane" data-ex-pane="reports" role="tabpanel" hidden>
+        <div class="ex-block" data-popular hidden>
+          <div class="ins-head">
+            <h2 class="ex-h">많이 본 리포트</h2>
+            <div class="ins-tabs" role="tablist" aria-label="기간">
+              <button type="button" role="tab" data-pop-range="1" aria-selected="false">오늘</button>
+              <button type="button" role="tab" data-pop-range="7" aria-selected="true">7일</button>
+            </div>
+          </div>
+          <ol class="rank" data-popular-list></ol>
+        </div>
+        <h2 class="ex-h">새 리포트</h2>
+        <ul class="ex-list">
+          {% for r in rs[:15] %}
+          <li><a href="{{ r.url }}"><span class="ex-ic">{{ r.ticker[:4] }}</span><span class="ex-txt"><strong>{{ r.share_title or r.title }}</strong><span class="muted">{{ r.date|kdate }}</span></span></a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% if site.api_url %}
+      <div class="ex-pane" data-ex-pane="talk" role="tabpanel" hidden>
+        <div class="ex-block" data-recent-cm hidden>
+          <h2 class="ex-h">리포트에 달린 최근 댓글</h2>
+          <ul class="rc-list" data-recent-cm-list></ul>
+        </div>
+        <div class="ex-block" data-recent-board hidden>
+          <h2 class="ex-h">종토방·라운지 최근 글</h2>
+          <ul class="rc-list" data-recent-board-list></ul>
+        </div>
+        <p class="muted ex-empty" data-talk-empty hidden>아직 이야기가 없습니다. 홈에서 첫 글을 남겨 보세요.</p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
 </div>
 {% endblock %}

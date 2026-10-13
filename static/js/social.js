@@ -311,7 +311,8 @@
       ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 260) + 'px'; // 쓰는 만큼만 늘어난다
       // 글에 $티커를 쓰면 올릴 곳을 그 종목 종토방으로
       var m = /\$([A-Za-z]{1,6})(?![A-Za-z])/.exec(ta.value);
-      if (m && sel.querySelector('option[value="b-' + m[1].toLowerCase() + '"]')) sel.value = 'b-' + m[1].toLowerCase();
+      if (m && sel.querySelector('option[value="b-' + m[1].toLowerCase() + '"]') && sel.value !== 'b-' + m[1].toLowerCase()) { sel.value = 'b-' + m[1].toLowerCase(); if (cp._paintTopic) cp._paintTopic(); }
+      var sb0 = cf.querySelector('[type=submit]'); if (sb0) sb0.classList.toggle('is-empty', !ta.value.trim());
     });
     cf.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -322,7 +323,8 @@
         sb.disabled = false;
         if (d.error === 'account') { C.openAccount(); return; }
         if (!d.ok) { cmsg.textContent = d.message || '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
-        ta.value = ''; started = 0; lenEl.textContent = ''; ta.style.height = ''; cp.classList.remove('composer-on');
+        ta.value = ''; started = 0; lenEl.textContent = ''; ta.style.height = ''; cp.classList.remove('composer-on'); if (cp._closeFull) cp._closeFull();
+        sb.classList.add('is-empty');
         if (d.status === 'held') { cmsg.textContent = d.message; return; }
         toast('올렸습니다'); if (window.kwEv) kwEv('post_submit');
         // 방금 쓴 글은 순위와 상관없이 맨 위에 보여 준다
@@ -339,9 +341,62 @@
       var s = C.state();
       cp.hidden = false;
       var av = cp.querySelector('[data-composer-av]');
-      // 쓰레드처럼: 평소에는 '이름 + 한 줄'만, 누르면 펼쳐서 올릴 곳·게시 버튼이 나온다
-      var nameEl = el('span', 'composer-name', s.me ? s.me.nick : '익명으로 쓰기');
-      cp.querySelector('[data-composer-form]').insertBefore(nameEl, ta);
+      // 쓰레드처럼: '이름 › + 종목 고르기' 줄 → 글 → 아래 [게시]. 휴대폰에서는 누르면 '새 글' 전체 화면
+      var line = el('div', 'cp-line');
+      line.appendChild(el('span', 'composer-name', s.me ? s.me.nick : '익명으로 쓰기'));
+      line.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
+      var topicBtn = el('button', 'cp-topic'); topicBtn.type = 'button';
+      var topicX = el('button', 'cp-topic-x', '×'); topicX.type = 'button'; topicX.setAttribute('aria-label', '종목 지우기(라운지에 올림)');
+      line.appendChild(topicBtn); line.appendChild(topicX);
+      cp.querySelector('[data-composer-form]').insertBefore(line, ta);
+      var chosen = false; // 직접 고르거나 $티커로 정해졌는지
+      function paintTopic() {
+        var o = sel.options[sel.selectedIndex], v = sel.value;
+        topicBtn.textContent = '';
+        if (!chosen || !o) { topicBtn.appendChild(document.createTextNode('+ 종목 또는 라운지')); topicBtn.classList.remove('on'); topicX.hidden = true; return; }
+        topicBtn.classList.add('on'); topicX.hidden = false;
+        topicBtn.appendChild(document.createTextNode(v === 'b-talk' ? '라운지' : o.textContent.replace(/^\$\S+\s*/, '') || o.textContent));
+        if (v !== 'b-talk') topicBtn.appendChild(el('span', 'cp-topic-code', ' ' + v.slice(2).toUpperCase()));
+      }
+      cp._paintTopic = function () { chosen = true; paintTopic(); };
+      topicX.addEventListener('click', function () { sel.value = 'b-talk'; chosen = false; paintTopic(); ta.focus(); });
+      topicBtn.addEventListener('click', function () { // 고르기 창: 검색 + 라운지 + 팔로우한 종목 먼저 + 전체 종목
+        var body = C.dialog('어디에 올릴까요?');
+        var q = el('input', 'cp-pick-q'); q.type = 'search'; q.placeholder = '종목 이름이나 티커'; q.autocomplete = 'off'; body.appendChild(q);
+        var ul = el('ul', 'kw-users cp-pick'); body.appendChild(ul);
+        var opts = Array.prototype.slice.call(sel.options).map(function (o) { return { v: o.value, t: o.value === 'b-talk' ? '라운지' : o.textContent.replace(/^\$\S+\s*/, ''), c: o.value === 'b-talk' ? '' : o.value.slice(2).toUpperCase() }; });
+        C.myTopics().then(function (items) {
+          var fav = {}; items.forEach(function (x) { if (x.kind === 't') fav['b-' + x.key.toLowerCase()] = 1; });
+          opts.sort(function (a, b) { return (a.v === 'b-talk' ? -2 : fav[a.v] ? -1 : 0) - (b.v === 'b-talk' ? -2 : fav[b.v] ? -1 : 0); });
+          function draw() {
+            var k = q.value.trim().toLowerCase(); ul.textContent = '';
+            opts.filter(function (o) { return !k || o.t.toLowerCase().indexOf(k) >= 0 || o.c.toLowerCase().indexOf(k.replace(/^\$/, '')) === 0; }).slice(0, 60).forEach(function (o) {
+              var li = el('li', 'kw-user kw-user-pick'); li.tabIndex = 0;
+              var ic = el('span', 'cp-pick-ic' + (o.v === 'b-talk' ? ' talk' : ''), o.v === 'b-talk' ? '💬' : o.c.slice(0, 4)); li.appendChild(ic);
+              var w = el('div', 'kw-user-who'); w.appendChild(el('strong', null, o.t));
+              w.appendChild(el('span', 'muted kw-small', o.v === 'b-talk' ? '종목 없이 나누는 이야기' : '$' + o.c + ' 종토방' + (fav[o.v] ? ' · 팔로우 중' : ''))); li.appendChild(w);
+              if (o.v === sel.value && chosen) li.appendChild(el('span', 'cp-pick-on', '✓'));
+              var go = function () { sel.value = o.v; chosen = true; paintTopic(); var d = document.querySelector('dialog.kw-dlg[open]'); if (d) d.close(); setTimeout(function () { ta.focus(); }, 30); };
+              li.addEventListener('click', go); li.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+              ul.appendChild(li);
+            });
+          }
+          q.addEventListener('input', draw); draw();
+          setTimeout(function () { q.focus(); }, 60);
+        });
+      });
+      paintTopic();
+      // 휴대폰: 누르면 '새 글' 전체 화면(× 로 닫으면 쓰던 글은 그대로 남는다)
+      var top = el('div', 'cp-top');
+      var cx = el('button', 'cp-close', '×'); cx.type = 'button'; cx.setAttribute('aria-label', '닫기');
+      top.appendChild(cx); top.appendChild(el('strong', null, '새 글'));
+      cp.insertBefore(top, cp.firstChild);
+      var mq = window.matchMedia ? matchMedia('(max-width: 759px)') : null;
+      function openFull() { if (!mq || !mq.matches || cp.classList.contains('cp-full')) return; cp.classList.add('cp-full', 'composer-on'); document.documentElement.classList.add('cp-open'); }
+      function closeFull() { cp.classList.remove('cp-full'); document.documentElement.classList.remove('cp-open'); ta.blur(); if (!ta.value.trim()) cp.classList.remove('composer-on'); }
+      cx.addEventListener('click', closeFull);
+      ta.addEventListener('focus', openFull);
+      cp._closeFull = closeFull;
       ta.placeholder = '새로운 소식이 있나요?'; ta.rows = 1;
       if (s.me) { var a = C.avatar(s.me.nick, s.me.id); a.className += ' post-av'; av.appendChild(a); }
       else { // 로그인 전: 익명으로 바로 쓴다(닉네임은 선택)
@@ -350,7 +405,7 @@
       }
       cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '$티커를 쓰면 그 종목 종토방에도 올라가요'; });
       cp.addEventListener('focusout', function () {
-        setTimeout(function () { if (!cp.contains(document.activeElement) && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
+        setTimeout(function () { if (!cp.classList.contains('cp-full') && !cp.contains(document.activeElement) && !document.querySelector('dialog.kw-dlg[open]') && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
       });
       if (/[?&]compose=1/.test(location.search)) { // 아래 탭 줄의 '글쓰기'로 들어온 경우
         try { history.replaceState(null, '', location.pathname); } catch (e) {}

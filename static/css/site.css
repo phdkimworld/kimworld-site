@@ -1099,3 +1099,63 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .post-group { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; color: var(--text); text-decoration: none; }
 .post-group:hover { text-decoration: underline; }
 .post-who .post-time { flex: none; }
+
+/* 글쓰기: 쓰레드처럼 '이름 › + 종목 또는 라운지' 칩, 아래 [게시] */
+.cp-line { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: nowrap; }
+.cp-line .composer-name { flex: none; }
+.cp-topic { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: var(--surface-2); color: var(--muted);
+  font: inherit; font-size: .84rem; font-weight: 700; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.cp-topic.on { color: var(--text); background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); }
+.cp-topic-code { color: var(--muted); font-weight: 600; font-size: .78rem; }
+.cp-topic-x { flex: none; border: 0; background: none; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 4px; cursor: pointer; }
+.cp-topic-x[hidden] { display: none; }
+.home-grid .composer-row select { display: none; }  /* 올릴 곳은 위 칩으로 고른다 */
+.home-grid .composer-row .btn.is-empty { opacity: .45; }
+.home-grid .composer:not(.composer-on) .cp-topic, .home-grid .composer:not(.composer-on) .cp-topic-x, .home-grid .composer:not(.composer-on) .cp-line .post-chev { display: none; }
+.cp-top { display: none; }
+/* 고르기 창 */
+.cp-pick-q { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); }
+.cp-pick-ic { width: 38px; height: 38px; flex: none; border-radius: 10px; display: grid; place-items: center; background: var(--tick-bg); color: var(--tick-ink); font-weight: 800; font-size: .66rem; letter-spacing: .02em; }
+.cp-pick-ic.talk { background: var(--surface-2); font-size: 1.1rem; }
+.cp-pick-on { color: var(--accent); font-weight: 900; }
+/* 휴대폰 '새 글' 전체 화면 */
+@media (max-width: 759px) {
+  html.cp-open, html.cp-open body { overflow: hidden; }
+  .home-grid .composer.cp-full { position: fixed; inset: 0; z-index: 90; margin: 0; padding: 0 16px; background: var(--bg); border: 0;
+    display: grid !important; grid-template-columns: 38px minmax(0, 1fr) !important; grid-template-rows: auto 1fr; align-content: start; column-gap: 10px; overflow: auto; }
+  .composer.cp-full .cp-top { display: flex; align-items: center; gap: 14px; grid-column: 1 / -1; height: 56px; margin: 0 -16px 12px; padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 1.1rem; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  .cp-close { border: 0; background: none; color: var(--text); font-size: 1.8rem; line-height: 1; padding: 4px 8px; cursor: pointer; }
+  .composer.cp-full .composer-form { display: flex; flex-direction: column; min-height: calc(100dvh - 72px); }
+  .composer.cp-full .composer-form textarea { min-height: 120px !important; font-size: 1.02rem; }
+  .composer.cp-full .composer-row { position: sticky; bottom: 0; margin-top: auto; padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--bg); border-top: 1px solid var(--line); }
+  .composer.cp-full .composer-row .btn { padding: 0 24px; min-height: 42px; font-size: 1rem; }
+  html.cp-open .tabbar, html.cp-open .install-bar { display: none !important; }
+}
+
+/* 검색·탐색: 탭(인기 종목·테마·많이 본 리포트·최근 이야기) */
+.explore[hidden] { display: none; }
+.explore-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); margin: 8px 0 4px; }
+.explore-tabs::-webkit-scrollbar { display: none; }
+.explore-tabs button { flex: none; position: relative; border: 0; background: none; font: inherit; font-weight: 700; font-size: .92rem; color: var(--muted); padding: 12px 12px; cursor: pointer; white-space: nowrap; }
+.explore-tabs button[aria-selected="true"] { color: var(--text); }
+.explore-tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--text); }
+.explore .ex-pane[hidden] { display: none; }
+.explore .ex-block[hidden] { display: none; }
+.ex-h { font-size: .95rem; margin: 18px 0 8px; }
+.ex-sub { font-size: .76rem; font-weight: 500; margin-left: 4px; }
+.ex-list { list-style: none; margin: 0; padding: 0; }
+.ex-list a { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.ex-list a:hover { background: var(--surface-2); }
+.ex-ic { width: 40px; height: 40px; flex: none; border-radius: 10px; display: grid; place-items: center; background: var(--tick-bg); color: var(--tick-ink); font-weight: 800; font-size: .68rem; letter-spacing: .02em; }
+.ex-ic-th { background: var(--surface-2); color: var(--text); font-size: 1.1rem; }
+.ex-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ex-txt strong { font-size: .94rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-txt .muted { font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-go, .ex-n { flex: none; color: var(--muted); }
+.ex-rank .chip { font-size: .86rem; }
+.ex-empty { padding: 20px 0; }
+.search-page .search-tips { display: none; }
+.ex-list li { min-width: 0; overflow: hidden; }
+.ex-txt > * { display: block; max-width: 100%; }
+.ex-txt strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+.ex-list .ex-txt { flex: 1 1 0; width: 0; overflow: hidden; }

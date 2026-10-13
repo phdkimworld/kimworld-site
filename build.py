@@ -792,7 +792,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     home_rail = ads.render("rail", home_ctx)
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
           feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, page_bottom=ads.render("page_bottom", home_ctx), is_home=True)
-    write("search/index.html", "search.html")
+    write("search/index.html", "search.html", rs=public, ticker_list=ticker_list)
     if site.get("api_url"):
         write("u/index.html", "user.html")
         write("dm/index.html", "dm.html")  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)

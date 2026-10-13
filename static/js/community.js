@@ -845,7 +845,8 @@
     var show = function (sel) { ins.querySelector(sel).hidden = false; ins.hidden = false; };
     Promise.all([loadIndex(), popular(7), popular(1),
       api('/v1/trending?days=7').catch(function () { return {}; }),
-      api('/v1/comments/recent?limit=5').catch(function () { return {}; })
+      api('/v1/comments/recent?limit=' + (document.querySelector('[data-explore]') ? 10 : 5)).catch(function () { return {}; }),
+      document.querySelector('[data-recent-board]') ? api('/v1/comments/recent?kind=board&limit=10').catch(function () { return {}; }) : Promise.resolve({})
     ]).then(function (res) {
       var I = res[0], keep = function (x) { return I.bySlug[x.slug]; };
       var p7 = res[1].filter(keep), p1 = res[2].filter(keep), tr = res[3] || {}, rc = (res[4] || {}).items || [];
@@ -878,7 +879,7 @@
         });
       });
       var hot = Object.keys(tick).map(function (k) { return tick[k]; }).filter(function (t) { return t.n > 0; })
-        .sort(function (a, b) { return b.n - a.n; }).slice(0, 8);
+        .sort(function (a, b) { return b.n - a.n; }).slice(0, document.querySelector('[data-explore]') ? 15 : 8);
       if (hot.length >= 2) {
         var ul = ins.querySelector('[data-trending-list]');
         hot.forEach(function (t, i) {
@@ -922,6 +923,21 @@
         });
         show('[data-recent-cm]');
       }
+      // 5) 탐색 화면: 종토방·라운지 최근 글
+      var bl2 = ins.querySelector('[data-recent-board-list]'), rb = (res[5] || {}).items || [];
+      if (bl2 && rb.length) {
+        rb.forEach(function (c) {
+          var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = postUrl(c.id);
+          var head = el('span', 'rc-head');
+          head.appendChild(el('span', 'rank-tick', threadLabel(c.slug).replace(' 종토방', '')));
+          head.appendChild(el('strong', 'rc-nick', c.nick));
+          head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
+          a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
+          li.appendChild(a); bl2.appendChild(li);
+        });
+        show('[data-recent-board]');
+      }
+      var te = ins.querySelector('[data-talk-empty]'); if (te) te.hidden = !!(rcs.length || rb.length);
     }).catch(function () {});
 
   }
