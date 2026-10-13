@@ -42,7 +42,7 @@ jobs:
         working-directory: worker
         run: |
           npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command "
-            SELECT c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.reports, c.status,
+            SELECT c.id, c.slug, c.nick, c.uid, c.body, c.q_text, c.likes, c.reports, c.status,
                    (SELECT COUNT(*) FROM comments h WHERE h.uid = c.uid AND c.uid IS NOT NULL AND h.status = 'hidden') AS hid
             FROM comments c
             WHERE c.reviewed = 0 AND (c.status IN ('held','hidden') OR (c.status = 'ok' AND c.reports > 0))

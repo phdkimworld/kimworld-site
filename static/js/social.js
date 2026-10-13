@@ -9,7 +9,8 @@
     heart: 'M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z',
     comment: 'M20.5 11.6c0 4.2-3.8 7.4-8.5 7.4-1.2 0-2.4-.2-3.4-.6L4 20l1.2-3.6C4 15.1 3.5 13.4 3.5 11.6 3.5 7.4 7.3 4.2 12 4.2s8.5 3.2 8.5 7.4z',
     share: 'M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.2c0 .9.7 1.6 1.6 1.6h10.8c.9 0 1.6-.7 1.6-1.6v-6.2',
-    more: 'M5 12h.01M12 12h.01M19 12h.01'
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
+    repost: 'm17 2.5 3 3-3 3M3.5 11V9.5a4 4 0 0 1 4-4H20M7 21.5l-3-3 3-3M20.5 13v1.5a4 4 0 0 1-4 4H4'
   };
   function icon(name) {
     var ns = 'http://www.w3.org/2000/svg', s = document.createElementNS(ns, 'svg');
@@ -36,7 +37,10 @@
   // ---------- 글 카드(피드·글 상세 공통) ----------
   function postCard(c, opt) {
     opt = opt || {};
-    var art = el('article', 'card post upost' + (opt.detail ? ' upost-detail' : '')); art.setAttribute('data-pid', c.id);
+    var art = el('article', 'card post upost' + (opt.detail ? ' upost-detail' : '')); art.setAttribute('data-pid', c.id); art.setAttribute('data-board', c.slug || '');
+    if (c.rp) { // 팔로우한 사람이 리포스트한 글
+      var rpl = el('a', 'rp-line'); rpl.href = C.profileUrl(c.rp.uid); rpl.textContent = '↻ ' + c.rp.nick + '님이 리포스트함'; art.appendChild(rpl);
+    }
     var head = el('header', 'post-head');
     var av = C.avatar(c.nick); av.className += ' post-av'; head.appendChild(av);
     var who = el('div', 'post-who');
@@ -52,6 +56,7 @@
     art.appendChild(head);
     var body = C.richText(el('p', 'upost-body'), c.body);
     art.appendChild(body);
+    if (c.quote) { var qb = C.quoteBox(c.quote); qb.classList.add('upost-quote'); art.appendChild(qb); }
     // 두 번 톡톡 누르면 좋아요(쓰레드·인스타그램처럼), 한 번 누르면 글 상세로(링크·이름을 누른 경우는 제외)
     function dblLike() {
       var burst = el('span', 'heart-burst'); burst.setAttribute('aria-hidden', 'true'); burst.appendChild(icon('heart'));
@@ -84,6 +89,13 @@
       }).catch(function () { lk.disabled = false; });
     });
     act.appendChild(lk);
+    // 리포스트·인용(누르면 고르는 창). 내 글은 리포스트할 수 없다
+    var rb = el('button', 'pa pa-repost'); rb.type = 'button'; rb.setAttribute('aria-label', '리포스트·인용');
+    rb.setAttribute('data-repost', ''); rb.setAttribute('data-kind', 'p'); rb.setAttribute('data-ref', c.id); rb.setAttribute('data-quote-src', c.body);
+    rb.setAttribute('aria-pressed', c.reposted ? 'true' : 'false'); rb.appendChild(icon('repost'));
+    var rn = el('span', null, c.reposts ? num(c.reposts) : ''); rn.setAttribute('data-n', ''); rb.appendChild(rn);
+    if (c.mine) { rb.disabled = true; rb.title = '내 글'; }
+    act.appendChild(rb);
     var sh = el('button', 'pa pa-share'); sh.type = 'button'; sh.setAttribute('aria-label', '공유'); sh.appendChild(icon('share'));
     sh.addEventListener('click', function () { share(C.postUrl(c.id), c.nick + '님의 글 · 김박사 월드'); });
     act.appendChild(sh);
@@ -186,14 +198,29 @@
     function place(items, hot) {
       var R = reports(), gaps = R.map(function () { return []; }), tail = [], g = 0;
       items.forEach(function (c) {
-        while (!hot && g < R.length && c.created < R[g].t) g++;   // (최신순일 때) 이 글보다 새 리포트는 건너뜀
+        while (!hot && g < R.length && (c._t || c.created) < R[g].t) g++;   // (최신순일 때) 이 글보다 새 리포트는 건너뜀
         while (g < R.length && gaps[g].length >= 3) g++;  // 한 칸에 3개까지
         (g < R.length ? gaps[g] : tail).push(c);
       });
-      R.forEach(function (r, i) { gaps[i].forEach(function (c) { r.node.before(postCard(c)); }); });
+      R.forEach(function (r, i) { gaps[i].forEach(function (c) { r.node.before(render(c)); }); });
       appendTail(tail);
     }
-    function appendTail(items) { items.forEach(function (c) { list.appendChild(postCard(c)); }); }
+    function appendTail(items) { items.forEach(function (c) { list.appendChild(render(c)); }); }
+    // 팔로우한 사람이 리포스트한 리포트: 피드에 있는 그 리포트 카드를 복제해 '○○님이 리포스트함' 줄을 붙인다
+    function render(c) {
+      if (c.type !== 'report') return postCard(c);
+      var orig = list.querySelector('article.post:not(.upost)[data-slug="' + c.slug + '"]'), card;
+      if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
+      else {
+        card = el('article', 'card post'); card.setAttribute('data-slug', c.slug);
+        var a = el('a', 'post-body card-link'); a.href = C.reportUrl(c.slug); var h = el('h3', 'card-title', '리포트'); a.appendChild(h); card.appendChild(a);
+        C.reportTitle(c.slug).then(function (r) { h.textContent = (r.k ? r.k + ' · ' : '') + C.shortTitle(r.t); });
+      }
+      card.classList.add('upost', 'rp-report');
+      var line = el('a', 'rp-line'); line.href = C.profileUrl(c.rp.uid); line.textContent = '↻ ' + c.rp.nick + '님이 리포스트함';
+      card.insertBefore(line, card.firstChild);
+      return card;
+    }
     function note(node) { var w = el('div', 'feed-note card'); w.appendChild(node); var first = list.firstElementChild; if (first) first.before(w); else list.appendChild(w); return w; }
     function emptyNote() {
       var s = C.state(), box = el('div');
@@ -221,10 +248,15 @@
         if (reset) {
           clear(); hotMode = !!d.hot; loaded = 0; newBtn.hidden = true;
           newest = items.reduce(function (m, c) { return Math.max(m, c.created); }, 0) || Date.now();
+          // 팔로잉 탭: 팔로우한 사람의 리포스트를 리포스트한 시각으로 섞는다(같은 글이 이미 있으면 한 번만)
+          var have = {}; items.forEach(function (c) { have[c.id] = 1; });
+          (d.reposts || []).forEach(function (x) { if (x.type === 'report' || !have[x.id]) { x._t = x.rp.at; items.push(x); if (x.id) have[x.id] = 1; } });
+          if (d.reposts && d.reposts.length) items.sort(function (a, b) { return (b._t || b.created) - (a._t || a.created); });
           place(items, hotMode); if (!items.length) emptyNote(); nudge();
         } else appendTail(items);
         loaded += items.length;
-        if (items.length) oldest = items.reduce(function (m, c) { return Math.min(m, c.created); }, items[0].created);
+        var ts = items.filter(function (c) { return c.created && !c.rp; }).map(function (c) { return c.created; });
+        if (ts.length) oldest = Math.min.apply(null, ts);
         endEl.hidden = !d.more;
       }).catch(function () { loading = false; });
     }
@@ -364,7 +396,7 @@
         msg.hidden = true; post = d.post;
         var likedSet = {}; (d.liked || []).forEach(function (x) { likedSet[x] = 1; });
         holder.textContent = '';
-        holder.appendChild(postCard({ id: post.id, slug: post.slug, nick: post.nick, uid: post.uid, body: post.body, likes: post.likes, created: post.created, replies: d.replies.length, liked: !!likedSet[post.id], mine: post.mine },
+        holder.appendChild(postCard({ id: post.id, slug: post.slug, nick: post.nick, uid: post.uid, body: post.body, likes: post.likes, created: post.created, replies: d.replies.length, liked: !!likedSet[post.id], mine: post.mine, quote: post.quote, reposts: post.reposts, reposted: post.reposted },
           { detail: true, onDelete: function () { location.href = base + '/'; } }));
         var tk = boardOf(post.slug), bl = pp.ownerDocument.querySelector('[data-pp-board]');
         if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 종토방 전체 글'); a.href = base + '/t/' + tk.toLowerCase() + '/#board'; bl.appendChild(a); } else bl.appendChild(el('span', 'muted', '· 라운지')); }

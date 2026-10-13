@@ -11,6 +11,7 @@
 {%- elif name == 'home' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z"/></svg>
 {%- elif name == 'search' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
 {%- elif name == 'plus' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+{%- elif name == 'repost' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m17 2.5 3 3-3 3M3.5 11V9.5a4 4 0 0 1 4-4H20M7 21.5l-3-3 3-3M20.5 13v1.5a4 4 0 0 1-4 4H4"/></svg>
 {%- elif name == 'print' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5h15V17H17M7 14h10v6.5H7z"/></svg>
 {%- endif -%}
 {%- endmacro %}
@@ -39,6 +40,7 @@
     <a class="pa" href="{{ r.url }}#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span></a>
     <span class="pa pa-static" aria-label="조회수" data-post-views-wrap hidden>{{ icon('eye') }}<span data-post-views></span></span>
     <span class="pa pa-static pa-min">{{ r.minutes }}분 읽기</span>
+    <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span></button>
     <button type="button" class="pa pa-share" data-action="share" data-share-url="{{ r.url }}" data-share-title="{{ r.title }}" aria-label="공유">{{ icon('share') }}</button>
   </footer>
 </article>

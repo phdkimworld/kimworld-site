@@ -48,8 +48,9 @@ export function needsHold(text) {
   return HOLD_PATTERNS.some((re) => re.test(text));
 }
 
+const quoteOf = (c) => (c.q_kind ? { kind: c.q_kind, ref: c.q_ref, text: c.q_text } : null);
 function publicComment(c, actor) {
-  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, uid: c.uid || null, pinned: !!c.pinned, mine: !!actor && !!c.did && c.did === actor };
+  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, uid: c.uid || null, pinned: !!c.pinned, mine: !!actor && !!c.did && c.did === actor, quote: quoteOf(c) };
 }
 
 async function readJson(req) {
@@ -271,7 +272,7 @@ export default {
         const slugs = (url.searchParams.get("slugs") || "").split(",").filter((s) => SLUG_RE.test(s)).slice(0, 60);
         if (!slugs.length) return json(req, { stats: {} });
         const q = slugs.map(() => "?").join(",");
-        const [v, l, c, mine, top] = await Promise.all([
+        const [v, l, c, mine, top, rp, rpMine] = await Promise.all([
           db.prepare(`SELECT slug, n FROM views_total WHERE slug IN (${q})`).bind(...slugs).all(),
           db.prepare(`SELECT slug, n FROM likes_total WHERE slug IN (${q})`).bind(...slugs).all(),
           db.prepare(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${q}) GROUP BY slug`).bind(...slugs).all(),
@@ -279,9 +280,13 @@ export default {
           db.prepare(`SELECT slug, nick, body, likes, created FROM (SELECT slug, nick, body, likes, created,
               ROW_NUMBER() OVER (PARTITION BY slug ORDER BY likes DESC, created DESC) AS rn
               FROM comments WHERE status = 'ok' AND parent_id IS NULL AND slug IN (${q})) WHERE rn = 1`).bind(...slugs).all(),
+          db.prepare(`SELECT ref, COUNT(*) AS n FROM reposts WHERE kind = 'r' AND ref IN (${q}) GROUP BY ref`).bind(...slugs).all(),
+          session ? db.prepare(`SELECT r.ref FROM reposts r JOIN users u ON u.id = r.uid WHERE u.actor = ? AND r.kind = 'r' AND r.ref IN (${q})`).bind(actor, ...slugs).all() : { results: [] },
         ]);
         const stats = {};
-        for (const s of slugs) stats[s] = { views: 0, likes: 0, comments: 0, liked: false, top: null };
+        for (const s of slugs) stats[s] = { views: 0, likes: 0, comments: 0, liked: false, top: null, reposts: 0, reposted: false };
+        for (const r of rp.results || []) stats[r.ref].reposts = r.n;
+        for (const r of rpMine.results || []) stats[r.ref].reposted = true;
         for (const r of v.results || []) stats[r.slug].views = r.n;
         for (const r of l.results || []) stats[r.slug].likes = r.n;
         for (const r of c.results || []) stats[r.slug].comments = r.n;
@@ -446,10 +451,25 @@ export default {
           if (!pc || pc.slug !== slug || pc.status !== "ok") return json(req, { error: "parent", message: "답글을 달 댓글을 찾지 못했습니다." }, 400);
           parent = pc.parent_id || pc.id; parentUid = pc.uid; parentDid = pc.did;
         }
-        const status = needsHold(body) ? "held" : "ok";
-        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, did, uid, created, status, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .bind(slug, nick, body, ih, actor, me ? me.id : null, now, status, parent).run();
+        // 인용: 리포트나 남의 글의 일부(300자까지)를 붙여 새 글로 올린다(답글에는 붙이지 않음)
+        let q = null, qTarget = null;
+        if (b.quote && !parent) {
+          const qt = cleanText(b.quote.text, 301).replace(/\s+/g, " ");
+          if (qt.length < 2 || qt.length > 300) return json(req, { error: "quote", message: "인용할 부분은 2~300자로 골라 주세요." }, 400);
+          if (b.quote.kind === "r" && SLUG_RE.test(String(b.quote.ref || "")) && !String(b.quote.ref).startsWith("b-")) q = { kind: "r", ref: String(b.quote.ref), text: qt };
+          else if (b.quote.kind === "p") {
+            qTarget = await db.prepare("SELECT id, uid, did, slug, body, status FROM comments WHERE id = ?").bind(parseInt(b.quote.ref, 10) || 0).first();
+            const norm = (x) => String(x || "").replace(/\s+/g, " ").replace(/…$/, "").trim();
+            if (!qTarget || qTarget.status !== "ok" || !isBoard(qTarget.slug) || !norm(qTarget.body).includes(norm(qt)))
+              return json(req, { error: "quote", message: "인용할 글을 찾지 못했습니다." }, 400);
+            q = { kind: "p", ref: String(qTarget.id), text: qt };
+          } else return json(req, { error: "quote" }, 400);
+        }
+        const status = needsHold(body) || (q && needsHold(q.text)) ? "held" : "ok";
+        const r = await db.prepare("INSERT INTO comments (slug, nick, body, ih, did, uid, created, status, parent_id, q_kind, q_ref, q_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .bind(slug, nick, body, ih, actor, me ? me.id : null, now, status, parent, q ? q.kind : null, q ? q.ref : null, q ? q.text : null).run();
         if (status === "ok" && parent && parentUid && parentDid !== actor) await notify(db, parentUid, "reply", parent, slug, nick, now);
+        if (status === "ok" && qTarget && qTarget.uid && qTarget.did !== actor) await notify(db, qTarget.uid, "quote", r.meta?.last_row_id, slug, nick, now);
         return json(req, {
           ok: true, status, id: r.meta?.last_row_id, nick,
           message: status === "held" ? "링크·연락처·홍보로 보이는 내용이 있어 확인 뒤 게시됩니다." : "",
@@ -574,6 +594,7 @@ export default {
           all ? db.prepare("UPDATE comments SET status = 'deleted' WHERE uid = ?").bind(me.id)
               : db.prepare("UPDATE comments SET uid = NULL, did = NULL, nick = '탈퇴한 사용자' WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM follows WHERE follower = ? OR followee = ?").bind(me.id, me.id),
+          db.prepare("DELETE FROM reposts WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM notifs WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM users WHERE id = ?").bind(me.id),
           db.prepare("DELETE FROM sessions WHERE actor = ?").bind(actor),
@@ -585,19 +606,48 @@ export default {
         const u = await db.prepare("SELECT id, nick, bio, created, status FROM users WHERE id = ?").bind(parseInt(um[1], 10)).first();
         if (!u || u.status !== "ok") return json(req, { error: "not_found" }, 404);
         const me = await userByActor(db, actor);
-        const [st, fr, fg, posts, fol] = await Promise.all([
+        const [st, fr, fg, posts, fol, rps] = await Promise.all([
           db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(likes), 0) AS likes FROM comments WHERE uid = ? AND status = 'ok'").bind(u.id).first(),
           db.prepare("SELECT COUNT(*) AS n FROM follows WHERE followee = ?").bind(u.id).first(),
           db.prepare("SELECT COUNT(*) AS n FROM follows WHERE follower = ?").bind(u.id).first(),
-          db.prepare("SELECT id, slug, body, likes, created, parent_id FROM comments WHERE uid = ? AND status = 'ok' ORDER BY created DESC LIMIT 30").bind(u.id).all(),
+          db.prepare("SELECT id, slug, body, likes, created, parent_id, q_kind, q_ref, q_text FROM comments WHERE uid = ? AND status = 'ok' ORDER BY created DESC LIMIT 30").bind(u.id).all(),
           me ? db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(me.id, u.id).first() : null,
+          db.prepare(`SELECT r.kind, r.ref, r.created, c.id AS pid, c.slug, c.nick, c.uid AS puid, c.body FROM reposts r
+            LEFT JOIN comments c ON r.kind = 'p' AND c.id = CAST(r.ref AS INTEGER) AND c.status = 'ok'
+            WHERE r.uid = ? ORDER BY r.created DESC LIMIT 30`).bind(u.id).all(),
         ]);
         return json(req, {
           user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created },
           stats: { posts: st?.n || 0, likes: st?.likes || 0, followers: fr?.n || 0, following: fg?.n || 0 },
           following: !!fol, self: !!me && me.id === u.id,
-          items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, created: c.created, reply: !!c.parent_id })),
+          items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, created: c.created, reply: !!c.parent_id, quote: quoteOf(c) })),
+          reposts: (rps.results || []).filter((x) => x.kind === "r" || x.pid).map((x) => x.kind === "r" ? { kind: "r", slug: x.ref, at: x.created }
+            : { kind: "p", at: x.created, post: { id: x.pid, slug: x.slug, nick: x.nick, uid: x.puid || null, body: x.body } }),
         }, 200, { "Cache-Control": "no-store" });
+      }
+      // 리포스트(다시 올리기): 계정이 있어야 한다. 같은 것을 다시 누르면 취소
+      if (p === "/v1/repost" && req.method === "POST") {
+        const me = await userByActor(db, actor);
+        if (!me || me.status !== "ok") return json(req, { error: "account", message: "로그인하면 리포스트할 수 있습니다." }, 401);
+        const { kind, ref } = await readJson(req);
+        let key = "", target = null;
+        if (kind === "r" && SLUG_RE.test(String(ref || "")) && !String(ref).startsWith("b-")) key = String(ref);
+        else if (kind === "p") {
+          target = await db.prepare("SELECT id, uid, slug, status, parent_id, pinned FROM comments WHERE id = ?").bind(parseInt(ref, 10) || 0).first();
+          if (!target || target.status !== "ok" || target.parent_id || target.pinned || !isBoard(target.slug)) return json(req, { error: "target", message: "리포스트할 수 없는 글입니다." }, 400);
+          if (target.uid === me.id) return json(req, { error: "own", message: "내 글은 리포스트할 수 없습니다." }, 400);
+          key = String(target.id);
+        } else return json(req, { error: "target" }, 400);
+        const ins = await db.prepare("INSERT OR IGNORE INTO reposts (uid, kind, ref, created) VALUES (?, ?, ?, ?)").bind(me.id, kind, key, now).run();
+        if (ins.meta?.changes) {
+          if (!(await allow(db, `repost|${me.id}`, 100, 864e5, now))) {
+            await db.prepare("DELETE FROM reposts WHERE uid = ? AND kind = ? AND ref = ?").bind(me.id, kind, key).run();
+            return json(req, { error: "rate", message: "오늘은 더 리포스트할 수 없습니다." }, 429);
+          }
+          if (target && target.uid) await notify(db, target.uid, "repost", target.id, target.slug, me.nick, now);
+        } else await db.prepare("DELETE FROM reposts WHERE uid = ? AND kind = ? AND ref = ?").bind(me.id, kind, key).run();
+        const n = await db.prepare("SELECT COUNT(*) AS n FROM reposts WHERE kind = ? AND ref = ?").bind(kind, key).first();
+        return json(req, { reposted: !!ins.meta?.changes, count: n?.n || 0 });
       }
       if (p === "/v1/follow" && req.method === "POST") {
         const me = await userByActor(db, actor);
@@ -637,22 +687,24 @@ export default {
           return json(req, { n: r?.n || 0 }, 200, { "Cache-Control": "no-store" });
         }
         const limit = Math.min(30, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10) || 20));
-        const cols = `c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did,
+        const cols = `c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did, c.q_kind, c.q_ref, c.q_text,
             (SELECT COUNT(*) FROM comments x WHERE x.parent_id = c.id AND x.status = 'ok') AS replies,
-            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked`;
+            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked,
+            (SELECT COUNT(*) FROM reposts rp WHERE rp.kind = 'p' AND rp.ref = CAST(c.id AS TEXT)) AS reposts,
+            EXISTS(SELECT 1 FROM reposts rq WHERE rq.kind = 'p' AND rq.ref = CAST(c.id AS TEXT) AND rq.uid = ?) AS reposted`;
         let rows = null, more = false, usedHot = false;
         // 추천 탭(rank=hot): 최근 7일 글을 반응(좋아요·답글)과 신선도로 줄 세운다(쓰레드 '추천'처럼). 7일 안 글이 없으면 최신순
         const hot = !following && url.searchParams.get("rank") === "hot";
         if (hot) {
           const off = Math.max(0, Math.min(300, parseInt(url.searchParams.get("offset") || "0", 10) || 0));
-          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created > ? ORDER BY c.created DESC LIMIT 300`).bind(actor, ...fb, now - 7 * 864e5).all();
+          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created > ? ORDER BY c.created DESC LIMIT 300`).bind(actor, me ? me.id : 0, ...fb, now - 7 * 864e5).all();
           const scored = (r.results || []).map((c) => ({ c, s: (c.likes + 2 * c.replies + 1) / Math.pow((now - c.created) / 3600e3 + 2, 1.5) }))
             .sort((a, b) => b.s - a.s).map((x) => x.c);
           if (scored.length) { rows = scored.slice(off, off + limit); more = scored.length > off + limit; usedHot = true; }
         }
         if (!rows) {
           const before = parseInt(url.searchParams.get("before") || "0", 10) || now + 1;
-          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created < ? ORDER BY c.created DESC LIMIT ?`).bind(actor, ...fb, before, limit + 1).all();
+          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created < ? ORDER BY c.created DESC LIMIT ?`).bind(actor, me ? me.id : 0, ...fb, before, limit + 1).all();
           const all = r.results || []; rows = all.slice(0, limit); more = all.length > limit;
         }
         // 답글이 있는 글은 대표 답글 하나(좋아요 많은 순 → 먼저 단 순)를 미리 보여 준다
@@ -664,8 +716,22 @@ export default {
               WHERE status = 'ok' AND parent_id IN (${withRe.map(() => "?").join(",")})) WHERE rn = 1`).bind(...withRe).all();
           for (const x of tr.results || []) tops[x.parent_id] = { id: x.id, nick: x.nick, uid: x.uid || null, body: x.body.length > 120 ? x.body.slice(0, 120) + "…" : x.body, likes: x.likes };
         }
-        const items = rows.map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor, top: tops[c.id] || null }));
-        return json(req, { items, more, hot: usedHot }, 200, { "Cache-Control": "no-store" });
+        const pub = (c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor, top: tops[c.id] || null, reposts: c.reposts || 0, reposted: !!c.reposted, quote: quoteOf(c) });
+        const items = rows.map(pub);
+        // 팔로잉 탭 첫 화면: 내가 팔로우한 사람이 리포스트한 리포트·글도 함께(쓰레드의 '○○님이 리포스트함')
+        let reposts = [];
+        if (following && !url.searchParams.get("before")) {
+          const rr = (await db.prepare(`SELECT r.uid, u.nick, r.kind, r.ref, r.created FROM reposts r JOIN follows f ON f.followee = r.uid JOIN users u ON u.id = r.uid
+              WHERE f.follower = ? AND u.status = 'ok' ORDER BY r.created DESC LIMIT 20`).bind(me.id).all()).results || [];
+          const pids = rr.filter((x) => x.kind === "p").map((x) => parseInt(x.ref, 10)).filter(Boolean);
+          const prow = {};
+          if (pids.length) {
+            for (const c of (await db.prepare(`SELECT ${cols} FROM comments c WHERE c.status = 'ok' AND c.id IN (${pids.map(() => "?").join(",")})`).bind(actor, me.id, ...pids).all()).results || []) prow[c.id] = c;
+          }
+          reposts = rr.map((x) => x.kind === "r" ? { type: "report", slug: x.ref, rp: { nick: x.nick, uid: x.uid, at: x.created } }
+            : prow[x.ref] ? { ...pub(prow[x.ref]), rp: { nick: x.nick, uid: x.uid, at: x.created } } : null).filter(Boolean);
+        }
+        return json(req, { items, more, hot: usedHot, reposts }, 200, { "Cache-Control": "no-store" });
       }
       // 글 하나와 답글(글 상세 화면). 답글 번호로 열면 원글을 보여 준다
       const pm = p.match(/^\/v1\/post\/(\d+)$/);
@@ -677,8 +743,10 @@ export default {
           db.prepare("SELECT * FROM comments WHERE parent_id = ? AND status = 'ok' ORDER BY created ASC LIMIT 200").bind(c.id).all(),
           db.prepare("SELECT l.cid FROM comment_likes l JOIN comments x ON x.id = l.cid WHERE (x.id = ? OR x.parent_id = ?) AND l.ih = ?").bind(c.id, c.id, actor).all(),
         ]);
+        const me2 = session ? await userByActor(db, actor) : null;
+        const rpn = await db.prepare("SELECT COUNT(*) AS n, SUM(uid = ?) AS mine FROM reposts WHERE kind = 'p' AND ref = ?").bind(me2 ? me2.id : 0, String(c.id)).first();
         return json(req, {
-          post: { ...publicComment(c, actor), slug: c.slug },
+          post: { ...publicComment(c, actor), slug: c.slug, reposts: rpn?.n || 0, reposted: !!rpn?.mine },
           replies: (rs.results || []).map((x) => publicComment(x, actor)),
           liked: (lk.results || []).map((x) => x.cid),
         }, 200, { "Cache-Control": "no-store" });

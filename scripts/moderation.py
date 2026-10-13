@@ -36,6 +36,7 @@ def cmd_list(path: str) -> None:
         "id": r["id"], "where": r["slug"], "nick": redact(str(r["nick"])), "account": r.get("uid"),
         "status": r["status"], "reports": r["reports"], "likes": r["likes"],
         "account_hidden_total": r.get("hid") or 0, "body": redact(str(r["body"])),
+        **({"quote": redact(str(r["q_text"]))} if r.get("q_text") else {}),
     } for r in rows]
     print("=== QUEUE START ===")
     for it in items:

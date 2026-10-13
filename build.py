@@ -810,12 +810,26 @@ def build(drafts=False, strict=False, out: Path = DIST):
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {su}/sitemap.xml\n", encoding="utf-8")
     (out / "ads.txt").write_text(ads.ads_txt(), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
+    # 웹앱(홈 화면에 설치): 앱 정보 + 서비스 워커(오프라인 대비, 정적 파일 캐시) + 오프라인 안내 페이지
     manifest = {
-        "name": site["site_name"], "short_name": site["site_name"], "start_url": f"{base_path}/",
-        "display": "standalone", "background_color": "#ffffff", "theme_color": "#0f172a", "lang": "ko",
-        "icons": [{"src": f"{base_path}/static/icon.svg", "sizes": "any", "type": "image/svg+xml"}],
+        "id": f"{base_path}/", "name": site["site_name"], "short_name": site["site_name"], "description": site.get("description", ""),
+        "start_url": f"{base_path}/?source=pwa", "scope": f"{base_path}/", "display": "standalone",
+        "background_color": "#faf8f4", "theme_color": "#0f172a", "lang": "ko", "dir": "ltr", "categories": ["finance", "news"],
+        "icons": [
+            {"src": f"{base_path}/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": f"{base_path}/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": f"{base_path}/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            {"src": f"{base_path}/static/icon.svg", "sizes": "any", "type": "image/svg+xml"},
+        ],
+        "shortcuts": [
+            {"name": "검색", "url": f"{base_path}/search/", "icons": [{"src": f"{base_path}/static/icon-192.png", "sizes": "192x192"}]},
+            {"name": "글쓰기", "url": f"{base_path}/?compose=1", "icons": [{"src": f"{base_path}/static/icon-192.png", "sizes": "192x192"}]},
+        ],
     }
     (out / "manifest.webmanifest").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    sw = (ROOT / "static" / "js" / "sw.template.js").read_text(encoding="utf-8")
+    (out / "sw.js").write_text(sw.replace("__VER__", asset_ver).replace("__BASE__", base_path), encoding="utf-8")
+    write("offline/index.html", "offline.html")
     host = urlparse(su).hostname or ""
     if host and not host.endswith("github.io"):
         (out / "CNAME").write_text(host + "\n", encoding="utf-8")

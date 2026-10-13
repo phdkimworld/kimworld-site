@@ -106,6 +106,7 @@
       Object.keys(st).forEach(function (sl) {
         var x = st[sl];
         setLike(sl, x.likes, x.liked);
+        paintRepost('r', sl, x.reposts, x.reposted);
         document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === sl) n.textContent = x.comments ? num(x.comments) : ''; });
         document.querySelectorAll('[data-post-views]').forEach(function (n) {
           if (postSlug(n) !== sl || !x.views) return;
@@ -192,6 +193,7 @@
         body.appendChild(el('p', 'muted', '로그인하면 닉네임이 고정되고, 팔로우·답글 알림을 쓸 수 있습니다(글은 로그인 없이도 쓸 수 있어요). 로그인할 때 이메일·이름·전화번호는 받지 않고, 같은 사람인지 알아보는 회원 번호만 씁니다.'));
         if (!PROVIDERS.length) body.appendChild(el('p', 'kw-warn', '로그인을 준비하고 있습니다. 잠시 뒤 다시 와 주세요.'));
         PROVIDERS.forEach(function (pv) { var a = el('a', 'btn kw-login kw-login-' + pv, PNAME[pv] || pv); a.href = loginUrl(pv); body.appendChild(a); });
+        if (window.kwCanInstall && kwCanInstall()) body.appendChild(btn('📱 홈 화면에 앱으로 설치', 'btn kw-login', function () { dlg.close(); kwInstall(); }));
         var tl = el('p', 'muted kw-small'); tl.appendChild(document.createTextNode('로그인하면 ')); var ta = el('a', null, '이용약관'); ta.href = base + '/terms/'; ta.target = '_blank'; tl.appendChild(ta); tl.appendChild(document.createTextNode('에 동의한 것으로 봅니다.')); body.appendChild(tl);
         return;
       }
@@ -245,6 +247,7 @@
       }));
       var pf = el('a', 'btn', '내 프로필'); pf.href = profileUrl(ME.id); row.appendChild(pf);
       row.appendChild(btn('알림', 'btn', openBell));
+      if (window.kwCanInstall && kwCanInstall()) row.appendChild(btn('앱으로 설치', 'btn', function () { dlg.close(); kwInstall(); }));
       body3.appendChild(row); body3.appendChild(msg);
       api('/v1/admin/whoami').then(function (w) { if (!w.owner) return; var st = el('a', 'btn', '운영 통계'); st.href = base + '/admin/'; row.appendChild(st); }).catch(function () {});
       body3.appendChild(el('hr'));
@@ -275,6 +278,8 @@
         var li = el('li', x.seen ? '' : 'unread'), a = el('a');
         var t = x.type === 'follow' ? x.from_nick + '님이 나를 팔로우했습니다'
           : x.type === 'reply' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글에 답글을 달았습니다'
+          : x.type === 'repost' ? (x.from_nick || '누군가') + '님' + (x.n > 1 ? ' 등 ' + x.n + '명' : '') + '이 내 글을 리포스트했습니다'
+          : x.type === 'quote' ? (x.from_nick || '누군가') + '님이 내 글을 인용했습니다'
           : '내 글에 좋아요 ' + x.n + '개';
         a.textContent = t; a.href = x.type === 'follow' ? profileUrl(x.ref) : itemUrl(x.slug, x.ref);
         li.appendChild(a);
@@ -326,6 +331,7 @@
 
     function item(c, isBest, canReply) {
       var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : '') + (c.pinned ? ' cm-item-pinned' : ''));
+      li.setAttribute('data-cid', c.id);
       li.appendChild(avatar(c.nick));
       var main = el('div', 'cm-main'); li.appendChild(main);
       var head = el('div', 'cm-head');
@@ -336,6 +342,7 @@
       else head.appendChild(el('span', 'cm-time muted', ago(c.created)));
       main.appendChild(head);
       main.appendChild(richText(el('p', 'cm-body'), c.body));
+      if (c.quote) main.appendChild(quoteBox(c.quote));
       var act = el('div', 'cm-act');
       var like = el('button', 'cm-like');
       like.type = 'button';
@@ -727,9 +734,24 @@
         fb.setAttribute('aria-pressed', d.following ? 'true' : 'false');
         prof.appendChild(fb);
       }
-      // 내 프로필: 내 글 · 읽은 리포트 · 저장한 리포트(읽은·저장 기록은 이 기기에만 있음)
+      // 프로필 탭: 글 · 리포스트 (+ 내 프로필이면 최근 읽음 · 저장함 — 이 둘은 이 기기에만 있음)
       var ul = el('ul', 'rc-list');
-      if (d.self) {
+      var rpUl = el('ul', 'rc-list');
+      (d.reposts || []).forEach(function (x) {
+        var li = el('li', 'rc-item'), a = el('a', 'rc-link'), h = el('span', 'rc-head');
+        h.appendChild(el('span', 'rp-mark', '↻'));
+        if (x.kind === 'r') {
+          a.href = reportUrl(x.slug); var tk = el('span', 'rank-tick', ''); h.appendChild(tk); h.appendChild(el('span', 'muted', '리포트 · ' + ago(x.at)));
+          var tt = el('span', 'rc-body', '…'); a.appendChild(h); a.appendChild(tt);
+          reportTitle(x.slug).then(function (r) { tk.textContent = r.k; tt.textContent = shortTitle(r.t); });
+        } else {
+          a.href = postUrl(x.post.id); h.appendChild(el('span', 'rank-tick', threadLabel(x.post.slug))); h.appendChild(el('span', 'muted', x.post.nick + ' · ' + ago(x.at)));
+          a.appendChild(h); a.appendChild(el('span', 'rc-body', x.post.body));
+        }
+        li.appendChild(a); rpUl.appendChild(li);
+      });
+      if (!(d.reposts || []).length) rpUl.appendChild(el('li', 'rc-item muted rc-empty', '아직 리포스트한 글이 없습니다.'));
+      if (true) {
         var LS = function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } };
         var tabs = el('div', 'seg-tabs prof-tabs'); tabs.setAttribute('role', 'tablist');
         var panes = {}, tbtn = {};
@@ -764,26 +786,27 @@
           });
           pane.appendChild(l);
         };
-        var recent = LS('kw-recent'), saved = LS('kw-saved');
-        var pPosts = mkPane('posts', '내 글', d.items.length);
+        var recent = d.self ? LS('kw-recent') : [], saved = d.self ? LS('kw-saved') : [];
+        var pPosts = mkPane('posts', '글', d.items.length);
+        var pRp = mkPane('reposts', '리포스트', (d.reposts || []).length); pRp.appendChild(rpUl);
+        prof.appendChild(tabs); prof.appendChild(pPosts); prof.appendChild(pRp);
+        if (d.self) {
         var pRead = mkPane('read', '최근 읽음', recent.length);
         var pSaved = mkPane('saved', '저장함', saved.length);
-        prof.appendChild(tabs); prof.appendChild(pPosts); prof.appendChild(pRead); prof.appendChild(pSaved);
+        prof.appendChild(pRead); prof.appendChild(pSaved);
         reportList(pRead, 'kw-recent', recent, '아직 읽은 리포트가 없습니다. 리포트를 열면 여기에 쌓입니다.', '기록 지우기');
         reportList(pSaved, 'kw-saved', saved, '저장한 리포트가 없습니다. 리포트의 "저장"을 누르면 여기에 모입니다.', '저장 취소');
+        }
         if (recent.length) {
           var clr = el('button', 'cm-link hist-clear', '읽은 기록 모두 지우기'); clr.type = 'button';
           clr.addEventListener('click', function () { if (!confirm('이 기기의 읽은 기록을 모두 지울까요?')) return; try { localStorage.setItem('kw-recent', '[]'); } catch (e) {} reportList(pRead, 'kw-recent', [], '읽은 기록을 지웠습니다.', ''); tbtn.read.querySelector('strong').textContent = '0'; clr.remove(); });
           pRead.appendChild(clr);
         }
-        [pRead, pSaved].forEach(function (p) { p.appendChild(el('p', 'muted kw-small hist-note', '읽은 기록과 저장한 리포트는 이 기기(브라우저)에만 저장되고 서버로 보내지 않습니다.')); });
+        if (d.self) [pRead, pSaved].forEach(function (p) { p.appendChild(el('p', 'muted kw-small hist-note', '읽은 기록과 저장한 리포트는 이 기기(브라우저)에만 저장되고 서버로 보내지 않습니다.')); });
         pPosts.appendChild(ul);
         var last = ''; try { last = sessionStorage.getItem('kw-prof-tab') || ''; } catch (e) {}
-        var qt = (/[?&]tab=(read|saved)/.exec(location.search) || [])[1];
-        show(qt || (panes[last] ? last : 'posts'));
-      } else {
-        prof.appendChild(el('h2', 'section-title profile-h', '최근 글'));
-        prof.appendChild(ul);
+        var qt = (/[?&]tab=(read|saved|reposts)/.exec(location.search) || [])[1];
+        show(qt || (d.self && panes[last] ? last : 'posts'));
       }
       if (!d.items.length) ul.appendChild(el('li', 'rc-item muted rc-empty', '아직 쓴 글이 없습니다.'));
       d.items.forEach(function (c) {
@@ -792,13 +815,140 @@
         h.appendChild(el('span', 'rank-tick', threadLabel(c.slug)));
         h.appendChild(el('span', 'muted', (c.reply ? '답글 · ' : '') + ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
         a.appendChild(h); a.appendChild(el('span', 'rc-body', c.body));
+        if (c.quote) a.appendChild(el('span', 'rc-quote', '❝ ' + c.quote.text));
         li.appendChild(a); ul.appendChild(li);
       });
     }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
   }
 
+  // ---------- 리포스트·인용 ----------
+  // 리포스트: 리포트나 남의 글을 내 프로필과 팔로워의 '팔로잉' 피드로 다시 올린다(계정 필요, 다시 누르면 취소)
+  // 인용: 리포트·남의 글의 일부(드래그로 골라도 됨)를 붙여 내 생각과 함께 새 글로 올린다(로그인 없이도 가능)
+  function reportUrl(sl) { return base + '/r/' + sl + '/'; }
+  function paintRepost(kind, ref, n, on) {
+    document.querySelectorAll('[data-repost][data-kind="' + kind + '"][data-ref="' + ref + '"]').forEach(function (b) {
+      b.hidden = false; if (on != null) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      var sp = b.querySelector('[data-n]'); if (sp && n != null) sp.textContent = n ? num(n) : '';
+    });
+  }
+  document.querySelectorAll('[data-repost]').forEach(function (b) { b.hidden = false; });
+  var titleCache = {};
+  function reportTitle(sl) { // 지금 화면의 리포트·카드에서, 없으면 search.json에서
+    if (titleCache[sl]) return Promise.resolve(titleCache[sl]);
+    var a = document.querySelector('article.report[data-slug="' + sl + '"]');
+    if (a) return Promise.resolve(titleCache[sl] = { t: a.getAttribute('data-title'), k: a.getAttribute('data-ticker') });
+    return loadIndex().then(function (I) { var r = I.bySlug[sl]; return titleCache[sl] = r ? { t: r.t, k: r.k } : { t: '리포트', k: '' }; }).catch(function () { return { t: '리포트', k: '' }; });
+  }
+  function shortTitle(t) { return String(t || '').replace(/^.*?(주가|가격) 내러티브와 패턴 투자전략:\s*/, ''); }
+  // 인용 상자: 출처(리포트 제목 / 원글 쓴 사람) + 인용한 부분. 누르면 원문의 그 자리로
+  function quoteBox(q) {
+    var a = el('a', 'quote-box');
+    var words = String(q.text).split(' ');
+    var frag = words.length > 8 ? encodeURIComponent(words.slice(0, 4).join(' ')) + ',' + encodeURIComponent(words.slice(-4).join(' ')) : encodeURIComponent(q.text);
+    a.href = q.kind === 'r' ? reportUrl(q.ref) + '#:~:text=' + frag : postUrl(q.ref);
+    var src = el('span', 'quote-src', q.kind === 'r' ? '리포트' : '원글');
+    a.appendChild(src);
+    a.appendChild(richText(el('span', 'quote-text'), q.text));
+    if (q.kind === 'r') reportTitle(q.ref).then(function (r) { src.textContent = (r.k ? r.k + ' · ' : '') + shortTitle(r.t); });
+    return a;
+  }
+  function doRepost(kind, ref) {
+    return meReady.then(function () {
+      if (!ME) { openAccount(); return; }
+      return api('/v1/repost', { method: 'POST', body: { kind: kind, ref: ref } }).then(function (d) {
+        if (d._status !== 200) { alert(d.message || '리포스트하지 못했습니다.'); return; }
+        paintRepost(kind, ref, d.count, d.reposted);
+        flash(d.reposted ? '내 프로필과 팔로워 피드에 리포스트했습니다' : '리포스트를 취소했습니다');
+      });
+    });
+  }
+  function flash(t) { var x = document.querySelector('.toast'); if (!x) return; x.textContent = t; x.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(function () { x.classList.remove('show'); }, 2000); }
+  // 리포스트 버튼: 리포스트 / 인용하기 두 가지를 고르는 작은 창
+  function openRepostMenu(b) {
+    var kind = b.getAttribute('data-kind'), ref = b.getAttribute('data-ref'), on = b.getAttribute('aria-pressed') === 'true';
+    var body = dialog('리포스트');
+    var r1 = btn(on ? '리포스트 취소' : '리포스트', 'btn rp-opt', function () { dlg.close(); doRepost(kind, ref); });
+    r1.insertBefore(document.createTextNode('↻ '), r1.firstChild);
+    body.appendChild(r1);
+    body.appendChild(el('p', 'muted kw-small rp-desc', '내 프로필과 나를 팔로우한 사람의 피드에 그대로 다시 올립니다.'));
+    var r2 = btn('❝ 인용해서 내 생각 쓰기', 'btn rp-opt', function () {
+      var src = String(b.getAttribute('data-quote-src') || '').replace(/\s+/g, ' ').trim();
+      openQuote({ kind: kind, ref: ref, text: src.length > 300 ? src.slice(0, 297).replace(/\s\S*$/, '') + '…' : src });
+    });
+    body.appendChild(r2);
+    body.appendChild(el('p', 'muted kw-small rp-desc', '본문에서 문장을 드래그하면 그 부분만 골라 인용할 수 있어요.'));
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-repost]'); if (!b || b.disabled) return;
+    e.preventDefault(); openRepostMenu(b);
+  });
+  // 인용 글쓰기 창
+  function openQuote(q) {
+    meReady.then(function () {
+      if (LOGGED && !ME) { openAccount(); return; }
+      var body = dialog('인용하기');
+      var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); body.appendChild(pv);
+      var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500; ta.placeholder = '이 부분에 대한 내 생각을 써 주세요';
+      body.appendChild(ta);
+      var nick = null;
+      if (!ME) { nick = el('input', 'qt-nick'); nick.maxLength = 12; nick.placeholder = '닉네임 (비우면 익명)'; body.appendChild(nick); }
+      var sel = el('select', 'qt-board');
+      var add = function (v, label) { var o = el('option', null, label); o.value = v; sel.appendChild(o); };
+      var setDefault = function (tk) {
+        if (tk && (KW.tk || []).some(function (x) { return x.c === tk; })) add('b-' + tk.toLowerCase(), '$' + tk + ' 종토방');
+        add('b-talk', '라운지');
+      };
+      if (q.kind === 'r') reportTitle(q.ref).then(function (r) { setDefault(r.k); });
+      else { var bm = /^b-(.+)$/.exec(q.slug || ''); setDefault(bm && bm[1] !== 'talk' ? bm[1].toUpperCase() : ''); }
+      body.appendChild(field('올릴 곳', sel));
+      var m = el('p', 'kw-msg'); m.setAttribute('role', 'status');
+      var started = 0; ta.addEventListener('input', function () { if (!started) started = Date.now(); });
+      var go = btn('인용해서 올리기', 'btn btn-primary', function () {
+        go.disabled = true; m.textContent = '';
+        api('/v1/comments', { method: 'POST', body: { slug: sel.value, body: ta.value, nick: nick ? nick.value : '', website: '', t: started ? Date.now() - started : 0, quote: { kind: q.kind, ref: q.ref, text: q.text.replace(/…$/, '') } } }).then(function (d) {
+          go.disabled = false;
+          if (!d.ok) { m.textContent = d.message || '올리지 못했습니다.'; return; }
+          if (d.status === 'held') { m.textContent = d.message; return; }
+          location.href = postUrl(d.id);
+        }).catch(function () { go.disabled = false; m.textContent = '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
+      });
+      body.appendChild(go); body.appendChild(m);
+      setTimeout(function () { ta.focus(); }, 50);
+    });
+  }
+  // 글자를 드래그해 고르면 '인용하기' 단추를 띄운다(리포트 본문·종토방/라운지 글)
+  (function () {
+    var chip = el('button', 'quote-chip', '❝ 인용하기'); chip.type = 'button'; chip.hidden = true; document.body.appendChild(chip);
+    var cur = null, timer = 0;
+    function check() {
+      var sel = window.getSelection && getSelection(); cur = null;
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { chip.hidden = true; return; }
+      var text = String(sel).replace(/\s+/g, ' ').trim();
+      var node = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentNode);
+      if (!node || text.length < 2) { chip.hidden = true; return; }
+      var rep = node.closest('article.report .prose'), up = node.closest('.upost-body'), cm = node.closest('.comments.board .cm-body, .pp-replies .cm-body');
+      if (rep) cur = { kind: 'r', ref: rep.closest('article.report').getAttribute('data-slug') };
+      else if (up) { var art = up.closest('[data-pid]'); cur = { kind: 'p', ref: art.getAttribute('data-pid'), slug: art.getAttribute('data-board') }; }
+      else if (cm && cm.closest('[data-cid]')) {
+        var th = cm.closest('[data-thread]'), ppost = document.querySelector('[data-post-page] [data-board]');
+        cur = { kind: 'p', ref: cm.closest('[data-cid]').getAttribute('data-cid'), slug: th ? th.getAttribute('data-thread') : ppost ? ppost.getAttribute('data-board') : '' };
+      }
+      if (!cur) { chip.hidden = true; return; }
+      cur.text = text.length > 300 ? text.slice(0, 300) : text;
+      var r = sel.getRangeAt(0).getBoundingClientRect();
+      chip.hidden = false;
+      // 휴대폰은 위에 기본 복사 메뉴가 뜨므로 선택한 글 아래에, PC는 위에
+      chip.style.top = ((window.matchMedia && matchMedia('(pointer: coarse)').matches) ? window.scrollY + r.bottom + 14 : Math.max(8, window.scrollY + r.top - 46)) + 'px';
+      chip.style.left = Math.min(window.innerWidth - 120, Math.max(8, r.left + r.width / 2 - 50)) + 'px';
+    }
+    document.addEventListener('selectionchange', function () { clearTimeout(timer); timer = setTimeout(check, 250); });
+    chip.addEventListener('mousedown', function (e) { e.preventDefault(); }); // 누르는 순간 선택이 풀리지 않게
+    chip.addEventListener('click', function () { if (!cur) return; var q = cur; chip.hidden = true; openQuote(q); });
+  })();
+
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
+    quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, richText: richText, nickEl: nickEl,
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
     setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS }; }

@@ -21,6 +21,11 @@
 <meta name="theme-color" content="#0f172a">
 <link rel="icon" href="{{ base }}/static/icon.svg" type="image/svg+xml">
 <link rel="manifest" href="{{ base }}/manifest.webmanifest">
+<link rel="apple-touch-icon" href="{{ base }}/static/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="{{ site.site_name }}">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="alternate" type="application/rss+xml" title="{{ site.site_name }}" href="{{ site.site_url }}/rss.xml">
 {% if site.analytics.google_site_verification %}<meta name="google-site-verification" content="{{ site.analytics.google_site_verification }}">{% endif %}
 {% if site.analytics.naver_site_verification %}<meta name="naver-site-verification" content="{{ site.analytics.naver_site_verification }}">{% endif %}
@@ -91,6 +96,7 @@
       {% if site.api_url %}<a href="{{ base }}/terms/">이용약관</a>{% endif %}
       <a href="{{ base }}/contact/">문의</a>
       <a href="{{ site.site_url }}/rss.xml">RSS</a>
+      <button type="button" class="footer-install" data-install hidden>앱으로 설치</button>
       {% if site.operator.youtube_url %}<a href="{{ site.operator.youtube_url }}" rel="noopener" target="_blank">유튜브</a>{% endif %}
     </nav>
     <p class="footer-copy">© {{ year }} {{ site.site_name }}. 무단 전재 금지.</p>
