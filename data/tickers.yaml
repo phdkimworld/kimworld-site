@@ -294,3 +294,9 @@ CIFR:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["사이퍼", "사이퍼 마이닝", "Cipher Mining", "Cipher Digital", "사이퍼마이닝"]
+NTLA:
+  name: "인텔리아 테라퓨틱스"
+  name_en: "Intellia Therapeutics, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["인텔리아", "Intellia", "Intellia Therapeutics"]
