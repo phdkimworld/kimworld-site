@@ -1,7 +1,11 @@
 # 음성 동기 슬라이드 영상: slides.json + TTS 시각표 → 문장 단위로 슬라이드가 바뀌고, 사이트 안내 문장 동안만 미드롤 이미지
-# 사용: python3 make_slide_video.py slides.json raw.wav 출력.mp4
+# 사용: python3 make_slide_video.py slides.json raw.wav 출력.mp4   (효과음·배경 드론 끄기: NO_SFX=1)
+#   효과음은 sfx.py가 코드로 합성한다. 화면 전환=whoosh, 훅·단서·반전·답=boom, 훅 질문 직전=riser, 미드롤·마무리=chime, 숫자 카드=tick
+#   slides.json의 화면마다 "sfx": "boom|whoosh|riser|chime|tick|none"으로 직접 정할 수 있다
 #   raw.wav 옆의 raw_timing.json(st_tts.py가 만든다)을 읽는다. 프레임과 확인용 contact.png는 출력 폴더의 slides_out/에 저장
 import json, sys, os, asyncio, subprocess, math
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sfx
 from PIL import Image
 from playwright.async_api import async_playwright
 KIT = os.path.dirname(os.path.abspath(__file__))
@@ -63,13 +67,40 @@ lst = os.path.join(wd, 'list.txt')
 with open(lst, 'w') as fo:
     for t0, key, t1, _ in segs: fo.write(f"file '{files[key]}'\nduration {t1 - t0:.3f}\n")
     fo.write(f"file '{files[segs[-1][1]]}'\n")
-aud = os.path.splitext(out)[0] + '_voice.m4a'
+# 효과음 위치: 화면이 바뀌는 순간마다 종류를 정한다
+def sfx_events():
+    ev, last_t, prev = [], -99.0, None
+    for t0, key, t1, sl in segs:
+        if key == ('AD',):
+            if prev != ('AD',): ev.append((t0, 'chime'))
+            prev = key; continue
+        pi, k, si = key; d = sl[k]
+        new_slide = prev is None or prev == ('AD',) or prev[:2] != (pi, k)
+        kind = None
+        if new_slide:
+            kick = str(d.get('kicker', ''))
+            if d.get('layout') == 'hero': ev.append((t0, 'riser')); kind = 'boom'
+            elif d.get('layout') == 'outro': kind = 'chime'
+            elif kick.startswith(('미스터리', '단서', '반전')) or (d.get('layout') == 'quote' and kick): kind = 'boom'
+            else: kind = 'whoosh'
+            if 'sfx' in d: kind = None if d['sfx'] == 'none' else d['sfx']
+        elif d.get('layout') == 'stat' and any(x.get('at') == si for x in d.get('stats', [])):
+            kind = 'tick'
+        if kind and (kind != 'whoosh' or t0 - last_t >= 2.5) and (kind != 'tick' or t0 - last_t >= 1.5):
+            ev.append((t0, kind)); last_t = t0
+        prev = key
+    if ev and ev[0][1] != 'boom': ev.insert(0, (0.05, 'boom'))
+    return ev
+voice = os.path.join(wd, 'voice.wav'); mixed = os.path.join(wd, 'mix.wav')
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af',
     'highpass=f=60,equalizer=f=140:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=2.5:attack=10:release=200,loudnorm=I=-16:TP=-1.5:LRA=11',
-    '-ar', '44100', '-ac', '2', '-c:a', 'aac', '-b:a', '192k', aud], check=True)
-subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-i', aud,
+    '-ar', '44100', '-ac', '2', '-c:a', 'pcm_s16le', voice], check=True)
+events = [] if os.environ.get('NO_SFX') else sfx_events()
+sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
+subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-i', mixed,
     '-vf', 'scale=1920:1080,fps=15,format=yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-crf', '20',
-    '-c:a', 'copy', '-shortest', '-movflags', '+faststart', out], check=True)
+    '-af', 'alimiter=limit=0.95', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], check=True)
 ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if k == ('AD',)]
-json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
-print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 구간', ad)
+json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
+from collections import Counter
+print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 구간', ad, '| 효과음', dict(Counter(k for _, k in events)))
