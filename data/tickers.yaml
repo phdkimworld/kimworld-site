@@ -264,3 +264,9 @@ SMR:
   exchange: "NYSE"
   theme: "원자력·에너지"
   aliases: ["뉴스케일", "뉴스케일 파워", "NuScale", "NuScale Power", "엔트라원", "ENTRA1"]
+STX:
+  name: "스택스"
+  name_en: "Stacks"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["스택스", "Stacks", "블록스택", "Blockstack", "sBTC"]

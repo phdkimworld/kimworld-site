@@ -18,7 +18,7 @@ for i, (dt, lab, v) in enumerate(rows):
     y0 = TOP + i * RH; last = i == len(rows) - 1
     T(40, y0 + 6, dt, F("Bold", 24), "#0E1A2B"); T(40, y0 + 38, lab, F("Regular", 22), "#5E6B7D")
     d.rounded_rectangle([L * S, (y0 + 14) * S, bx(v) * S, (y0 + 58) * S], radius=6 * S, fill="#E0A21B" if last else "#C9D1DB")
-    txt = (("%.4f" % v).rstrip("0") if v < 1 else "%.2f" % v); f = F("Bold", 26); lx = bx(v) + 12
+    txt = ("{:,.0f}원".format(v) if c.get("unit") == "krw" else ("%.4f" % v).rstrip("0") if v < 1 else "%.2f" % v); f = F("Bold", 26); lx = bx(v) + 12
     if ref and v < ref["v"] and lx + d.textlength(txt, font=f) / S > bx(ref["v"]) - 6: lx = bx(ref["v"]) + 10
     T(lx, y0 + 18, txt, f, "#B07B0C" if last else "#0E1A2B")
 if ref:
