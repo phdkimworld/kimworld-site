@@ -422,8 +422,7 @@ export default {
         if (body.length > LIMITS.bodyMax) return json(req, { error: "long", message: `${LIMITS.bodyMax}자까지 쓸 수 있습니다.` }, 400);
         const me = await userByActor(db, actor);
         if (me && me.status !== "ok") return json(req, { error: "banned", message: "이용이 제한된 계정입니다." }, 403);
-        // 종토방은 로그인(구글·카카오)이 켜져 있으면 계정이 있어야 쓴다. 로그인을 준비하는 동안에는 익명으로도 쓸 수 있다
-        if (isBoard(slug) && !me && providers(env).length) return json(req, { error: "account", message: "종토방 글은 로그인한 뒤 쓸 수 있습니다." }, 401);
+        // 종토방·라운지도 로그인 없이(익명) 쓸 수 있다. 익명 글은 기기 기준 도배 제한과 자동 보류 규칙을 그대로 받는다
         let nick = cleanText(b.nick, LIMITS.nickMax).replace(/\s+/g, " ");
         if (!nick || /운영자|관리자|김박사/.test(nick) || needsHold(nick)) nick = `익명#${actor.slice(-4)}`;
         if (me) nick = me.nick; // 계정이 있으면 계정 닉네임으로
@@ -452,7 +451,7 @@ export default {
           .bind(slug, nick, body, ih, actor, me ? me.id : null, now, status, parent).run();
         if (status === "ok" && parent && parentUid && parentDid !== actor) await notify(db, parentUid, "reply", parent, slug, nick, now);
         return json(req, {
-          ok: true, status, id: r.meta?.last_row_id,
+          ok: true, status, id: r.meta?.last_row_id, nick,
           message: status === "held" ? "링크·연락처·홍보로 보이는 내용이 있어 확인 뒤 게시됩니다." : "",
         });
       }
@@ -638,14 +637,35 @@ export default {
           return json(req, { n: r?.n || 0 }, 200, { "Cache-Control": "no-store" });
         }
         const limit = Math.min(30, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10) || 20));
-        const before = parseInt(url.searchParams.get("before") || "0", 10) || now + 1;
-        const r = await db.prepare(`SELECT c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did,
+        const cols = `c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did,
             (SELECT COUNT(*) FROM comments x WHERE x.parent_id = c.id AND x.status = 'ok') AS replies,
-            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked
-            FROM comments c WHERE ${where} AND c.created < ? ORDER BY c.created DESC LIMIT ?`).bind(actor, ...fb, before, limit + 1).all();
-        const rows = r.results || [];
-        const items = rows.slice(0, limit).map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor }));
-        return json(req, { items, more: rows.length > limit }, 200, { "Cache-Control": "no-store" });
+            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked`;
+        let rows = null, more = false, usedHot = false;
+        // 추천 탭(rank=hot): 최근 7일 글을 반응(좋아요·답글)과 신선도로 줄 세운다(쓰레드 '추천'처럼). 7일 안 글이 없으면 최신순
+        const hot = !following && url.searchParams.get("rank") === "hot";
+        if (hot) {
+          const off = Math.max(0, Math.min(300, parseInt(url.searchParams.get("offset") || "0", 10) || 0));
+          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created > ? ORDER BY c.created DESC LIMIT 300`).bind(actor, ...fb, now - 7 * 864e5).all();
+          const scored = (r.results || []).map((c) => ({ c, s: (c.likes + 2 * c.replies + 1) / Math.pow((now - c.created) / 3600e3 + 2, 1.5) }))
+            .sort((a, b) => b.s - a.s).map((x) => x.c);
+          if (scored.length) { rows = scored.slice(off, off + limit); more = scored.length > off + limit; usedHot = true; }
+        }
+        if (!rows) {
+          const before = parseInt(url.searchParams.get("before") || "0", 10) || now + 1;
+          const r = await db.prepare(`SELECT ${cols} FROM comments c WHERE ${where} AND c.created < ? ORDER BY c.created DESC LIMIT ?`).bind(actor, ...fb, before, limit + 1).all();
+          const all = r.results || []; rows = all.slice(0, limit); more = all.length > limit;
+        }
+        // 답글이 있는 글은 대표 답글 하나(좋아요 많은 순 → 먼저 단 순)를 미리 보여 준다
+        const withRe = rows.filter((c) => c.replies > 0).map((c) => c.id);
+        const tops = {};
+        if (withRe.length) {
+          const tr = await db.prepare(`SELECT parent_id, id, nick, uid, body, likes FROM (SELECT parent_id, id, nick, uid, body, likes,
+              ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY likes DESC, created ASC) AS rn FROM comments
+              WHERE status = 'ok' AND parent_id IN (${withRe.map(() => "?").join(",")})) WHERE rn = 1`).bind(...withRe).all();
+          for (const x of tr.results || []) tops[x.parent_id] = { id: x.id, nick: x.nick, uid: x.uid || null, body: x.body.length > 120 ? x.body.slice(0, 120) + "…" : x.body, likes: x.likes };
+        }
+        const items = rows.map((c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor, top: tops[c.id] || null }));
+        return json(req, { items, more, hot: usedHot }, 200, { "Cache-Control": "no-store" });
       }
       // 글 하나와 답글(글 상세 화면). 답글 번호로 열면 원글을 보여 준다
       const pm = p.match(/^\/v1\/post\/(\d+)$/);

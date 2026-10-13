@@ -8,9 +8,12 @@
   <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>{{ code }}</span></nav>
   <header class="page-head">
     <div class="report-ticker"><span class="tick tick-lg">{{ code }}</span><span class="report-company">{{ t.name }} <span class="muted">{{ t.name_en }} · {{ t.exchange }}</span></span></div>
-    <p class="muted">리포트 {{ rs|length }}개 · 최신순</p>
   </header>
-  <div class="cards">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
+  <nav class="seg-tabs" aria-label="{{ code }} 보기">
+    <a href="#reports">리포트 <strong>{{ rs|length }}</strong></a>
+    {% if site.api_url %}<a href="#board">종토방 <strong data-board-n-tab></strong></a>{% endif %}
+  </nav>
+  <div class="cards" id="reports">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
   {% if site.api_url %}<div class="board-wrap">{{ thread('b-' ~ code|lower, 'board', code ~ ' 종토방', 'board', thread_ad, ads.rhythm.board) }}</div>{% endif %}
 </div>

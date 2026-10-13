@@ -8,6 +8,9 @@
 {%- elif name == 'board' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3.5 6.5c0-1.1.9-2 2-2h9c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2H9l-3.5 3v-3h0c-1.1 0-2-.9-2-2z"/><path d="M16.5 9.5h2c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2h0v3l-3.5-3H11c-1.1 0-2-.9-2-2v-.5"/></svg>
 {%- elif name == 'user' -%}<svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.6 4.1-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></svg>
 {%- elif name == 'bell' -%}<svg class="ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>
+{%- elif name == 'home' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z"/></svg>
+{%- elif name == 'search' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+{%- elif name == 'plus' -%}<svg class="ic" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
 {%- elif name == 'print' -%}<svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3.5h10V8M7 17H4.5V9.5h15V17H17M7 14h10v6.5H7z"/></svg>
 {%- endif -%}
 {%- endmacro %}
@@ -48,16 +51,14 @@
   {% if ad_html and rhythm %}<template data-thread-ad>{{ ad_html|safe }}</template>{% endif %}
   <h2 id="{{ sec_id }}-h">{{ title }} <span class="cm-count" data-cm-count></span></h2>
   {% if kind == 'board' %}
+  <p class="cm-stats" data-board-stats hidden></p>
   <p class="cm-rule muted">이 종목에 대한 개인 의견을 나누는 곳입니다. 투자 권유가 아니며, 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려집니다. <a href="/terms/">이용약관</a></p>
-  <div class="cm-need-account" data-need-account hidden>
-    <p>종토방 글은 <strong>구글·카카오로 로그인</strong>하면 쓸 수 있습니다. 이메일·이름·전화번호는 받지 않습니다.</p>
-    <button type="button" class="btn btn-primary" data-open-account>로그인하고 글쓰기</button>
-  </div>
+  <p class="cm-hint muted" data-need-account hidden>로그인 없이 익명으로 쓸 수 있습니다. 로그인하면 닉네임이 고정되고 팔로우·답글 알림을 받을 수 있어요. <button type="button" class="cm-link" data-open-account>로그인</button></p>
   {% else %}
   <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>
   {% endif %}
-  <form class="cm-form" data-cm-form novalidate{% if kind == 'board' %} hidden{% endif %}>
-    <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임"{% if kind == 'board' %} hidden{% endif %}>
+  <form class="cm-form" data-cm-form novalidate>
+    <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임">
     <textarea name="body" maxlength="500" rows="3" placeholder="{% if kind == 'board' %}이 종목에 대한 생각을 나눠 주세요{% else %}이 리포트에 대한 생각을 남겨 주세요{% endif %}" aria-label="글 내용"></textarea>
     <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
     <div class="cm-form-row"><span class="cm-len muted" data-cm-len>0/500</span><button class="btn btn-primary" type="submit">등록</button></div>

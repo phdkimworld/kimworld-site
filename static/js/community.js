@@ -46,6 +46,14 @@
     a.setAttribute('aria-hidden', 'true');
     return a;
   }
+  // 선 하트 아이콘(누르면 채워짐)
+  function heart() {
+    var ns = 'http://www.w3.org/2000/svg', v = document.createElementNS(ns, 'svg');
+    v.setAttribute('class', 'ic'); v.setAttribute('viewBox', '0 0 24 24'); v.setAttribute('width', '17'); v.setAttribute('height', '17'); v.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS(ns, 'path'); p.setAttribute('d', 'M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z');
+    v.appendChild(p); return v;
+  }
+  function setHeart(b, n, on) { b.textContent = ''; b.appendChild(heart()); b.appendChild(el('span', null, n ? num(n) : '')); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.setAttribute('aria-label', '좋아요 ' + (n || 0)); }
   function ago(ms) {
     var s = Math.max(0, (Date.now() - ms) / 1000);
     if (s < 60) return '방금';
@@ -153,8 +161,8 @@
   function paintHeader() {
     var lab = document.querySelector('[data-account-label]'); if (lab) lab.textContent = ME ? '내 계정' : '로그인';
     var bell = document.querySelector('[data-open-bell]'); if (bell) bell.hidden = !ME;
-    var n = document.querySelector('[data-bell-n]');
-    if (n) { n.hidden = !UNREAD; n.textContent = UNREAD > 9 ? '9+' : String(UNREAD); }
+    document.querySelectorAll('[data-bell-n]').forEach(function (n) { n.hidden = !UNREAD; n.textContent = UNREAD > 9 ? '9+' : String(UNREAD); });
+    var me = document.querySelector('[data-tab-me] span'); if (me) me.textContent = ME ? '내 정보' : '로그인';
   }
   var dlg = null;
   function dialog(title) {
@@ -181,7 +189,7 @@
       var msg = el('p', 'kw-msg'); msg.setAttribute('role', 'status');
       if (!LOGGED) { // 로그인 전: 구글·카카오 버튼
         var body = dialog('로그인');
-        body.appendChild(el('p', 'muted', '종토방 글쓰기·팔로우·알림은 로그인 후 쓸 수 있습니다. 로그인할 때 이메일·이름·전화번호는 받지 않고, 같은 사람인지 알아보는 회원 번호만 씁니다.'));
+        body.appendChild(el('p', 'muted', '로그인하면 닉네임이 고정되고, 팔로우·답글 알림을 쓸 수 있습니다(글은 로그인 없이도 쓸 수 있어요). 로그인할 때 이메일·이름·전화번호는 받지 않고, 같은 사람인지 알아보는 회원 번호만 씁니다.'));
         if (!PROVIDERS.length) body.appendChild(el('p', 'kw-warn', '로그인을 준비하고 있습니다. 잠시 뒤 다시 와 주세요.'));
         PROVIDERS.forEach(function (pv) { var a = el('a', 'btn kw-login kw-login-' + pv, PNAME[pv] || pv); a.href = loginUrl(pv); body.appendChild(a); });
         var tl = el('p', 'muted kw-small'); tl.appendChild(document.createTextNode('로그인하면 ')); var ta = el('a', null, '이용약관'); ta.href = base + '/terms/'; ta.target = '_blank'; tl.appendChild(ta); tl.appendChild(document.createTextNode('에 동의한 것으로 봅니다.')); body.appendChild(tl);
@@ -277,6 +285,23 @@
       api('/v1/notifications/read', { method: 'POST' }).then(function () { UNREAD = 0; paintHeader(); });
     }).catch(function () { body.appendChild(el('p', 'muted', '알림을 불러오지 못했습니다.')); });
   }
+  // 휴대폰 아래 탭 줄: 내 정보·알림·글쓰기
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-tab-me],[data-tab-bell],[data-compose]'); if (!t) return;
+    e.preventDefault();
+    meReady.then(function () {
+      if (t.hasAttribute('data-tab-me')) { if (ME) location.href = profileUrl(ME.id); else openAccount(); return; }
+      if (t.hasAttribute('data-tab-bell')) { if (ME) openBell(); else openAccount(); return; }
+      // 글쓰기: 이 화면에 글 상자(홈 피드·종토방)가 있으면 그리로, 없으면 홈 피드 글쓰기로
+      var ta = document.querySelector('[data-composer]:not([hidden]) textarea, .comments.board [data-cm-form]:not([hidden]) textarea');
+      if (ta) { ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(function () { ta.focus(); }, 300); return; }
+      location.href = base + '/?compose=1';
+    });
+  });
+  (function () { // 지금 화면의 탭 표시
+    var p = location.pathname.replace(base, '') || '/';
+    document.querySelectorAll('[data-tabbar] a[data-path]').forEach(function (a) { if (a.getAttribute('data-path') === p) a.setAttribute('aria-current', 'page'); });
+  })();
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('[data-open-account],[data-open-bell]');
     if (!t) return;
@@ -296,7 +321,7 @@
     var lenEl = box.querySelector('[data-cm-len]');
     var sort = isReport ? 'top' : 'new';
     var startedAt = 0;
-    var liked = {};
+    var liked = {}, openRoots = {};
     var noun = isReport ? '댓글' : '글';
 
     function item(c, isBest, canReply) {
@@ -312,11 +337,10 @@
       main.appendChild(head);
       main.appendChild(richText(el('p', 'cm-body'), c.body));
       var act = el('div', 'cm-act');
-      var like = el('button', 'cm-like', '♥ ' + num(c.likes));
+      var like = el('button', 'cm-like');
       like.type = 'button';
       like.setAttribute('data-cid', c.id);
-      like.setAttribute('aria-pressed', liked[c.id] ? 'true' : 'false');
-      like.setAttribute('aria-label', '좋아요 ' + c.likes);
+      setHeart(like, c.likes, liked[c.id]);
       like.disabled = !!c.mine;
       like.addEventListener('click', function () {
         like.disabled = true;
@@ -324,14 +348,13 @@
           like.disabled = false;
           if (d._status !== 200) { if (d.message) alert(d.message); return; }
           liked[c.id] = d.liked;
-          document.querySelectorAll('.cm-like[data-cid="' + c.id + '"]').forEach(function (b) { b.textContent = '♥ ' + num(d.likes); b.setAttribute('aria-pressed', d.liked ? 'true' : 'false'); });
+          document.querySelectorAll('.cm-like[data-cid="' + c.id + '"]').forEach(function (b) { setHeart(b, d.likes, d.liked); if (d.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } });
         }).catch(function () { like.disabled = false; });
       });
       act.appendChild(like);
       if (canReply) {
         var rb = el('button', 'cm-link', '답글'); rb.type = 'button';
         rb.addEventListener('click', function () {
-          if (!isReport && !ME && PROVIDERS.length) { openAccount(); return; }
           openReply(c.parent || c.id, c.nick);
         });
         act.appendChild(rb);
@@ -387,9 +410,9 @@
         // 종토방 글쓰기는 계정이 있을 때만
         // 종토방 글쓰기: 로그인이 켜져 있으면 계정이 있어야 하고, 로그인을 준비하는 동안에는 익명(닉네임 칸)으로 쓴다
         if (!isReport) {
-          var canWrite = !!ME || !PROVIDERS.length;
-          form.hidden = !canWrite;
-          var na = box.querySelector('[data-need-account]'); if (na) na.hidden = canWrite;
+          // 종토방도 익명으로 쓸 수 있다. 로그인 전이면 닉네임 칸과 '로그인하면 좋은 점' 한 줄을 보여 준다
+          form.hidden = false;
+          var na = box.querySelector('[data-need-account]'); if (na) na.hidden = !!ME || !PROVIDERS.length;
           var ni = form.querySelector('[name=nick]'); if (ni) ni.hidden = !!ME;
         }
         liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
@@ -398,7 +421,7 @@
         if (isReport) document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === tslug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
         var nickInput = form.querySelector('[name=nick]');
         if (nickInput && !nickInput.value) {
-          if (ME) { nickInput.value = ME.nick; nickInput.readOnly = true; nickInput.title = '계정 닉네임'; }
+          if (ME) { nickInput.value = ME.nick; nickInput.readOnly = true; nickInput.title = '계정 닉네임'; nickInput.hidden = true; }
           else nickInput.placeholder = '닉네임 (비우면 ' + d.me + ')';
         }
         var bol = bestEl.querySelector('ol'); bol.textContent = '';
@@ -413,15 +436,30 @@
           var li = item(c, false, true);
           var rw = el('div', 'cm-thread'); rw.setAttribute('data-root', c.id);
           var rs = kids[c.id] || [];
-          if (rs.length) {
+          if (rs.length) { // 답글은 2개까지 보이고 나머지는 '답글 N개 더 보기'(쓰레드처럼 줄로 이어 보여 줌)
+            li.classList.add('has-replies');
             var ul = el('ul', 'cm-replies');
-            rs.forEach(function (r) { ul.appendChild(item(r, false, true)); });
+            rs.forEach(function (r, i) { var ri = item(r, false, true); if (i >= 2 && !openRoots[c.id]) ri.hidden = true; ul.appendChild(ri); });
             rw.appendChild(ul);
+            if (rs.length > 2 && !openRoots[c.id]) {
+              var mb = el('button', 'cm-more-replies', '답글 ' + (rs.length - 2) + '개 더 보기'); mb.type = 'button';
+              mb.addEventListener('click', function () { openRoots[c.id] = 1; ul.querySelectorAll('li[hidden]').forEach(function (x) { x.hidden = false; }); mb.remove(); });
+              rw.appendChild(mb);
+            }
           }
           li.querySelector('.cm-main').appendChild(rw);
           listEl.appendChild(li);
         });
         if (!real) listEl.appendChild(el('li', 'cm-empty muted', isReport ? '첫 댓글을 남겨 주세요.' : '아직 글이 없습니다. 첫 글을 남겨 보세요.'));
+        // 종토방 머리 줄: 참여한 사람 수·오늘 글 수(토스증권 커뮤니티처럼 활기를 숫자로)
+        var stEl = box.querySelector('[data-board-stats]');
+        if (stEl && real) {
+          var who = {}, today = 0, t0 = new Date(); t0.setHours(0, 0, 0, 0);
+          d.comments.forEach(function (c) { if (c.pinned) return; who[c.uid || c.nick] = 1; if (c.created >= t0.getTime()) today++; });
+          stEl.textContent = '참여 ' + num(Object.keys(who).length) + '명 · 오늘 글 ' + num(today) + '개';
+          stEl.hidden = false;
+          document.querySelectorAll('[data-board-n-tab]').forEach(function (x) { x.textContent = num(real); });
+        }
         d.roots = roots;
         placeAds();
         if (isReport && sort === 'top') renderTop(d);
@@ -482,6 +520,9 @@
         if (!d.ok) { msg.textContent = d.message || '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
         ta.value = ''; lenEl.textContent = '0/500'; startedAt = 0;
         msg.textContent = d.status === 'held' ? d.message : '등록했습니다.';
+        if (d.status !== 'held' && !ME && PROVIDERS.length) { // 익명으로 쓴 뒤: 로그인하면 답글 알림을 받는다고 한 줄
+          var lk = el('button', 'cm-link', ' 로그인하면 답글이 달릴 때 알림을 받아요 →'); lk.type = 'button'; lk.addEventListener('click', openAccount); msg.appendChild(lk);
+        }
         sort = 'new';
         box.querySelectorAll('[data-sort]').forEach(function (x) { x.setAttribute('aria-selected', x.getAttribute('data-sort') === 'new' ? 'true' : 'false'); });
         load().catch(function () {});
@@ -705,7 +746,7 @@
   window.KWC = {
     api: api, el: el, num: num, ago: ago, avatar: avatar, richText: richText, nickEl: nickEl,
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
-    meReady: meReady, openAccount: openAccount, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS }; }
+    setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS }; }
   };
 
   // ---------- 리포트 끝: 지금 많이 보는 리포트(지금 글 제외) ----------

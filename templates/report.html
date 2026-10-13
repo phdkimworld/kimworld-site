@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set no_tabbar = true %}{# 리포트는 아래 반응 줄(좋아요·댓글·공유)을 쓰므로 탭 줄을 띄우지 않는다 #}
 {% from "_macros.html" import card, icon, thread %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.ticker }} {{ r.company }} — {{ r.title }} | {{ site.site_name }}{% endblock %}

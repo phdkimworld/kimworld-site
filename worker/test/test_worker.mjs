@@ -234,7 +234,7 @@ r1 = await call("POST", "/v1/me", { body: { bio: "소개만 바꾸기" }, ip: "8
 check(r1.data.ok && r1.data.user.bio === "소개만 바꾸기", "소개는 언제든 바꿈");
 sqlite.exec(`UPDATE users SET nick = '장투러', nick_lc = '장투러' WHERE id = ${uB}`); // 이후 검사를 위해 원래대로
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "로그인 없이 종토방 글", t: 8000 }, ip: "80.0.0.3" });
-check(r1.status === 401, "로그인이 켜져 있으면 종토방 글은 로그인해야 씀");
+check(r1.data.ok && r1.data.status === "ok", "로그인 없이도 종토방에 익명 글");
 const savedKeys = [env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY];
 env.GOOGLE_CLIENT_ID = ""; env.KAKAO_REST_KEY = "";
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-anon", nick: "지나가던개미", body: "로그인 준비 중에는 익명 글", t: 8000 }, ip: "80.0.0.4" });
@@ -273,6 +273,10 @@ const fp = fd.data.items.find((x) => x.id === post);
 check(fp && fp.replies === 1 && fp.likes === 1 && fp.liked === false, "피드 글마다 답글 수·좋아요 수");
 fd = await call("GET", "/v1/feed?tab=all", { ip: "80.0.0.2", cookie: LB.cookie });
 check(fd.data.items.find((x) => x.id === post).liked === true && fd.data.items.find((x) => x.id === talk).mine === true, "내가 누른 좋아요·내 글 표시");
+fd = await call("GET", "/v1/feed?tab=all&rank=hot", { ip: "80.0.0.7" });
+check(fd.data.hot === true && fd.data.items[0].id === post && fd.data.items[0].top && fd.data.items[0].top.body === "동의합니다", "추천 순위: 반응 많은 글이 위, 대표 답글 미리보기");
+const hot2 = await call("GET", "/v1/feed?tab=all&rank=hot&limit=1&offset=1", { ip: "80.0.0.7" });
+check(hot2.data.items.length === 1 && hot2.data.items[0].id !== post, "추천 순위 더 보기는 순번으로");
 fd = await call("GET", "/v1/feed?tab=all&limit=1", { ip: "80.0.0.7" });
 check(fd.data.items.length === 1 && fd.data.more === true, "한 번에 정한 개수만, 더 있으면 more");
 const fd2 = await call("GET", `/v1/feed?tab=all&limit=1&before=${fd.data.items[0].created}`, { ip: "80.0.0.7" });
@@ -282,7 +286,7 @@ check(fd.data.items.length === 0, "로그인 안 하면 팔로잉 탭은 비어 
 fd = await call("GET", "/v1/feed?tab=following", { ip: "80.0.0.2", cookie: LB.cookie });
 check(fd.data.items.some((x) => x.uid === uA) && fd.data.items.some((x) => x.id === talk) && fd.data.items.every((x) => x.uid === uA || x.uid === uB), "팔로잉 탭: 팔로우한 사람 + 내 글");
 fd = await call("GET", "/v1/feed/new?tab=all&since=0", { ip: "80.0.0.2", cookie: LB.cookie });
-check(fd.data.n >= 1 && fd.data.n < 3, "새 글 수(내 글은 빼고 셈)");
+check(fd.data.n >= 1 && fd.data.n < 4, "새 글 수(내 글은 빼고 셈)");
 fd = await call("GET", "/v1/feed/new?tab=all&since=" + (Date.now() + 1000), { ip: "80.0.0.7" });
 check(fd.data.n === 0, "그 뒤 새 글 없으면 0");
 const rpl = (await call("GET", `/v1/comments?slug=b-xndu&sort=new`)).data.comments.find((c) => c.body === "동의합니다");

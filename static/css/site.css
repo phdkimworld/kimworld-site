@@ -668,3 +668,74 @@ button { font: inherit; color: inherit; }
   .an-tiles { grid-template-columns: 1fr 1fr; }
   .an-tv { font-size: 1.2rem; }
 }
+
+/* ---------- 쓰레드·토스증권식 다듬기: 아래 탭 줄, 답글 줄, 하트, 두 번 톡 좋아요, 불러오는 자리, 종목 탭 ---------- */
+.tabbar { display: none; }
+@media (max-width: 759px) {
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
+    height: calc(58px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
+  .tabbar > a, .tabbar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 58px;
+    border: 0; background: none; color: var(--muted); font: inherit; font-size: 10.5px; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tabbar > [aria-current="page"] { color: var(--text); font-weight: 700; }
+  .tabbar > [aria-current="page"] .ic { stroke-width: 2.4; }
+  .tabbar .tab-compose { width: 52px; height: 40px; margin: 0 auto; border-radius: 12px; background: var(--surface-2); color: var(--text); }
+  .tabbar .tab-compose:active { transform: scale(.94); }
+  .tabbar .bell-n { position: absolute; top: 6px; left: 50%; margin-left: 4px; }
+  body:has(.tabbar) { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.tabbar) .header-nav a[href$="/search/"], body:has(.tabbar) .header-nav [data-open-bell], body:has(.tabbar) .header-nav [data-open-account] { display: none !important; }
+  body:has(.tabbar) .to-top { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.tabbar) .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
+/* 답글 줄: 원 댓글 프로필 아래에서 답글까지 세로줄로 잇는다 */
+.cm-list > .cm-item.has-replies { position: relative; }
+.cm-list > .cm-item.has-replies::before { content: ""; position: absolute; left: 15px; top: 52px; bottom: 18px; width: 2px; border-radius: 2px; background: var(--line); }
+.cm-replies { border-left: 0; padding-left: 0; margin-left: -6px; }
+.cm-more-replies { border: 0; background: none; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 700; padding: 6px 0 2px; cursor: pointer; }
+.cm-more-replies::before { content: "— "; }
+.cm-like { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 4px 6px; min-height: 32px; }
+.cm-like .ic { stroke-width: 1.9; }
+.cm-like[aria-pressed=true] .ic { fill: currentColor; }
+.cm-like.pop .ic { animation: kw-pop .35s ease; }
+.cm-stats { margin: -4px 0 10px; font-size: .82rem; color: var(--accent); font-weight: 700; }
+.cm-stats[hidden] { display: none; }
+/* 피드 글: 대표 답글 미리보기, 두 번 톡 좋아요 하트 */
+.upost { position: relative; }
+.upost-reply { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 10px 48px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); color: var(--text); text-decoration: none; font-size: .85rem; line-height: 1.5; flex-wrap: wrap; }
+.upost-reply-av { width: 22px; height: 22px; font-size: .68rem; flex: none; }
+.upost-reply-tx { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.upost-reply-more { flex-basis: 100%; padding-left: 30px; font-size: .76rem; color: var(--muted); font-weight: 700; }
+.heart-burst { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); color: #e0245e; pointer-events: none; animation: kw-burst .8s ease forwards; }
+.heart-burst .ic { width: 84px; height: 84px; fill: currentColor; stroke: none; filter: drop-shadow(0 4px 10px rgba(0,0,0,.2)); }
+@keyframes kw-burst { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 60% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .heart-burst { animation-duration: .01s; } }
+/* 불러오는 동안 글 모양 자리 */
+.feed-skel { display: flex; gap: 10px; padding: 16px; }
+.sk-av { width: 38px; height: 38px; border-radius: 50%; background: var(--surface-2); flex: none; }
+.sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.sk-l { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2), color-mix(in srgb, var(--surface-2) 50%, var(--surface)), var(--surface-2)); background-size: 200% 100%; animation: kw-sk 1.2s linear infinite; }
+.sk-l2 { width: 60%; }
+@keyframes kw-sk { to { background-position: -200% 0; } }
+/* 로그인 권유 카드(피드 사이, 팝업 아님) */
+.nudge { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.nudge-t { display: block; font-size: 1rem; margin-bottom: 4px; }
+.nudge p { font-size: .85rem; }
+.nudge-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 420px) { .nudge-row { grid-template-columns: 1fr; } }
+/* 종목 페이지: 리포트·종토방 구획 탭(토스증권처럼) */
+.seg-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; margin: 4px 0 14px; background: var(--surface-2); border-radius: 12px; }
+.seg-tabs a { display: flex; justify-content: center; align-items: center; gap: 6px; min-height: 40px; border-radius: 9px; color: var(--muted); font-weight: 700; font-size: .9rem; text-decoration: none; }
+.seg-tabs a:first-child { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.seg-tabs strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+#reports, #board { scroll-margin-top: 80px; }
+@media (max-width: 599px) { .upost-reply { margin-left: 0; } }
+.cm-item[hidden] { display: none; }
+a.cm-time { text-decoration: none; }
+a.cm-time:hover { text-decoration: underline; }
+.cm-hint { font-size: .82rem; margin: 0 0 10px; }
+.cm-hint[hidden] { display: none; }
+.cm-hint .cm-link { font-weight: 700; color: var(--accent); }
+.composer-nick { width: 100%; height: 36px; margin: 2px 0 8px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .85rem; }
+.composer-nick[hidden] { display: none; }
+.upost-new { animation: kw-in .4s ease; border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+@keyframes kw-in { from { opacity: 0; transform: translateY(-6px); } }

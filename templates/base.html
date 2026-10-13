@@ -96,6 +96,15 @@
     <p class="footer-copy">© {{ year }} {{ site.site_name }}. 무단 전재 금지.</p>
   </div>
 </footer>
+{% if site.api_url and not no_tabbar %}
+<nav class="tabbar" data-tabbar aria-label="빠른 이동">
+  <a href="{{ base }}/" data-path="/">{{ icon('home') }}<span>홈</span></a>
+  <a href="{{ base }}/search/" data-path="/search/">{{ icon('search') }}<span>검색</span></a>
+  <button type="button" class="tab-compose" data-compose aria-label="글쓰기">{{ icon('plus') }}</button>
+  <button type="button" data-tab-bell>{{ icon('bell') }}<span>알림</span><span class="bell-n" data-bell-n hidden></span></button>
+  <button type="button" data-tab-me>{{ icon('user') }}<span>로그인</span></button>
+</nav>
+{% endif %}
 <div class="toast" role="status" aria-live="polite"></div>
 <script>window.KW = { base: "{{ base }}", api: "{{ site.api_url or '' }}", tk: {{ board_ticks|tojson }} };</script>
 <script src="{{ base }}/static/js/site.js?v={{ asset_ver }}" defer></script>
