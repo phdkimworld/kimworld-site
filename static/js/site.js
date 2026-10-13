@@ -515,3 +515,16 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; kwEv('install_prompt'); showButtons(); card(); });
   if (iosSafari) { showButtons(); if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', card); else card(); }
 })();
+
+// 쿠팡 다이내믹 배너(가로 고정 크기)를 좁은 화면에서 비율대로 줄인다
+(function () {
+  var boxes = document.querySelectorAll('.cp-banner'); if (!boxes.length) return;
+  function fit() {
+    boxes.forEach(function (b) {
+      var w = +b.getAttribute('data-w') || 680, inner = b.querySelector('.cp-banner-in'); if (!inner) return;
+      var s = Math.min(1, b.clientWidth / w);
+      inner.style.transform = s < 1 ? 'scale(' + s + ')' : '';
+    });
+  }
+  fit(); addEventListener('resize', fit); addEventListener('load', fit);
+})();

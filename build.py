@@ -485,21 +485,15 @@ class Ads:
                 f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js" onerror="this.parentNode.classList.add(\'hidden\')"></script></aside>'
             )
         if kind == "coupang_banner":
-            # 쿠팡 배너는 가로 크기가 고정(예: 680)이라, 휴대폰처럼 좁은 화면에서는 틀 안에서 비율대로 줄여 보인다
+            # 쿠팡 배너는 페이지에 바로 넣는다(틀 안에 가두면 쿠팡 스크립트가 주소를 확인하지 못해 빈칸이 됨).
+            # 가로 크기가 고정(예: 680)이라 좁은 화면에서는 site.js가 비율대로 줄인다(.cp-banner)
             mw = re.search(r'"width"\s*:\s*"?(\d+)', self.c_banner)
             bw, bh = (int(mw.group(1)) if mw else 680), self.c_banner_h
-            fit = ('<script>function k(){var s=Math.min(1,innerWidth/' + str(bw) + ');document.body.style.transform="scale("+s+")"}'
-                   'k();addEventListener("resize",k)</script>')
-            doc = (
-                '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden}'
-                f'body{{width:{bw}px;transform-origin:0 0}}</style></head><body>'
-                + self.c_banner + fit + "</body></html>"
-            )
             return (
                 f'<aside class="ad ad-coupang" data-slot="{slot}" aria-label="광고">{label}'
                 f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p>'
-                f'<iframe title="쿠팡 파트너스 배너" loading="lazy" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" '
-                f'style="width:100%;max-width:{bw}px;aspect-ratio:{bw}/{bh};height:auto;border:0;display:block;margin:0 auto" srcdoc="{html.escape(doc, quote=True)}"></iframe></aside>'
+                f'<div class="cp-banner" data-w="{bw}" style="max-width:{bw}px;aspect-ratio:{bw}/{bh}">'
+                f'<div class="cp-banner-in" style="width:{bw}px;height:{bh}px">{self.c_banner}</div></div></aside>'
             )
         if kind == "coupang_products":
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))

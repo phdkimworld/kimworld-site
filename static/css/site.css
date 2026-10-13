@@ -809,3 +809,6 @@ a.cm-time:hover { text-decoration: underline; }
 .fn-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
 .fn-p { text-align: right; font-size: .74rem; font-variant-numeric: tabular-nums; }
 @media (max-width: 599px) { .fn-row { grid-template-columns: minmax(0, 8em) minmax(0, 1fr) 3.6em 3.2em; } }
+.cp-banner { width: 100%; margin: 0 auto; overflow: hidden; position: relative; }
+.cp-banner-in { transform-origin: 0 0; }
+.cp-banner-in iframe { display: block; border: 0; }
