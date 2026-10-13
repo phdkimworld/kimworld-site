@@ -83,6 +83,8 @@ def mix(voice_wav, events, out_wav, bed_on=True):
     env = _lp(np.abs(v).mean(1), int(SR * 0.05))  # 나레이션 크기
     if bed_on:
         b = bed(n / SR) * BED_GAIN
+        if len(b) < n: b = np.concatenate([b, np.zeros((n - len(b), 2))])  # 반올림으로 한 샘플 짧아지는 경우
+        b = b[:n]
         duck = 1 - 0.45 * np.clip(env / 0.12, 0, 1)  # 말할 때 배경을 낮춘다
         out += b * _lp(duck, int(SR * 0.3))[:, None]
     cache = {}
