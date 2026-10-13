@@ -88,9 +88,11 @@
       </button>
     </nav>
   </div>
+  {% if not hide_theme_nav %}
   <nav class="theme-nav wrap" aria-label="테마">
     {% for t in themes %}<a href="{{ base }}/theme/{{ t.slug }}/"{% if current_theme == t.name %} aria-current="page"{% endif %}>{{ t.name }}</a>{% endfor %}
   </nav>
+  {% endif %}
 </header>
 
 <main id="main">
