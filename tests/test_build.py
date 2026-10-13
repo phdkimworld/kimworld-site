@@ -215,7 +215,9 @@ check(3 <= home.count('<aside class="ad ') <= 5 and home.count("data-cp-group") 
 _vis = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
 check(len(set(_vis)) == len(_vis) >= 3, "홈 쿠팡 상자는 서로 다른 묶음")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
-check(th.count("data-cp-group") == 3, "테마 페이지: 그 테마 묶음만")
+check(th.count("data-cp-group") == 3 or th.count('data-ad-unit="DAN-') == 1, "테마 페이지: 그 테마 쿠팡 묶음만(애드핏 목록 단위가 있으면 애드핏 1개)")
+_units = re.findall(r'data-ad-unit="(DAN-[^"]+)"', (t / "dist/index.html").read_text(encoding="utf-8"))
+check(len(_units) == len(set(_units)), "애드핏 광고 단위는 한 페이지에 한 번씩만")
 sp = (t / "dist").rglob("*.html")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith("양자역학 책")}

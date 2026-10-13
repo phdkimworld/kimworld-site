@@ -15,10 +15,14 @@ adfit:
   height: 100
   sizes:                     # 단위별 크기 [가로, 세로]. 없으면 위 width/height
     report_mid: [300, 250]
+    feed: [300, 250]
+    rail: [300, 250]
   units:
     report_mid: "DAN-JnyyFywjMJcgsuJw"   # DAN-xxxx  리포트 중간(300x250). 비어 있으면 그 자리는 쿠팡 상자
     report_end: "DAN-fLqYFcTk9aoRDmDT"   # DAN-xxxx  리포트 하단(320x100)
-    list: ""                 # DAN-xxxx  홈·목록 (비어 있으면 report_end 단위를 씀)
+    list: "DAN-TdWSvs3gvdNP2O1i"   # 홈·목록(320x100)
+    feed: "DAN-22tVjrp1Keg7k0T4"   # 홈 피드 사이(300x250). 한 페이지에 한 번만(나머지 피드 자리는 쿠팡)
+    rail: "DAN-0p5vWnTIuHoy8x0d"   # PC 오른쪽 칸(300x250)
 
 coupang:
   # 쿠팡 파트너스 대시보드에서 만든 카테고리 배너 코드를 그대로 붙여 넣는다. 쿠팡 도메인 밖 주소가 있으면 빌드가 실패한다.
@@ -49,10 +53,10 @@ placements:
   report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)
-  list: coupang_products                # 홈·테마·종목 목록 페이지 (한 개만)
+  list: [adfit_list, coupang_products]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
   report_late: coupang_products         # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 본문 상자와 다른 테마 상품
-  rail: coupang_products                # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
-  feed_inline: coupang_products         # 홈 피드 사이(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
+  rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
+  feed_inline: [adfit_feed, coupang_products]   # 홈 피드 사이: 첫 자리는 애드핏 300x250, 나머지는 쿠팡(애드핏 단위는 한 페이지 한 번)(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
   thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).

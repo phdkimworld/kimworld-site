@@ -362,7 +362,7 @@ class Ads:
                        "home_feed": _r("home_feed", (4, 6, 5))}
         if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
             log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "coupang_banner", "coupang_products", "none", None}
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_rail", "coupang_banner", "coupang_products", "none", None}
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
@@ -375,13 +375,22 @@ class Ads:
         return sorted(h for h in hosts if not any(h == d or h.endswith("." + d) for d in self.c_allowed))
 
     # 자리 → 광고 종류
-    def kind(self, slot: str):
-        """자리에 낼 광고 종류. 목록이면 앞에서부터 실제로 낼 수 있는 첫 번째(예: 애드핏 번호가 없으면 쿠팡)."""
+    ADFIT_KEY = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end", "adfit_feed": "feed", "adfit_rail": "rail"}
+
+    def adfit_key(self, kind: str) -> str:
+        if kind == "adfit_list":
+            return "list" if self.adfit_units.get("list") else "report_end"
+        return self.ADFIT_KEY.get(kind, "")
+
+    def kind(self, slot: str, ctx: dict | None = None):
+        """자리에 낼 광고 종류. 목록이면 앞에서부터 실제로 낼 수 있는 첫 번째(예: 애드핏 번호가 없으면 쿠팡).
+        애드핏 광고 단위는 한 페이지에 한 번만 쓴다(같은 ctx 안에서 이미 쓴 단위면 다음 후보로)."""
         if not self.on:
             return None
         v = self.place.get(slot)
+        used = (ctx or {}).get("_adfit_used", set())
         for one in (v if isinstance(v, list) else [v]):
-            if self.available(one):
+            if self.available(one) and not (str(one).startswith("adfit_") and self.adfit_key(one) in used):
                 return one
         return None
 
@@ -398,6 +407,8 @@ class Ads:
             return bool(self.adfit_units.get("report_end"))
         if kind == "adfit_list":
             return bool(self.adfit_units.get("list") or self.adfit_units.get("report_end"))
+        if kind in ("adfit_feed", "adfit_rail"):
+            return bool(self.adfit_units.get(self.ADFIT_KEY[kind]))
         if kind == "coupang_banner":
             return bool(self.c_banner)
         if kind == "coupang_products":
@@ -448,10 +459,10 @@ class Ads:
 
     def render(self, slot: str, ctx: dict | None = None) -> str:
         """slot의 광고 HTML. 설정이 없으면 빈 문자열."""
-        kind = self.kind(slot)
+        ctx = ctx if ctx is not None else {}
+        kind = self.kind(slot, ctx)
         if not self.available(kind):
             return ""
-        ctx = ctx or {}
         label = '<div class="ad-label">광고</div>'
         if kind in ("adsense_in_article", "adsense_display"):
             slot_id = self.adsense_slots["in_article" if kind == "adsense_in_article" else "display"]
@@ -462,8 +473,9 @@ class Ads:
                 f'data-ad-client="{self.adsense_client}" data-ad-slot="{slot_id}"></ins>'
                 f'<script>(adsbygoogle=window.adsbygoogle||[]).push({{}});</script></aside>'
             )
-        if kind in ("adfit_report_mid", "adfit_report_end", "adfit_list"):
-            key = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end"}.get(kind) or ("list" if self.adfit_units.get("list") else "report_end")
+        if str(kind).startswith("adfit_"):
+            key = self.adfit_key(kind)
+            ctx.setdefault("_adfit_used", set()).add(key)
             unit = self.adfit_units.get(key)
             w, h = self.adfit_sizes.get(key, (self.adfit_w, self.adfit_h))
             return (
