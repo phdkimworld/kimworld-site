@@ -38,7 +38,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     root.dataset.theme = next; setRaw('kw-theme', next);
     toast(next === 'dark' ? '어두운 화면' : '밝은 화면');
   }
-  if (!root.dataset.theme && isDark()) root.dataset.theme = 'dark'; // 아이콘 표시용(저장은 안 함)
+  root.dataset.theme = 'dark'; // 화면은 검은 바탕 하나(예전에 저장한 밝은 화면 설정은 무시)
+  setRaw('kw-theme', null);
 
   // ---------- 리포트 ----------
   var report = document.querySelector('.report');

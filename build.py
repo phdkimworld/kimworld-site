@@ -885,7 +885,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     manifest = {
         "id": f"{base_path}/", "name": site["site_name"], "short_name": site["site_name"], "description": site.get("description", ""),
         "start_url": f"{base_path}/?source=pwa", "scope": f"{base_path}/", "display": "standalone",
-        "background_color": "#faf8f4", "theme_color": "#0f172a", "lang": "ko", "dir": "ltr", "categories": ["finance", "news"],
+        "background_color": "#000000", "theme_color": "#000000", "lang": "ko", "dir": "ltr", "categories": ["finance", "news"],
         "icons": [
             {"src": f"{base_path}/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": f"{base_path}/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
