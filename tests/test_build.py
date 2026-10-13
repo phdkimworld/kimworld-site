@@ -371,6 +371,16 @@ if (D / "sitemap.xml").exists():
     hm = (D / "index.html").read_text(encoding="utf-8")
     check('"SearchAction"' in hm and "max-image-preview:large" in hm, "홈: 사이트 검색 구조화 자료·큰 미리보기 허용")
 
+
+print("14) 앱 설치 입구")
+if (D / "index.html").exists():
+    hm = (D / "index.html").read_text(encoding="utf-8")
+    check('data-install data-src="header"' in hm and 'data-install data-src="footer"' in hm, "머리줄·바닥글 설치 버튼(설치 가능할 때만 보임)")
+    js = (SRC / "static/js/site.js").read_text(encoding="utf-8")
+    check("kw-install-b" in js and "kw-install-x" in js and "kw-ib" in js, "안내 줄·카드는 닫으면 쉬고 세션당 한 번")
+    wk = (SRC / "worker/src/index.js").read_text(encoding="utf-8")
+    check(all(f'"{e}"' in wk for e in ["install_bar", "install_inapp", "ic_header", "ic_bar", "ic_report"]), "설치 자리별 기록을 API가 받음")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

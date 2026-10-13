@@ -72,6 +72,9 @@
         {{ icon('user') }}<span class="icon-label" data-account-label>로그인</span>
       </button>
       {% endif %}
+      <button type="button" class="icon-btn hdr-install" data-install data-src="header" aria-label="앱 설치" hidden>
+        {{ icon('app') }}<span class="icon-label">앱 설치</span>
+      </button>
       <button type="button" class="icon-btn" data-action="font" aria-label="글자 크기 바꾸기">
         <span class="font-glyph" aria-hidden="true">가</span><span class="icon-label">글자</span>
       </button>
@@ -101,7 +104,7 @@
       {% if site.api_url %}<a href="{{ base }}/terms/">이용약관</a>{% endif %}
       <a href="{{ base }}/contact/">문의</a>
       <a href="{{ site.site_url }}/rss.xml">RSS</a>
-      <button type="button" class="footer-install" data-install hidden>앱으로 설치</button>
+      <button type="button" class="footer-install" data-install data-src="footer" hidden>앱으로 설치</button>
       {% if site.operator.youtube_url %}<a href="{{ site.operator.youtube_url }}" rel="noopener" target="_blank">유튜브</a>{% endif %}
     </nav>
     <p class="footer-copy">© {{ year }} {{ site.site_name }}. 무단 전재 금지.</p>

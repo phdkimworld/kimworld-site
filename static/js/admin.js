@@ -115,7 +115,8 @@
   var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
     compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
     yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '이번 주 대표 글 누름',
-    install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내' };
+    install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내',
+    install_bar: '설치 안내 줄 노출', install_inapp: '앱 안 브라우저→크롬 열기', ic_header: '설치 누름: 머리줄', ic_footer: '설치 누름: 바닥글', ic_bar: '설치 누름: 안내 줄', ic_report: '설치 누름: 리포트 끝', ic_feed: '설치 누름: 홈 피드' };
 
   function render(d) {
     body.textContent = '';
@@ -200,7 +201,7 @@
     var g4 = el('div', 'an-grid2');
     g4.appendChild(funnel('방문 → 가입 깔때기', [['방문(세션)', T.sess], ['리포트 읽음(페이지뷰)', rpv], ['반응(좋아요·공유·저장·리포스트)', reacts], ['로그인 시작', E.login_start || 0], ['가입 완료', T.signups]],
       '어느 단계에서 가장 많이 빠지는지 보면 다음에 손볼 곳이 보입니다.'));
-    g4.appendChild(funnel('앱 설치 깔때기', [['설치 가능 표시(안드로이드·PC)', E.install_prompt || 0], ['설치 카드 노출', E.install_card || 0], ['설치 누름', E.install_click || 0], ['설치 완료', inst]],
+    g4.appendChild(funnel('앱 설치 깔때기', [['설치 가능 표시(안드로이드·PC)', E.install_prompt || 0], ['설치 카드·안내 줄 노출', (E.install_card || 0) + (E.install_bar || 0)], ['설치 누름', E.install_click || 0], ['설치 완료', inst]],
       '아이폰은 설치 창을 띄울 수 없어 "아이폰 설치 안내"를 본 횟수만 따로 셉니다(' + nf(E.ios_help) + '회).'));
     var ed = {}; (d.eventsDaily || []).forEach(function (x) { (ed[x.day] = ed[x.day] || {})[x.ev] = x.n; });
     var sInst = d.series.map(function (r) { var e = ed[r.day] || {}; return { day: r.day, v: (e.installed || 0) || (e.install_accept || 0) }; });

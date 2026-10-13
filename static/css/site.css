@@ -480,6 +480,10 @@ button { font: inherit; color: inherit; }
 .profile-h { margin: 10px 0 0; }
 .rc-empty { padding: 14px; }
 @media (max-width: 420px) { .header-nav .icon-btn { min-width: 42px; } .header-nav { gap: 0; } }
+.brand span, .icon-label { white-space: nowrap; }
+.brand { flex: none; } .header-nav { min-width: 0; }
+/* 버튼이 5개 이상인 좁은 화면(리포트처럼 아래 탭 줄이 없을 때): 버튼 폭을 줄이고 브랜드 글자도 조금 줄인다 */
+@media (max-width: 400px) { .header-nav .icon-btn { min-width: 38px; padding: 0 1px; } .icon-label { font-size: 10px; } .brand { gap: 8px; font-size: 1.02rem; } }
 .cm-form[hidden], .cm-form input[hidden] { display: none; }
 .profile-stats li span { white-space: nowrap; }
 .cm-ad { list-style: none; padding: 4px 0; border-bottom: 1px solid var(--line); }
@@ -785,6 +789,31 @@ a.cm-time:hover { text-decoration: underline; }
 .ic-txt { display: flex; flex-direction: column; gap: 2px; font-size: .86rem; }
 .ic-txt span { color: var(--muted); line-height: 1.5; }
 .ic-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+/* 머리줄 '앱 설치': 눈에 띄되 다른 버튼과 같은 모양(강조색) */
+.hdr-install { color: var(--accent); }
+.hdr-install .icon-label { color: var(--accent); font-weight: 700; }
+.hdr-install .ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* 리포트 끝 카드: 본문과 출처 사이, 글 폭에 맞춘다 */
+.install-card-report { margin: 28px 0 8px; border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+@media (min-width: 760px) { .install-card-report { grid-template-columns: 44px minmax(0, 1fr) auto; } .install-card-report .ic-row { grid-column: auto; grid-template-columns: auto auto; } }
+/* 아래 안내 줄: 떠 있는 줄(본문을 밀지 않음). 탭 줄·리포트 반응 줄 위에 놓는다 */
+.install-bar { position: fixed; left: 10px; right: 10px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 36; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; gap: 10px; align-items: center;
+  padding: 10px 6px 10px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  transform: translateY(calc(100% + 24px)); opacity: 0; transition: transform .28s ease, opacity .28s ease; }
+.install-bar.on { transform: none; opacity: 1; }
+.install-bar img { border-radius: 9px; }
+.ib-txt { display: flex; flex-direction: column; gap: 1px; font-size: .84rem; line-height: 1.3; min-width: 0; }
+.ib-txt span { color: var(--muted); font-size: .76rem; }
+.ib-x { border: 0; background: none; color: var(--muted); font: inherit; font-size: 1.4rem; line-height: 1; padding: 6px 8px; cursor: pointer; }
+body:has(.tabbar) .install-bar { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+body.has-dock .install-bar { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 760px) { .install-bar { display: none; } }
+@media print { .install-bar, .install-card, .hdr-install { display: none !important; } }
+/* 아이폰·앱 안 브라우저용 따라 하기 창 */
+.is-hero { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; }
+.is-hero img { border-radius: 12px; }
+.is-hero p { font-size: .9rem; color: var(--muted); line-height: 1.55; }
+.is-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; font-size: .95rem; line-height: 1.55; }
 .is-app .site-header { padding-top: env(safe-area-inset-top, 0px); }
 .kw-dlg-body { grid-template-columns: minmax(0, 1fr); } .kw-dlg-body > * { min-width: 0; }
 

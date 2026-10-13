@@ -467,8 +467,12 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
 })();
 
 // ---------- 웹앱: 서비스 워커 등록 + '홈 화면에 설치' ----------
-// 안드로이드·PC 크롬은 설치 창을 바로 띄우고, 아이폰(사파리)은 '공유 → 홈 화면에 추가' 방법을 보여 준다.
-// 피드 안내 카드는 휴대폰에서만, 닫으면 14일 동안 다시 안 보인다(팝업 아님).
+// 설치 경로(모두 '설치 가능할 때만' 보인다):
+//  · 머리줄 '앱 설치' 버튼(모든 페이지, 늘 같은 자리) · 바닥글 링크
+//  · 아래 안내 줄: 두 번째 페이지부터, 읽기 시작(스크롤 25% 또는 15초) 뒤 한 번. 세션당 한 번, 닫으면 7일 쉼. 화면을 밀지 않는 떠 있는 줄
+//  · 리포트 끝 카드(본문 바로 뒤) · 홈 피드 카드(휴대폰). 카드는 닫으면 14일 쉼
+// 안드로이드·PC 크롬은 설치 창을 바로 띄운다. 아이폰은 '공유 → 홈 화면에 추가' 안내 창.
+// 카카오톡·네이버·인스타그램 등 앱 안 브라우저는 설치가 안 되므로 크롬(아이폰은 사파리 안내)으로 열어 준다(?kwapp=1 → 열리면 바로 안내 줄).
 (function () {
   var base = (window.KW && KW.base) || '';
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -476,44 +480,140 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   }
   var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   if (standalone) { document.documentElement.classList.add('is-app'); return; }
+  if (navigator.webdriver && !/kwtest/.test(location.hash)) return;
   var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-  var iosSafari = ios && /safari/i.test(ua) && !/crios|fxios|edgios|kakaotalk|naver|instagram|fban|fbav/i.test(ua);
-  var deferred = null;
+  var android = /android/i.test(ua), kakao = /kakaotalk/i.test(ua);
+  var inapp = kakao || /NAVER\(inapp|naver|instagram|FBAN|FBAV|FB_IAB|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+  var iosSafari = ios && !inapp && /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
+  var iosOther = ios && !inapp && !iosSafari;
+  var samsung = android && !inapp && /SamsungBrowser/.test(ua);
+  var mq = function (q) { return !!(window.matchMedia && matchMedia(q).matches); };
+  var LS = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+  var SS = function (k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
+  var deferred = null, done = false;
+  function mode() {
+    if (done) return '';
+    if (deferred) return 'prompt';
+    if (inapp) return (android || kakao) ? 'escape' : 'inapp-ios';
+    if (iosSafari) return 'ios';
+    if (iosOther) return 'ios-other';
+    if (samsung) return 'menu';
+    return '';
+  }
   function toast(t, ms) { var x = document.querySelector('.toast'); if (!x) return; x.textContent = t; x.classList.add('show'); setTimeout(function () { x.classList.remove('show'); }, ms || 2200); }
   function iosHelp() { return '사파리 아래쪽 공유 버튼(네모에 위 화살표)을 누른 뒤 "홈 화면에 추가"를 고르세요.'; }
-  window.kwCanInstall = function () { return !!deferred || iosSafari; };
-  window.kwInstall = function () {
-    kwEv('install_click');
-    if (deferred) {
-      deferred.prompt();
-      deferred.userChoice.then(function (c) { if (c && c.outcome === 'accepted') { kwEv('install_accept'); toast('홈 화면에 추가했습니다'); hideAll(); } else kwEv('install_dismiss'); }).catch(function () {});
-      deferred = null; return;
-    }
-    if (iosSafari) { kwEv('ios_help'); toast(iosHelp(), 6000); return; }
-    if (ios) { toast('사파리에서 이 사이트를 연 뒤 공유 → "홈 화면에 추가"를 고르세요.', 6000); return; }
-    toast('브라우저 메뉴(⋮)에서 "홈 화면에 추가" 또는 "앱 설치"를 눌러 주세요.', 5000);
-  };
-  function hideAll() { document.querySelectorAll('[data-install], .install-card').forEach(function (n) { n.hidden = true; }); }
-  function showButtons() { document.querySelectorAll('[data-install]').forEach(function (n) { n.hidden = false; }); }
-  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-install]'); if (b) { e.preventDefault(); window.kwInstall(); } });
-  addEventListener('appinstalled', function () { kwEv('installed'); hideAll(); });
-  function dismissed() { try { return Date.now() - (+localStorage.getItem('kw-install-x') || 0) < 14 * 864e5; } catch (e) { return false; } }
-  function card() { // 홈 피드 두 번째 글 뒤에 한 번
-    var list = document.querySelector('.feed-list');
-    if (!list || document.querySelector('.install-card') || dismissed() || !(window.matchMedia && matchMedia('(max-width: 759px)').matches)) return;
-    var after = list.querySelectorAll(':scope > article.post')[1]; if (!after) return;
-    var w = document.createElement('div'); w.className = 'card install-card';
-    w.innerHTML = '<img src="' + base + '/static/icon-192.png" alt="" width="44" height="44"><div class="ic-txt"><strong>김박사 월드를 앱처럼</strong><span>홈 화면에 추가하면 한 번에 열리고, 화면도 더 넓게 보여요.</span></div>'
-      + '<div class="ic-row"><button type="button" class="btn btn-primary" data-install-go>' + (iosSafari ? '추가 방법 보기' : '설치') + '</button><button type="button" class="btn" data-install-x>닫기</button></div>';
-    w.querySelector('[data-install-go]').addEventListener('click', function () {
-      if (iosSafari && !deferred) { kwEv('install_click'); kwEv('ios_help'); w.querySelector('.ic-txt span').textContent = iosHelp(); return; }
-      window.kwInstall();
-    });
-    w.querySelector('[data-install-x]').addEventListener('click', function () { try { localStorage.setItem('kw-install-x', String(Date.now())); } catch (e) {} w.remove(); });
-    after.after(w); kwEv('install_card');
+  function snoozed(k, days) { return Date.now() - (+LS(k) || 0) < days * 864e5; }
+  var label = function () { var m = mode(); return m === 'escape' ? '크롬에서 열기' : (m === 'ios' || m === 'ios-other' || m === 'inapp-ios' || m === 'menu') ? '방법 보기' : '설치'; };
+  if (kakao && !android) label = function () { return '사파리에서 열기'; };
+
+  function openOutside() {
+    var u = location.href.replace(/#.*$/, ''); u += (u.indexOf('?') < 0 ? '?' : '&') + 'kwapp=1';
+    if (kakao) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(u); return; }
+    location.href = 'intent://' + u.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(u) + ';end';
   }
-  addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; kwEv('install_prompt'); showButtons(); card(); });
-  if (iosSafari) { showButtons(); if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', card); else card(); }
+  var sheet = null;
+  function guide(m) { // 설치 창을 띄울 수 없는 브라우저: 따라 하기 안내 창
+    if (!sheet) {
+      sheet = document.createElement('dialog'); sheet.className = 'kw-dlg install-sheet';
+      sheet.addEventListener('click', function (e) { if (e.target === sheet) sheet.close(); });
+      document.body.appendChild(sheet);
+    }
+    var steps = m === 'ios' ? ['아래쪽(또는 주소창 옆) <b>공유 버튼</b>을 누르세요. 네모에 위 화살표 모양이에요. 안 보이면 <b>⋯</b> 안에 있어요.', '목록을 올려 <b>홈 화면에 추가</b>를 고르세요.', '오른쪽 위 <b>추가</b>를 누르면 끝이에요.']
+      : m === 'ios-other' ? ['주소창 옆 <b>공유 버튼</b>(네모에 위 화살표)을 누르세요.', '<b>홈 화면에 추가</b>를 고르세요.', '<b>추가</b>를 누르면 끝이에요. 메뉴에 없으면 사파리에서 열어 주세요.']
+      : m === 'inapp-ios' ? ['이 화면은 앱 안 브라우저라 설치가 안 돼요.', '오른쪽 아래(또는 위) <b>⋯</b> 메뉴에서 <b>Safari로 열기</b>를 누르세요.', '사파리에서 머리줄의 <b>앱 설치</b>를 다시 누르세요.']
+      : ['브라우저 메뉴(<b>≡</b> 또는 <b>⋮</b>)를 여세요.', '<b>현재 페이지 추가</b> → <b>홈 화면</b>, 또는 <b>홈 화면에 추가</b>를 고르세요.', '바탕화면의 김박사 월드 아이콘으로 열면 돼요.'];
+    sheet.innerHTML = '<div class="kw-dlg-head"><h2>홈 화면에 김박사 월드 추가</h2><button type="button" class="kw-dlg-x" aria-label="닫기">×</button></div>'
+      + '<div class="kw-dlg-body"><div class="is-hero"><img src="' + base + '/static/icon-192.png" alt="" width="52" height="52"><p>앱스토어 없이 <b>무료</b>로, 저장공간도 거의 안 써요. 홈 화면 아이콘으로 바로 열리고 주소창 없이 넓게 보여요.</p></div>'
+      + '<ol class="is-steps">' + steps.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>'
+      + '<button type="button" class="btn btn-primary" data-is-ok>알겠어요</button></div>';
+    sheet.querySelector('.kw-dlg-x').onclick = sheet.querySelector('[data-is-ok]').onclick = function () { sheet.close(); };
+    if (sheet.showModal) { if (!sheet.open) sheet.showModal(); } else toast(iosHelp(), 6000);
+  }
+  window.kwCanInstall = function () { return !!mode(); };
+  window.kwInstall = function (src) {
+    kwEv('install_click'); if (src) kwEv('ic_' + src);
+    var m = mode();
+    if (m === 'prompt') {
+      var d = deferred; deferred = null;
+      d.prompt();
+      d.userChoice.then(function (c) { if (c && c.outcome === 'accepted') { kwEv('install_accept'); done = true; toast('홈 화면에 추가했습니다'); hideAll(); } else { kwEv('install_dismiss'); refresh(); } }).catch(function () {});
+      return;
+    }
+    if (m === 'escape') {
+      kwEv('install_inapp');
+      if (kakao || android) { openOutside(); return; }
+    }
+    if (m === 'ios' || m === 'ios-other' || m === 'inapp-ios') kwEv('ios_help');
+    guide(m || 'menu');
+  };
+  function hideAll() {
+    document.querySelectorAll('[data-install]').forEach(function (n) { n.hidden = true; });
+    document.querySelectorAll('.install-card, .install-bar').forEach(function (n) { n.remove(); });
+  }
+  function refresh() { // 설치 가능 여부가 바뀔 때마다(설치 창 거절 뒤엔 크롬이 다시 허용할 때까지 숨김)
+    var on = !!mode();
+    document.querySelectorAll('[data-install]').forEach(function (n) { n.hidden = !on; });
+    if (on) { feedCard(); reportCard(); armBar(); }
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-install]'); if (b) { e.preventDefault(); window.kwInstall(b.getAttribute('data-src') || ''); } });
+  addEventListener('appinstalled', function () { kwEv('installed'); done = true; hideAll(); });
+
+  // 카드(피드·리포트 끝): 본문 흐름 안, 닫으면 14일
+  function makeCard(src, title, sub) {
+    var w = document.createElement('div'); w.className = 'card install-card'; w.setAttribute('data-src', src);
+    w.innerHTML = '<img src="' + base + '/static/icon-192.png" alt="" width="44" height="44"><div class="ic-txt"><strong></strong><span></span></div>'
+      + '<div class="ic-row"><button type="button" class="btn btn-primary" data-install-go></button><button type="button" class="btn" data-install-x>닫기</button></div>';
+    w.querySelector('strong').textContent = title; w.querySelector('.ic-txt span').textContent = sub; w.querySelector('[data-install-go]').textContent = label();
+    w.querySelector('[data-install-go]').addEventListener('click', function () { window.kwInstall(src); });
+    w.querySelector('[data-install-x]').addEventListener('click', function () { LS('kw-install-x', String(Date.now())); document.querySelectorAll('.install-card').forEach(function (n) { n.remove(); }); });
+    return w;
+  }
+  function feedCard() { // 홈 피드 두 번째 글 뒤(휴대폰)
+    var list = document.querySelector('.feed-list');
+    if (!list || list.querySelector('.install-card') || snoozed('kw-install-x', 14) || !mq('(max-width: 759px)')) return;
+    var after = list.querySelectorAll(':scope > article.post')[1]; if (!after) return;
+    after.after(makeCard('feed', '김박사 월드를 앱처럼', '홈 화면에 추가하면 한 번에 열리고, 화면도 더 넓게 보여요.')); kwEv('install_card');
+  }
+  function reportCard() { // 리포트 본문을 다 읽은 자리(출처 바로 위). 다 읽은 독자가 가장 잘 설치한다
+    var prose = document.querySelector('article.report > .prose');
+    if (!prose || document.querySelector('.install-card') || snoozed('kw-install-x', 14)) return;
+    var c = makeCard('report', '다음 리포트도 한 번에 보기', '홈 화면에 김박사 월드를 추가하세요. 무료이고, 아이콘 한 번으로 바로 열려요.');
+    c.classList.add('install-card-report'); prose.after(c);
+    if (window.IntersectionObserver) { var io = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { kwEv('install_card'); io.disconnect(); } }); io.observe(c); }
+  }
+
+  // 아래 안내 줄: 떠 있는 줄(본문을 밀지 않음), 세션당 한 번, 닫으면 7일
+  var pv = (+LS('kw-pv') || 0) + 1; LS('kw-pv', String(pv));
+  var fromEscape = /[?&]kwapp=1/.test(location.search);
+  if (fromEscape && history.replaceState) { try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])kwapp=1&?/, '$1').replace(/[?&]$/, '') + location.hash); } catch (e) {} }
+  var armed = false;
+  function armBar() {
+    if (armed || !mq('(max-width: 759px)')) return;
+    if (!fromEscape && (pv < 2 || SS('kw-ib') || snoozed('kw-install-b', 7))) return;
+    armed = true;
+    var shown = false, t0 = Date.now();
+    function show() {
+      if (shown || !mode()) return; shown = true; SS('kw-ib', '1');
+      removeEventListener('scroll', onScroll); clearTimeout(tm);
+      var b = document.createElement('div'); b.className = 'install-bar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', '앱 설치 안내');
+      b.innerHTML = '<img src="' + base + '/static/icon-192.png" alt="" width="36" height="36"><div class="ib-txt"><strong>김박사 월드 앱</strong><span>무료 · 홈 화면에서 한 번에 열기</span></div>'
+        + '<button type="button" class="btn btn-primary btn-small" data-ib-go></button><button type="button" class="ib-x" aria-label="닫기">×</button>';
+      b.querySelector('[data-ib-go]').textContent = label();
+      b.querySelector('[data-ib-go]').addEventListener('click', function () { window.kwInstall('bar'); });
+      b.querySelector('.ib-x').addEventListener('click', function () { LS('kw-install-b', String(Date.now())); b.classList.remove('on'); setTimeout(function () { b.remove(); }, 250); });
+      document.body.appendChild(b); requestAnimationFrame(function () { requestAnimationFrame(function () { b.classList.add('on'); }); });
+      kwEv('install_bar');
+    }
+    function onScroll() {
+      var d = document.documentElement, max = d.scrollHeight - innerHeight;
+      if (max > 0 && scrollY / max >= 0.25) show();
+    }
+    var tm = setTimeout(show, fromEscape ? 600 : 15000);
+    addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; kwEv('install_prompt'); refresh(); });
+  if (mode()) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh); else refresh(); }
 })();
 
 // 쿠팡 다이내믹 배너(가로 고정 크기)를 좁은 화면에서 비율대로 줄인다
