@@ -270,3 +270,9 @@ STX:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["스택스", "Stacks", "블록스택", "Blockstack", "sBTC"]
+PLUG:
+  name: "플러그 파워"
+  name_en: "Plug Power Inc."
+  exchange: "NASDAQ"
+  theme: "원자력·에너지"
+  aliases: ["플러그파워", "Plug Power", "플러그"]
