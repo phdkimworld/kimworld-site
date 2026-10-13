@@ -271,33 +271,16 @@
       }
       var body3 = dialog('내 계정');
       var info = el('div', 'kw-me'); info.appendChild(avatar(ME.nick, ME.id));
-      var nm = el('div'); nm.appendChild(el('strong', null, ME.nick)); nm.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입'));
+      var nm = el('div', 'kw-me-who'); var nmTop = el('div'); nmTop.appendChild(el('strong', null, ME.nick)); nmTop.appendChild(el('span', 'muted', ' · ' + new Date(ME.created).toLocaleDateString('ko-KR') + ' 가입')); nm.appendChild(nmTop);
       info.appendChild(nm); body3.appendChild(info);
-      // 프로필 사진: 브라우저에서 가운데를 정사각형으로 잘라 256px로 줄인 뒤 올린다(원본 사진·위치 정보는 보내지 않음)
-      var phRow = el('div', 'kw-row kw-photo');
-      var file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
-      var phBtn = btn(ME.av ? '사진 바꾸기' : '프로필 사진 올리기', 'btn', function () { file.click(); });
-      phRow.appendChild(phBtn); phRow.appendChild(file);
-      var phDel = btn('사진 지우기', 'cm-link', function () {
+      // 프로필 사진: 동그라미 안 수정 버튼을 누르면 바로 고르고 올린다
+      editableAv(info.querySelector('.cm-av'), function (t) { msg.textContent = t; }, function () { phDel.hidden = !ME.av; });
+      var phDel = btn('사진 지우기', 'cm-link kw-photo-del', function () {
         if (!confirm('프로필 사진을 지울까요?')) return;
-        api('/v1/me/avatar/delete', { method: 'POST' }).then(function () { ME.av = 0; seedAv(ME.id, 0); phDel.hidden = true; phBtn.textContent = '프로필 사진 올리기'; msg.textContent = '사진을 지웠습니다.'; });
+        api('/v1/me/avatar/delete', { method: 'POST' }).then(function () { ME.av = 0; seedAv(ME.id, 0); phDel.hidden = true; msg.textContent = '사진을 지웠습니다.'; });
       });
-      phDel.hidden = !ME.av; phRow.appendChild(phDel);
-      file.addEventListener('change', function () {
-        var f = file.files && file.files[0]; if (!f) return;
-        msg.textContent = '사진을 줄이는 중…';
-        squareImage(f, 256).then(function (blob) {
-          msg.textContent = '올리는 중…';
-          return fetch(API + '/v1/me/avatar?d=' + DEV, { method: 'POST', body: blob, headers: { 'Content-Type': blob.type }, credentials: 'include' }).then(function (r) { return r.json(); });
-        }).then(function (d) {
-          if (!d.ok) { msg.textContent = d.message || '사진을 올리지 못했습니다.'; return; }
-          ME.av = d.av; seedAv(ME.id, d.av); phDel.hidden = false; phBtn.textContent = '사진 바꾸기'; msg.textContent = '프로필 사진을 바꿨습니다.';
-          if (window.kwEv) kwEv('avatar_set');
-        }).catch(function () { msg.textContent = '이 사진은 쓸 수 없습니다. 다른 사진(JPG·PNG)으로 해 보세요.'; });
-        file.value = '';
-      });
-      body3.appendChild(phRow);
-      body3.appendChild(el('p', 'muted kw-small', '사진은 모든 사람에게 보입니다. 다른 사람의 얼굴·음란하거나 불쾌한 사진은 신고되면 내려갑니다.'));
+      phDel.hidden = !ME.av; nm.appendChild(phDel);
+      body3.appendChild(el('p', 'muted kw-small', '사진 속 연필을 누르면 바꿀 수 있어요. 사진은 모든 사람에게 보이며, 다른 사람의 얼굴·음란하거나 불쾌한 사진은 신고되면 내려갑니다.'));
       // 닉네임 바꾸기: 14일에 한 번
       var nk = el('input'); nk.maxLength = 12; nk.value = ME.nick; nk.autocomplete = 'off';
       var canNick = !ME.nickNext || Date.now() >= ME.nickNext;
@@ -346,6 +329,30 @@
         if (!confirm('정말 계정을 삭제할까요? 되돌릴 수 없습니다.')) return;
         api('/v1/me/delete', { method: 'POST', body: { all: all } }).then(function () { location.reload(); });
       }));
+    });
+  }
+  // 내 사진 동그라미에 연필(수정) 버튼을 얹는다. 누르면 사진 고르기 → 줄이기 → 올리기
+  function editableAv(av, say, after) {
+    if (!av || !ME) return;
+    var wrap = el('span', 'av-edit-wrap'); av.parentNode.insertBefore(wrap, av); wrap.appendChild(av);
+    var file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true; wrap.appendChild(file);
+    var b = el('button', 'av-edit'); b.type = 'button'; b.setAttribute('aria-label', ME.av ? '프로필 사진 바꾸기' : '프로필 사진 올리기'); b.title = b.getAttribute('aria-label');
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); file.click(); });
+    wrap.appendChild(b);
+    file.addEventListener('change', function () {
+      var f = file.files && file.files[0]; if (!f) return;
+      wrap.classList.add('busy'); say('사진을 올리는 중…');
+      squareImage(f, 256).then(function (blob) {
+        return fetch(API + '/v1/me/avatar?d=' + DEV, { method: 'POST', body: blob, headers: { 'Content-Type': blob.type }, credentials: 'include' }).then(function (r) { return r.json(); });
+      }).then(function (d) {
+        wrap.classList.remove('busy');
+        if (!d.ok) { say(d.message || '사진을 올리지 못했습니다.'); return; }
+        ME.av = d.av; seedAv(ME.id, d.av); say('프로필 사진을 바꿨습니다.'); b.setAttribute('aria-label', '프로필 사진 바꾸기');
+        if (window.kwEv) kwEv('avatar_set');
+        if (after) after();
+      }).catch(function () { wrap.classList.remove('busy'); say('이 사진은 쓸 수 없습니다. 다른 사진(JPG·PNG)으로 해 보세요.'); });
+      file.value = '';
     });
   }
   // 사진을 정사각형으로 잘라 size px로 줄인다. webp(안 되면 jpeg), 60KB를 넘으면 화질을 낮춘다
@@ -869,6 +876,7 @@
       seedAv(d.user.id, d.user.av);
       var head = el('div', 'profile-head'), av = avatar(d.user.nick, d.user.id); av.className += ' profile-av';
       head.appendChild(av);
+      if (d.self) editableAv(av, flash);
       var who = el('div', 'profile-who');
       who.appendChild(el('h1', null, d.user.nick));
       if (d.user.bio) who.appendChild(el('p', 'profile-bio', d.user.bio));
@@ -890,7 +898,7 @@
       var fcount = st.children[2].querySelector('strong');
       if (d.self) {
         var sacts = el('div', 'profile-acts');
-        sacts.appendChild(btn(d.user.av ? '프로필 편집' : '프로필 사진 올리기', 'btn', openAccount));
+        sacts.appendChild(btn('프로필 편집', 'btn', openAccount));
         var sdm = el('a', 'btn', '쪽지함'); sdm.href = base + '/dm/'; sacts.appendChild(sdm);
         prof.appendChild(sacts);
       } else {
