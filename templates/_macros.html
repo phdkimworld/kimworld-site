@@ -32,7 +32,7 @@
   </header>
   <a class="post-body card-link" href="{{ r.url }}">
     <span class="card-company">{{ r.company }}</span>
-    <h3 class="card-title">{{ r.title }}</h3>
+    <h3 class="card-title">{{ r.share_title or r.title }}</h3>
     <p class="card-summary">{{ r.summary }}</p>
     {% if media and r.chart %}<span class="post-media"><img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}"></span>{% endif %}
   </a>

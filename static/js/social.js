@@ -303,8 +303,10 @@
     ta.addEventListener('focus', function () { if (window.kwEv) kwEv('compose_open'); });
     ta.addEventListener('input', function () {
       if (!started) started = Date.now();
-      lenEl.textContent = ta.value.length + '/500';
-      cp.classList.toggle('composer-on', ta.value.length > 0);
+      var n = ta.value.length; // 글자 수는 끝에 가까울 때만(남은 글자)
+      lenEl.textContent = n > 400 ? String(500 - n) : ''; lenEl.classList.toggle('over', n > 480);
+      if (n > 0) cp.classList.add('composer-on');
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 260) + 'px'; // 쓰는 만큼만 늘어난다
       // 글에 $티커를 쓰면 올릴 곳을 그 종목 종토방으로
       var m = /\$([A-Za-z]{1,6})(?![A-Za-z])/.exec(ta.value);
       if (m && sel.querySelector('option[value="b-' + m[1].toLowerCase() + '"]')) sel.value = 'b-' + m[1].toLowerCase();
@@ -318,7 +320,7 @@
         sb.disabled = false;
         if (d.error === 'account') { C.openAccount(); return; }
         if (!d.ok) { cmsg.textContent = d.message || '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
-        ta.value = ''; started = 0; lenEl.textContent = '0/500'; cp.classList.remove('composer-on');
+        ta.value = ''; started = 0; lenEl.textContent = ''; ta.style.height = ''; cp.classList.remove('composer-on');
         if (d.status === 'held') { cmsg.textContent = d.message; return; }
         toast('올렸습니다'); if (window.kwEv) kwEv('post_submit');
         // 방금 쓴 글은 순위와 상관없이 맨 위에 보여 준다
@@ -344,7 +346,7 @@
         av.className += ' composer-av-guest';
         cp.addEventListener('focusin', function () { nickIn.hidden = false; });
       }
-      cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '종목 이야기를 써 보세요. $TSLA처럼 쓰면 그 종목 종토방에도 올라가요.'; });
+      cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '$티커를 쓰면 그 종목 종토방에도 올라가요'; });
       cp.addEventListener('focusout', function () {
         setTimeout(function () { if (!cp.contains(document.activeElement) && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
       });

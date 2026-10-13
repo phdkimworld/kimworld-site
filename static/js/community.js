@@ -1226,16 +1226,102 @@
       setTimeout(function () { ta.focus(); }, 50);
     });
   }
-  // 글자를 드래그해 고르면 '인용하기' 단추를 띄운다(리포트 본문·종토방/라운지 글)
+  // 글자를 드래그해 고르면 작은 줄을 띄운다(리포트 본문·종토방/라운지 글):
+  //  ❝ 인용 — 내 글로 인용(피드) · 공유 — 고른 문장 + 그 문장으로 바로 가는 링크(카카오톡·문자 등) · 카드 — 인용 이미지(인스타그램·쓰레드·카톡)
+  function textFragment(t) { // 링크를 열면 그 문장으로 내려가 노란색으로 보이게(#:~:text=, 크롬·사파리·삼성 인터넷)
+    var enc = function (x) { return encodeURIComponent(x).replace(/-/g, '%2D').replace(/,/g, '%2C').replace(/&/g, '%26'); };
+    var w = t.split(' ');
+    return '#:~:text=' + (w.length > 12 ? enc(w.slice(0, 6).join(' ')) + ',' + enc(w.slice(-4).join(' ')) : enc(t));
+  }
+  function quoteLink(q) {
+    var u = q.kind === 'r' ? location.origin + base + '/r/' + q.ref + '/' : (API + '/s/p/' + q.ref);
+    u += (u.indexOf('?') < 0 ? '?' : '&') + 'utm_source=share&utm_medium=quote';
+    return q.kind === 'r' ? u + textFragment(q.text) : u;
+  }
+  function quoteMeta(q) {
+    var art = document.querySelector('article.report[data-slug="' + q.ref + '"]');
+    var h1 = document.querySelector('meta[property="og:title"]');
+    return {
+      ticker: art ? art.getAttribute('data-ticker') : (q.slug && /^b-/.test(q.slug) && q.slug !== 'b-talk' ? q.slug.slice(2).toUpperCase() : ''),
+      title: q.kind === 'r' ? ((h1 && h1.content) || document.title) : (q.slug === 'b-talk' ? '라운지' : (q.slug ? '$' + q.slug.slice(2).toUpperCase() + ' 종토방' : '김박사 월드'))
+    };
+  }
+  function shareQuote(q) {
+    var m = quoteMeta(q), url = quoteLink(q);
+    var text = '“' + q.text + '”\n— ' + (q.kind === 'r' ? (m.ticker ? m.ticker + ' 리포트 · ' : '') + '김박사 월드 무료 리포트' : m.title + ' · 김박사 월드');
+    if (window.kwEv) kwEv('quote_share');
+    if (navigator.share) { navigator.share({ title: m.title, text: text, url: url }).catch(function () {}); return; }
+    var all = text + '\n' + url;
+    (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () { flash('인용과 링크를 복사했습니다. 카카오톡에 붙여 넣으세요'); }, function () { prompt('아래 내용을 복사하세요', all); });
+  }
+  // 인용 카드: 1080×1350(4:5, 인스타그램·쓰레드 피드에 가장 크게 보이는 비율)
+  function quoteCard(q) {
+    var m = quoteMeta(q), W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var g = c.getContext('2d'), FF = '"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif';
+    var grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#0b1220'); grd.addColorStop(1, '#16213a'); g.fillStyle = grd; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#f59e0b'; g.font = '900 220px Georgia,serif'; g.fillText('“', 72, 300);
+    // 본문: 줄 수에 맞춰 글자 크기를 고른다
+    function wrap(text, size) {
+      // 띄어쓰기 단위로 줄을 바꾼다(한 단어가 한 줄보다 길 때만 글자 단위)
+      g.font = '700 ' + size + 'px ' + FF; var lines = [], line = '', maxw = W - 176;
+      text.split(' ').forEach(function (w) {
+        var t = line ? line + ' ' + w : w;
+        if (g.measureText(t).width <= maxw) { line = t; return; }
+        if (line) lines.push(line);
+        line = '';
+        while (g.measureText(w).width > maxw) { var k = w.length; while (k > 1 && g.measureText(w.slice(0, k)).width > maxw) k--; lines.push(w.slice(0, k)); w = w.slice(k); }
+        line = w;
+      });
+      if (line) lines.push(line); return lines;
+    }
+    var size = 64, lines = wrap(q.text, size);
+    while (lines.length > 9 && size > 40) { size -= 4; lines = wrap(q.text, size); }
+    if (lines.length > 11) { lines = lines.slice(0, 11); lines[10] = lines[10].slice(0, -1) + '…'; }
+    var lh = size * 1.5, y = 380;
+    g.fillStyle = '#f8fafc'; g.font = '700 ' + size + 'px ' + FF;
+    lines.forEach(function (ln) { g.fillText(ln, 88, y); y += lh; });
+    // 아래: 티커 배지 + 리포트 제목 + 사이트
+    var by = H - 300;
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(88, by - 40, W - 176, 2);
+    var x = 88;
+    if (m.ticker) {
+      g.font = '800 40px ' + FF; var tw = g.measureText(m.ticker).width;
+      g.fillStyle = '#f59e0b'; roundRect(g, x, by, tw + 36, 60, 14); g.fill();
+      g.fillStyle = '#0b1220'; g.fillText(m.ticker, x + 18, by + 44); x += tw + 56;
+    }
+    g.fillStyle = '#cbd5e1'; g.font = '600 34px ' + FF;
+    var tt = m.title; while (g.measureText(tt).width > W - 88 - x && tt.length > 4) tt = tt.slice(0, -2) + '…';
+    g.fillText(tt.replace(/……$/, '…'), x, by + 42);
+    g.fillStyle = '#f59e0b'; roundRect(g, 88, H - 168, 470, 76, 38); g.fill();
+    g.fillStyle = '#0b1220'; g.font = '800 34px ' + FF; g.fillText(q.kind === 'r' ? '무료 리포트 전문 보기 →' : '대화 이어 보기 →', 120, H - 118);
+    g.fillStyle = '#94a3b8'; g.font = '600 32px ' + FF; g.fillText('drkimworld.com', 590, H - 118);
+    g.fillStyle = '#64748b'; g.font = '600 28px ' + FF; g.fillText('김박사 월드', W - 88 - g.measureText('김박사 월드').width, 96);
+    if (window.kwEv) kwEv('quote_card');
+    c.toBlob(function (blob) {
+      if (!blob) return;
+      var file = new File([blob], 'drkimworld-quote.png', { type: 'image/png' }), url = quoteLink(q);
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], text: '“' + q.text.slice(0, 60) + (q.text.length > 60 ? '…' : '') + '” ' + url }).catch(function () {});
+        return;
+      }
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'drkimworld-quote.png'; document.body.appendChild(a); a.click(); a.remove();
+      if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {});
+      flash('인용 카드를 저장했습니다. 링크도 복사했어요');
+    }, 'image/png');
+  }
+  function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   (function () {
-    var chip = el('button', 'quote-chip', '❝ 인용하기'); chip.type = 'button'; chip.hidden = true; document.body.appendChild(chip);
+    var bar = el('div', 'quote-bar'); bar.hidden = true; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', '고른 문장');
+    var bQ = el('button', 'qb', '❝ 인용'), bS = el('button', 'qb qb-main', '공유'), bC = el('button', 'qb', '카드');
+    [bQ, bS, bC].forEach(function (b) { b.type = 'button'; bar.appendChild(b); });
+    document.body.appendChild(bar);
     var cur = null, timer = 0;
     function check() {
       var sel = window.getSelection && getSelection(); cur = null;
-      if (!sel || sel.isCollapsed || !sel.rangeCount) { chip.hidden = true; return; }
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { bar.hidden = true; return; }
       var text = String(sel).replace(/\s+/g, ' ').trim();
       var node = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentNode);
-      if (!node || text.length < 2) { chip.hidden = true; return; }
+      if (!node || text.length < 2) { bar.hidden = true; return; }
       var rep = node.closest('article.report .prose'), up = node.closest('.upost-body'), cm = node.closest('.comments.board .cm-body, .pp-replies .cm-body');
       if (rep) cur = { kind: 'r', ref: rep.closest('article.report').getAttribute('data-slug') };
       else if (up) { var art = up.closest('[data-pid]'); cur = { kind: 'p', ref: art.getAttribute('data-pid'), slug: art.getAttribute('data-board') }; }
@@ -1243,17 +1329,21 @@
         var th = cm.closest('[data-thread]'), ppost = document.querySelector('[data-post-page] [data-board]');
         cur = { kind: 'p', ref: cm.closest('[data-cid]').getAttribute('data-cid'), slug: th ? th.getAttribute('data-thread') : ppost ? ppost.getAttribute('data-board') : '' };
       }
-      if (!cur) { chip.hidden = true; return; }
+      if (!cur) { bar.hidden = true; return; }
       cur.text = text.length > 300 ? text.slice(0, 300) : text;
       var r = sel.getRangeAt(0).getBoundingClientRect();
-      chip.hidden = false;
+      bar.hidden = false;
+      var bw = bar.offsetWidth || 200;
       // 휴대폰은 위에 기본 복사 메뉴가 뜨므로 선택한 글 아래에, PC는 위에
-      chip.style.top = ((window.matchMedia && matchMedia('(pointer: coarse)').matches) ? window.scrollY + r.bottom + 14 : Math.max(8, window.scrollY + r.top - 46)) + 'px';
-      chip.style.left = Math.min(window.innerWidth - 120, Math.max(8, r.left + r.width / 2 - 50)) + 'px';
+      bar.style.top = ((window.matchMedia && matchMedia('(pointer: coarse)').matches) ? window.scrollY + r.bottom + 14 : Math.max(8, window.scrollY + r.top - 52)) + 'px';
+      bar.style.left = Math.min(window.innerWidth - bw - 8, Math.max(8, r.left + r.width / 2 - bw / 2)) + 'px';
     }
     document.addEventListener('selectionchange', function () { clearTimeout(timer); timer = setTimeout(check, 250); });
-    chip.addEventListener('mousedown', function (e) { e.preventDefault(); }); // 누르는 순간 선택이 풀리지 않게
-    chip.addEventListener('click', function () { if (!cur) return; var q = cur; chip.hidden = true; openQuote(q); });
+    bar.addEventListener('mousedown', function (e) { e.preventDefault(); }); // 누르는 순간 선택이 풀리지 않게
+    var run = function (fn) { return function () { if (!cur) return; var q = cur; bar.hidden = true; fn(q); }; };
+    bQ.addEventListener('click', run(openQuote));
+    bS.addEventListener('click', run(shareQuote));
+    bC.addEventListener('click', run(quoteCard));
   })();
 
   // ---------- 종목·테마 팔로우 ----------

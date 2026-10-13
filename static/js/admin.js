@@ -115,7 +115,7 @@
   var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
     compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
     yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '이번 주 대표 글 누름',
-    install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내', signup: '가입 완료', dm_send: '쪽지 보냄', dm_open: '쪽지함 열기', avatar_set: '프로필 사진 바꿈', block: '차단',
+    install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내', signup: '가입 완료', dm_send: '쪽지 보냄', dm_open: '쪽지함 열기', avatar_set: '프로필 사진 바꿈', block: '차단', quote_share: '문장 인용 공유', quote_card: '인용 카드 만들기',
     install_bar: '설치 안내 줄 노출', install_inapp: '앱 안 브라우저→크롬 열기', ic_header: '설치 누름: 머리줄', ic_footer: '설치 누름: 바닥글', ic_bar: '설치 누름: 안내 줄', ic_report: '설치 누름: 리포트 끝', ic_feed: '설치 누름: 홈 피드' };
 
   // ---------- 유입 분석: 이름표·색(채널 순서 고정, 색은 채널을 따라감) ----------

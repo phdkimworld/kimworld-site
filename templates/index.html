@@ -90,7 +90,7 @@
             <option value="b-talk">라운지 (종목 없이)</option>
             {% for t in ticker_list %}<option value="b-{{ t.code|lower }}">${{ t.code }} {{ t.name }}</option>{% endfor %}
           </select>
-          <span class="cm-len muted" data-composer-len>0/500</span>
+          <span class="cm-len muted" data-composer-len></span>
           <button class="btn btn-primary" type="submit" data-composer-submit>게시</button>
         </div>
         <p class="cm-msg" data-composer-msg role="status"></p>

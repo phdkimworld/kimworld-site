@@ -1073,3 +1073,23 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .home-grid .feed-list > .install-card .ic-row .btn-primary { min-height: 34px; padding: 0 14px; border-radius: 999px; font-size: .84rem; }
 .home-grid .feed-list > .install-card [data-install-x] { border: 0; background: none; min-height: 34px; padding: 0 6px; font-size: 0; color: var(--muted); }
 .home-grid .feed-list > .install-card [data-install-x]::before { content: "×"; font-size: 1.3rem; line-height: 1; }
+
+/* 홈 글쓰기 펼침: 쓰는 만큼만 늘고, 아래 줄은 [올릴 곳 ▾] ··· [게시] 한 줄(글자를 키워도 줄바꿈 없음) */
+.home-grid .composer.composer-on .composer-form textarea { min-height: 56px; }
+.home-grid .composer-row { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; padding-top: 10px; }
+.home-grid .composer-row select { flex: 0 1 auto; min-width: 0; max-width: 62%; height: 34px; padding: 0 30px 0 12px; font-size: .84rem; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); text-overflow: ellipsis; }
+.home-grid .composer-row .cm-len { margin-left: auto; flex: none; white-space: nowrap; font-size: .8rem; }
+.home-grid .composer-row .cm-len:empty { display: none; }
+.home-grid .composer-row .cm-len.over { color: #e5484d; }
+.home-grid .composer-row .btn { flex: none; margin-left: auto; white-space: nowrap; min-height: 36px; padding: 0 20px; border-radius: 999px; font-size: .9rem; font-weight: 800; }
+.home-grid .composer-row .cm-len:not(:empty) + .btn { margin-left: 0; }
+.home-grid .composer-nick { height: 34px; margin-top: 6px; font-size: .86rem; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); padding: 0 10px; width: 100%; max-width: 220px; }
+
+/* 고른 문장 줄: ❝ 인용 · 공유 · 카드 */
+.quote-bar { position: absolute; z-index: 70; display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+.quote-bar[hidden] { display: none; }
+.quote-bar .qb { border: 0; background: none; color: var(--bg); font: inherit; font-size: .86rem; font-weight: 800; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.quote-bar .qb:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.quote-bar .qb-main { background: var(--accent); color: var(--accent-ink); }
+.quote-bar .qb-main:hover { background: var(--accent); filter: brightness(1.06); }
