@@ -276,3 +276,9 @@ PLUG:
   exchange: "NASDAQ"
   theme: "원자력·에너지"
   aliases: ["플러그파워", "Plug Power", "플러그"]
+LCID:
+  name: "루시드 그룹"
+  name_en: "Lucid Group, Inc."
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["루시드", "Lucid", "Lucid Motors", "루시드 모터스"]
