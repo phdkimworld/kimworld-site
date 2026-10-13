@@ -16,7 +16,7 @@ def midroll(fn):
     for i, line in enumerate(spec["headline"][:2]): T(110, 150+i*100, line, font(FK, 76), "#FFFFFF")
     x = 110; fo = font(FK, 44)
     for i, (_, p) in enumerate(PTS):
-        c = "$%s" % (("%.2f" % p).rstrip("0").rstrip(".")); w = d.textlength(c, font=fo)/S; col = GOLD if i % 2 == 0 else BLUE
+        c = "$%s" % ("%d" % p if float(p).is_integer() else "%.2f" % p if p >= 1 else ("%.4f" % p).rstrip("0")); w = d.textlength(c, font=fo)/S; col = GOLD if i % 2 == 0 else BLUE
         d.rounded_rectangle([x*S, 375*S, (x+w+48)*S, 447*S], radius=14*S, outline=col, width=3*S); T(x+24, 381, c, fo, col); x += w+48
         if i < len(PTS)-1: T(x+14, 381, "→", fo, "#5E7391"); x += 70
     for i, card in enumerate(spec["teasers"][:3]):
