@@ -220,6 +220,7 @@
       var pf = el('a', 'btn', '내 프로필'); pf.href = profileUrl(ME.id); row.appendChild(pf);
       row.appendChild(btn('알림', 'btn', openBell));
       body3.appendChild(row); body3.appendChild(msg);
+      api('/v1/admin/whoami').then(function (w) { if (!w.owner) return; var st = el('a', 'btn', '운영 통계'); st.href = base + '/admin/'; row.appendChild(st); }).catch(function () {});
       body3.appendChild(el('hr'));
       body3.appendChild(btn('로그아웃', 'btn', logout));
       body3.appendChild(btn('계정 삭제', 'cm-link kw-danger', function () {

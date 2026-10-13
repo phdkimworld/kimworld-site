@@ -151,6 +151,67 @@ async function oauthSubject(provider, code, env, redirectUri) {
   return null;
 }
 
+// ---------- 운영자 애널리틱스 집계: 지금 기간과 바로 앞 같은 길이 기간을 함께 계산(증감 비교) ----------
+async function analytics(db, now, daysIn) {
+  const days = [7, 30, 90].includes(daysIn) ? daysIn : 30;
+  const D = (k) => kstDay(now - k * 864e5);
+  const since = D(days - 1), prevSince = D(2 * days - 1);
+  const dayOf = "date((created + 32400000) / 1000, 'unixepoch')"; // ms → 한국 날짜
+  const all = (sql, ...a) => db.prepare(sql).bind(...a).all().then((r) => r.results || []);
+  const one = (sql, ...a) => db.prepare(sql).bind(...a).first();
+  const [daily, uvDaily, srcDaily, srcs, pages, types, hours, wau, mau, dau, prevPage, prevSrc, prevUv,
+    users, signups, prevSignups, posts, postsDaily, likes, follows, searches, ads, queue, topUsers] = await Promise.all([
+    all("SELECT day, SUM(pv) AS pv, SUM(secs) AS secs, SUM(mob) AS mob FROM an_page WHERE day >= ? GROUP BY day ORDER BY day", since),
+    all("SELECT day, COUNT(*) AS uv FROM an_seen WHERE day >= ? GROUP BY day", since),
+    all("SELECT day, SUM(sess) AS sess, SUM(multi) AS multi, SUM(newv) AS newv FROM an_src WHERE day >= ? GROUP BY day", since),
+    all("SELECT src, SUM(sess) AS sess, SUM(multi) AS multi, SUM(newv) AS newv FROM an_src WHERE day >= ? GROUP BY src ORDER BY sess DESC LIMIT 20", since),
+    all("SELECT path, t, SUM(pv) AS pv, SUM(secs) AS secs, SUM(entries) AS entries, SUM(scroll) AS scroll, SUM(scroll_n) AS scroll_n FROM an_page WHERE day >= ? GROUP BY path ORDER BY pv DESC LIMIT 40", since),
+    all("SELECT t, SUM(pv) AS pv, SUM(secs) AS secs, SUM(mob) AS mob FROM an_page WHERE day >= ? GROUP BY t ORDER BY pv DESC", since),
+    all("SELECT h, SUM(pv) AS pv FROM an_hour WHERE day >= ? GROUP BY h ORDER BY h", since),
+    one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ?", D(6)),
+    one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ?", D(29)),
+    one("SELECT COUNT(*) AS n FROM an_seen WHERE day = ?", D(0)),
+    one("SELECT SUM(pv) AS pv, SUM(secs) AS secs FROM an_page WHERE day >= ? AND day < ?", prevSince, since),
+    one("SELECT SUM(sess) AS sess, SUM(multi) AS multi, SUM(newv) AS newv FROM an_src WHERE day >= ? AND day < ?", prevSince, since),
+    one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ? AND day < ?", prevSince, since),
+    one("SELECT COUNT(*) AS n, SUM(status != 'ok') AS banned FROM users"),
+    all(`SELECT ${dayOf} AS day, COUNT(*) AS n FROM users WHERE created >= ? GROUP BY day`, now - days * 864e5),
+    one("SELECT COUNT(*) AS n FROM users WHERE created >= ? AND created < ?", now - 2 * days * 864e5, now - days * 864e5),
+    one(`SELECT SUM(slug LIKE 'b-%' AND parent_id IS NULL) AS board, SUM(slug LIKE 'b-%' AND parent_id IS NOT NULL) AS replies, SUM(slug NOT LIKE 'b-%') AS report,
+         COUNT(DISTINCT uid) AS writers FROM comments WHERE status = 'ok' AND pinned = 0 AND created >= ?`, now - days * 864e5),
+    all(`SELECT ${dayOf} AS day, SUM(slug LIKE 'b-%') AS board, SUM(slug NOT LIKE 'b-%') AS report FROM comments WHERE status = 'ok' AND pinned = 0 AND created >= ? GROUP BY day`, now - days * 864e5),
+    one("SELECT COUNT(*) AS n FROM post_likes WHERE created >= ?", now - days * 864e5),
+    one("SELECT COUNT(*) AS total, SUM(created >= ?) AS recent FROM follows", now - days * 864e5),
+    all("SELECT q, SUM(n) AS n FROM searches WHERE day >= ? GROUP BY q ORDER BY n DESC LIMIT 15", since),
+    all("SELECT slot, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= ? GROUP BY slot ORDER BY imps DESC", since),
+    one("SELECT SUM(status = 'held') AS held, SUM(status = 'hidden' AND reviewed = 0) AS hidden FROM comments"),
+    all(`SELECT u.id, u.nick, COUNT(c.id) AS posts, COALESCE(SUM(c.likes), 0) AS likes,
+         (SELECT COUNT(*) FROM follows f WHERE f.followee = u.id) AS followers
+         FROM users u LEFT JOIN comments c ON c.uid = u.id AND c.status = 'ok' AND c.created >= ? WHERE u.status = 'ok'
+         GROUP BY u.id ORDER BY posts DESC, likes DESC LIMIT 10`, now - days * 864e5),
+  ]);
+  // 날짜 축을 빈 날 없이 채운다
+  const axis = []; for (let k = days - 1; k >= 0; k--) axis.push(D(k));
+  const by = (rows) => Object.fromEntries(rows.map((r) => [r.day, r]));
+  const dP = by(daily), dU = by(uvDaily), dS = by(srcDaily), dG = by(signups), dC = by(postsDaily);
+  const series = axis.map((day) => ({
+    day, pv: dP[day]?.pv || 0, secs: dP[day]?.secs || 0, uv: dU[day]?.uv || 0, sess: dS[day]?.sess || 0, multi: dS[day]?.multi || 0,
+    newv: dS[day]?.newv || 0, signups: dG[day]?.n || 0, board: dC[day]?.board || 0, report: dC[day]?.report || 0,
+  }));
+  const sum = (k) => series.reduce((a, x) => a + x[k], 0);
+  return {
+    days, since, generated: now,
+    totals: { pv: sum("pv"), secs: sum("secs"), sess: sum("sess"), multi: sum("multi"), newv: sum("newv"), signups: sum("signups"),
+      uv: (await one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ?", since))?.n || 0, mob: daily.reduce((a, x) => a + (x.mob || 0), 0) },
+    prev: { pv: prevPage?.pv || 0, secs: prevPage?.secs || 0, sess: prevSrc?.sess || 0, multi: prevSrc?.multi || 0, newv: prevSrc?.newv || 0, uv: prevUv?.n || 0, signups: prevSignups?.n || 0 },
+    active: { dau: dau?.n || 0, wau: wau?.n || 0, mau: mau?.n || 0 },
+    series, sources: srcs, pages, types, hours,
+    community: { users: users?.n || 0, banned: users?.banned || 0, board: posts?.board || 0, replies: posts?.replies || 0, report: posts?.report || 0,
+      writers: posts?.writers || 0, postLikes: likes?.n || 0, follows: follows?.total || 0, newFollows: follows?.recent || 0, held: queue?.held || 0, hidden: queue?.hidden || 0 },
+    topUsers, searches, ads,
+  };
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -269,6 +330,34 @@ export default {
             ON CONFLICT(day, g, slot, seg) DO UPDATE SET imps = imps + excluded.imps, clicks = clicks + excluded.clicks`).bind(today, r.g, r.slot, seg, r.i, r.c)));
         }
         return json(req, { ok: true, n: rows.length });
+      }
+
+      // ---------- 방문 통계(운영자 애널리틱스용): 페이지를 떠날 때 한 번. 합계만 저장 ----------
+      if (p === "/v1/hit" && req.method === "POST") {
+        const b = await readJson(req);
+        let path = String(b.p || "/").slice(0, 100).toLowerCase();
+        const PATHS = /^\/(|r\/[a-z0-9-]{2,60}\/|t\/[a-z0-9.-]{1,12}\/|theme\/[a-z0-9-]{2,40}\/|search\/|u\/|p\/|about\/|disclaimer\/|privacy\/|terms\/|contact\/|admin\/)$/;
+        if (!PATHS.test(path)) path = "/(기타)";
+        if (path === "/admin/") return json(req, { ok: false });
+        const t = path === "/" ? "h" : path.startsWith("/r/") ? "r" : path.startsWith("/t/") ? "t" : path.startsWith("/theme/") ? "th" : path === "/p/" ? "p" : path === "/u/" ? "u" : path === "/search/" ? "s" : "o";
+        const src = /^[a-z0-9.-]{1,40}$/.test(String(b.r || "")) ? String(b.r) : "direct";
+        const m = b.m ? 1 : 0, n = b.n ? 1 : 0, s = Math.max(1, Math.min(999, parseInt(b.s, 10) || 1));
+        const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
+        if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
+        const hour = new Date(now + 9 * 3600e3).getUTCHours();
+        const q = [
+          db.prepare("INSERT OR IGNORE INTO an_seen (day, vh) VALUES (?, ?)").bind(today, actor.slice(-16)),
+          db.prepare(`INSERT INTO an_page (day, path, t, pv, secs, mob, entries, scroll, scroll_n) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, path) DO UPDATE SET pv = pv + 1, secs = secs + excluded.secs, mob = mob + excluded.mob, entries = entries + excluded.entries, scroll = scroll + excluded.scroll, scroll_n = scroll_n + excluded.scroll_n`)
+            .bind(today, path, t, a, m, s === 1 ? 1 : 0, sc, sc ? 1 : 0),
+          db.prepare("INSERT INTO an_hour (day, h, pv) VALUES (?, ?, 1) ON CONFLICT(day, h) DO UPDATE SET pv = pv + 1").bind(today, hour),
+        ];
+        if (s <= 2) q.push(db.prepare(`INSERT INTO an_src (day, src, sess, multi, newv) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(day, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, newv = newv + excluded.newv`)
+            .bind(today, src, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 1 ? n : 0));
+        if (Math.random() < 0.003) q.push(db.prepare("DELETE FROM an_seen WHERE day < ?").bind(kstDay(now - 35 * 864e5)));
+        await db.batch(q);
+        return json(req, { ok: true });
       }
 
       // ---------- 검색어 ----------
@@ -577,6 +666,23 @@ export default {
         if (me) await db.prepare("UPDATE notifs SET seen = 1 WHERE uid = ?").bind(me.id).run();
         if (me && Math.random() < 0.05) await db.prepare("DELETE FROM notifs WHERE uid = ? AND seen = 1 AND updated < ?").bind(me.id, now - 30 * 864e5).run();
         return json(req, { ok: true });
+      }
+
+      // ---------- 운영자 애널리틱스: 운영자 계정(owners) 로그인 또는 관리 토큰 ----------
+      if (p === "/v1/admin/analytics" && req.method === "GET") {
+        const auth = req.headers.get("Authorization") || "";
+        let ok = !!env.ADMIN_TOKEN && safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`);
+        if (!ok && session) {
+          const me = await userByActor(db, actor);
+          ok = !!me && !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first());
+        }
+        if (!ok) return json(req, { error: "owner", message: "운영자 계정만 볼 수 있습니다." }, 403, { "Cache-Control": "no-store" });
+        return json(req, await analytics(db, now, parseInt(url.searchParams.get("days") || "30", 10)), 200, { "Cache-Control": "no-store" });
+      }
+      if (p === "/v1/admin/whoami" && req.method === "GET") { // 화면이 운영자 여부만 묻는다
+        const me = session ? await userByActor(db, actor) : null;
+        const own = me ? !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first()) : false;
+        return json(req, { loggedIn: !!session, user: me ? { id: me.id, nick: me.nick } : null, owner: own }, 200, { "Cache-Control": "no-store" });
       }
 
       // ---------- 관리 (Authorization: Bearer ADMIN_TOKEN) ----------

@@ -426,3 +426,45 @@
     boxes.forEach(function (b) { if (!inView(b)) choose(b); }); // 자료가 없으면 사전값(전체 평균)으로 고른다
   });
 })();
+
+// ---------- 방문 통계(운영자 애널리틱스): 페이지를 떠날 때 한 번만 보낸다 ----------
+// 보내는 것: 주소(쿼리 제외)·유입 경로 종류(유튜브·구글…)·휴대폰 여부·이 기기 첫 방문 여부·이번 방문의 몇 번째 페이지·
+// 실제로 보고 있던 시간(화면이 보이고 최근 30초 안에 움직임이 있던 초)·스크롤 깊이. 사람을 알아볼 정보는 없다.
+(function () {
+  var KW = window.KW || {}, API = (KW.api || '').replace(/\/+$/, '');
+  if (!API || navigator.webdriver || /bot|crawl|spider|preview|lighthouse/i.test(navigator.userAgent)) return;
+  var LS = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+  var SS = function (k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
+  if (LS('kw-noan') === '1') return; // 운영자가 '내 방문 빼기'를 켠 기기
+  var isNew = !LS('kw-did');
+  // 이번 방문(탭 세션)의 몇 번째 페이지인지, 처음 들어온 경로
+  var n = (parseInt(SS('kw-sn'), 10) || 0) + 1; SS('kw-sn', String(n));
+  var src = SS('kw-src');
+  if (!src) {
+    var h = '', u = new URLSearchParams(location.search).get('utm_source') || '';
+    try { h = document.referrer ? new URL(document.referrer).hostname.toLowerCase() : ''; } catch (e) {}
+    var map = [[/youtube\.com$|youtu\.be$/, 'youtube'], [/(^|\.)google\./, 'google'], [/naver\.com$/, 'naver'], [/daum\.net$|kakao\.com$/, 'kakao·daum'],
+      [/bing\.com$/, 'bing'], [/(^|\.)(x|twitter|t)\.(com|co)$/, 'x'], [/facebook\.com$|fb\.com$/, 'facebook'], [/instagram\.com$/, 'instagram'], [/threads\.(net|com)$/, 'threads'],
+      [/postype\.com$/, 'postype'], [/drkimworld\.com$/, 'direct']];
+    src = u ? u.toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 40) : 'direct';
+    if (!u && h) { src = h.replace(/^www\./, '').slice(0, 40); for (var i = 0; i < map.length; i++) if (map[i][0].test(h)) { src = map[i][1].replace('·', '-'); break; } }
+    SS('kw-src', src);
+  }
+  var active = 0, last = Date.now(), maxSc = 0, sent = false;
+  ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove'].forEach(function (e) { addEventListener(e, function () { last = Date.now(); }, { passive: true }); });
+  setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - last < 30000) active++; }, 1000);
+  addEventListener('scroll', function () {
+    var d = document.documentElement, max = d.scrollHeight - innerHeight;
+    if (max > 0) maxSc = Math.max(maxSc, Math.round(Math.min(1, scrollY / max) * 100));
+  }, { passive: true });
+  function send() {
+    if (sent) return; sent = true;
+    var did = LS('kw-did') || '';
+    var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc });
+    var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
+    try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}
+    try { fetch(url, { method: 'POST', body: body, keepalive: true, credentials: 'include' }); } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') send(); });
+  addEventListener('pagehide', send);
+})();

@@ -48,13 +48,16 @@ jobs:
             WHERE c.reviewed = 0 AND (c.status IN ('held','hidden') OR (c.status = 'ok' AND c.reports > 0))
             ORDER BY c.created LIMIT 100" > /tmp/q.json
           python3 ../scripts/moderation.py list /tmp/q.json
+          npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command "
+            SELECT u.id, u.nick, date((u.created + 32400000) / 1000, 'unixepoch') AS joined, (SELECT 1 FROM owners o WHERE o.uid = u.id) AS own
+            FROM users u ORDER BY u.id DESC LIMIT 20" > /tmp/u.json && python3 ../scripts/moderation.py users /tmp/u.json || true
       - name: Apply decisions
         if: env.DECISIONS != ''
         working-directory: worker
         run: |
           python3 ../scripts/moderation.py apply "$DECISIONS" /tmp/apply.sql
           cat /tmp/apply.sql
-          if grep -q UPDATE /tmp/apply.sql; then
+          if grep -qE "UPDATE|INSERT|DELETE" /tmp/apply.sql; then
             npx --yes wrangler@3.99.0 d1 execute kimworld --remote --file /tmp/apply.sql
-            echo "::notice title=APPLIED::$(grep -c UPDATE /tmp/apply.sql) statements"
+            echo "::notice title=APPLIED::$(grep -cE "UPDATE|INSERT|DELETE" /tmp/apply.sql) statements"
           else echo "::notice title=APPLIED::0 statements"; fi

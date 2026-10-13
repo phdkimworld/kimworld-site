@@ -294,6 +294,30 @@ check(r1.data.ok && list.data.comments.some((c) => c.nick === "탈퇴한 사용�
 r1 = await call("GET", "/v1/me", { ip: "80.0.0.1", cookie: LA.cookie });
 check(r1.data.loggedIn === false, "탈퇴하면 로그인도 끝남");
 
+console.log("운영 통계");
+r = await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", m: 1, n: 1, s: 1, a: 120, sc: 80 }, ip: "91.0.0.1" });
+check(r.data.ok, "방문 기록 받음");
+await call("POST", "/v1/hit", { body: { p: "/", r: "youtube", m: 1, n: 0, s: 2, a: 30, sc: 40 }, ip: "91.0.0.1" });
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/?utm=x<script>", r: "BAD HOST!", m: 0, n: 1, s: 1, a: 99999, sc: 500 }, ip: "91.0.0.2" });
+await call("POST", "/v1/hit", { body: { p: "/admin/", s: 1 }, ip: "91.0.0.3" });
+let an = await call("GET", "/v1/admin/analytics?days=7", { ip: "91.0.0.1" });
+check(an.status === 403, "운영자가 아니면 통계 거절");
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+const T = an.data.totals;
+check(T.pv === 3 && T.uv === 2 && T.sess === 2 && T.multi === 1 && T.newv === 2, "페이지뷰·방문자·세션·2페이지 이상·처음 온 방문 집계(운영자 화면 방문은 안 셈)");
+check(T.secs === 120 + 30 + 1800, "체류 시간은 한 페이지 30분까지만");
+check(an.data.sources.find((x) => x.src === "youtube").sess === 1 && an.data.sources.some((x) => x.src === "direct"), "유입 경로(이상한 값은 직접 방문으로)");
+check(an.data.pages.some((x) => x.path === "/(기타)") && an.data.pages.find((x) => x.path === "/r/rgti-2026-10/").scroll === 80, "모르는 주소는 기타로, 스크롤 100% 넘지 않음");
+check(an.data.series.length === 7 && an.data.active.dau === 2 && an.data.community.users >= 1, "날짜 축 7일, 오늘 방문자, 가입자 수");
+check(!JSON.stringify((await DB.prepare("SELECT * FROM an_seen").all()).results).includes("91.0.0"), "방문 기록에 IP 없음");
+const own = await login("google", "alice", "91.0.0.5");
+r1 = await call("POST", "/v1/me", { body: { nick: "운영통계" }, ip: "91.0.0.5", cookie: own.cookie });
+an = await call("GET", "/v1/admin/whoami", { ip: "91.0.0.5", cookie: own.cookie });
+check(an.data.loggedIn && an.data.owner === false, "로그인해도 지정 전에는 운영자 아님");
+sqlite.exec(`INSERT INTO owners (uid) VALUES (${r1.data.user.id})`);
+an = await call("GET", "/v1/admin/analytics?days=30", { ip: "91.0.0.5", cookie: own.cookie });
+check(an.status === 200 && an.data.days === 30 && an.data.series.length === 30, "운영자 계정은 로그인만으로 통계를 봄");
+
 console.log("광고 성과");
 r = await call("POST", "/v1/ad/events", { body: { seg: "m.r", e: [{ g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "i" }, { g: "quantuma1b2", s: "report_end", k: "c" }, { g: "spacec3d4", s: "rail", k: "i" }, { g: "BAD!", s: "report_end", k: "i" }, { g: "x1", s: "nowhere", k: "i" }] }, ip: "90.0.0.1" });
 check(r.data.ok && r.data.n === 2, "올바른 묶음·자리만 받음");

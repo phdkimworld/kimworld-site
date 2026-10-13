@@ -266,6 +266,9 @@ check('data-board-peek="b-zzzz"' in pg and "/t/zzzz/#board" in pg, "리포트에
 tk = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
 check('data-thread="b-zzzz"' in tk and 'data-kind="board"' in tk and "data-need-account" in tk, "종목 페이지에 종토방(계정 없으면 글쓰기 대신 안내)")
 check((t / "dist/u/index.html").exists() and "noindex" in (t / "dist/u/index.html").read_text(encoding="utf-8"), "프로필 페이지(검색 노출 안 함)")
+ad = (t / "dist/admin/index.html").read_text(encoding="utf-8")
+check("noindex,nofollow" in ad and "admin.js" in ad and "Disallow: /admin/" in (t / "dist/robots.txt").read_text(), "운영 통계 페이지: 검색 노출·수집 막음")
+check("/admin/" not in home, "운영 통계는 어디에도 링크하지 않음")
 pp = (t / "dist/p/index.html")
 check(pp.exists() and "noindex" in pp.read_text(encoding="utf-8") and "data-post-page" in pp.read_text(encoding="utf-8"), "글 상세 페이지(검색 노출 안 함)")
 check("data-feed-tabs" in home and 'data-tab="following"' in home and 'value="b-talk"' in home and "data-composer" in home, "홈 피드: 추천·팔로잉 탭과 글쓰기 상자(라운지·종목 선택)")
@@ -306,7 +309,9 @@ check("1234" not in red and "x.co" not in red and "leader99" not in red and "a@b
 _out = Path(tempfile.mkdtemp()) / "a.sql"
 MOD.cmd_apply('{"comments":[{"id":3,"status":"ok"}],"ban":[2]}', str(_out))
 check("reviewed = 1" in _out.read_text() and "banned" in _out.read_text(), "결정 → SQL")
-for bad in ['{"comments":[{"id":"1; DROP TABLE users","status":"ok"}]}', '{"comments":[{"id":1,"status":"ok\'; DROP"}]}']:
+MOD.cmd_apply('{"owner_nick":["퀀텀개미"],"unowner":[4]}', str(_out))
+check("INSERT OR IGNORE INTO owners" in _out.read_text() and "DELETE FROM owners WHERE uid = 4" in _out.read_text(), "운영자 지정·해제 → SQL")
+for bad in ['{"owner_nick":["a\'; DROP TABLE users;--"]}', '{"comments":[{"id":"1; DROP TABLE users","status":"ok"}]}', '{"comments":[{"id":1,"status":"ok\'; DROP"}]}']:
     try:
         MOD.cmd_apply(bad, str(_out)); check(False, "잘못된 결정 거절")
     except (ValueError, SystemExit):

@@ -743,6 +743,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     if site.get("api_url"):
         write("u/index.html", "user.html")  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
+        write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
         write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"])
     write("404.html", "404.html")
 
@@ -806,7 +807,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         + "".join(items) + "</channel></rss>"
     )
     (out / "rss.xml").write_text(rss, encoding="utf-8")
-    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {su}/sitemap.xml\n", encoding="utf-8")
+    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {su}/sitemap.xml\n", encoding="utf-8")
     (out / "ads.txt").write_text(ads.ads_txt(), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     manifest = {

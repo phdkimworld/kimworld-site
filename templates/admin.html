@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}운영 통계 | {{ site.site_name }}{% endblock %}
+{% block description %}운영자 전용{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block main %}
+<div class="wrap an" data-admin>
+  <div class="an-top">
+    <h1 class="an-h1">운영 통계</h1>
+    <div class="an-ctl" data-an-ctl hidden>
+      <div class="ins-tabs an-range" role="tablist" aria-label="기간">
+        <button type="button" role="tab" data-days="7" aria-selected="false">7일</button>
+        <button type="button" role="tab" data-days="30" aria-selected="true">30일</button>
+        <button type="button" role="tab" data-days="90" aria-selected="false">90일</button>
+      </div>
+      <button type="button" class="btn an-btn" data-an-reload>새로고침</button>
+      <label class="an-me"><input type="checkbox" data-an-noan> 이 기기 방문은 통계에서 빼기</label>
+    </div>
+  </div>
+  <p class="muted an-msg" data-an-msg>확인하는 중입니다…</p>
+  <div data-an-gate hidden>
+    <button type="button" class="btn btn-primary" data-open-account>로그인</button>
+  </div>
+  <div data-an-body hidden></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ base }}/static/js/admin.js?v={{ asset_ver }}" defer></script>{% endblock %}
