@@ -156,7 +156,7 @@ check(r.data.ok, "답글 등록");
 const reply = r.data.id;
 r = await call("POST", "/v1/comments", { body: { slug: "b-rgti", body: "답글의 답글", parent: reply, t: 8000 }, ip: "31.0.0.2" });
 list = await call("GET", "/v1/comments?slug=b-rgti");
-check(list.data.comments.filter((c) => c.parent === root).length === 2, "답글의 답글은 원래 댓글 아래로(한 단계)");
+check(list.data.comments.filter((c) => c.parent === root).length === 1 && list.data.comments.some((c) => c.parent === reply), "답글의 답글은 그 답글 아래로(쓰레드)");
 r = await call("POST", "/v1/comments", { body: { slug: "b-soun", body: "다른 글 답글", parent: root, t: 8000 }, ip: "31.0.0.3" });
 check(r.status === 400, "다른 글의 댓글에는 답글 불가");
 // 커뮤니티 하나: 리포트에 바로 다는 댓글은 없고, 리포트를 공유(문장 없이)·인용한 커뮤니티 글이 '이 리포트 이야기'
@@ -308,7 +308,25 @@ fd = await call("GET", "/v1/feed/new?tab=all&since=" + (Date.now() + 1000), { ip
 check(fd.data.n === 0, "그 뒤 새 글 없으면 0");
 const rpl = (await call("GET", `/v1/comments?slug=b-xndu&sort=new`)).data.comments.find((c) => c.body === "동의합니다");
 fd = await call("GET", `/v1/post/${rpl.id}`, { ip: "80.0.0.2", cookie: LB.cookie });
-check(fd.data.post.id === post && fd.data.post.slug === "b-xndu" && fd.data.replies.length === 1 && fd.data.replies[0].mine && fd.data.liked.includes(post), "글 상세: 답글 번호로 열어도 원글 + 답글, 내 좋아요");
+check(fd.data.post.id === rpl.id && fd.data.post.mine && fd.data.ancestors.length === 1 && fd.data.ancestors[0].id === post && fd.data.ancestors[0].liked, "글 상세: 답글도 하나의 글로 열림(위 글 맥락 + 내 좋아요)");
+fd = await call("GET", `/v1/post/${post}`, { ip: "80.0.0.2", cookie: LB.cookie });
+check(fd.data.post.id === post && fd.data.ancestors.length === 0 && fd.data.replies.length === 1 && fd.data.replies[0].mine && "views" in fd.data.replies[0] && "reposts" in fd.data.replies[0], "원글 상세: 답글마다 조회·리포스트 수");
+// 답글에 답글(쓰레드), 답글 리포스트, 조회수
+let r2 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "답글에 다는 답글", parent: rpl.id, t: 8000 }, ip: "80.0.0.31" });
+check(r2.data.ok, "답글에 답글");
+fd = await call("GET", `/v1/post/${r2.data.id}`);
+check(fd.data.ancestors.map((x) => x.id).join() === [post, rpl.id].join(), "쓰레드 맥락: 원글 → 답글 → 지금 글");
+fd = await call("GET", `/v1/post/${rpl.id}`);
+check(fd.data.post.replies === 1 && fd.data.replies[0].id === r2.data.id, "답글의 답글 수·목록");
+r2 = await call("POST", "/v1/repost", { body: { kind: "p", ref: rpl.id }, ip: "80.0.0.1", cookie: LA.cookie });
+check(r2.data.reposted === true && r2.data.count === 1, "답글도 리포스트");
+r2 = await call("POST", "/v1/post-views", { body: { ids: [post, rpl.id, rpl.id, "x"] }, ip: "81.0.0.1" });
+await call("POST", "/v1/post-views", { body: { ids: [post] }, ip: "81.0.0.1" });
+await call("POST", "/v1/post-views", { body: { ids: [post] }, ip: "81.0.0.2" });
+fd = await call("GET", `/v1/post/${post}`);
+check(r2.data.counted === 2 && fd.data.post.views === 2 && fd.data.replies[0].views === 1, "조회수: 보인 글마다, 같은 사람·같은 글은 하루 한 번(답글도)");
+fd = await call("GET", "/v1/feed?tab=all");
+check(fd.data.items.find((x) => x.id === post).views === 2, "피드 글에도 조회수");
 fd = await call("GET", `/v1/post/999999`);
 check(fd.status === 404, "없는 글은 404");
 // 리포스트: 리포트·남의 글, 다시 누르면 취소, 내 글 불가, 로그인 필요, 알림·프로필·팔로잉 피드
@@ -329,7 +347,7 @@ check(fd.data.items.find((x) => x.id === talk).reposts === 1 && fd.data.items.fi
 fd = await call("GET", "/v1/feed?tab=following", { ip: "80.0.0.2", cookie: LB.cookie });
 check(fd.data.reposts.some((x) => x.type === "report" && x.slug === "xndu-2026-10" && x.rp.uid === uA) && fd.data.reposts.some((x) => x.id === talk && x.rp.nick), "팔로잉 탭에 팔로우한 사람의 리포스트");
 fd = await call("GET", `/v1/users/${uA}`, { ip: "80.0.0.7" });
-check(fd.data.reposts.length === 2 && fd.data.reposts.some((x) => x.kind === "p" && x.post.id === talk), "프로필에 리포스트 목록");
+check(fd.data.reposts.length === 3 && fd.data.reposts.some((x) => x.kind === "p" && x.post.id === talk), "프로필에 리포스트 목록");
 fd = await call("GET", "/v1/notifications", { ip: "80.0.0.2", cookie: LB.cookie });
 check(fd.data.items.some((x) => x.type === "repost" && x.ref === String(talk)), "글쓴이에게 리포스트 알림");
 r1 = await call("POST", "/v1/repost", { body: { kind: "r", ref: "xndu-2026-10" }, ip: "80.0.0.1", cookie: LA.cookie });

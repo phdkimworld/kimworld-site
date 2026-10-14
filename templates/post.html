@@ -4,23 +4,26 @@
 {% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
 {% block main %}
 <div class="wrap narrow post-page">
-  <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">← 홈 피드</a> <span data-pp-board></span></nav>
+  <nav class="crumbs pp-top" aria-label="위치"><a href="{{ base }}/" data-pp-back>← 뒤로</a> <span data-pp-board></span></nav>
   <section data-post-page{% if thread_ad %} data-ad-first="{{ rhythm.first }}" data-ad-every="{{ rhythm.every }}" data-ad-max="{{ rhythm.max }}"{% endif %}>
     {% if thread_ad %}<template data-thread-ad>{{ thread_ad|safe }}</template>{% endif %}
     <p class="muted" data-pp-msg>글을 불러오는 중입니다…</p>
+    <div class="pp-anc" data-pp-anc></div>
     <div data-pp-post></div>
-    {% if post_ad %}<div class="pp-ad" data-pp-ad>{{ post_ad|safe }}</div>{% endif %}
-    <section class="comments board pp-replies" id="reply" data-pp-replies hidden aria-labelledby="pp-rh">
-      <h2 id="pp-rh">답글 <span class="cm-count" data-pp-count></span></h2>
-      <p class="cm-hint muted" data-pp-need hidden>로그인 없이 익명으로 쓸 수 있습니다. 로그인하면 내 글에 답글이 달릴 때 알림을 받아요. <button type="button" class="cm-link" data-open-account>로그인</button></p>
-      <form class="cm-form" data-pp-form novalidate hidden>
-        <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임">
-        <textarea name="body" maxlength="500" rows="2" placeholder="답글을 남겨 주세요" aria-label="답글 내용"></textarea>
-        <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <div class="cm-form-row"><span class="cm-len muted" data-pp-len>0/500</span><button class="btn btn-primary" type="submit">답글</button></div>
-        <p class="cm-msg" data-pp-fmsg role="status"></p>
+    <section class="pp-replies" id="reply" data-pp-replies hidden aria-labelledby="pp-rh">
+      <form class="pp-form" data-pp-form novalidate hidden>
+        <span class="pp-form-av" data-pp-av aria-hidden="true"></span>
+        <div class="pp-form-main">
+          <textarea name="body" maxlength="500" rows="1" placeholder="답글 남기기" aria-label="답글 내용"></textarea>
+          <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임" hidden>
+          <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <div class="pp-form-row"><span class="cm-len muted" data-pp-len></span><button class="btn btn-primary btn-small" type="submit">게시</button></div>
+          <p class="cm-msg" data-pp-fmsg role="status"></p>
+        </div>
       </form>
-      <ol class="cm-list" data-pp-list></ol>
+      {% if post_ad %}<div class="pp-ad" data-pp-ad>{{ post_ad|safe }}</div>{% endif %}
+      <h2 id="pp-rh" class="pp-rh">답글 <span class="muted" data-pp-count></span></h2>
+      <div class="pp-list" data-pp-list></div>
     </section>
   </section>
   {{ page_bottom|safe }}

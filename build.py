@@ -866,6 +866,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     index = [{
         "u": r["url"], "t": r["title"], "k": r["ticker"], "c": r["company"], "e": r["company_en"],
         "a": r["aliases"], "th": r["theme"], "ts": r["theme_slug"], "s": r["summary"], "d": r["date"].isoformat(),
+        "st": r.get("share_title") or "", "ch": (r.get("chart") or {}).get("src", ""),
     } for r in public]
     (out / "search.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (out / "ad-weights.json").write_text(json.dumps(ad_weights(ads), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

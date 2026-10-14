@@ -140,7 +140,7 @@
         });
         document.querySelectorAll('[data-post-top]').forEach(function (n) {
           if (postSlug(n) !== sl || !x.top) return;
-          n.textContent = ''; if (x.top.id) n.href = postUrl(x.top.id);
+          n.textContent = '';
           n.appendChild(avatar(x.top.nick));
           var t = el('span', 'post-top-txt');
           t.appendChild(el('strong', null, x.top.nick + ' '));
@@ -1173,7 +1173,7 @@
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
     myTopics: myTopics, topicBoards: topicBoards,
-    openCompose: openQuote, quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
+    openCompose: openQuote, loadIndex: loadIndex, quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, seedAv: seedAv, isBlocked: isBlocked, hideBlocked: hideBlocked, richText: richText, nickEl: nickEl, dialog: dialog, btn: btn, apiBase: API, openFollows: openFollows, dev: DEV, flash: function (t) { flash(t); },
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
     setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS, dmUnread: DMN, dmRequests: DMREQ }; }, setDm: function (n, r) { DMN = n; DMREQ = r; paintHeader(); }, setBlocked: function (uid, on) { if (on) BLOCKED[uid] = 1; else delete BLOCKED[uid]; hideBlocked(); }

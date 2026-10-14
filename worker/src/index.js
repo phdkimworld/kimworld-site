@@ -49,8 +49,27 @@ export function needsHold(text) {
 }
 
 const quoteOf = (c) => (c.q_kind ? { kind: c.q_kind, ref: c.q_ref, text: c.q_text } : null);
+// 글 한 줄(원글·답글 공통, 쓰레드처럼 답글도 같은 글): 답글 수(바로 아래)·내 좋아요·리포스트 수·내 리포스트. bind(actor, 내 계정 번호, ...)
+const POST_COLS = `c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.views, c.created, c.did, c.parent_id, c.pinned, c.q_kind, c.q_ref, c.q_text,
+    (SELECT COUNT(*) FROM comments x WHERE x.parent_id = c.id AND x.status = 'ok') AS replies,
+    EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked,
+    (SELECT COUNT(*) FROM reposts rp WHERE rp.kind = 'p' AND rp.ref = CAST(c.id AS TEXT)) AS reposts,
+    EXISTS(SELECT 1 FROM reposts rq WHERE rq.kind = 'p' AND rq.ref = CAST(c.id AS TEXT) AND rq.uid = ?) AS reposted`;
+const pubPost = (c, actor, tops = {}) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, views: c.views || 0, created: c.created,
+  parent: c.parent_id || null, replies: c.replies || 0, liked: !!c.liked, mine: !!c.did && c.did === actor, top: tops[c.id] || null,
+  reposts: c.reposts || 0, reposted: !!c.reposted, quote: quoteOf(c), pinned: !!c.pinned });
+// 글마다 대표 답글 하나(좋아요 많은 순 → 먼저 단 순): 쓰레드처럼 글 아래 한 줄 미리보기
+async function topRepliesOf(db, ids) {
+  const tops = {};
+  if (!ids.length) return tops;
+  const tr = await db.prepare(`SELECT parent_id, id, nick, uid, body, likes FROM (SELECT parent_id, id, nick, uid, body, likes,
+      ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY likes DESC, created ASC) AS rn FROM comments
+      WHERE status = 'ok' AND parent_id IN (${ids.map(() => "?").join(",")})) WHERE rn = 1`).bind(...ids).all();
+  for (const x of tr.results || []) tops[x.parent_id] = { id: x.id, nick: x.nick, uid: x.uid || null, body: x.body.length > 120 ? x.body.slice(0, 120) + "…" : x.body, likes: x.likes };
+  return tops;
+}
 function publicComment(c, actor) {
-  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, created: c.created, parent: c.parent_id || null, uid: c.uid || null, pinned: !!c.pinned, mine: !!actor && !!c.did && c.did === actor, quote: quoteOf(c) };
+  return { id: c.id, nick: c.nick, body: c.body, likes: c.likes, views: c.views || 0, created: c.created, parent: c.parent_id || null, uid: c.uid || null, pinned: !!c.pinned, mine: !!actor && !!c.did && c.did === actor, quote: quoteOf(c) };
 }
 
 async function readJson(req) {
@@ -630,12 +649,12 @@ export default {
         if ((mine?.m || 0) >= LIMITS.perMinute || (mine?.d || 0) >= LIMITS.perDay ||
             (sameIp?.m || 0) >= LIMITS.perMinute * 5 || (sameIp?.d || 0) >= LIMITS.perDay * 5)
           return json(req, { error: "rate", message: "잠시 뒤에 다시 써 주세요." }, 429);
-        // 답글: 한 단계만. 답글에 단 답글은 원래 댓글 아래로 모은다
+        // 답글: 쓰레드처럼 바로 위 글에 단다(답글에 답글도 그 답글 아래로)
         let parent = null, parentUid = null, parentDid = null;
         if (b.parent != null) {
           const pc = await db.prepare("SELECT id, slug, status, parent_id, uid, did FROM comments WHERE id = ?").bind(parseInt(b.parent, 10) || 0).first();
           if (!pc || pc.slug !== slug || pc.status !== "ok") return json(req, { error: "parent", message: "답글을 달 댓글을 찾지 못했습니다." }, 400);
-          parent = pc.parent_id || pc.id; parentUid = pc.uid; parentDid = pc.did;
+          parent = pc.id; parentUid = pc.uid; parentDid = pc.did;
         }
         // 인용: 리포트나 남의 글의 일부(300자까지)를 붙여 새 글로 올린다(답글에는 붙이지 않음)
         let q = null, qTarget = null;
@@ -815,7 +834,7 @@ export default {
           db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(likes), 0) AS likes FROM comments WHERE uid = ? AND status = 'ok'").bind(u.id).first(),
           db.prepare("SELECT COUNT(*) AS n FROM follows WHERE followee = ?").bind(u.id).first(),
           db.prepare("SELECT COUNT(*) AS n FROM follows WHERE follower = ?").bind(u.id).first(),
-          db.prepare("SELECT id, slug, body, likes, created, parent_id, q_kind, q_ref, q_text FROM comments WHERE uid = ? AND status = 'ok' ORDER BY created DESC LIMIT 30").bind(u.id).all(),
+          db.prepare("SELECT id, slug, body, likes, views, created, parent_id, q_kind, q_ref, q_text FROM comments WHERE uid = ? AND status = 'ok' ORDER BY created DESC LIMIT 30").bind(u.id).all(),
           me ? db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(me.id, u.id).first() : null,
           db.prepare(`SELECT r.kind, r.ref, r.created, c.id AS pid, c.slug, c.nick, c.uid AS puid, c.body FROM reposts r
             LEFT JOIN comments c ON r.kind = 'p' AND c.id = CAST(r.ref AS INTEGER) AND c.status = 'ok'
@@ -827,7 +846,7 @@ export default {
           following: !!fol, self: !!me && me.id === u.id,
           followsMe: me ? !!(await db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(u.id, me.id).first()) : false,
           blocked: me ? !!(await db.prepare("SELECT 1 AS y FROM blocks WHERE blocker = ? AND blocked = ?").bind(me.id, u.id).first()) : false,
-          items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, created: c.created, reply: !!c.parent_id, quote: quoteOf(c) })),
+          items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, views: c.views || 0, created: c.created, reply: !!c.parent_id, quote: quoteOf(c) })),
           reposts: (rps.results || []).filter((x) => x.kind === "r" || x.pid).map((x) => x.kind === "r" ? { kind: "r", slug: x.ref, at: x.created }
             : { kind: "p", at: x.created, post: { id: x.pid, slug: x.slug, nick: x.nick, uid: x.puid || null, body: x.body } }),
         }, 200, { "Cache-Control": "no-store" });
@@ -841,7 +860,7 @@ export default {
         if (kind === "r" && SLUG_RE.test(String(ref || "")) && !String(ref).startsWith("b-")) key = String(ref);
         else if (kind === "p") {
           target = await db.prepare("SELECT id, uid, slug, status, parent_id, pinned FROM comments WHERE id = ?").bind(parseInt(ref, 10) || 0).first();
-          if (!target || target.status !== "ok" || target.parent_id || target.pinned || !isBoard(target.slug)) return json(req, { error: "target", message: "리포스트할 수 없는 글입니다." }, 400);
+          if (!target || target.status !== "ok" || target.pinned || !isBoard(target.slug)) return json(req, { error: "target", message: "리포스트할 수 없는 글입니다." }, 400);
           if (target.uid === me.id) return json(req, { error: "own", message: "내 글은 리포스트할 수 없습니다." }, 400);
           key = String(target.id);
         } else return json(req, { error: "target" }, 400);
@@ -941,11 +960,7 @@ export default {
           return json(req, { n: r?.n || 0 }, 200, { "Cache-Control": "no-store" });
         }
         const limit = Math.min(30, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10) || 20));
-        const cols = `c.id, c.slug, c.nick, c.uid, c.body, c.likes, c.created, c.did, c.q_kind, c.q_ref, c.q_text,
-            (SELECT COUNT(*) FROM comments x WHERE x.parent_id = c.id AND x.status = 'ok') AS replies,
-            EXISTS(SELECT 1 FROM comment_likes l WHERE l.cid = c.id AND l.ih = ?) AS liked,
-            (SELECT COUNT(*) FROM reposts rp WHERE rp.kind = 'p' AND rp.ref = CAST(c.id AS TEXT)) AS reposts,
-            EXISTS(SELECT 1 FROM reposts rq WHERE rq.kind = 'p' AND rq.ref = CAST(c.id AS TEXT) AND rq.uid = ?) AS reposted`;
+        const cols = POST_COLS;
         let rows = null, more = false, usedHot = false;
         // ---- 하나의 피드(tab=mix): 추천과 팔로잉을 한 줄로 섞는다 ----
         // 점수 = 반응 × 나와의 관계 × 신선도(팔로우한 사람 +3, 팔로우한 종목·테마 +0.8, 최근 반응한 사람 +0.7, 나를 팔로우한 사람 +0.4). 반응은 로그(인기 글이 끝없이 위에 머물지 않게), 관계는 팔로우한 사람·종목·테마,
@@ -1013,15 +1028,8 @@ export default {
           const all = r.results || []; rows = all.slice(0, limit); more = all.length > limit;
         }
         // 답글이 있는 글은 대표 답글 하나(좋아요 많은 순 → 먼저 단 순)를 미리 보여 준다
-        const withRe = rows.filter((c) => c.replies > 0).map((c) => c.id);
-        const tops = {};
-        if (withRe.length) {
-          const tr = await db.prepare(`SELECT parent_id, id, nick, uid, body, likes FROM (SELECT parent_id, id, nick, uid, body, likes,
-              ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY likes DESC, created ASC) AS rn FROM comments
-              WHERE status = 'ok' AND parent_id IN (${withRe.map(() => "?").join(",")})) WHERE rn = 1`).bind(...withRe).all();
-          for (const x of tr.results || []) tops[x.parent_id] = { id: x.id, nick: x.nick, uid: x.uid || null, body: x.body.length > 120 ? x.body.slice(0, 120) + "…" : x.body, likes: x.likes };
-        }
-        const pub = (c) => ({ id: c.id, slug: c.slug, nick: c.nick, uid: c.uid || null, body: c.body, likes: c.likes, created: c.created, replies: c.replies, liked: !!c.liked, mine: !!c.did && c.did === actor, top: tops[c.id] || null, reposts: c.reposts || 0, reposted: !!c.reposted, quote: quoteOf(c) });
+        const tops = await topRepliesOf(db, rows.filter((c) => c.replies > 0).map((c) => c.id));
+        const pub = (c) => pubPost(c, actor, tops);
         const items = rows.map(pub);
         // 팔로잉 탭 첫 화면: 내가 팔로우한 사람이 리포스트한 리포트·글도 함께(쓰레드의 '○○님이 리포스트함')
         let reposts = [];
@@ -1043,23 +1051,41 @@ export default {
         }
         return json(req, { items, more, hot: usedHot, reposts, pinned }, 200, { "Cache-Control": "no-store" });
       }
-      // 글 하나와 답글(글 상세 화면). 답글 번호로 열면 원글을 보여 준다
+      // 글 하나(원글이든 답글이든) + 위로 이어진 글(쓰레드 맥락) + 바로 아래 답글들. 답글도 원글과 같은 글(좋아요·답글·리포스트·인용·조회수)
       const pm = p.match(/^\/v1\/post\/(\d+)$/);
       if (pm && req.method === "GET") {
-        let c = await db.prepare("SELECT * FROM comments WHERE id = ? AND status = 'ok'").bind(parseInt(pm[1], 10)).first();
-        if (c && c.parent_id) c = await db.prepare("SELECT * FROM comments WHERE id = ? AND status = 'ok'").bind(c.parent_id).first();
-        if (!c) return json(req, { error: "not_found" }, 404, { "Cache-Control": "no-store" });
-        const [rs, lk] = await Promise.all([
-          db.prepare("SELECT * FROM comments WHERE parent_id = ? AND status = 'ok' ORDER BY created ASC LIMIT 200").bind(c.id).all(),
-          db.prepare("SELECT l.cid FROM comment_likes l JOIN comments x ON x.id = l.cid WHERE (x.id = ? OR x.parent_id = ?) AND l.ih = ?").bind(c.id, c.id, actor).all(),
-        ]);
-        const me2 = session ? await userByActor(db, actor) : null;
-        const rpn = await db.prepare("SELECT COUNT(*) AS n, SUM(uid = ?) AS mine FROM reposts WHERE kind = 'p' AND ref = ?").bind(me2 ? me2.id : 0, String(c.id)).first();
+        const me2 = session ? await userByActor(db, actor) : null, mid2 = me2 ? me2.id : 0;
+        const one = (id) => db.prepare(`SELECT ${POST_COLS}, c.status FROM comments c WHERE c.id = ?`).bind(actor, mid2, id).first();
+        const c = await one(parseInt(pm[1], 10));
+        if (!c || c.status !== "ok") return json(req, { error: "not_found" }, 404, { "Cache-Control": "no-store" });
+        const chain = []; // 위 글들(가까운 것부터 찾아 올라가 맨 위부터 보여 준다). 지워진 글은 자리만
+        for (let pid = c.parent_id, i = 0; pid && i < 12; i++) {
+          const a = await one(pid); if (!a) break;
+          chain.unshift(a.status === "ok" ? pubPost(a, actor) : { id: a.id, gone: true, parent: a.parent_id || null });
+          pid = a.parent_id;
+        }
+        const rs = await db.prepare(`SELECT ${POST_COLS} FROM comments c WHERE c.parent_id = ? AND c.status = 'ok' ORDER BY (c.uid IS NOT NULL AND c.uid = ?) DESC, c.likes DESC, c.created ASC LIMIT 200`)
+          .bind(actor, mid2, c.id, c.uid || -1).all();
+        const replies = rs.results || [];
+        const tops = await topRepliesOf(db, replies.filter((x) => x.replies > 0).map((x) => x.id));
         return json(req, {
-          post: { ...publicComment(c, actor), slug: c.slug, reposts: rpn?.n || 0, reposted: !!rpn?.mine },
-          replies: (rs.results || []).map((x) => publicComment(x, actor)),
-          liked: (lk.results || []).map((x) => x.cid),
+          post: pubPost(c, actor), ancestors: chain,
+          replies: replies.map((x) => pubPost(x, actor, tops)),
+          liked: [c, ...replies].filter((x) => x.liked).map((x) => x.id),
         }, 200, { "Cache-Control": "no-store" });
+      }
+      // 글 조회수: 화면에 보인 글 번호 묶음(최대 30개). 같은 사람(그날의 IP 해시)·같은 글은 하루 한 번
+      if (p === "/v1/post-views" && req.method === "POST") {
+        const b = await readJson(req);
+        const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 30);
+        if (!ids.length) return json(req, { ok: true });
+        if (!(await allow(db, `pv|${ih}`, 300, 864e5, now))) return json(req, { ok: true }); // 하루 300번(한 번에 30개)까지만
+        const day = kstDay(now);
+        const res = await db.batch(ids.map((id) => db.prepare("INSERT OR IGNORE INTO post_seen (day, cid, ih) VALUES (?, ?, ?)").bind(day, id, ih)));
+        const fresh = ids.filter((_, i) => res[i]?.meta?.changes);
+        if (fresh.length) await db.prepare(`UPDATE comments SET views = views + 1 WHERE status = 'ok' AND id IN (${fresh.map(() => "?").join(",")})`).bind(...fresh).run();
+        if (Math.random() < 0.02) await db.prepare("DELETE FROM post_seen WHERE day < ?").bind(kstDay(now - 2 * 864e5)).run();
+        return json(req, { ok: true, counted: fresh.length });
       }
       // 팔로우 추천: 최근 30일 받은 좋아요·글이 많은 사람(나와 이미 팔로우한 사람 제외)
       if (p === "/v1/users/suggest" && req.method === "GET") {

@@ -1167,3 +1167,34 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .qt-who { display: flex; align-items: center; gap: 8px; }
 .qt-who .cm-av { width: 30px; height: 30px; }
 .qt-note { margin: 8px 0 0; }
+/* ---------- 쓰레드(글 상세): 위 글 → 이 글 → 답글 쓰기 → 답글들. 답글도 원글과 같은 카드 ---------- */
+.post-page .upost { margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; padding: 14px 0; }
+.post-page .pp-report { padding-top: 6px; }
+.post-page [data-pp-post] > .upost { border-bottom: 1px solid var(--line); }
+.pp-anc .upost-anc { padding-bottom: 4px; }
+.upost-anc::before { content: ""; position: absolute; left: 18px; top: 58px; bottom: -14px; width: 2px; background: var(--line); border-radius: 1px; } /* 위 글과 이어지는 세로줄 */
+.upost-gone { margin: 8px 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; font-size: .88rem; }
+.pa-views { margin-left: auto; font-size: .82rem; }
+.pa-views .ic { width: 17px; height: 17px; }
+.pa-views + .pa-more { margin-left: 0; }
+.pp-replies { margin-top: 10px; }
+.pp-form { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.pp-form[hidden] { display: none; }
+.pp-form-av { flex: none; display: inline-flex; }
+.pp-form-av .cm-av { width: 34px; height: 34px; }
+.pp-form-main { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.pp-form textarea { width: 100%; box-sizing: border-box; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 1rem; padding: 7px 0; resize: none; min-height: 36px; outline: none; }
+.pp-form input[name=nick] { max-width: 240px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: .88rem; }
+.pp-form input[name=nick][hidden] { display: none; }
+.pp-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.pp-form-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.pp-rh { margin: 18px 0 2px; font-size: 1rem; }
+.pp-list > .upost { border-bottom: 1px solid var(--line); }
+.pp-list > .upost:last-child { border-bottom: 0; }
+.pp-report .post-body { display: block; margin-top: 10px; color: var(--text); text-decoration: none; }
+.pp-report-title { font-size: 1.3rem; line-height: 1.35; margin: 0 0 8px; }
+.pp-report-go { display: inline-block; margin-top: 10px; font-weight: 800; color: var(--accent); font-size: .92rem; }
+/* 쓰레드 화면: 위 글·답글은 본문을 사진 오른쪽 줄에 맞춘다(세로줄이 글자와 겹치지 않게) */
+.post-page .upost:not(.upost-detail) .upost-body { margin-left: 48px; }
+.post-page .upost:not(.upost-detail) .quote-box { margin-left: 48px; }
+.post-page .upost:not(.upost-detail) .post-actions { margin-left: 40px; }

@@ -11,8 +11,30 @@
     comment: 'M20.5 11.6c0 4.2-3.8 7.4-8.5 7.4-1.2 0-2.4-.2-3.4-.6L4 20l1.2-3.6C4 15.1 3.5 13.4 3.5 11.6 3.5 7.4 7.3 4.2 12 4.2s8.5 3.2 8.5 7.4z',
     share: 'M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.2c0 .9.7 1.6 1.6 1.6h10.8c.9 0 1.6-.7 1.6-1.6v-6.2',
     more: 'M5 12h.01M12 12h.01M19 12h.01',
-    repost: 'm17 2.5 3 3-3 3M3.5 11V9.5a4 4 0 0 1 4-4H20M7 21.5l-3-3 3-3M20.5 13v1.5a4 4 0 0 1-4 4H4'
+    repost: 'm17 2.5 3 3-3 3M3.5 11V9.5a4 4 0 0 1 4-4H20M7 21.5l-3-3 3-3M20.5 13v1.5a4 4 0 0 1-4 4H4',
+    eye: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12zM12 14.8a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6z'
   };
+  // ---------- 조회수: 글 카드가 화면에 절반 이상 0.6초 보이면 한 번(같은 화면에서는 한 번만). 모아서 보낸다 ----------
+  var vSeen = {}, vQueue = [], vTimer = 0, vObs = null;
+  function vFlush() {
+    clearTimeout(vTimer); vTimer = 0; if (!vQueue.length) return;
+    var ids = vQueue.splice(0, 30);
+    api('/v1/post-views', { method: 'POST', body: { ids: ids }, keepalive: true }).catch(function () {});
+    if (vQueue.length) vTimer = setTimeout(vFlush, 1500);
+  }
+  if (window.IntersectionObserver) vObs = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var n = e.target, id = n.getAttribute('data-pid');
+      if (!id || vSeen[id]) return;
+      if (e.isIntersecting) n._vt = setTimeout(function () {
+        if (vSeen[id]) return; vSeen[id] = 1; vObs.unobserve(n); vQueue.push(id);
+        if (!vTimer) vTimer = setTimeout(vFlush, 4000);
+      }, 600);
+      else clearTimeout(n._vt);
+    });
+  }, { threshold: 0.5 });
+  addEventListener('pagehide', vFlush);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) vFlush(); });
   function icon(name) {
     var ns = 'http://www.w3.org/2000/svg', s = document.createElementNS(ns, 'svg');
     s.setAttribute('class', 'ic'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '20'); s.setAttribute('height', '20'); s.setAttribute('aria-hidden', 'true');
@@ -41,7 +63,9 @@
   // ---------- 글 카드(피드·글 상세 공통) ----------
   function postCard(c, opt) {
     opt = opt || {};
-    var art = el('article', 'card post upost' + (opt.detail ? ' upost-detail' : '')); art.setAttribute('data-pid', c.id); art.setAttribute('data-board', c.slug || '');
+    var art = el('article', 'card post upost' + (opt.detail ? ' upost-detail' : '') + (opt.anc ? ' upost-anc' : '') + (opt.reply ? ' upost-re' : ''));
+    art.setAttribute('data-pid', c.id); art.setAttribute('data-board', c.slug || '');
+    if (vObs && c.id) vObs.observe(art);
     if (c.rp) { // 팔로우한 사람이 리포스트한 글
       var rpl = el('a', 'rp-line'); rpl.href = C.profileUrl(c.rp.uid); rpl.textContent = '↻ ' + c.rp.nick + '님이 리포스트함'; art.appendChild(rpl);
     }
@@ -67,7 +91,8 @@
     art.appendChild(head);
     var body = C.richText(el('p', 'upost-body'), c.body);
     art.appendChild(body);
-    if (c.quote) { var qb = C.quoteBox(c.quote); qb.classList.add('upost-quote'); art.appendChild(qb); }
+    // 리포트 쓰레드 안에서는 그 리포트를 문장 없이 공유한 상자는 감춘다(이미 맨 위가 그 리포트)
+    if (c.quote && !(opt.inReport && c.quote.kind === 'r' && c.quote.ref === opt.inReport && !c.quote.text)) { var qb = C.quoteBox(c.quote); qb.classList.add('upost-quote'); art.appendChild(qb); }
     // 두 번 톡톡 누르면 좋아요(쓰레드·인스타그램처럼), 한 번 누르면 글 상세로(링크·이름을 누른 경우는 제외)
     function dblLike() {
       var burst = el('span', 'heart-burst'); burst.setAttribute('aria-hidden', 'true'); burst.appendChild(icon('heart'));
@@ -110,6 +135,8 @@
     var sh = el('button', 'pa pa-share'); sh.type = 'button'; sh.setAttribute('aria-label', '공유'); sh.appendChild(icon('share'));
     sh.addEventListener('click', function () { share(C.postUrl(c.id), c.nick + '님의 글 · 김박사 월드'); });
     act.appendChild(sh);
+    // 조회수(원글·답글 모두, 리포트 카드와 같은 눈 모양)
+    if (c.views) { var vw = el('span', 'pa pa-static pa-views'); vw.setAttribute('aria-label', '조회 ' + c.views); vw.appendChild(icon('eye')); vw.appendChild(el('span', null, num(c.views))); act.appendChild(vw); }
     var mo = el('button', 'pa pa-more'); mo.type = 'button'; mo.setAttribute('aria-label', '더 보기'); mo.appendChild(icon('more'));
     mo.addEventListener('click', function () {
       var old = art.querySelector('.post-menu'); if (old) { old.remove(); return; }
@@ -511,87 +538,131 @@
     if (cHere || !about) cGo(); else setTimeout(cGo, 300); // 리포트는 본문을 먼저 그린 뒤
   }
 
-  // ---------- 글 상세(/p/?id=번호) ----------
+  // ---------- 글 상세(/p/?id=번호) · 리포트 쓰레드(/p/?r=리포트) ----------
+  // 쓰레드처럼: 위로 이어진 글(맥락) → 이 글 → 답글 쓰기 → 바로 아래 답글들(답글도 원글과 같은 카드: 좋아요·답글·리포스트·공유·조회수).
+  // 리포트 쓰레드: 맨 위가 리포트 카드(본문을 누르면 리포트 화면), 답글 = 그 리포트를 공유·인용한 커뮤니티 글. 답글을 쓰면 리포트를 붙인 커뮤니티 글이 된다.
   var pp = document.querySelector('[data-post-page]');
   if (pp) {
     var id = (/[?&]id=(\d+)/.exec(location.search) || [])[1];
-    var msg = pp.querySelector('[data-pp-msg]'), holder = pp.querySelector('[data-pp-post]');
+    var rslug = (/[?&]r=([a-z0-9-]+)/.exec(location.search) || [])[1];
+    var msg = pp.querySelector('[data-pp-msg]'), holder = pp.querySelector('[data-pp-post]'), ancEl = pp.querySelector('[data-pp-anc]');
     var rbox = pp.querySelector('[data-pp-replies]'), rlist = pp.querySelector('[data-pp-list]'), rform = pp.querySelector('[data-pp-form]');
     var rta = rform.querySelector('textarea'), rlen = pp.querySelector('[data-pp-len]'), rmsg = pp.querySelector('[data-pp-fmsg]');
-    var post = null, rstart = 0, adTpl = pp.querySelector('template[data-thread-ad]');
-    function replyItem(c, liked) {
-      var li = el('li', 'cm-item'); li.appendChild(C.avatar(c.nick, c.uid)); if (c.uid) { li.setAttribute('data-by-uid', c.uid); if (C.isBlocked(c.uid)) li.hidden = true; }
-      var main = el('div', 'cm-main'), head = el('div', 'cm-head');
-      head.appendChild(C.nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
-      main.appendChild(head); main.appendChild(C.richText(el('p', 'cm-body'), c.body));
-      var act = el('div', 'cm-act');
-      var like = el('button', 'cm-like'); like.type = 'button';
-      C.setHeart(like, c.likes, liked); like.disabled = !!c.mine;
-      like.addEventListener('click', function () {
-        like.disabled = true;
-        api('/v1/comments/' + c.id + '/like', { method: 'POST' }).then(function (d) {
-          like.disabled = false; if (d._status !== 200) { if (d.message) toast(d.message); return; }
-          C.setHeart(like, d.likes, d.liked);
-        }).catch(function () { like.disabled = false; });
-      });
-      act.appendChild(like);
-      var x = el('button', 'cm-link', c.mine ? '삭제' : '신고'); x.type = 'button';
-      x.addEventListener('click', function () {
-        if (c.mine) { if (confirm('이 답글을 삭제할까요?')) api('/v1/comments/' + c.id + '/delete', { method: 'POST' }).then(loadPost); return; }
-        if (!confirm('이 답글을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
-        api('/v1/comments/' + c.id + '/report', { method: 'POST' }).then(function () { x.textContent = '신고됨'; x.disabled = true; });
-      });
-      act.appendChild(x); main.appendChild(act); li.appendChild(main);
-      return li;
-    }
+    var post = null, rep = null, rstart = 0, adTpl = pp.querySelector('template[data-thread-ad]');
+    var back = document.querySelector('[data-pp-back]');
+    if (back) back.addEventListener('click', function (e) { // 피드에서 왔으면 피드의 그 자리로 돌아간다
+      if (document.referrer && document.referrer.indexOf(location.origin) === 0 && history.length > 1) { e.preventDefault(); history.back(); }
+    });
     function placeAds() { // 답글 사이 광고(커뮤니티 목록과 같은 리듬)
       if (!adTpl) return;
       var first = +pp.getAttribute('data-ad-first') || 4, every = +pp.getAttribute('data-ad-every') || 6, max = +pp.getAttribute('data-ad-max') || 0;
       var items = Array.prototype.slice.call(rlist.children);
       for (var i = first, k = 0; i < items.length && k < max; i += every, k++) {
-        var li = el('li', 'cm-ad'); li.appendChild(document.importNode(adTpl.content, true)); items[i - 1].after(li);
-        if (window.kwAdNew) window.kwAdNew(li.querySelector('.ad-coupang-products'));
-        if (li.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
+        var w = el('div', 'cmty-ad'); w.appendChild(document.importNode(adTpl.content, true)); items[i - 1].after(w);
+        if (window.kwAdNew) window.kwAdNew(w.querySelector('.ad-coupang-products'));
+        if (w.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
       }
+    }
+    function showReplies(list, count, opt) {
+      rbox.hidden = false;
+      pp.querySelector('[data-pp-count]').textContent = count ? num(count) : '';
+      var s = C.state();
+      rform.hidden = false;
+      var avb = pp.querySelector('[data-pp-av]'); avb.textContent = ''; avb.appendChild(s.me ? C.avatar(s.me.nick, s.me.id) : C.avatar('익'));
+      var rn = rform.querySelector('[name=nick]'); if (rn) rn.hidden = !!s.me;
+      rlist.textContent = '';
+      list.forEach(function (c) { rlist.appendChild(postCard(c, { reply: opt.reply, inReport: opt.inReport, noGroup: !!opt.inReport || c.slug === opt.sameBoard })); });
+      if (!list.length) rlist.appendChild(el('p', 'cm-empty muted', opt && opt.inReport ? '아직 이 리포트 이야기가 없어요. 첫 글을 남겨 보세요.' : '첫 답글을 남겨 보세요.'));
+      else placeAds();
+      if (location.hash === '#reply') { rbox.scrollIntoView(); rta.focus({ preventScroll: true }); }
     }
     function loadPost() {
       return Promise.all([C.meReady, api('/v1/post/' + id)]).then(function (res) {
         var d = res[1];
         if (d._status !== 200) { msg.textContent = '찾을 수 없는 글입니다(삭제됐거나 가려진 글).'; return; }
         msg.hidden = true; post = d.post;
-        var likedSet = {}; (d.liked || []).forEach(function (x) { likedSet[x] = 1; });
+        ancEl.textContent = '';
+        (d.ancestors || []).forEach(function (a) {
+          if (a.gone) { ancEl.appendChild(el('p', 'upost-gone muted', '삭제되었거나 가려진 글입니다.')); return; }
+          ancEl.appendChild(postCard(a, { anc: true, noGroup: a.slug === post.slug }));
+        });
         holder.textContent = '';
-        holder.appendChild(postCard({ id: post.id, slug: post.slug, nick: post.nick, uid: post.uid, body: post.body, likes: post.likes, created: post.created, replies: d.replies.length, liked: !!likedSet[post.id], mine: post.mine, quote: post.quote, reposts: post.reposts, reposted: post.reposted },
-          { detail: true, onDelete: function () { location.href = base + '/'; } }));
-        var tk = boardOf(post.slug), bl = pp.ownerDocument.querySelector('[data-pp-board]');
-        if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 커뮤니티 전체 글'); a.href = base + '/t/' + tk.toLowerCase() + '/#community'; bl.appendChild(a); } }
+        holder.appendChild(postCard(post, { detail: true, onDelete: function () { location.href = post.parent ? C.postUrl(post.parent) : base + '/'; } }));
+        var tk = boardOf(post.slug), bl = document.querySelector('[data-pp-board]');
+        if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 커뮤니티'); a.href = base + '/t/' + tk.toLowerCase() + '/#community'; bl.appendChild(a); } }
         document.title = post.nick + ': ' + post.body.slice(0, 30) + ' | ' + document.title.split('|').pop().trim();
-        rbox.hidden = false;
-        pp.querySelector('[data-pp-count]').textContent = d.replies.length ? num(d.replies.length) : '';
-        var s = C.state(), can = true;
-        rform.hidden = false; pp.querySelector('[data-pp-need]').hidden = !!s.me || !s.providers.length;
-        var rn = rform.querySelector('[name=nick]'); if (rn) rn.hidden = !!s.me;
-        rlist.textContent = '';
-        d.replies.forEach(function (c) { rlist.appendChild(replyItem(c, likedSet[c.id])); });
-        if (!d.replies.length) rlist.appendChild(el('li', 'cm-empty muted', '첫 답글을 남겨 보세요.'));
-        else placeAds();
-        if (location.hash === '#reply') { rbox.scrollIntoView(); if (can) rta.focus({ preventScroll: true }); }
+        rta.placeholder = post.nick + '님에게 답글 남기기';
+        showReplies(d.replies, post.replies, { reply: true, sameBoard: post.slug });
+        if (ancEl.lastElementChild && !location.hash) holder.scrollIntoView({ block: 'start' }); // 답글을 열면 그 글이 화면 위에, 위 글은 스크롤해서
       }).catch(function () { msg.textContent = '글을 불러오지 못했습니다.'; });
     }
-    rta.addEventListener('input', function () { if (!rstart) rstart = Date.now(); rlen.textContent = rta.value.length + '/500'; });
+    // 리포트 카드(쓰레드 맨 위): 본문을 누르면 리포트 화면, 아래 반응 줄은 피드 리포트 카드와 같다
+    function reportCard(r, st) {
+      var art = el('article', 'card post upost upost-detail pp-report'); art.setAttribute('data-slug', rep);
+      var head = el('header', 'post-head');
+      var av = el('img', 'post-av'); av.src = base + '/static/icon.svg'; av.alt = ''; av.width = 38; av.height = 38; head.appendChild(av);
+      var who = el('div', 'post-who'); who.appendChild(el('span', 'post-name', '김박사 월드'));
+      who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
+      var g = el('a', 'post-group', r.c || r.k); g.href = base + '/t/' + String(r.k).toLowerCase() + '/'; who.appendChild(g);
+      who.appendChild(el('span', 'post-time muted', '· ' + String(r.d || '').replace(/-/g, '.')));
+      head.appendChild(who); art.appendChild(head);
+      var a = el('a', 'post-body card-link'); a.href = C.reportUrl(rep);
+      a.appendChild(el('h1', 'card-title pp-report-title', r.st || r.t));
+      a.appendChild(el('p', 'card-summary', r.s || ''));
+      if (r.ch) { var m = el('span', 'post-media'), im = el('img'); im.src = r.ch; im.alt = (r.c || '') + ' 대표 가격 흐름'; im.loading = 'lazy'; m.appendChild(im); a.appendChild(m); }
+      a.appendChild(el('span', 'pp-report-go', '리포트 전체 읽기 →'));
+      art.appendChild(a);
+      var act = el('footer', 'post-actions');
+      var lk = el('button', 'pa pa-like'); lk.type = 'button'; lk.setAttribute('data-post-like', ''); lk.setAttribute('aria-label', '좋아요');
+      lk.setAttribute('aria-pressed', st.liked ? 'true' : 'false'); lk.appendChild(icon('heart')); var ln = el('span', null, st.likes ? num(st.likes) : ''); ln.setAttribute('data-n', ''); lk.appendChild(ln);
+      act.appendChild(lk);
+      var rp = el('a', 'pa'); rp.href = '#reply'; rp.setAttribute('aria-label', '답글'); rp.appendChild(icon('comment')); rp.appendChild(el('span', null, st.comments ? num(st.comments) : '')); act.appendChild(rp);
+      var rb = el('button', 'pa pa-repost'); rb.type = 'button'; rb.setAttribute('aria-label', '리포스트·인용');
+      rb.setAttribute('data-repost', ''); rb.setAttribute('data-kind', 'r'); rb.setAttribute('data-ref', rep); rb.setAttribute('data-quote-src', r.s || '');
+      rb.setAttribute('aria-pressed', st.reposted ? 'true' : 'false'); rb.appendChild(icon('repost')); var rn = el('span', null, st.reposts ? num(st.reposts) : ''); rn.setAttribute('data-n', ''); rb.appendChild(rn); act.appendChild(rb);
+      var sh = el('button', 'pa pa-share'); sh.type = 'button'; sh.setAttribute('aria-label', '공유'); sh.appendChild(icon('share'));
+      sh.addEventListener('click', function () { share(C.reportUrl(rep).replace(location.origin, ''), r.st || r.t); }); act.appendChild(sh);
+      if (st.views) { var vw = el('span', 'pa pa-static pa-views'); vw.appendChild(icon('eye')); vw.appendChild(el('span', null, num(st.views))); act.appendChild(vw); }
+      art.appendChild(act);
+      return art;
+    }
+    function loadReport() {
+      return Promise.all([C.meReady, C.loadIndex(), api('/v1/stats?slugs=' + rep), api('/v1/feed?about=' + rep + '&limit=30')]).then(function (res) {
+        var r = res[1].bySlug[rep];
+        if (!r) { msg.textContent = '찾을 수 없는 리포트입니다.'; return; }
+        msg.hidden = true;
+        var st = ((res[2] || {}).stats || {})[rep] || {}, d = res[3] || {};
+        holder.textContent = ''; holder.appendChild(reportCard(r, st));
+        var bl = document.querySelector('[data-pp-board]');
+        if (bl) { bl.textContent = ''; var a = el('a', null, '· ' + r.k + ' 커뮤니티'); a.href = base + '/t/' + String(r.k).toLowerCase() + '/#community'; bl.appendChild(a); }
+        document.title = (r.st || r.t) + ' · 이야기 | ' + document.title.split('|').pop().trim();
+        post = { report: r };
+        rta.placeholder = '이 리포트에 대한 생각을 남겨 보세요';
+        showReplies(d.items || [], (d.items || []).length, { inReport: rep });
+      }).catch(function () { msg.textContent = '불러오지 못했습니다.'; });
+    }
+    rta.addEventListener('input', function () {
+      if (!rstart) rstart = Date.now(); var n = rta.value.length; rlen.textContent = n > 400 ? String(500 - n) : '';
+      rta.style.height = 'auto'; rta.style.height = Math.min(rta.scrollHeight, 220) + 'px';
+    });
     rform.addEventListener('submit', function (e) {
       e.preventDefault(); if (!post) return;
       if (needNick()) return;
       var sb = rform.querySelector('[type=submit]'); sb.disabled = true; rmsg.textContent = '';
-      api('/v1/comments', { method: 'POST', body: { slug: post.slug, body: rta.value, parent: post.id, nick: rform.nick && !rform.nick.hidden ? rform.nick.value : '', website: rform.website.value, t: rstart ? Date.now() - rstart : 0 } }).then(function (d) {
+      var body = { body: rta.value, nick: rform.nick && !rform.nick.hidden ? rform.nick.value : '', website: rform.website.value, t: rstart ? Date.now() - rstart : 0 };
+      if (post.report) { body.slug = 'b-' + String(post.report.k).toLowerCase(); body.quote = { kind: 'r', ref: rep, text: '' }; } // 리포트에 다는 답글 = 리포트를 붙인 커뮤니티 글
+      else { body.slug = post.slug; body.parent = post.id; }
+      api('/v1/comments', { method: 'POST', body: body }).then(function (d) {
         sb.disabled = false;
         if (d.error === 'account') { C.openAccount(); return; }
         if (!d.ok) { rmsg.textContent = d.message || '등록하지 못했습니다.'; return; }
-        rta.value = ''; rstart = 0; rlen.textContent = '0/500';
+        rta.value = ''; rstart = 0; rlen.textContent = ''; rta.style.height = '';
         if (d.status === 'held') { rmsg.textContent = d.message; return; }
-        loadPost();
+        if (window.kwEv) kwEv(post.report ? 'quote_submit' : 'post_submit');
+        (post.report ? loadReport() : loadPost());
       }).catch(function () { sb.disabled = false; rmsg.textContent = '등록하지 못했습니다.'; });
     });
-    if (!id) msg.textContent = '글 주소가 올바르지 않습니다.'; else loadPost();
+    if (rslug) { rep = rslug; window.kwCmtyDone = function () { loadReport(); }; loadReport(); }
+    else if (!id) msg.textContent = '글 주소가 올바르지 않습니다.'; else loadPost();
   }
 })();
