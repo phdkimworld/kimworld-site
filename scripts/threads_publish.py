@@ -167,6 +167,16 @@ def main(argv):
         print("::error::THREADS_ACCESS_TOKEN / THREADS_USER_ID 비밀값이 없어 게시하지 못함")
         return 1
 
+    # 게시는 토큰 주인 계정으로 한다. 비밀값 THREADS_USER_ID가 그 계정과 다르면 경고만 남긴다(값은 출력하지 않음)
+    try:
+        me = call("GET", "me", {"fields": "id", "access_token": token})["id"]
+    except (RuntimeError, KeyError) as e:
+        print(f"::error::Threads 토큰으로 계정을 확인하지 못함: {e}")
+        return 1
+    if me != uid:
+        print("::warning::THREADS_USER_ID 비밀값이 토큰의 Threads 계정 ID와 다름 → 토큰 계정 ID로 게시한다(비밀값을 고쳐 두면 이 경고가 사라짐)")
+    uid = me
+
     failed = 0
     for p, post in sorted(due, key=lambda x: x[1]["_at"]):
         try:
