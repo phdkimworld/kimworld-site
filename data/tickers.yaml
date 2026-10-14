@@ -318,3 +318,9 @@ MRVL:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["마벨", "마블 테크놀로지", "Marvell", "Marvell Technology"]
+XTIA:
+  name: "XTI 에어로스페이스"
+  name_en: "XTI Aerospace, Inc."
+  exchange: "NASDAQ"
+  theme: "우주항공·방산"
+  aliases: ["XTI", "엑스티아이 에어로스페이스", "인픽슨", "Inpixon", "XTI Aerospace", "드론 너즈", "Drone Nerds"]
