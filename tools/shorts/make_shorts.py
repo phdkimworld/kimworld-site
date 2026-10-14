@@ -45,38 +45,46 @@ def wrap(draw, text, f, maxw):
     return lines
 
 
+# 화면 배치(2026-10-14 운영자 지시 "정보로 꽉 차 보기 어렵다, 위아래 여백을 충분히"): 요소는 다섯 개만 둔다.
+#   위 0~240 여백 → 종목 태그 → 질문 두 줄 → 슬라이드 → 자막 한 줄 → 안내 한 줄(+면책) → 아래 ~470 여백
+#   아래쪽은 쇼츠·릴스 화면에서 제목·버튼이 덮는 자리라 비워 둔다. 자막은 한 줄(약 18자)을 목표로 짧게 쓴다
+TOP, SLIDE_Y, CAP_Y = 250, 560, 1225
+
+
 def frame(spec, fr, base, out):
     im = Image.new('RGB', (W, H), NAVY)
     d = ImageDraw.Draw(im)
     for y in range(H):  # 위아래로 아주 약한 그라데이션
         k = y / H
         d.line([(0, y), (W, y)], fill=(int(14 - 6 * k), int(26 - 9 * k), int(43 - 14 * k)))
-    tag = f"김박사 월드 · {spec['name']} {spec['ticker']}"
-    ft = font(FBD, 40)
-    d.text(((W - d.textlength(tag, font=ft)) / 2, 120), tag, font=ft, fill=GOLD)
-    y = 200
-    for i, line in enumerate(spec['hook'][:3]):
-        f = fit(d, line, FB, 88, 1000)
+    tag = f"{spec['name']} {spec['ticker']}"
+    ft = font(FBD, 34)
+    d.text(((W - d.textlength(tag, font=ft)) / 2, TOP), tag, font=ft, fill=GOLD)
+    y = TOP + 62
+    for i, line in enumerate(spec['hook'][:2]):
+        f = fit(d, line, FB, 64, 940)
         d.text(((W - d.textlength(line, font=f)) / 2, y), line, font=f, fill=WHITE if i == 0 else GOLD)
-        y += int(f.size * 1.22)
-    sl = Image.open(os.path.join(base, fr['img'])).convert('RGB').resize((W, 608), Image.LANCZOS)
-    top = 600
-    im.paste(sl, (0, top))
-    d.rectangle([0, top - 4, W, top - 1], fill=GOLD)
-    d.rectangle([0, top + 608, W, top + 611], fill=GOLD)
-    fc = font(FB, 62)
-    lines = wrap(d, fr.get('cap', ''), fc, 960)[:3]
-    y = 1290
+        y += int(f.size * 1.3)
+    sl = Image.open(os.path.join(base, fr['img'])).convert('RGB').resize((1000, 563), Image.LANCZOS)
+    mask = Image.new('L', sl.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, sl.size[0], sl.size[1]], radius=24, fill=255)
+    im.paste(sl, (40, SLIDE_Y), mask)
+    cap = fr.get('cap', '')
+    fc = fit(d, cap, FB, 58, 960)
+    lines = [cap] if fc.size >= 46 else wrap(d, cap, font(FB, 50), 960)[:2]
+    if len(lines) > 1:
+        fc = font(FB, 50)
+    y = CAP_Y
     for line in lines:
         d.text(((W - d.textlength(line, font=fc)) / 2, y), line, font=fc, fill=WHITE)
-        y += 84
-    cta = spec.get('cta', '풀영상·무료 리포트 링크는 고정 댓글')
-    fca = fit(d, cta, FB, 52, 920)
-    d.rounded_rectangle([60, 1600, W - 60, 1730], radius=28, fill=GOLD)
-    d.text(((W - d.textlength(cta, font=fca)) / 2, 1665 - fca.size * 0.62), cta, font=fca, fill=NAVY)
-    fd = font(FBD, 28)
-    note = '과거 공시·보도를 정리한 교육용 분석 · 매수·매도 권유 아님'
-    d.text(((W - d.textlength(note, font=fd)) / 2, 1790), note, font=fd, fill=SUB)
+        y += int(fc.size * 1.3)
+    cta = spec.get('cta', '풀영상·무료 리포트는 drkimworld.com')
+    fca = fit(d, cta, FBD, 38, 900)
+    y = max(y + 30, CAP_Y + 110)
+    d.text(((W - d.textlength(cta, font=fca)) / 2, y), cta, font=fca, fill=GOLD)
+    fd = font(FBD, 24)
+    note = '교육용 분석 · 매수·매도 권유 아님'
+    d.text(((W - d.textlength(note, font=fd)) / 2, y + 58), note, font=fd, fill=SUB)
     im.save(out)
 
 
