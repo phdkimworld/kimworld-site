@@ -63,6 +63,11 @@ placements:
   rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
   feed_inline: [adfit_feed, coupang_products]   # 홈 피드 사이: 첫 자리는 애드핏 300x250, 나머지는 쿠팡(애드핏 단위는 한 페이지 한 번)(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
   page_bottom: coupang_banner           # 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
+  explore: [adfit_list, coupang_products]   # 검색·탐색: 첫 탭(인기 종목)의 '요즘 많이 찾는 종목' 아래, 전체 종목 목록 위(한 개)
+  explore_inline: coupang_products      # 검색·탐색의 다른 탭 목록 6번째 줄 뒤 + 검색 결과 3번째 뒤(화면에서 끼워 넣는 자리)
+  profile_inline: coupang_products      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
+  dm_list: [adfit_list, coupang_products]   # 쪽지함 대화 목록 아래(대화 화면에는 없음)
+  post_detail: [adfit_list, coupang_products]   # 글 상세: 원글과 답글 사이(한 개)
   thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).

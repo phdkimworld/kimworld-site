@@ -1142,6 +1142,12 @@
         if (c.quote) a.appendChild(el('span', 'rc-quote', '❝ ' + c.quote.text));
         li.appendChild(a); ul.appendChild(li);
       });
+      // 글이 5개 이상이면 4번째 글 뒤에 광고 하나(쿠팡 상자)
+      var pT = document.querySelector('template[data-profile-ad]');
+      if (pT && d.items.length >= 5 && ul.children[3]) {
+        var pli = el('li', 'rc-item rc-ad'); pli.appendChild(document.importNode(pT.content, true)); ul.children[3].after(pli);
+        if (window.kwAdNew) kwAdNew(pli.querySelector('.ad-coupang-products'));
+      }
     }).catch(function () { pmsg.textContent = '프로필을 불러오지 못했습니다.'; });
     });
   }

@@ -367,8 +367,8 @@ class Ads:
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
                     log.err(f"ads.yaml placements.{k} 값 '{one}' 을 알 수 없습니다")
-                if k == "thread_inline" and one not in ("coupang_products", "adsense_in_article", "none", None):
-                    log.err("ads.yaml placements.thread_inline 은 coupang_products·adsense_in_article·none 만 가능(화면에서 끼워 넣는 자리)")
+                if k in ("thread_inline", "explore_inline", "profile_inline") and one not in ("coupang_products", "adsense_in_article", "none", None):
+                    log.err(f"ads.yaml placements.{k} 은 coupang_products·adsense_in_article·none 만 가능(화면에서 끼워 넣는 자리)")
 
     def bad_hosts(self, s: str) -> list[str]:
         hosts = {h.lower() for h in re.findall(r"(?:https?:)?//([A-Za-z0-9.-]+)", s)}
@@ -792,13 +792,17 @@ def build(drafts=False, strict=False, out: Path = DIST):
     home_rail = ads.render("rail", home_ctx)
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
           feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, page_bottom=ads.render("page_bottom", home_ctx), is_home=True)
-    write("search/index.html", "search.html", rs=public, ticker_list=ticker_list)
+    ex_ctx = {"theme": "*"}
+    write("search/index.html", "search.html", rs=public, ticker_list=ticker_list, explore_ad=ads.render("explore", ex_ctx),
+          explore_inline=ads.render("explore_inline", {"theme": "*"}), page_bottom=ads.render("page_bottom", {}))
     if site.get("api_url"):
-        write("u/index.html", "user.html")
-        write("dm/index.html", "dm.html")  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
+        write("u/index.html", "user.html", profile_ad=ads.render("profile_inline", {"theme": "*"}), page_bottom=ads.render("page_bottom", {}))
+        write("dm/index.html", "dm.html", dm_ad=ads.render("dm_list", {"theme": "*"}))  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
         write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
-        write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"])
+        pd_ctx = {"theme": "*"}
+        write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"],
+              post_ad=ads.render("post_detail", pd_ctx), page_bottom=ads.render("page_bottom", {}))
     write("404.html", "404.html")
 
     # ---- 고정 페이지
@@ -825,7 +829,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         html_body = wrap_tables(md_renderer().convert(body), "table-text")
         pages.append({"slug": p.stem, "title": meta.get("title", p.stem)})
         write(f"{p.stem}/index.html", "page.html", p={"title": meta.get("title"), "description": meta.get("description", ""),
-              "updated": to_date(meta.get("updated")), "html": html_body})
+              "updated": to_date(meta.get("updated")), "html": html_body}, page_bottom=ads.render("page_bottom", {}))
 
     # ---- 검색 색인, 피드, 사이트맵, 기타
     index = [{

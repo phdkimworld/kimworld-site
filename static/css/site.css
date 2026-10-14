@@ -1148,3 +1148,12 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .ex-txt > * { display: block; max-width: 100%; }
 .ex-txt strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
 .ex-list .ex-txt { flex: 1 1 0; width: 0; overflow: hidden; }
+
+/* 새 광고 자리: 검색·탐색, 프로필, 쪽지함, 글 상세 — 목록과 같은 가는 줄 사이에 */
+.explore .ad, .ex-ad .ad { margin: 14px 0; }
+.ex-list .ex-ad { list-style: none; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.rc-list .rc-ad { padding: 0; border: 0; background: none; }
+.dm-ad { margin: 8px 0 4px; }
+.dm-ad .ad { margin: 0; }
+.pp-ad { margin: 12px 0; }
+.search-page .cards > .ad { margin: 4px 0; }

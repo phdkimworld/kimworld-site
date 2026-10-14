@@ -26,6 +26,7 @@
           <h2 class="ex-h">요즘 많이 찾는 종목 <span class="muted ex-sub">최근 7일 조회·검색</span></h2>
           <ul class="chip-list ex-rank" data-trending-list></ul>
         </div>
+        {{ explore_ad|safe }}
         <h2 class="ex-h">전체 종목 <span class="muted ex-sub">{{ ticker_list|length }}개 · 최근 리포트 순</span></h2>
         <ul class="ex-list">
           {% for t in ticker_list|sort(attribute='last', reverse=true) %}
@@ -78,5 +79,7 @@
       {% endif %}
     </div>
   </section>
+  {% if explore_inline %}<template data-ex-ad>{{ explore_inline|safe }}</template>{% endif %}
+  {{ page_bottom|safe }}
 </div>
 {% endblock %}

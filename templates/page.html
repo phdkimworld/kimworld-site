@@ -5,5 +5,6 @@
 <div class="wrap narrow">
   <header class="page-head"><h1>{{ p.title }}</h1>{% if p.updated %}<p class="muted">최종 수정 {{ p.updated|kdate }}</p>{% endif %}</header>
   <div class="prose">{{ p.html|safe }}</div>
+  {{ page_bottom|safe }}
 </div>
 {% endblock %}

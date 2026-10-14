@@ -7,5 +7,7 @@
   <section class="profile" data-profile>
     <p class="muted" data-profile-msg>프로필을 불러오는 중입니다…</p>
   </section>
+  {% if profile_ad %}<template data-profile-ad>{{ profile_ad|safe }}</template>{% endif %}
+  {{ page_bottom|safe }}
 </div>
 {% endblock %}

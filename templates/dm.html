@@ -17,6 +17,7 @@
         <button type="button" role="tab" data-dm-tab="req" aria-selected="false">요청 <strong data-dm-reqn></strong></button>
       </div>
       <ul class="dm-list" data-dm-list></ul>
+      {% if dm_ad %}<div class="dm-ad">{{ dm_ad|safe }}</div>{% endif %}
       <p class="muted kw-small dm-note">처음 보는 사람의 쪽지는 '요청'에 따로 모입니다. 수락하기 전에는 읽어도 상대에게 읽음 표시가 가지 않아요.</p>
     </aside>
     <section class="dm-conv" data-dm-conv aria-label="대화" hidden>

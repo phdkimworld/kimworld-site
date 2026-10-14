@@ -473,7 +473,7 @@ export default {
         const ev = Array.isArray(b.e) ? b.e.slice(0, 40) : [];
         if (!/^[md]\.[a-z]{1,2}$/.test(seg) || !ev.length) return json(req, { ok: false });
         if (!(await allow(db, `adev|${ih}`, 400, 864e5, now))) return json(req, { ok: false });
-        const SLOTS = new Set(["report_mid", "report_products", "report_late", "report_end", "list", "feed_inline", "thread_inline", "rail"]);
+        const SLOTS = new Set(["report_mid", "report_products", "report_late", "report_end", "list", "feed_inline", "thread_inline", "rail", "explore", "explore_inline", "profile_inline", "dm_list", "post_detail"]);
         const agg = new Map(); // 한 페이지에서 같은 묶음·자리는 노출 1, 클릭 1까지만(부풀리기 막기)
         for (const x of ev) {
           const g = String(x?.g || ""), slot = String(x?.s || "");

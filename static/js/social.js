@@ -392,8 +392,16 @@
       top.appendChild(cx); top.appendChild(el('strong', null, '새 글'));
       cp.insertBefore(top, cp.firstChild);
       var mq = window.matchMedia ? matchMedia('(max-width: 759px)') : null;
-      function openFull() { if (!mq || !mq.matches || cp.classList.contains('cp-full')) return; cp.classList.add('cp-full', 'composer-on'); document.documentElement.classList.add('cp-open'); }
-      function closeFull() { cp.classList.remove('cp-full'); document.documentElement.classList.remove('cp-open'); ta.blur(); if (!ta.value.trim()) cp.classList.remove('composer-on'); }
+      // 휴대폰 뒤로가기: '새 글' 화면을 열 때 기록을 하나 쌓아 두고, 뒤로가기를 누르면 사이트를 떠나지 않고 이 화면만 닫아 메인 피드로
+      var pushed = false;
+      function openFull() {
+        if (!mq || !mq.matches || cp.classList.contains('cp-full')) return;
+        cp.classList.add('cp-full', 'composer-on'); document.documentElement.classList.add('cp-open');
+        if (window.history && history.pushState) { try { history.pushState({ kwCompose: 1 }, ''); pushed = true; } catch (e) {} }
+      }
+      function shut() { cp.classList.remove('cp-full'); document.documentElement.classList.remove('cp-open'); ta.blur(); if (!ta.value.trim()) cp.classList.remove('composer-on'); }
+      function closeFull() { if (pushed) { pushed = false; history.back(); return; } shut(); } // 기록을 되돌리면 popstate에서 닫힌다
+      addEventListener('popstate', function () { if (cp.classList.contains('cp-full')) { pushed = false; shut(); var d = document.querySelector('dialog.kw-dlg[open]'); if (d) d.close(); window.scrollTo(0, 0); } });
       cx.addEventListener('click', closeFull);
       ta.addEventListener('focus', openFull);
       cp._closeFull = closeFull;

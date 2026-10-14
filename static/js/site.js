@@ -238,6 +238,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       }).filter(Boolean).sort(function (a, b) { return b.s - a.s || (a.r.d < b.r.d ? 1 : -1); });
       countEl.textContent = hits.length ? '"' + q + '" 검색 결과 ' + hits.length + '개' : '"' + q + '"에 맞는 리포트가 아직 없습니다. 다른 이름이나 티커로 찾아보세요.';
       results.innerHTML = hits.slice(0, 50).map(function (h) { return card(h.r); }).join('');
+      // 검색 결과가 4개 이상이면 3번째 뒤에 광고 하나(쿠팡 상자, 결과보다 먼저 보이지 않게)
+      var exT = document.querySelector('template[data-ex-ad]');
+      if (exT && hits.length >= 4) { var f0 = document.importNode(exT.content, true), bx = f0.querySelector('.ad'); results.children[2].after(f0); if (window.kwAdNew && bx) kwAdNew(bx.classList.contains('ad-coupang-products') ? bx : bx.querySelector('.ad-coupang-products')); }
       if (window.kwLogSearch) window.kwLogSearch(q, hits.length);
     }
     var timer;
@@ -251,6 +254,13 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
         try { sessionStorage.setItem('kw-ex', k); history.replaceState(null, '', location.pathname + location.search + '#tab=' + k); } catch (e) {}
       }
       tabs.forEach(function (b) { b.addEventListener('click', function () { pick(b.getAttribute('data-ex-tab')); }); });
+      // 다른 탭(테마·리포트) 목록 6번째 줄 뒤에 광고 하나씩(첫 탭은 화면에 처음부터 있는 광고)
+      var exT2 = document.querySelector('template[data-ex-ad]');
+      if (exT2) document.querySelectorAll('[data-ex-pane]:not([data-ex-pane="tickers"]) .ex-list').forEach(function (ul) {
+        var li = ul.children[5]; if (!li || ul.children.length < 8) return;
+        var holder = document.createElement('li'); holder.className = 'ex-ad'; holder.appendChild(document.importNode(exT2.content, true)); li.after(holder);
+        var bx = holder.querySelector('.ad-coupang-products'); if (window.kwAdNew && bx) kwAdNew(bx);
+      });
       var start = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { start = start || sessionStorage.getItem('kw-ex'); } catch (e) {}
       if (start && document.querySelector('[data-ex-pane="' + start + '"]')) pick(start);
     })();
