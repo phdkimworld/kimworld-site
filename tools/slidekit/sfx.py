@@ -76,7 +76,7 @@ def write_wav(p, a):
     with wave.open(p, 'wb') as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(b.tobytes())
 
-def mix(voice_wav, events, out_wav, bed_on=True):
+def mix(voice_wav, events, out_wav, bed_on=True, bed_db=None):
     """voice_wav(44.1k 스테레오 16bit)에 events=[(시각, 종류)]의 효과음과 배경 드론을 섞는다.
     효과음은 그 순간 나레이션 크기에 맞춰 살짝 줄인다(목소리 가림 방지)."""
     v = read_wav(voice_wav); n = len(v); out = v.copy()
@@ -85,6 +85,10 @@ def mix(voice_wav, events, out_wav, bed_on=True):
         b = bed(n / SR) * BED_GAIN
         if len(b) < n: b = np.concatenate([b, np.zeros((n - len(b), 2))])  # 반올림으로 한 샘플 짧아지는 경우
         b = b[:n]
+        if bed_db is not None:  # 배경음을 나레이션 RMS보다 bed_db dB 낮게(쇼츠 지침: -18~-20dB)
+            vr = np.sqrt(np.mean(v[env > 0.02] ** 2)) if (env > 0.02).any() else 0.1
+            br = np.sqrt(np.mean(b ** 2)) or 1
+            b = b * (vr * 10 ** (bed_db / 20) / br)
         duck = 1 - 0.45 * np.clip(env / 0.12, 0, 1)  # 말할 때 배경을 낮춘다
         out += b * _lp(duck, int(SR * 0.3))[:, None]
     cache = {}
