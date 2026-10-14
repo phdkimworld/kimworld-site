@@ -8,5 +8,14 @@
     "path": "static/social/inod-2026-10/INOD_shorts.mp4",
     "cover": "static/social/inod-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-14T17:08:19-04:00"
+  "publish_at": "2026-10-14T17:08:19-04:00",
+  "results": {
+    "instagram": {
+      "container": "18096569240389749",
+      "id": "18113948453584329",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/DefUR0PiBx0/"
+    }
+  },
+  "posted_at": "2026-10-14T17:10:46-04:00"
 }
