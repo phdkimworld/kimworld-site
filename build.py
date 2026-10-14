@@ -461,6 +461,7 @@ class Ads:
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
         self._common_rot = 0  # 공통 묶음을 상자마다 돌려 넣는 순번
+        self._all_rot = 0     # 모든 테마 상자에 싣는 묶음을 돌리는 순번
         self.theme_slug: dict[str, str] = {"_common": "common"}  # 테마 이름 → 주소용 이름(build 에서 채움). 맞춤형 광고 선택에 쓴다
         self.place = self.cfg.get("placements") or {}
         # 대화 사이 광고 리듬(first번째 글 뒤부터 every개마다, 최대 max개)
@@ -483,6 +484,8 @@ class Ads:
     def bad_hosts(self, s: str) -> list[str]:
         hosts = {h.lower() for h in re.findall(r"(?:https?:)?//([A-Za-z0-9.-]+)", s)}
         return sorted(h for h in hosts if not any(h == d or h.endswith("." + d) for d in self.c_allowed))
+
+    CP_GROUPS_MAX = 7  # 쿠팡 상자 하나에 싣는 묶음 수(보이는 1개 + 학습 후보 6개)
 
     # 자리 → 광고 종류
     ADFIT_KEY = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end", "adfit_feed": "feed", "adfit_feed2": "feed2",
@@ -630,18 +633,40 @@ class Ads:
             )
         if kind == "coupang_products":
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))
+            # 한 페이지 쿠팡 상자 상한(홈은 2개: 금융 리포트 사이트의 첫인상을 상품이 덮지 않게)
+            if ctx.get("cp_max") is not None and int(ctx.get("_cp_n", 0)) >= int(ctx["cp_max"]):
+                return ""
+            if groups and ctx.get("theme") == "*" and len(groups) > self.CP_GROUPS_MAX:
+                # 모든 테마 상자: 상자마다 다른 7개 묶음만 싣는다(전체를 다 실으면 홈 HTML에 숨은 상품이 수백 개).
+                # 학습은 여러 상자·페이지에 걸쳐 모든 묶음에 고르게 쌓인다
+                k = self._all_rot % len(groups); self._all_rot += self.CP_GROUPS_MAX
+                first0 = int(ctx.get("_cp_i", 0)) % len(groups)
+                rot = groups[k:] + groups[:k]
+                pick = [groups[first0]] + [g for g in rot if g is not groups[first0]][: self.CP_GROUPS_MAX - 1]
+                groups = pick
+                ctx["_cp_first_override"] = 0
             if groups:
                 # 묶음을 모두 넣고, 방문마다 하나를 무작위로 보여 준다(site.js). 스크립트가 없으면 첫 묶음.
                 # 가격 기준일은 묶음마다 다르다(검색어마다 받은 날이 다름). 보이는 묶음의 날짜가 함께 보이도록 묶음 안에 둔다.
                 # 이 페이지에서 몇 번째 쿠팡 상자인지(앞 자리가 다른 광고면 번호를 당긴다). 스크립트 없어도 상자마다 다른 묶음
                 first = int(ctx.get("_cp_i", 0))
-                if first >= len(groups):
+                if first >= len(groups) and "_cp_first_override" not in ctx:
                     return ""  # 묶음이 상자 수보다 적으면 같은 상품이 두 번 보이지 않게 이 상자는 뺀다
                 ctx["_cp_i"] = first + 1
-                inner = "".join(
-                    f'<div class="cp-group" data-cp-group data-cp-sub="{html.escape(str(g.get("sub_id") or ""))}" data-cp-theme="{html.escape(self.theme_slug.get(g.get("theme"), ""))}" data-cp-date="{str(g.get("date") or "").replace("-", ".")}"{"" if i == first else " hidden"}><div class="cp-grid">'
-                    + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div></div>"
-                    for i, g in enumerate(groups))
+                if "_cp_first_override" in ctx:
+                    first = ctx.pop("_cp_first_override")
+                else:
+                    # 테마 상자: 보이는 묶음 + 다른 후보 최대 6개(그 테마 묶음을 먼저)
+                    groups = [groups[first]] + [g for i, g in enumerate(groups) if i != first][: self.CP_GROUPS_MAX - 1]
+                    first = 0
+                ctx["_cp_n"] = int(ctx.get("_cp_n", 0)) + 1
+
+                def grp(g, vis):
+                    return (f'<div class="cp-group" data-cp-group data-cp-sub="{html.escape(str(g.get("sub_id") or ""))}" data-cp-theme="{html.escape(self.theme_slug.get(g.get("theme"), ""))}" data-cp-date="{str(g.get("date") or "").replace("-", ".")}"{"" if vis else " hidden"}><div class="cp-grid">'
+                            + "".join(self._card(it, slot, g["sub_id"]) for it in g["products"]) + "</div></div>")
+                # 보이는 묶음만 문서에 두고, 학습용 다른 후보는 <template> 안에(검색엔진·스크립트 없는 화면에는 상품 3개만)
+                alts = "".join(grp(g, False) for i, g in enumerate(groups) if i != first)
+                inner = grp(groups[first], True) + (f"<template data-cp-alt>{alts}</template>" if alts else "")
                 # 가격 기준일 문구는 상자에 한 번. 보이는 묶음이 바뀌면 site.js가 날짜를 바꾼다
                 d0 = str(groups[first].get("date") or "").replace("-", ".")
                 note = f'<p class="cp-note" data-cp-note{"" if d0 else " hidden"}>가격은 <span>{d0}</span> 기준이며 바뀔 수 있습니다.</p>'
@@ -921,7 +946,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         ads.begin_page()
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}), page_bottom=ads.render("page_bottom", {}))
     ads.begin_page()
-    home_ctx = {"theme": "*"}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
+    home_ctx = {"theme": "*", "cp_max": 2}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
     home_list = ads.render("list", home_ctx)
     hf = ads.rhythm["home_feed"]
     feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(max(0, hf["max"] - 1))) if x]

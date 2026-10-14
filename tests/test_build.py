@@ -222,9 +222,12 @@ shown = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" dat
 check(len(set(shown)) == 3, "스크립트 없이도 상자마다 다른 검색어 묶음")
 check(all(b.count('class="cp-note"') == 1 for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)), "가격 기준일 문구는 상자마다 한 번")
 home = notpl((t / "dist/index.html").read_text(encoding="utf-8"))
-check(3 <= home.count('<aside class="ad ') <= 5 and home.count("data-cp-group") >= 8, "홈: 쿠팡 상자(목록 1 + 피드 사이), 모든 테마 묶음에서")
+_hb = re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)
+check(1 <= len(_hb) <= 2 and home.count("data-cp-group") >= 8, f"홈: 쿠팡 상자는 2개까지({len(_hb)}), 모든 테마 묶음에서")
+check(all(b.count("data-cp-group") <= 7 and re.sub(r"<template data-cp-alt>.*?</template>", "", b, flags=re.S).count("data-cp-group") == 1 for b in _hb),
+      "쿠팡 상자마다 묶음 7개까지, 문서에 보이는 묶음은 1개(나머지 후보는 template 안)")
 _vis = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
-check(len(set(_vis)) == len(_vis) >= 3, "홈 쿠팡 상자는 서로 다른 묶음")
+check(len(set(_vis)) == len(_vis) >= 2, "홈 쿠팡 상자는 서로 다른 묶음")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
 check(th.count('data-cp-theme="quantum"') == 3 or th.count('data-ad-unit="DAN-') == 1, "테마 페이지: 그 테마 쿠팡 묶음 + 공통 묶음(애드핏 목록 단위가 있으면 애드핏 1개)")
 _units = re.findall(r'data-ad-unit="(DAN-[^"]+)"', (t / "dist/index.html").read_text(encoding="utf-8"))

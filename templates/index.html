@@ -27,48 +27,6 @@
 
 
 <div class="wrap home-grid">
-  <aside class="home-side" aria-label="독자 인사이트">
-  <form class="side-search" action="{{ base }}/search/" role="search">
-    <label class="sr-only" for="q-home">종목 검색</label>
-    <input id="q-home" name="q" type="search" placeholder="종목명이나 티커 검색" autocomplete="off" enterkeyhint="search">
-  </form>
-  {% if site.api_url %}
-  <section class="ins-card suggest" data-suggest hidden aria-labelledby="sg-h">
-    <h2 id="sg-h" class="section-title">팔로우 추천 <span class="muted ins-sub">최근 30일 활발한 사람</span></h2>
-    <ul class="sg-list" data-suggest-list></ul>
-  </section>
-  {% endif %}
-  <nav class="side-themes" aria-label="테마별 리포트">
-    <h2 class="section-title">테마별 리포트</h2>
-    <ul>
-      {% for t in themes %}{% set n = rs|selectattr('theme', 'equalto', t.name)|list|length %}{% if n %}<li><a href="{{ base }}/theme/{{ t.slug }}/"><span>{{ t.name }}</span><span class="muted">{{ n }}</span></a></li>{% endif %}{% endfor %}
-    </ul>
-  </nav>
-
-  {% if site.api_url %}
-  <section class="insights" data-insights hidden aria-label="독자 인사이트">
-    <div class="ins-card" data-popular hidden>
-      <div class="ins-head">
-        <h2 class="section-title">많이 본 리포트</h2>
-        <div class="ins-tabs" role="tablist" aria-label="기간">
-          <button type="button" role="tab" data-pop-range="1" aria-selected="false">오늘</button>
-          <button type="button" role="tab" data-pop-range="7" aria-selected="true">7일</button>
-        </div>
-      </div>
-      <ol class="rank" data-popular-list></ol>
-    </div>
-    <div class="ins-card" data-trending hidden>
-      <h2 class="section-title">관심 많은 종목 <span class="muted ins-sub">최근 7일 조회·검색</span></h2>
-      <ul class="chip-list" data-trending-list></ul>
-    </div>
-    <div class="ins-card" data-themes hidden>
-      <h2 class="section-title">테마별 관심도 <span class="muted ins-sub">최근 7일 조회 비중</span></h2>
-      <ul class="bars" data-theme-list></ul>
-    </div>
-  </section>
-  {% endif %}
-  {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
-  </aside>
 
   <section class="feed" aria-labelledby="latest-h" data-feed>
     <h2 id="latest-h" class="sr-only">피드</h2>
@@ -114,6 +72,49 @@
     </div>
     {% endif %}
   </section>
+  {# 인사이트 칸은 피드 뒤에 둔다(HTML 순서 = 피드 먼저). PC에서는 CSS가 오른쪽 칸으로 옮기고, 휴대폰에서는 숨긴다 #}
+  <aside class="home-side" aria-label="독자 인사이트">
+  <form class="side-search" action="{{ base }}/search/" role="search">
+    <label class="sr-only" for="q-home">종목 검색</label>
+    <input id="q-home" name="q" type="search" placeholder="종목명이나 티커 검색" autocomplete="off" enterkeyhint="search">
+  </form>
+  {% if site.api_url %}
+  <section class="ins-card suggest" data-suggest hidden aria-labelledby="sg-h">
+    <h2 id="sg-h" class="section-title">팔로우 추천 <span class="muted ins-sub">최근 30일 활발한 사람</span></h2>
+    <ul class="sg-list" data-suggest-list></ul>
+  </section>
+  {% endif %}
+  <nav class="side-themes" aria-label="테마별 리포트">
+    <h2 class="section-title">테마별 리포트</h2>
+    <ul>
+      {% for t in themes %}{% set n = rs|selectattr('theme', 'equalto', t.name)|list|length %}{% if n %}<li><a href="{{ base }}/theme/{{ t.slug }}/"><span>{{ t.name }}</span><span class="muted">{{ n }}</span></a></li>{% endif %}{% endfor %}
+    </ul>
+  </nav>
+
+  {% if site.api_url %}
+  <section class="insights" data-insights hidden aria-label="독자 인사이트">
+    <div class="ins-card" data-popular hidden>
+      <div class="ins-head">
+        <h2 class="section-title">많이 본 리포트</h2>
+        <div class="ins-tabs" role="tablist" aria-label="기간">
+          <button type="button" role="tab" data-pop-range="1" aria-selected="false">오늘</button>
+          <button type="button" role="tab" data-pop-range="7" aria-selected="true">7일</button>
+        </div>
+      </div>
+      <ol class="rank" data-popular-list></ol>
+    </div>
+    <div class="ins-card" data-trending hidden>
+      <h2 class="section-title">관심 많은 종목 <span class="muted ins-sub">최근 7일 조회·검색</span></h2>
+      <ul class="chip-list" data-trending-list></ul>
+    </div>
+    <div class="ins-card" data-themes hidden>
+      <h2 class="section-title">테마별 관심도 <span class="muted ins-sub">최근 7일 조회 비중</span></h2>
+      <ul class="bars" data-theme-list></ul>
+    </div>
+  </section>
+  {% endif %}
+  {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
+  </aside>
 </div>
 
 <div class="wrap">

@@ -114,7 +114,7 @@
   }
   var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
     compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
-    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '이번 주 대표 글 누름',
+    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '홈 대표 글(조회수 상위) 누름', home_report: '홈에서 리포트 누름', home_post: '홈에서 커뮤니티 글 누름', fig_click: '리포트 그림 누름',
     install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내', signup: '가입 완료', dm_send: '쪽지 보냄', dm_open: '쪽지함 열기', avatar_set: '프로필 사진 바꿈', block: '차단', quote_share: '문장 인용 공유', quote_card: '인용 카드 만들기',
     install_bar: '설치 안내 줄 노출', install_inapp: '앱 안 브라우저→크롬 열기', ic_header: '설치 누름: 머리줄', ic_footer: '설치 누름: 바닥글', ic_bar: '설치 누름: 안내 줄', ic_report: '설치 누름: 리포트 끝', ic_feed: '설치 누름: 홈 피드' };
 
@@ -319,7 +319,10 @@
     k.appendChild(tile('휴대폰 비율', pct(T.mob, T.pv), ''));
     k.appendChild(tile('가입자', nf(CM.users), '기간 내 신규 ' + nf(T.signups), delta(T.signups, P.signups)));
     k.appendChild(tile('오늘 / 7일 / 30일 방문자', nf(d.active.dau) + ' / ' + nf(d.active.wau) + ' / ' + nf(d.active.mau), 'DAU · WAU · MAU'));
-    k.appendChild(tile('새 글', nf(CM.board), '답글 ' + nf(CM.replies) + ' · 리포트 댓글 ' + nf(CM.report)));
+    k.appendChild(tile('새 글', nf(CM.board), '답글 ' + nf(CM.replies) + ' · 리포트 공유·인용 ' + nf(CM.report)));
+    // 홈은 입구 페이지라 체류 시간보다 '홈에서 리포트로 넘어간 비율'이 핵심(홈 페이지뷰 대비 리포트 누름)
+    var Eh = d.events || {}, homePv = ((d.pages || []).filter(function (x) { return x.path === '/'; })[0] || {}).pv || 0;
+    k.appendChild(tile('홈 → 리포트 클릭률', pct(Eh.home_report || 0, homePv), '홈 페이지뷰 ' + nf(homePv) + ' 중 리포트 누름 ' + nf(Eh.home_report) + ' · 글 누름 ' + nf(Eh.home_post)));
     k.appendChild(tile('검토 대기', nf((CM.held || 0) + (CM.hidden || 0)), '보류 ' + nf(CM.held) + ' · 신고 숨김 ' + nf(CM.hidden)));
     var E = d.events || {}, EP = d.eventsPrev || {}, A = d.app || {};
     var inst = (E.installed || 0) + (E.install_accept && !E.installed ? E.install_accept : 0);

@@ -309,6 +309,12 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     if (t.classList) { t.classList.add('kfig-hit'); setTimeout(function () { t.classList.remove('kfig-hit'); }, 1600); }
     return true;
   }
+  // 홈 → 리포트·글로 넘어간 횟수(홈 체류 시간 대신 볼 숫자, 운영 통계 '홈 → 리포트 클릭률')
+  if (/^\/(index\.html)?$/.test(location.pathname.replace((window.KW && KW.base) || '', '') || '/')) document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]'); if (!a || !window.kwEv) return;
+    var h = a.getAttribute('href') || '';
+    if (/\/r\/[a-z0-9-]+\/|\/p\/\?r=/.test(h)) kwEv('home_report'); else if (/\/p\/\?id=/.test(h)) kwEv('home_post');
+  }, true);
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('.kfig a[href^="#"]'); if (!a) return;
     var id = decodeURIComponent(a.getAttribute('href').slice(1));
@@ -410,6 +416,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   }
   // 상자 하나에 묶음 고르기(이미 이 페이지에 나온 묶음은 피한다)
   function choose(box) {
+    // 학습용 다른 후보 묶음은 <template> 안에 있다(문서에는 보이는 묶음 하나만). 고르기 전에 꺼내 놓는다
+    var alt = box.querySelector('template[data-cp-alt]');
+    if (alt) { (box.querySelector('.cp-rot') || box).appendChild(document.importNode(alt.content, true)); alt.remove(); }
     var gs = Array.prototype.slice.call(box.querySelectorAll('[data-cp-group]'));
     if (!gs.length) return;
     var slot = box.getAttribute('data-slot') || '';
