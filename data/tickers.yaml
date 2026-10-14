@@ -324,3 +324,9 @@ XTIA:
   exchange: "NASDAQ"
   theme: "우주항공·방산"
   aliases: ["XTI", "엑스티아이 에어로스페이스", "인픽슨", "Inpixon", "XTI Aerospace", "드론 너즈", "Drone Nerds"]
+NNE:
+  name: "나노 뉴클리어 에너지"
+  name_en: "Nano Nuclear Energy Inc."
+  exchange: "NASDAQ"
+  theme: "원자력·에너지"
+  aliases: ["나노 뉴클리어", "나노뉴클리어", "NANO Nuclear", "Nano Nuclear Energy", "크로노스 원자로"]
