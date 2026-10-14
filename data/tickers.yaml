@@ -306,3 +306,9 @@ CRML:
   exchange: "NASDAQ"
   theme: "광물·자원"
   aliases: ["크리티컬메탈스", "Critical Metals", "탄브리즈", "Tanbreez"]
+CNTN:
+  name: "캔톤 스트래티직 홀딩스"
+  name_en: "Canton Strategic Holdings, Inc."
+  exchange: "NASDAQ"
+  theme: "코인·블록체인"
+  aliases: ["캔톤 스트래티직", "캔톤", "Canton Strategic", "타림뮨", "Tharimmune", "THAR"]
