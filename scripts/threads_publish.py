@@ -15,7 +15,8 @@ threads/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   python scripts/threads_publish.py            # 검사 + 시간이 된 글 게시
   python scripts/threads_publish.py --check    # 검사만(게시하지 않음)
   python scripts/threads_publish.py --dry-run  # 게시할 글만 출력
-  python scripts/threads_publish.py --ping     # 토큰이 살아 있는지 확인
+  python scripts/threads_publish.py --ping     # 토큰과 읽기 권한 확인
+  python scripts/threads_publish.py --delete <글 ID>  # 게시한 글 삭제(posted 기록에 deleted_at)
 
 비밀값(환경변수): THREADS_ACCESS_TOKEN, THREADS_USER_ID. 값은 어디에도 출력하지 않는다.
 검사 실패나 게시 실패가 하나라도 있으면 종료 코드 1(워크플로 실패로 표시).
@@ -99,7 +100,7 @@ def load(path):
 def call(method, path, params):
     data = urllib.parse.urlencode(params).encode()
     url = f"{API}/{path}"
-    if method == "GET":
+    if method in ("GET", "DELETE"):
         url, data = f"{url}?{data.decode()}", None
     req = urllib.request.Request(url, data=data, method=method)
     try:
@@ -146,15 +147,46 @@ def main(argv):
     uid = os.environ.get("THREADS_USER_ID", "")
 
     if "--ping" in argv:
-        if not (token and uid):
-            print("::error::THREADS_ACCESS_TOKEN / THREADS_USER_ID 비밀값이 없음")
+        if not token:
+            print("::error::THREADS_ACCESS_TOKEN 비밀값이 없음")
             return 1
         try:
             me = call("GET", "me", {"fields": "id,username", "access_token": token})
         except RuntimeError as e:
             print(f"::error::Threads 토큰 확인 실패(만료됐으면 threads/README.md의 갱신 방법 참고): {e}")
             return 1
-        print(f"토큰 정상: @{me.get('username')}")
+        print(f"토큰 정상: @{me.get('username')} (threads_basic)")
+        if uid and uid != me.get("id"):
+            print("::warning::THREADS_USER_ID 비밀값이 토큰의 계정 ID와 다름(게시는 토큰 계정 ID로 한다)")
+        # 읽기로 확인할 수 있는 권한만 확인한다. 게시·댓글·삭제 권한은 실제 호출에서 확인된다
+        probes = [("내 글 목록", "me/threads", {"fields": "id", "limit": 1}),
+                  ("댓글 읽기 threads_read_replies", "me/replies", {"fields": "id", "limit": 1}),
+                  ("통계 threads_manage_insights", "me/threads_insights", {"metric": "views"})]
+        for name, path, prm in probes:
+            try:
+                call("GET", path, {**prm, "access_token": token})
+                print(f"  ok   {name}")
+            except RuntimeError as e:
+                print(f"::warning::{name} 실패: {e}")
+        return 0
+
+    if "--delete" in argv:
+        i = argv.index("--delete")
+        target = argv[i + 1] if i + 1 < len(argv) else ""
+        if not target.isdigit():
+            print("::error::--delete 뒤에 숫자 글 ID가 필요함")
+            return 1
+        try:
+            call("DELETE", target, {"access_token": token})
+        except RuntimeError as e:
+            print(f"::error::삭제 실패(threads_delete 권한 확인): {e}")
+            return 1
+        for f in POSTED.glob("*.json"):
+            raw = json.loads(f.read_text(encoding="utf-8"))
+            if raw.get("threads_id") == target or target in raw.get("published_ids", []):
+                raw["deleted_at"] = datetime.now(NY).isoformat(timespec="seconds")
+                f.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"::notice::삭제함 {target}")
         return 0
 
     QUEUE.mkdir(parents=True, exist_ok=True)
