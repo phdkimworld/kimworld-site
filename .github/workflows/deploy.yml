@@ -5,8 +5,10 @@ name: Build and deploy
 on:
   push:
     branches: [main]
+    paths-ignore: ["threads/**", ".github/workflows/threads.yml", "scripts/threads_publish.py"]   # Threads 예약 글만 바뀐 커밋은 사이트를 다시 배포하지 않는다
   pull_request:
     branches: [main]
+    paths-ignore: ["threads/**", ".github/workflows/threads.yml", "scripts/threads_publish.py"]
   schedule:
     - cron: "5 * * * *"   # 매시 5분(UTC). 한국시간 0시 5분 예약 공개 포함, 쿠팡 상품을 시간당 8개씩 갱신
   workflow_dispatch:

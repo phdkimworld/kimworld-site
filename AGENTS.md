@@ -137,4 +137,4 @@
 - 사이트: `site.yaml api_url`을 비우면 관련 화면이 모두 꺼진다. API가 응답하지 않아도 영역만 숨겨지고 사이트는 그대로 동작한다.
 - 운영자는 댓글로 개별 종목 매매 질문에 답하지 않는다(유사투자자문 소지). 운영자·김박사 닉네임은 자동으로 익명 처리된다.
 - 검사: `node worker/test/test_worker.mjs`(사이트 검사에도 포함).
-
+- Threads 예약 게시: `threads/queue/*.json`(`text` 500자 이내, `publish_at` ISO·시간대 없으면 미국 동부시간, 선택 `link_attachment`)을 `.github/workflows/threads.yml`이 15분마다 `scripts/threads_publish.py`로 게시하고 `threads/posted/`로 옮겨 커밋한다. 비밀값 `THREADS_ACCESS_TOKEN`·`THREADS_USER_ID`(값 출력 금지). `threads/` 변경만으로는 사이트 배포(deploy.yml)가 돌지 않는다. 형식·토큰 갱신은 `threads/README.md`. 검사: `python3 tests/test_threads.py`, `python3 scripts/threads_publish.py --check`.
