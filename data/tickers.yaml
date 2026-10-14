@@ -312,3 +312,9 @@ CNTN:
   exchange: "NASDAQ"
   theme: "코인·블록체인"
   aliases: ["캔톤 스트래티직", "캔톤", "Canton Strategic", "타림뮨", "Tharimmune", "THAR"]
+MRVL:
+  name: "마벨 테크놀로지"
+  name_en: "Marvell Technology, Inc."
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["마벨", "마블 테크놀로지", "Marvell", "Marvell Technology"]
