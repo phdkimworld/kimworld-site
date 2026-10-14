@@ -1,0 +1,71 @@
+name: Social (Threads·Instagram 예약 게시)
+
+# social/queue/*.json 가운데 publish_at(미국 동부시간)이 지난 글을 채널별로 게시하고 social/posted/ 로 옮긴다.
+# 15분마다 실행(GitHub 예약 실행은 몇 분 늦을 수 있다). 대기열 파일이 올라와도 바로 검사·게시한다.
+# 필요한 GitHub 비밀값: THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID
+# 인스타 미디어는 static/social/ 에 두면 사이트 배포 뒤 https://drkimworld.com/static/social/... 로 공개된다.
+# 형식 오류·500자 초과·게시 실패가 있으면 실패로 표시된다. 매주 월요일 두 토큰이 살아 있는지 확인한다.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "17 13 * * 1"   # 매주 월요일 13:17 UTC 토큰 확인
+  push:
+    branches: [main]
+    paths: ["social/queue/**", "scripts/social_publish.py", ".github/workflows/social.yml"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "publish(기본) / check(검사만) / ping(토큰 확인) / delete(Threads 글 삭제)"
+        required: false
+        default: "publish"
+      target:
+        description: "delete 일 때 지울 Threads 글 ID(숫자)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      MODE: ${{ github.event.inputs.mode }}
+      TARGET: ${{ github.event.inputs.target }}
+      WEEKLY: ${{ github.event.schedule == '17 13 * * 1' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        run: python tests/test_social.py > /dev/null
+      - name: Run
+        id: run
+        run: |
+          if [ "$WEEKLY" = "true" ] || [ "$MODE" = "ping" ]; then python scripts/social_publish.py --ping
+          elif [ "$MODE" = "check" ]; then python scripts/social_publish.py --check
+          elif [ "$MODE" = "delete" ]; then python scripts/social_publish.py --delete threads "$TARGET"
+          else python scripts/social_publish.py; fi
+      - name: Commit results
+        # 일부 채널이 실패해도, 이미 게시한 결과는 반드시 커밋한다(중복 게시 방지)
+        if: always() && env.WEEKLY != 'true' && env.MODE != 'ping' && env.MODE != 'check'
+        run: |
+          git add -A social
+          if git diff --cached --quiet; then echo "바뀐 기록 없음"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "SNS 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error::게시 기록 커밋을 올리지 못함"; exit 1
