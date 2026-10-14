@@ -28,6 +28,7 @@ import markdown
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown.extensions.toc import slugify_unicode
+from report_figures import add_figures
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
@@ -81,6 +82,23 @@ def to_date(v):
     if isinstance(v, dt.date):
         return v
     return dt.date.fromisoformat(str(v).strip())
+
+
+def fix_list_breaks(md_text: str) -> str:
+    """목록 바로 앞에 빈 줄이 없으면 마크다운이 목록을 문단 글자로 이어 붙인다('… 올랐다. - 예: …').
+    문단 줄 다음에 '- '·'* '·'1. '로 시작하는 줄이 오면 사이에 빈 줄을 넣는다(코드 블록·표·인용 안은 건드리지 않음)."""
+    out, fence = [], False
+    lines = md_text.split("\n")
+    item = re.compile(r"^\s{0,3}(?:[-*+]|\d+[.)])\s+\S")
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("```"):
+            fence = not fence
+        if (not fence and i and item.match(ln) and out and out[-1].strip()
+                and not item.match(out[-1]) and not out[-1].startswith(("    ", "\t", "|", ">", "#"))
+                and not re.match(r"^\s+\S", out[-1])):
+            out.append("")
+        out.append(ln)
+    return "\n".join(out)
 
 
 def md_renderer():
@@ -761,7 +779,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
             if ph in body or ph in str(meta.get("title")) or ph in str(meta.get("summary")):
                 log.err(f"{name}: 금지 표현 '{ph}'")
         md = md_renderer()
-        body_html = shape_for_reading(fold_event_cards(wrap_tables(md.convert(body))))
+        body_html, n_figs = add_figures(wrap_tables(md.convert(fix_list_breaks(body))))  # 본문 그림(report_figures.py)
+        body_html = shape_for_reading(fold_event_cards(body_html))
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
                            r'<a class="chart-link" href="\2" target="_blank" rel="noopener" aria-label="차트 크게 보기">\1</a>', body_html)

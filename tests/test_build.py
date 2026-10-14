@@ -26,7 +26,7 @@ def check(cond, msg):
 
 def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None) -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="kws-"))
-    for name in ["build.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
+    for name in ["build.py", "report_figures.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
         p = SRC / name
         (shutil.copytree if p.is_dir() else shutil.copy)(p, tmp / name)
     tick = yaml.safe_load((tmp / "data/tickers.yaml").read_text(encoding="utf-8"))
@@ -305,6 +305,23 @@ pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("community.js" not in pg and "data-community" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
 w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
 check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
+
+print("9b) 리포트 본문 그림(report_figures.py)")
+sys.path.insert(0, str(SRC))
+import report_figures as RF
+import build as _B
+_md = (SRC / "content/reports/ntla-2026-10.md").read_text(encoding="utf-8").split("\n---\n", 1)[1]
+check("- 예:" not in _B.md_renderer().convert(_B.fix_list_breaks(_md)), "빈 줄 없는 목록도 목록으로(문단에 '- 예:'가 붙지 않음)")
+_h = _B.md_renderer().convert(_B.fix_list_breaks(_md))
+_out, _n = RF.add_figures(_h)
+check(_n >= 6 and _out.count('class="kfig ') == _n, f"NTLA 리포트에 그림 {_n}개(첫머리·변수·연대기·사건·짝·패턴·국면)")
+check('id="ev-1"' in _out and 'href="#ev-1"' in _out, "사건 막대를 누르면 그 카드로(카드에 #ev-번호)")
+_cards = RF.event_cards(_h)
+check(len(_cards) == 22 and _cards[0]["value"] == -3.0 and _cards[-1]["value"] == 50.2, "사건 카드 22장, 첫 반응 숫자와 방향(−3.0%·+50.2%)")
+check(RF.day_move("론보지 2상 결과(발작 77~81% 감소)가 나온 날 주가는 하루 20.5% 떨어졌다") == -20.5, "주가 앞의 다른 숫자(발작 81% 감소)를 주가로 읽지 않음")
+check(RF.day_move("장중 10.9% 올라 4.49달러를 찍었지만, 4.2% 오른 4.22달러로 마감했다.") == 4.2, "장중 숫자 대신 마감 숫자")
+check(RF.day_move("다음 거래일 보합이었고, 닷새 뒤에는 6.8% 낮았다.") == 0.0 and RF.day_move("하루 -4.3%") == -4.3, "보합·부호 붙은 숫자")
+check(RF.add_figures("<h2>1부</h2><p>그림 없는 글</p>")[1] == 0, "구조가 다른 글은 그림 없이 그대로")
 
 print("10) 보안: 리포트 본문·출처 검사")
 for bad, why in [("<script>alert(1)</script>", "스크립트"), ('<img src=x onerror="alert(1)">', "이벤트 속성"),

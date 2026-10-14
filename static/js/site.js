@@ -301,6 +301,20 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   openFor(location.hash);
   window.addEventListener('hashchange', function () { openFor(location.hash); });
   window.addEventListener('beforeprint', function () { document.querySelectorAll('details.fold').forEach(function (d) { d.open = true; }); });
+  // 본문 그림(사건 막대·시기 띠)에서 접힌 상자 안 카드로 갈 때: 감싼 상자를 펼친 뒤 그 자리로
+  function openTo(id) {
+    var t = id && document.getElementById(id); if (!t) return false;
+    for (var n = t; n; n = n.parentElement) if (n.tagName === 'DETAILS') n.open = true;
+    t.scrollIntoView({ block: 'start' });
+    if (t.classList) { t.classList.add('kfig-hit'); setTimeout(function () { t.classList.remove('kfig-hit'); }, 1600); }
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('.kfig a[href^="#"]'); if (!a) return;
+    var id = decodeURIComponent(a.getAttribute('href').slice(1));
+    if (openTo(id)) { e.preventDefault(); try { history.replaceState(null, '', '#' + id); } catch (x) {} if (window.kwEv) kwEv('fig_click'); }
+  });
+  if (/^#ev-\d+$/.test(location.hash)) setTimeout(function () { openTo(location.hash.slice(1)); }, 50);
 })();
 
 // 휴대폰에서 아래로 스크롤하면 머리글(로고·테마 줄)을 숨기고, 위로 조금이라도 올리면 다시 보인다
