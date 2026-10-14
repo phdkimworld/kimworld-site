@@ -1291,3 +1291,29 @@ a.kft-in:hover { border-top-color: var(--muted); }
 .kfh-v { white-space: nowrap; }
 @media (max-width: 599px) { .kfh-v { font-size: 1.12rem; } .kfh-tile { padding: 10px 8px; } }
 .pa-font .font-glyph { font-weight: 800; font-size: 1.05rem; line-height: 1; width: 20px; text-align: center; }
+
+/* ---------- 리포트 읽는 중 반응 줄(templates/report.html .rdock): 휴대폰은 아래 탭 줄 바로 위, 넓은 화면은 가운데 아래 알약 ---------- */
+.rdock { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 33;
+  display: flex; align-items: stretch; gap: 2px; padding: 4px 6px; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--surface); box-shadow: 0 6px 22px rgba(0,0,0,.35); }
+.rdock[hidden] { display: none; }
+.rdock .rd-b { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 56px; min-height: 48px; padding: 4px 6px;
+  border: 0; border-radius: 12px; background: none; color: var(--text); font: inherit; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rdock .rd-b[hidden] { display: none; }
+.rdock .rd-b:active { transform: scale(.94); background: var(--surface-2); }
+.rdock .rd-t { display: inline-flex; gap: 3px; font-size: 10.5px; line-height: 1.1; color: var(--muted); white-space: nowrap; }
+.rdock .rd-t [data-n]:empty, .rdock .rd-t [data-post-cm]:empty { display: none; }
+.rdock .rd-t [data-n], .rdock .rd-t [data-post-cm] { color: var(--text); font-weight: 700; }
+.rdock .pa-like[aria-pressed="true"] .ic { fill: #f2555a; stroke: #f2555a; }
+.rdock .pa-repost[aria-pressed="true"] .ic, .rdock .rd-sub[aria-pressed="true"] .ic { stroke: #059669; }
+.rdock .rd-sub[aria-pressed="true"] .rd-l { color: #059669; font-weight: 700; }
+@media (max-width: 759px) {
+  body:has(.tabbar) .rdock { left: 0; right: 0; transform: none; justify-content: space-around; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); padding: 2px 4px; border-radius: 0; border-width: 1px 0 0; box-shadow: 0 -4px 14px rgba(0,0,0,.25); }
+  .rdock .rd-b { min-width: 0; flex: 1 1 0; }
+  body:has(.rdock) { padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.rdock:not([hidden])) .read-pill { bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.rdock:not([hidden])) .toast { bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
+}
+body:has(.rdock) .to-top { display: none !important; }
+@media (min-width: 760px) { body:has(.rdock) { padding-bottom: 76px; } }
+@media print { .rdock { display: none !important; } }

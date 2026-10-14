@@ -197,7 +197,16 @@
   </aside>
   {% endif %}
 </div>
-<button type="button" class="to-top" data-action="top" aria-label="맨 위로">↑</button>
+{# 읽는 중 반응 줄(2026-10-14): 머리의 반응 줄이 화면 밖으로 나가면 아래에 떠서 좋아요·이야기·구독(종목 팔로우)·리포스트·맨 위·맨 아래를 바로 누를 수 있다.
+   data-slug 로 좋아요·이야기 수·리포스트가 머리 반응 줄과 같이 칠해진다(community.js). 맨 위로 둥근 버튼은 이 줄로 대신한다 #}
+<nav class="rdock" data-rdock data-slug="{{ r.slug }}" aria-label="리포트 반응" hidden>
+  <button type="button" class="rd-b pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span class="rd-t"><span data-n></span><span class="rd-l">좋아요</span></span></button>
+  <a class="rd-b" href="#community" aria-label="이야기">{{ icon('comment') }}<span class="rd-t"><span data-post-cm></span><span class="rd-l">이야기</span></span></a>
+  {% if site.api_url %}<button type="button" class="rd-b rd-sub" data-topic data-topic-short data-kind="t" data-key="{{ r.ticker }}" aria-pressed="false" aria-label="{{ r.ticker }} 구독" hidden>{{ icon('bell') }}<span class="rd-t"><span class="rd-l" data-topic-label>구독</span></span></button>{% endif %}
+  <button type="button" class="rd-b pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span class="rd-t"><span data-n></span><span class="rd-l">리포스트</span></span></button>
+  <button type="button" class="rd-b" data-action="top" aria-label="맨 위로">{{ icon('up') }}<span class="rd-t"><span class="rd-l">맨 위</span></span></button>
+  <button type="button" class="rd-b" data-action="bottom" aria-label="맨 아래로">{{ icon('down') }}<span class="rd-t"><span class="rd-l">맨 아래</span></span></button>
+</nav>
 <a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
 <div class="term-pop" role="tooltip" hidden></div>
 {% endblock %}

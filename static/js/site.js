@@ -110,6 +110,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     // 읽은 위치 표시 막대 + 맨 위로 버튼 + 목차 강조
     var bar = document.querySelector('.progress span');
     var topBtn = document.querySelector('.to-top');
+    var dock = document.querySelector('[data-rdock]'), headBar = document.querySelector('[data-report-bar]');
     var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc-side a'));
     var heads = tocLinks.map(function (a) { return document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1))); });
     var ticking = false;
@@ -123,6 +124,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       var p = total > 0 ? Math.min(1, Math.max(0, -rect.top / total)) : 0;
       if (bar) bar.style.width = (p * 100).toFixed(1) + '%';
       if (topBtn) topBtn.classList.toggle('show', window.scrollY > 900);
+      // 읽는 중 반응 줄: 머리의 반응 줄이 화면 위로 지나가면 보인다
+      if (dock) { var hb = headBar ? headBar.getBoundingClientRect().bottom : 400; dock.hidden = hb > 0; }
       var active = -1;
       for (var i = 0; i < heads.length; i++) { if (heads[i] && heads[i].getBoundingClientRect().top < 140) active = i; }
       tocLinks.forEach(function (a, i) { a.classList.toggle('active', i === active); });
@@ -195,6 +198,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     else if (a === 'save') toggleSave();
     else if (a === 'print') window.print();
     else if (a === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });
+    else if (a === 'bottom') window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   });
 
   // 애드핏 광고가 비면 자리를 접는다

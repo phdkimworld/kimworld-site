@@ -281,6 +281,9 @@ check('id="community" data-community data-about="zzzz-test-2026-01" data-board="
 check("data-insights hidden" in home and "data-popular-list" in home and "data-trending-list" in home, "홈에 많이 본 리포트·많이 찾는 종목 자리(처음엔 숨김)")
 check(home.count('class="card post"') >= 1 and "data-post-like" in home and "data-post-top" in home and "data-ago" in home, "홈 피드: 게시물 카드(좋아요·대표 댓글·'n일 전')")
 check("data-report-bar" in pg and "data-dock" not in pg and 'href="#community"' in pg, "리포트: 반응 줄(이야기 → 커뮤니티)")
+_rd = re.search(r'<nav class="rdock"[^>]*>(.*?)</nav>', pg, re.S)
+check(_rd and 'data-slug=' in _rd.group(0) and all(k in _rd.group(1) for k in ('data-post-like', 'href="#community"', 'data-topic-short', 'data-repost', 'data-action="top"', 'data-action="bottom"')) and 'class="to-top"' not in pg,
+      "리포트: 읽는 중 반응 줄(좋아요·이야기·구독·리포스트·맨 위·맨 아래)")
 check("data-theme-list" in home and "data-recent-cm-list" not in home and "data-pop-range" in home, "홈에 테마별 관심도·오늘/7일 탭 자리(최근 댓글 칸 없음)")
 check(pg.find("data-next-reads hidden") > pg.find('class="prose"'), "리포트 끝에 '지금 많이 보는 리포트' 자리")
 check(all("ts" in x for x in json.loads((t / "dist/search.json").read_text(encoding="utf-8"))), "검색 색인에 테마 주소(ts)")
