@@ -8,14 +8,21 @@
 
 ```json
 {
-  "text": "본문. 줄바꿈은 \n. 500자 이내.",
+  "text": "본문. 링크 없이 그 자체로 완결된 이야기. 500자 이내.",
   "publish_at": "2026-10-14T19:30:00-04:00",
-  "link_attachment": "https://drkimworld.com/r/xtia-2026-10/?utm_source=threads&utm_medium=social&utm_campaign=xtia-2026-10&utm_content=post"
+  "replies": [
+    {
+      "text": "이어지는 댓글. 여기에 리포트 링크를 둔다.\nhttps://drkimworld.com/r/xtia-2026-10/?utm_source=threads&utm_medium=social&utm_campaign=xtia-2026-10&utm_content=reply",
+      "link_attachment": "https://drkimworld.com/r/xtia-2026-10/?utm_source=threads&utm_medium=social&utm_campaign=xtia-2026-10&utm_content=reply"
+    }
+  ]
 }
 ```
 
 - `publish_at`: ISO 8601. 시간대를 빼면 미국 동부시간(America/New_York)으로 본다. 예약 실행은 몇 분 늦을 수 있다.
-- `link_attachment`(선택): 링크 미리보기 카드. 리포트 링크에는 UTM(`utm_source=threads&utm_medium=social&utm_campaign=<slug>&utm_content=post`)을 붙인다.
+- `replies`(선택): 본문 아래로 이어지는 댓글 쓰레드. 첫 댓글은 본문에, 다음 댓글은 앞 댓글에 달린다. 각 500자 이내. 본문이 광고처럼 보이지 않도록 링크는 댓글에 둔다.
+- `link_attachment`(선택, 본문·댓글 모두): 링크 미리보기 카드. 리포트 링크에는 UTM(`utm_source=threads&utm_medium=social&utm_campaign=<slug>&utm_content=reply`)을 붙인다.
+- 중간에 실패하면 이미 게시한 부분의 ID가 파일의 `published_ids`에 남고, 다음 실행은 남은 댓글만 이어서 게시한다(본문을 두 번 올리지 않는다). 댓글을 달려면 토큰에 `threads_manage_replies` 권한이 있어야 한다.
 - 500자 제한: 이모지는 UTF-8 바이트 수(보통 4자)로 세어 보수적으로 검사한다. 넘거나 형식이 틀리면 워크플로가 실패로 표시되고 그 글은 게시하지 않는다.
 - 미리 검사: `python scripts/threads_publish.py --check`
 

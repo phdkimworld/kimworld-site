@@ -7,6 +7,9 @@ threads/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   {"text": "본문(500자 이내)", "publish_at": "2026-10-14T19:30:00-04:00"}
   - publish_at 에 시간대가 없으면 America/New_York 으로 본다.
   - 선택: "link_attachment": "https://..." (링크 미리보기 카드. 본문에 주소가 없어도 된다)
+  - 선택: "replies": [{"text": "...", "link_attachment": "https://..."}, ...]
+    본문 아래에 이어지는 댓글 쓰레드(각 500자 이내). 첫 댓글은 본문에, 다음 댓글은 앞 댓글에 달린다.
+    링크는 본문 대신 댓글에 두면 본문이 광고처럼 보이지 않는다.
 
 사용:
   python scripts/threads_publish.py            # 검사 + 시간이 된 글 게시
@@ -77,6 +80,19 @@ def load(path):
     link = post.get("link_attachment")
     if link is not None and not (isinstance(link, str) and link.startswith("https://")):
         errs.append("link_attachment 는 https:// 주소여야 함")
+    replies = post.get("replies", [])
+    if not isinstance(replies, list):
+        errs.append("replies 는 목록이어야 함")
+        replies = []
+    for i, r in enumerate(replies, 1):
+        rt = r.get("text") if isinstance(r, dict) else None
+        if not isinstance(rt, str) or not rt.strip():
+            errs.append(f"replies[{i}] text 가 비어 있음")
+        elif threads_len(rt) > LIMIT:
+            errs.append(f"replies[{i}] text {threads_len(rt)}자 > {LIMIT}자 제한")
+        rl = r.get("link_attachment") if isinstance(r, dict) else None
+        if rl is not None and not (isinstance(rl, str) and rl.startswith("https://")):
+            errs.append(f"replies[{i}] link_attachment 는 https:// 주소여야 함")
     return post, errs
 
 
@@ -97,10 +113,12 @@ def call(method, path, params):
         raise RuntimeError(f"HTTP {e.code}: {body[:300]}") from None
 
 
-def publish(post, uid, token):
+def publish(post, uid, token, reply_to=None):
     params = {"media_type": "TEXT", "text": post["text"], "access_token": token}
     if post.get("link_attachment"):
         params["link_attachment"] = post["link_attachment"]
+    if reply_to:
+        params["reply_to_id"] = reply_to
     creation = call("POST", f"{uid}/threads", params)["id"]
     last = None
     for wait in (3, 10, 20, 30):  # 컨테이너 준비를 잠깐 기다렸다가 게시
@@ -153,7 +171,8 @@ def main(argv):
                 print(f"::error file=threads/queue/{p.name}::{e}")
             continue
         state = "게시 대상" if post["_at"] <= now else "대기"
-        print(f"{p.name}: {threads_len(post['text'])}자, {post['_at'].astimezone(NY):%Y-%m-%d %H:%M} ET, {state}")
+        rep = "".join(f" + 댓글 {threads_len(r['text'])}자" for r in post.get("replies", []))
+        print(f"{p.name}: 본문 {threads_len(post['text'])}자{rep}, {post['_at'].astimezone(NY):%Y-%m-%d %H:%M} ET, {state}")
         if post["_at"] <= now:
             due.append((p, post))
     for p in sorted(ROOT.glob("threads/*.json")):
@@ -179,13 +198,28 @@ def main(argv):
 
     failed = 0
     for p, post in sorted(due, key=lambda x: x[1]["_at"]):
-        try:
-            media, link = publish(post, uid, token)
-        except RuntimeError as e:
-            failed += 1
-            print(f"::error file=threads/queue/{p.name}::게시 실패: {e}")
-            continue
+        # 본문 → 댓글 순서로 게시. 이미 게시한 부분은 파일의 published_ids 에 남겨, 실패 뒤 다시 돌 때 건너뛴다(중복 게시 방지)
         raw = json.loads(p.read_text(encoding="utf-8"))
+        parts = [post] + list(post.get("replies", []))
+        ids = list(raw.get("published_ids", []))
+        link = raw.get("permalink", "")
+        err = None
+        for i in range(len(ids), len(parts)):
+            try:
+                media, plink = publish(parts[i], uid, token, reply_to=ids[-1] if ids else None)
+            except RuntimeError as e:
+                err = e
+                break
+            ids.append(media)
+            if i == 0:
+                link = plink
+            raw.update(published_ids=ids, permalink=link)
+            p.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if err:
+            failed += 1
+            print(f"::error file=threads/queue/{p.name}::게시 실패({len(ids)}/{len(parts)}까지 게시됨): {err}")
+            continue
+        media = ids[0]
         raw.update(posted_at=datetime.now(NY).isoformat(timespec="seconds"), threads_id=media, permalink=link)
         dest = POSTED / p.name
         if dest.exists():

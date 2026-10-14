@@ -50,4 +50,42 @@ with tempfile.TemporaryDirectory() as d:
     tp.call = wrongid; sent.clear(); (tp.QUEUE / "d.json").unlink()
     (tp.QUEUE / "e.json").write_text(json.dumps({"text": "다른 ID", "publish_at": past}), encoding="utf-8")
     check("비밀값 ID가 달라도 토큰 계정 ID로 게시", tp.main([]) == 0 and sent[0] == "777/threads")
+    # 댓글 쓰레드: 본문 → 댓글1(본문에) → 댓글2(댓글1에)
+    log = []; n = [100]
+    def chain(method, path, params):
+        if path == "me": return {"id": "9"}
+        if method == "GET": return {"permalink": "https://www.threads.net/@x/post/root"}
+        log.append((path, params.get("reply_to_id"), params.get("link_attachment")))
+        n[0] += 1; return {"id": str(n[0])}
+    tp.call = chain
+    (tp.QUEUE / "f.json").write_text(json.dumps({"text": "본문", "publish_at": past, "replies": [
+        {"text": "댓글1", "link_attachment": "https://drkimworld.com/r/x/"}, {"text": "댓글2"}]}), encoding="utf-8")
+    check("쓰레드 게시 성공", tp.main([]) == 0)
+    creates = [l for l in log if l[0].endswith("/threads")]
+    check("댓글은 앞 글에 이어 달림", [c[1] for c in creates] == [None, "102", "104"] and creates[1][2] == "https://drkimworld.com/r/x/")
+    check("본문 주소가 기록됨", json.loads((tp.POSTED / "f.json").read_text())["permalink"].endswith("/root"))
+    (tp.QUEUE / "g.json").write_text(json.dumps({"text": "가", "publish_at": past, "replies": [{"text": "가" * 501}]}), encoding="utf-8")
+    check("댓글 501자는 검사 실패", tp.main(["--check"]) == 1)
+    (tp.QUEUE / "g.json").unlink()
+    # 댓글에서 실패하면 본문은 다시 올리지 않는다
+    calls = {"k": 0}
+    def flaky(method, path, params):
+        if path == "me": return {"id": "9"}
+        if method == "GET": return {}
+        if params.get("reply_to_id") and calls["k"] == 0 and path.endswith("/threads"):
+            calls["k"] = 1; raise RuntimeError("HTTP 500")
+        return {"id": "500" if not params.get("reply_to_id") else "501"}
+    tp.call = flaky
+    (tp.QUEUE / "h.json").write_text(json.dumps({"text": "본문", "publish_at": past, "replies": [{"text": "댓글"}]}), encoding="utf-8")
+    first = tp.main([])
+    saved = json.loads((tp.QUEUE / "h.json").read_text())
+    check("댓글 실패 시 진행 상황 저장", first == 1 and saved["published_ids"] == ["500"])
+    log2 = []
+    def track(method, path, params):
+        if path == "me": return {"id": "9"}
+        if method == "GET": return {}
+        if path.endswith("/threads"): log2.append(params.get("reply_to_id"))
+        return {"id": "777"}
+    tp.call = track
+    check("다시 돌면 댓글만 게시", tp.main([]) == 0 and log2 == ["500"])
 print(f"\n모두 통과 ({ok})")
