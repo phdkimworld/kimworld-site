@@ -27,7 +27,7 @@ adfit:
     list: "DAN-TdWSvs3gvdNP2O1i"   # 홈·목록(320x100)
     feed: "DAN-22tVjrp1Keg7k0T4"   # 홈 피드 사이(300x250). 한 페이지에 한 번만(나머지 피드 자리는 쿠팡)
     rail: "DAN-0p5vWnTIuHoy8x0d"   # PC 오른쪽 칸(300x250). 칸이 안 보이는 휴대폰에서는 부르지 않는다
-    feed2: ""                       # DAN-xxxx  홈 피드 두 번째 광고 자리(300x250). 애드핏에서 새 단위를 만들어 넣으면 켜진다
+    feed2: "DAN-apcjcNPQfZouuUyV"   # 홈 피드 두 번째 광고 자리(300x250)
     bottom: ""                      # DAN-xxxx  페이지 맨 아래(320x100, 종목·테마·검색·글 상세·안내 페이지). 넣으면 쿠팡 배너 대신
 
 coupang:
