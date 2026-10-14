@@ -42,10 +42,9 @@
   <footer class="post-actions">
     <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>
     <a class="pa" href="{{ base }}/p/?r={{ r.slug }}" aria-label="답글·이야기 쓰레드">{{ icon('comment') }}<span data-post-cm></span></a>
-    <span class="pa pa-static" aria-label="조회수" data-post-views-wrap hidden>{{ icon('eye') }}<span data-post-views></span></span>
-    <span class="pa-min" aria-hidden="true"></span>
     <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span></button>
     <button type="button" class="pa pa-share" data-action="share" data-share-url="{{ r.url }}" data-share-title="{{ r.title }}" aria-label="공유">{{ icon('share') }}</button>
+    <span class="pa pa-static pa-views" aria-label="조회수" data-post-views-wrap hidden>{{ icon('eye') }}<span data-post-views></span></span>
   </footer>
 </article>
 {%- endmacro %}

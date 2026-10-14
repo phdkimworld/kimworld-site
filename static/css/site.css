@@ -997,7 +997,7 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
 .home-grid .post .card-summary { color: var(--muted); font-size: .92rem; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .home-grid .post-media { margin-top: 10px; border-radius: 12px; }
 .home-grid .post-actions { gap: 10px; margin-top: 6px; }
-.home-grid .pa-min { display: none; }
+
 .home-grid .pa { padding-left: 4px; padding-right: 4px; }
 .home-grid .upost-body { margin-top: 2px; }
 .home-grid .upost-reply { background: none; padding-left: 0; }
