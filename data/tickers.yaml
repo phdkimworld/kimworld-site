@@ -342,3 +342,9 @@ INOD:
   exchange: "NASDAQ"
   theme: "AI 소프트웨어"
   aliases: ["이노데이터", "Innodata", "아이엔오디"]
+LQDA:
+  name: "리퀴디아"
+  name_en: "Liquidia Corporation"
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["리퀴디아", "Liquidia", "유트레피아", "YUTREPIA", "리퀴디아 테크놀로지스"]
