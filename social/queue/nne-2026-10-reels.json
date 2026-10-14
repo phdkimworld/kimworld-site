@@ -8,5 +8,10 @@
     "type": "reels",
     "path": "static/social/nne-2026-10/NNE_shorts.mp4",
     "cover": "static/social/nne-2026-10/cover.jpg"
+  },
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    }
   }
 }
