@@ -1143,7 +1143,7 @@
   function paintTopic(kind, key, st) {
     document.querySelectorAll('[data-topic][data-kind="' + kind + '"][data-key="' + key + '"]').forEach(function (b) {
       b.hidden = false; b.setAttribute('aria-pressed', st.following ? 'true' : 'false');
-      b.querySelector('[data-topic-label]').textContent = b.hasAttribute('data-topic-short') ? (st.following ? '구독 중' : '구독') : st.following ? '✓ 팔로잉' : '+ 팔로우';
+      b.querySelector('[data-topic-label]').textContent = st.following ? '✓ 팔로잉' : '+ 팔로우';
       var n = b.querySelector('[data-topic-n]'); if (n) n.textContent = st.followers ? num(st.followers) : '';
     });
   }

@@ -1305,8 +1305,7 @@ a.kft-in:hover { border-top-color: var(--muted); }
 .rdock .rd-t [data-n]:empty, .rdock .rd-t [data-post-cm]:empty { display: none; }
 .rdock .rd-t [data-n], .rdock .rd-t [data-post-cm] { color: var(--text); font-weight: 700; }
 .rdock .pa-like[aria-pressed="true"] .ic { fill: #f2555a; stroke: #f2555a; }
-.rdock .pa-repost[aria-pressed="true"] .ic, .rdock .rd-sub[aria-pressed="true"] .ic { stroke: #059669; }
-.rdock .rd-sub[aria-pressed="true"] .rd-l { color: #059669; font-weight: 700; }
+.rdock .pa-repost[aria-pressed="true"] .ic { stroke: #059669; }
 @media (max-width: 759px) {
   body:has(.tabbar) .rdock { left: 0; right: 0; transform: none; justify-content: space-around; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); padding: 2px 4px; border-radius: 0; border-width: 1px 0 0; box-shadow: 0 -4px 14px rgba(0,0,0,.25); }
   .rdock .rd-b { min-width: 0; flex: 1 1 0; }
