@@ -330,3 +330,9 @@ NNE:
   exchange: "NASDAQ"
   theme: "원자력·에너지"
   aliases: ["나노 뉴클리어", "나노뉴클리어", "NANO Nuclear", "Nano Nuclear Energy", "크로노스 원자로"]
+LHX:
+  name: "L3해리스 테크놀로지스"
+  name_en: "L3Harris Technologies, Inc."
+  exchange: "NYSE"
+  theme: "우주항공·방산"
+  aliases: ["L3해리스", "엘쓰리해리스", "L3Harris", "해리스", "에어로젯 로켓다인", "Aerojet Rocketdyne"]
