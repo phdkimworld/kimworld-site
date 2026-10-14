@@ -24,6 +24,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 DOMAIN = "https://api-gateway.coupang.com"
 SEARCH_PATH = "/v2/providers/affiliate_open_api/apis/openapi/products/search"
+COMMON = "_common"   # 공통 검색어 묶음의 테마 이름(build.py와 같게)
 CACHE = Path(os.environ.get("COUPANG_CACHE") or ROOT / ".cache" / "coupang_auto.json")
 
 
@@ -151,6 +152,9 @@ def plan(cfg: dict, themes: list[dict]) -> list[dict]:
             continue
         for i, kw in enumerate(kws or []):
             jobs.append({"theme": theme, "keyword": str(kw), "sub_id": sub_id(slug[theme], str(kw)), "idx": i})
+    # 공통 검색어(독자층이 많이 사는 생활·건강·취미 상품): 테마 이름 "_common", 하위 ID는 common+해시
+    for i, kw in enumerate(cfg.get("common") or []):
+        jobs.append({"theme": COMMON, "keyword": str(kw), "sub_id": sub_id("common", str(kw)), "idx": i})
     return jobs
 
 

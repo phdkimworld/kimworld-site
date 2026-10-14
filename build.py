@@ -460,7 +460,8 @@ class Ads:
                     {"keyword": e.get("keyword"), "sub_id": e.get("sub_id"), "date": e.get("date", ""), "products": prods, "theme": str(e.get("theme"))})
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
-        self.theme_slug: dict[str, str] = {}  # 테마 이름 → 주소용 이름(build 에서 채움). 맞춤형 광고 선택에 쓴다
+        self._common_rot = 0  # 공통 묶음을 상자마다 돌려 넣는 순번
+        self.theme_slug: dict[str, str] = {"_common": "common"}  # 테마 이름 → 주소용 이름(build 에서 채움). 맞춤형 광고 선택에 쓴다
         self.place = self.cfg.get("placements") or {}
         # 대화 사이 광고 리듬(first번째 글 뒤부터 every개마다, 최대 max개)
         rh = self.cfg.get("rhythm") or {}
@@ -556,7 +557,14 @@ class Ads:
         theme="*"이면 모든 테마, skip_theme은 뺄 테마(리포트 본문 상자와 겹치지 않게)."""
         ex = [w.lower() for w in exclude_words if w] + self.c_blocked
         out = []
-        src = [g for t, gs in self.c_auto.items() if t != skip_theme for g in gs] if theme == "*" else (self.c_auto.get(theme) or [])
+        common = self.c_auto.get("_common") or []
+        if theme == "*":
+            src = [g for t, gs in self.c_auto.items() if t not in (skip_theme, "_common") for g in gs] + common
+        else:
+            # 테마 묶음 + 공통 묶음 4개(상자마다 돌아가며 다른 4개: 페이지가 무거워지지 않게, 학습은 여러 페이지에 걸쳐 쌓인다)
+            k = self._common_rot % len(common) if common else 0
+            self._common_rot += 4
+            src = (self.c_auto.get(theme) or []) + (common[k:] + common[:k])[:4]
         for g in src:
             ex_g = ex + (self.c_book_blocked if "책" in str(g.get("keyword") or "") else [])
             prods = [x for x in g["products"] if not any(w in str(x.get("name", "")).lower() for w in ex_g)]
@@ -717,7 +725,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     ads = Ads(load_yaml(ROOT / "ads.yaml", {}), log)
     themes = load_yaml(ROOT / "data" / "themes.yaml", [])
     theme_by_name = {t["name"]: t for t in themes}
-    ads.theme_slug = {t["name"]: t["slug"] for t in themes}
+    ads.theme_slug = {"_common": "common", **{t["name"]: t["slug"] for t in themes}}
     tickers = load_yaml(ROOT / "data" / "tickers.yaml", {})
     glossary = load_yaml(ROOT / "data" / "glossary.yaml", [])
     today = dt.datetime.now(KST).date()

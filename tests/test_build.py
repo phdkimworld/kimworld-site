@@ -193,7 +193,7 @@ check(len(rep_calls) == 1 and _rep.get("by_sub", {}).get(cs.sub_id("quantum", "�
 check(cs.sub_id("quantum", "양자역학 책") != cs.sub_id("quantum", "양자컴퓨터 책") and re.fullmatch(r"quantum[0-9a-f]{4}", cs.sub_id("quantum", "x")), "하위 ID는 테마+검색어 해시(검색어를 바꾸면 성과가 섞이지 않음)")
 check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 영문 소문자·숫자")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
-_c["entries"]["양자컴퓨팅|반도체 전쟁 책"]["date"] = "2026-10-09"
+_c["entries"][f'양자컴퓨팅|{_kw0["양자컴퓨팅"][1]}']["date"] = "2026-10-09"
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
 t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})  # 애드핏 중간 번호가 없을 때(쿠팡 3개)
 r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
@@ -210,8 +210,12 @@ tk_page = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
 check("<template data-thread-ad>" in tk_page and 'data-ad-first="4"' in tk_page and 'data-ad-max="4"' in tk_page, "종목 커뮤니티 글 사이 광고 틀(4개 뒤부터 6개마다, 최대 4개)")
 box = page[page.find('ad-coupang-products'):]
 box = box[: box.find("</aside>")]
-check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 리포트에 검색어 묶음 3개")
-check(box.count(" hidden") == 2, "스크립트 없이도 묶음 하나만 보임")
+_ng = box.count("data-cp-group")
+check(r.returncode == 0 and box.count('data-cp-theme="quantum"') == 3 and box.count('data-cp-theme="common"') == 4 and _ng == 7, f"양자컴퓨팅 리포트 상자: 테마 묶음 3개 + 독자층 공통 묶음 4개({_ng})")
+check(box.count(" hidden") == _ng - 1, "스크립트 없이도 묶음 하나만 보임")
+_cfg = yaml.safe_load((SRC / "data/coupang.yaml").read_text(encoding="utf-8"))
+check(len(_cfg.get("common") or []) >= 8 and not any("책" in k for kws in _cfg["keywords"].values() for k in kws), "쿠팡 검색어: 책 대신 많이 사는 상품, 독자층 공통 묶음 8개 이상")
+check(any(s2.startswith("common") for _, s2 in seen), "공통 검색어도 받아 옴(하위 ID common…)")
 boxes = re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)".*?</aside>', page, flags=re.S)
 check(boxes == ["report_mid", "report_products", "report_end"], f"쿠팡 상자 3개: 중간·본문 끝·출처 아래 ({boxes})")
 shown = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', page, flags=re.S)]
@@ -222,12 +226,12 @@ check(3 <= home.count('<aside class="ad ') <= 5 and home.count("data-cp-group") 
 _vis = [re.search(r'data-cp-group data-cp-sub="[^"]*" data-cp-theme="[^"]*" data-cp-date="[^"]*">(.*?)</div>', b, flags=re.S).group(1)[:200] for b in re.findall(r'<aside class="ad ad-coupang-products".*?</aside>', home, flags=re.S)]
 check(len(set(_vis)) == len(_vis) >= 3, "홈 쿠팡 상자는 서로 다른 묶음")
 th = (t / "dist/theme/quantum/index.html").read_text(encoding="utf-8")
-check(th.count("data-cp-group") == 3 or th.count('data-ad-unit="DAN-') == 1, "테마 페이지: 그 테마 쿠팡 묶음만(애드핏 목록 단위가 있으면 애드핏 1개)")
+check(th.count('data-cp-theme="quantum"') == 3 or th.count('data-ad-unit="DAN-') == 1, "테마 페이지: 그 테마 쿠팡 묶음 + 공통 묶음(애드핏 목록 단위가 있으면 애드핏 1개)")
 _units = re.findall(r'data-ad-unit="(DAN-[^"]+)"', (t / "dist/index.html").read_text(encoding="utf-8"))
 check(len(_units) == len(set(_units)), "애드핏 광고 단위는 한 페이지에 한 번씩만")
 sp = (t / "dist").rglob("*.html")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
-_c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith("양자역학 책")}
+_c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith(_kw0["양자컴퓨팅"][2]) and not k.startswith("_common|")}
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
 t = make_project()
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})

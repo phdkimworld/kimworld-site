@@ -321,8 +321,8 @@
       }, 60000);
     }
 
-    // 이번 주 가장 오래 읽힌 리포트를 피드 맨 위 '대표 글'로(실제로 본 시간 합계 기준, 매주 자동으로 바뀜)
-    api('/v1/popular/read').then(function (d) {
+    // 최근 7일 조회수 1위 리포트를 피드 맨 위 '대표 글'로(운영자 결정 2026-10-14: 조회수 기준, 표시는 '조회수 상위'만)
+    api('/v1/popular?days=7&limit=1').then(function (d) {
       var top = (d.items || [])[0]; if (!top || list.querySelector('.featured')) return;
       var orig = list.querySelector('article.post:not(.upost)[data-slug="' + top.slug + '"]'), card;
       if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
@@ -332,8 +332,7 @@
         C.reportTitle(top.slug).then(function (r) { h.textContent = (r.k ? r.k + ' · ' : '') + C.shortTitle(r.t); });
       }
       card.classList.add('featured');
-      var m = Math.floor(top.avg / 60), sec = top.avg % 60;
-      var badge = el('p', 'featured-badge', '★ 이번 주 가장 오래 읽힌 리포트 · 평균 ' + (m ? m + '분 ' : '') + sec + '초');
+      var badge = el('p', 'featured-badge', '★ 조회수 상위');
       card.insertBefore(badge, card.firstChild);
       card.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('featured_click'); });
       var first = list.firstElementChild; if (first) first.before(card); else list.appendChild(card);
