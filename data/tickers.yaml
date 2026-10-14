@@ -336,3 +336,9 @@ LHX:
   exchange: "NYSE"
   theme: "우주항공·방산"
   aliases: ["L3해리스", "엘쓰리해리스", "L3Harris", "해리스", "에어로젯 로켓다인", "Aerojet Rocketdyne"]
+INOD:
+  name: "이노데이터"
+  name_en: "Innodata Inc."
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["이노데이터", "Innodata", "아이엔오디"]
