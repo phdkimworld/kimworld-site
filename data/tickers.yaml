@@ -348,3 +348,9 @@ LQDA:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["리퀴디아", "Liquidia", "유트레피아", "YUTREPIA", "리퀴디아 테크놀로지스"]
+BURU:
+  name: "누부루"
+  name_en: "Nuburu, Inc."
+  exchange: "OTC"
+  theme: "우주항공·방산"
+  aliases: ["누부루", "NUBURU", "Nuburu", "테크네", "Tekne"]
