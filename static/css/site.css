@@ -313,8 +313,7 @@ button { font: inherit; color: inherit; }
 /* 차트 PNG는 흰 배경이라 어두운 화면에서는 색을 뒤집어 맞춘다(색상은 hue-rotate로 유지) */
 .chart-link { display: block; position: relative; }
 .chart-link::after { content: "크게 보기"; position: absolute; right: 8px; bottom: 8px; font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chart-link img { filter: invert(.9) hue-rotate(180deg); } }
-:root[data-theme="dark"] .chart-link img { filter: invert(.9) hue-rotate(180deg); }
+/* 대표 차트는 빌드가 검은 화면용(투명 배경)으로 바꿔 둔다(chart_dark.py). 색 반전 필터를 쓰지 않는다 */
 /* 휴대폰: 아래로 읽는 동안 머리글을 숨기고, 위로 올리면 다시 보인다 */
 .site-header { transition: transform .2s ease; }
 @media (max-width: 859px) { .site-header.hdr-hide { transform: translateY(-100%); } }
@@ -358,9 +357,7 @@ button { font: inherit; color: inherit; }
 .post .card-summary { margin: 0; }
 .post-media { display: block; margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
 .post-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 300px; object-fit: cover; object-position: top; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .post-media img { filter: invert(.9) hue-rotate(180deg); } :root:not([data-theme="light"]) .post-media { background: #1a1a1a; } }
-:root[data-theme="dark"] .post-media img { filter: invert(.9) hue-rotate(180deg); }
-:root[data-theme="dark"] .post-media { background: #1a1a1a; }
+.post-media { background: transparent; }
 .post-top { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0 48px; padding: 9px 12px; background: var(--surface-2); border-radius: 12px; text-decoration: none; color: var(--text); font-size: .86rem; line-height: 1.5; }
 .post-top[hidden] { display: none; }
 .post-top .cm-av { width: 22px; height: 22px; font-size: .68rem; }
@@ -1293,3 +1290,4 @@ a.kft-in:hover { border-top-color: var(--muted); }
 }
 .kfh-v { white-space: nowrap; }
 @media (max-width: 599px) { .kfh-v { font-size: 1.12rem; } .kfh-tile { padding: 10px 8px; } }
+.pa-font .font-glyph { font-weight: 800; font-size: 1.05rem; line-height: 1; width: 20px; text-align: center; }

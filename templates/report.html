@@ -69,6 +69,8 @@
         <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span><span class="pa-txt">리포스트</span></button>
         <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}<span class="pa-txt">공유</span></button>
         <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}<span class="pa-txt" data-save-label>저장</span></button>
+        {# 글자 크기는 긴 글을 읽는 리포트 화면에서만(머리줄에서는 뺐다, 2026-10-14) #}
+        <button type="button" class="pa pa-font" data-action="font" aria-label="글자 크기 바꾸기"><span class="font-glyph" aria-hidden="true">가</span><span class="pa-txt">글자 크기</span></button>
         <button type="button" class="pa pa-print" data-action="print" aria-label="인쇄">{{ icon('print') }}</button>
       </div>
     </header>

@@ -870,6 +870,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
         shutil.rmtree(out)
     out.mkdir(parents=True)
     shutil.copytree(ROOT / "static", out / "static")
+    # 대표 차트(흰 배경 원본)를 검은 화면용 투명 배경 차트로(chart_dark.py, 원본은 그대로·공유 그림은 원본 사용)
+    import chart_dark
+    chart_dark.convert_all(ROOT / "static" / "charts", out / "static" / "charts")
 
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html", "xml"]))
     env.filters["kdate"] = lambda d: f"{d.year}년 {d.month}월 {d.day}일" if d else ""

@@ -26,7 +26,7 @@ def check(cond, msg):
 
 def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None) -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="kws-"))
-    for name in ["build.py", "report_figures.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
+    for name in ["build.py", "report_figures.py", "chart_dark.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
         p = SRC / name
         (shutil.copytree if p.is_dir() else shutil.copy)(p, tmp / name)
     tick = yaml.safe_load((tmp / "data/tickers.yaml").read_text(encoding="utf-8"))
