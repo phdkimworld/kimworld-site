@@ -11,18 +11,24 @@ adsense:
     display: ""              # 디스플레이 광고 단위 번호 (선택)
 
 adfit:
+  # 카카오 애드핏 운영정책: 한 페이지에 카카오 광고 4개 초과 금지, 콘텐츠와 함께 광고를 계속 동적으로 불러오는 것 금지.
+  # → 애드핏은 처음 받는 HTML의 고정 자리에만, 한 페이지 최대 4개(같은 단위는 한 페이지 한 번). 피드를 더 내려 불러오는 자리는 애드센스·쿠팡이 채운다.
+  max_per_page: 4            # 4보다 크게 하면 빌드가 막는다
   width: 320
   height: 100
   sizes:                     # 단위별 크기 [가로, 세로]. 없으면 위 width/height
     report_mid: [300, 250]
     feed: [300, 250]
+    feed2: [300, 250]
     rail: [300, 250]
   units:
     report_mid: "DAN-JnyyFywjMJcgsuJw"   # DAN-xxxx  리포트 중간(300x250). 비어 있으면 그 자리는 쿠팡 상자
     report_end: "DAN-fLqYFcTk9aoRDmDT"   # DAN-xxxx  리포트 하단(320x100)
     list: "DAN-TdWSvs3gvdNP2O1i"   # 홈·목록(320x100)
     feed: "DAN-22tVjrp1Keg7k0T4"   # 홈 피드 사이(300x250). 한 페이지에 한 번만(나머지 피드 자리는 쿠팡)
-    rail: "DAN-0p5vWnTIuHoy8x0d"   # PC 오른쪽 칸(300x250)
+    rail: "DAN-0p5vWnTIuHoy8x0d"   # PC 오른쪽 칸(300x250). 칸이 안 보이는 휴대폰에서는 부르지 않는다
+    feed2: ""                       # DAN-xxxx  홈 피드 두 번째 광고 자리(300x250). 애드핏에서 새 단위를 만들어 넣으면 켜진다
+    bottom: ""                      # DAN-xxxx  페이지 맨 아래(320x100, 종목·테마·검색·글 상세·안내 페이지). 넣으면 쿠팡 배너 대신
 
 coupang:
   # 쿠팡 파트너스 대시보드에서 만든 카테고리 배너 코드를 그대로 붙여 넣는다. 쿠팡 도메인 밖 주소가 있으면 빌드가 실패한다.
@@ -61,14 +67,14 @@ placements:
   list: [adfit_list, coupang_products]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
   report_late: coupang_products         # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 본문 상자와 다른 테마 상품
   rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
-  feed_inline: [adfit_feed, coupang_products]   # 홈 피드 사이: 첫 자리는 애드핏 300x250, 나머지는 쿠팡(애드핏 단위는 한 페이지 한 번)(아래 rhythm.home_feed). 목록 광고(list)가 첫 자리
-  page_bottom: coupang_banner           # 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
+  feed_inline: [adfit_feed, adfit_feed2, adsense_in_article, coupang_products]   # 홈 피드 사이(처음 HTML의 고정 자리, 아래 rhythm.home_feed): 애드핏 피드 → 애드핏 피드2 → 애드센스 → 쿠팡. 목록 광고(list)가 첫 자리
+  page_bottom: [adfit_bottom, coupang_banner]   # (애드핏 '하단' 단위가 있고 그 페이지 애드핏이 4개 미만이면 애드핏) 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
   explore: [adfit_list, coupang_products]   # 검색·탐색: 첫 탭(인기 종목)의 '요즘 많이 찾는 종목' 아래, 전체 종목 목록 위(한 개)
-  explore_inline: coupang_products      # 검색·탐색의 다른 탭 목록 6번째 줄 뒤 + 검색 결과 3번째 뒤(화면에서 끼워 넣는 자리)
-  profile_inline: coupang_products      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
+  explore_inline: [adsense_in_article, coupang_products]      # 검색·탐색의 다른 탭 목록 6번째 줄 뒤 + 검색 결과 3번째 뒤(화면에서 끼워 넣는 자리)
+  profile_inline: [adsense_in_article, coupang_products]      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
   dm_list: [adfit_list, coupang_products]   # 쪽지함 대화 목록 아래(대화 화면에는 없음)
   post_detail: [adfit_list, coupang_products]   # 글 상세: 원글과 답글 사이(한 개)
-  thread_inline: coupang_products       # 댓글·종토방 대화 사이(글이 쌓였을 때만, 아래 rhythm). 쿠팡 상품 또는 애드센스 in-article만 가능(화면에서 끼워 넣는 자리라 애드핏 불가)
+  thread_inline: [adsense_in_article, coupang_products]   # 커뮤니티 목록·답글 사이(글이 쌓였을 때만, 아래 rhythm). 화면에서 끼워 넣고 더 보기로 계속 채우는 자리라 애드핏 불가(운영정책) → 애드센스 인피드/인아티클, 없으면 쿠팡
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).
 # 간격은 5개 이상, 최대 개수는 아래 값이 상한(빌드가 검사).

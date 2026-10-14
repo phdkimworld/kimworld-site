@@ -311,17 +311,6 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   });
 })();
 
-// 리포트: 휴대폰에서 위쪽 반응 줄이 화면 밖으로 나가면 아래 고정 줄을 띄운다(댓글 칸이 보이면 숨김)
-(function () {
-  var dock = document.querySelector('[data-dock]'), bar = document.querySelector('[data-report-bar]');
-  if (!dock || !bar || !window.IntersectionObserver) return;
-  var barOut = false, cmIn = false;
-  var sync = function () { var on = barOut && !cmIn; dock.hidden = !on; document.body.classList.toggle('has-dock', on); };
-  new IntersectionObserver(function (es) { barOut = !es[0].isIntersecting && es[0].boundingClientRect.top < 0; sync(); }).observe(bar);
-  var cm = document.getElementById('comments');
-  if (cm) new IntersectionObserver(function (es) { cmIn = es[0].isIntersecting; sync(); }).observe(cm);
-})();
-
 // 홈(휴대폰): 인사이트 칸을 피드 네 번째 글 뒤로 옮겨 첫 화면에 글이 먼저 보이게 한다(넓은 화면에서는 오른쪽 칸)
 (function () {
   var side = document.querySelector('.home-side'), list = document.querySelector('.feed-list');

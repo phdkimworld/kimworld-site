@@ -1,6 +1,5 @@
 {% extends "base.html" %}
-{% set no_tabbar = true %}{# 리포트는 아래 반응 줄(좋아요·댓글·공유)을 쓰므로 탭 줄을 띄우지 않는다 #}
-{% from "_macros.html" import card, icon, thread %}
+{% from "_macros.html" import card, icon, community %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.seo_title }} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ r.summary }}{% endblock %}
@@ -66,8 +65,7 @@
       </p>
       <div class="report-actions post-actions report-bar" data-report-bar>
         <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span><span class="pa-txt">좋아요</span></button>
-        <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span><span class="pa-txt">댓글</span></a>
-        {% if site.api_url %}<a class="pa" href="{{ base }}/t/{{ r.ticker|lower }}/#board" aria-label="{{ r.ticker }} 종토방">{{ icon('board') }}<span class="pa-txt">종토방</span></a>{% endif %}
+        <a class="pa" href="#community" aria-label="커뮤니티 이야기">{{ icon('comment') }}<span data-post-cm></span><span class="pa-txt">이야기</span></a>
         <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span><span class="pa-txt">리포스트</span></button>
         <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}<span class="pa-txt">공유</span></button>
         <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}<span class="pa-txt" data-save-label>저장</span></button>
@@ -96,13 +94,6 @@
       </div>
     </section>
 
-    {% if site.api_url %}
-    <section class="cm-top" data-cm-top hidden aria-label="인기 댓글">
-      <p class="cm-top-title">인기 댓글</p>
-      <ol class="cm-list"></ol>
-      <a class="cm-top-more" href="#comments" data-cm-more>댓글 모두 보기</a>
-    </section>
-    {% endif %}
 
     {% if r.youtube_id %}
     <div class="yt" data-yt="{{ r.youtube_id }}">
@@ -161,15 +152,7 @@
     {% endif %}
 
     {% if site.api_url %}
-    <section class="board-peek" data-board-peek="b-{{ r.ticker|lower }}" aria-labelledby="bp-h">
-      <div class="board-peek-head">
-        <h2 id="bp-h">{{ icon('board') }} {{ r.ticker }} 종토방</h2>
-        <a class="btn btn-primary" href="{{ base }}/t/{{ r.ticker|lower }}/#board">종토방 가기<span data-board-n></span></a>
-      </div>
-      <p class="muted board-peek-sub" data-board-empty>{{ r.company }}에 대해 이야기하는 곳입니다. 첫 글을 남겨 보세요.</p>
-      <ol class="cm-list board-peek-list" data-board-list></ol>
-    </section>
-    {{ thread(r.slug, 'report', '댓글', 'comments', thread_ad, ads.rhythm.report_comments) }}
+    {{ community(r.slug, 'b-' ~ r.ticker|lower, '이 리포트 이야기', '이 리포트에 대한 생각을 남겨 보세요', thread_ad, ads.rhythm.report_comments, base ~ '/t/' ~ r.ticker|lower ~ '/#community', r.ticker ~ ' 커뮤니티 전체 →') }}
     {% endif %}
 
     {% if site.newsletter.url %}
@@ -211,15 +194,6 @@
   </aside>
   {% endif %}
 </div>
-<nav class="report-dock post-actions" data-dock aria-label="리포트 반응" hidden data-slug="{{ r.slug }}">
-  <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>
-  <a class="pa" href="#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span></a>
-  <a class="pa" href="{{ base }}/t/{{ r.ticker|lower }}/#board" aria-label="{{ r.ticker }} 종토방">{{ icon('board') }}</a>
-  <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span></button>
-  <button type="button" class="pa" data-action="share" aria-label="공유">{{ icon('share') }}</button>
-  <button type="button" class="pa" data-action="save" aria-pressed="false" aria-label="저장">{{ icon('bookmark') }}</button>
-  <button type="button" class="pa" data-action="top" aria-label="맨 위로"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
-</nav>
 <button type="button" class="to-top" data-action="top" aria-label="맨 위로">↑</button>
 <div class="term-pop" role="tooltip" hidden></div>
 {% endblock %}

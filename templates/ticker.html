@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card, thread %}
+{% from "_macros.html" import card, community %}
 {% set current_theme = t.theme %}
 {% set nm = rs[0].seo_name %}{% set kd = rs[0].seo_kind %}
 {% set tname = nm if nm|upper == code else nm ~ '(' ~ code ~ ')' %}
@@ -7,7 +7,7 @@
 {% block description %}{{ tname }} {{ kd }} 분석 리포트 {{ rs|length }}개({{ rs[0].date|kdate }} 최신). {{ rs[0].summary }}{% endblock %}
 {% block og_image %}{{ rs[0].og_image }}{% endblock %}
 {% block og_title %}{{ rs[0].share_title }}{% endblock %}
-{% block og_desc %}{{ tname }} 무료 분석 리포트 {{ rs|length }}개와 종토방 이야기. 회원 가입 없이 바로 보기{% endblock %}
+{% block og_desc %}{{ tname }} 무료 분석 리포트 {{ rs|length }}개와 커뮤니티 이야기. 회원 가입 없이 바로 보기{% endblock %}
 {% block og_alt %}{{ code }} {{ rs[0].share_title }}{% endblock %}
 {% block jsonld %}
 <script type="application/ld+json">
@@ -29,7 +29,7 @@
   </header>
   <nav class="seg-tabs" aria-label="{{ code }} 보기">
     <a href="#reports">리포트 <strong>{{ rs|length }}</strong></a>
-    {% if site.api_url %}<a href="#board">종토방 <strong data-board-n-tab></strong></a>{% endif %}
+    {% if site.api_url %}<a href="#community">커뮤니티 <strong data-cmty-n-tab></strong></a>{% endif %}
   </nav>
   {% if rs[0].key_points %}
   <section class="summary-box t-latest" aria-labelledby="t-latest-h">
@@ -41,6 +41,6 @@
   <div class="cards" id="reports">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
   {{ page_bottom|safe }}
-  {% if site.api_url %}<div class="board-wrap">{{ thread('b-' ~ code|lower, 'board', code ~ ' 종토방', 'board', thread_ad, ads.rhythm.board) }}</div>{% endif %}
+  {% if site.api_url %}{{ community('', 'b-' ~ code|lower, code ~ ' 커뮤니티', nm ~ '에 대한 생각을 나눠 보세요', thread_ad, ads.rhythm.board) }}{% endif %}
 </div>
 {% endblock %}

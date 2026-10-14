@@ -14,7 +14,7 @@ SRC = Path(__file__).resolve().parent.parent
 import re as _re0
 # 대화 사이 광고 틀(화면에서만 끼워 넣음)과 PC 오른쪽 칸 광고(rail)는 본문 광고 수에서 뺀다
 # 본문 광고 검사에서 빼는 것: 대화 사이 광고 틀, PC 오른쪽 칸, 페이지 맨 아래 쿠팡 배너(따로 검사)
-notpl = lambda h: _re0.sub(r'<aside class="ad ad-coupang" data-slot="page_bottom".*?</aside>', "", _re0.sub(r'<div class="rail-ad">.*?</aside></div>', "", _re0.sub(r"<template data-thread-ad>.*?</template>", "", h, flags=_re0.S), flags=_re0.S), flags=_re0.S)
+notpl = lambda h: _re0.sub(r'<aside class="ad ad-coupang" data-slot="page_bottom".*?</aside>', "", _re0.sub(r'<div class="rail-ad">.*?</aside></div>', "", _re0.sub(r"<template data-(?:thread|feed-more)-ad>.*?</template>", "", h, flags=_re0.S), flags=_re0.S), flags=_re0.S)
 FAILS = []
 
 
@@ -200,10 +200,14 @@ r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, tex
 page_full = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 tpl = re.search(r"<template data-thread-ad>(.*?)</template>", page_full, flags=re.S)
 page = notpl(page_full)  # 본문 광고 검사는 대화 사이 광고 틀·오른쪽 칸 광고를 빼고
-check(tpl is not None and 'data-ad-first="6"' in page_full and 'data-ad-every="6"' in page_full and 'data-ad-max="3"' in page_full, "리포트 댓글 사이 광고 틀(6개 뒤부터 6개마다, 최대 3개)")
-check(tpl is not None and "quantum" not in tpl.group(1) and tpl.group(1).count("data-cp-group") >= 3, "댓글 사이 광고는 본문 상자와 다른 테마 묶음")
+check(tpl is not None and 'data-ad-first="6"' in page_full and 'data-ad-every="6"' in page_full and 'data-ad-max="3"' in page_full, "리포트 이야기(커뮤니티 글) 사이 광고 틀(6개 뒤부터 6개마다, 최대 3개)")
+check(tpl is not None and "quantum" not in tpl.group(1) and tpl.group(1).count("data-cp-group") >= 3, "글 사이 광고는 본문 상자와 다른 테마 묶음")
+check(tpl is not None and "kakao_ad_area" not in tpl.group(1), "화면에서 끼워 넣는 광고 틀에는 애드핏 없음(운영정책)")
+_hm = (t / "dist/index.html").read_text(encoding="utf-8")
+_mt = re.search(r"<template data-feed-more-ad>(.*?)</template>", _hm, flags=re.S)
+check(_mt is not None and "kakao_ad_area" not in _mt.group(1) and "data-cp-group" in _mt.group(1), "홈 '글 더 보기' 뒤 광고 틀(쿠팡·애드센스만)")
 tk_page = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
-check("<template data-thread-ad>" in tk_page and 'data-ad-first="4"' in tk_page and 'data-ad-max="4"' in tk_page, "종토방 사이 광고 틀(4개 뒤부터 6개마다, 최대 4개)")
+check("<template data-thread-ad>" in tk_page and 'data-ad-first="4"' in tk_page and 'data-ad-max="4"' in tk_page, "종목 커뮤니티 글 사이 광고 틀(4개 뒤부터 6개마다, 최대 4개)")
 box = page[page.find('ad-coupang-products'):]
 box = box[: box.find("</aside>")]
 check(r.returncode == 0 and box.count("data-cp-group") == 3, "양자컴퓨팅 리포트에 검색어 묶음 3개")
@@ -244,6 +248,19 @@ check(("ad-adfit", "report_mid") in slots and 'data-ad-unit="DAN-midtest1" data-
       "애드핏 중간 번호가 있으면 초반 자리는 애드핏 300x250")
 check(pm.count("ad-coupang-products") == 2 and len(slots) <= 4 and pm.count("DAN-midtest1") == 1 and pm.count("DAN-endtest1") == 1,
       f"쿠팡 2개 + 애드핏 2개, 같은 단위 중복 없음 ({slots})")
+# 애드핏 운영정책: 한 페이지 4개까지(보이지 않는 PC 칸 광고는 휴대폰에서 부르지 않음)
+t = make_project({"adfit": {"units": {"report_mid": "DAN-m1", "report_end": "DAN-e1", "list": "DAN-l1", "feed": "DAN-f1", "feed2": "DAN-f2", "rail": "DAN-r1", "bottom": "DAN-b1"}}})
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+for _pg in ["index.html", "r/zzzz-test-2026-01/index.html", "t/zzzz/index.html", "search/index.html", "p/index.html", "terms/index.html"]:
+    _h = (t / "dist" / _pg).read_text(encoding="utf-8")
+    _u = re.findall(r'data-ad-unit="(DAN-[^"]+)"', _h)
+    check(len(_u) <= 4 and len(_u) == len(set(_u)), f"애드핏 한 페이지 4개 이하·같은 단위 한 번: {_pg} ({_u})")
+_h = (t / "dist/index.html").read_text(encoding="utf-8")
+check("DAN-f2" in _h and _h.count("offsetParent===null") == 1, "홈: 피드 두 번째 애드핏 자리, PC 칸 광고는 안 보이면 부르지 않음")
+_h = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
+check("DAN-l1" in _h and "DAN-b1" in _h, "종목 페이지: 목록 + 맨 아래 애드핏")
+_h = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check("DAN-b1" not in _h, "리포트 맨 아래는 바로 위 애드핏 하단 상자와 붙지 않게 애드핏 안 씀")
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
     _os.environ.pop(k, None)
 
@@ -252,24 +269,24 @@ t = make_project()
 run(t)
 pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 home = (t / "dist/index.html").read_text(encoding="utf-8")
-check(0 < pg.find("data-cm-top hidden") < pg.find('class="prose"'), "요약 바로 아래 인기 댓글 자리(본문보다 위, 처음엔 숨김)")
-check('id="comments" data-comments data-thread="zzzz-test-2026-01" data-kind="report" hidden' in pg and "community.js" in pg and 'data-views hidden' in pg, "리포트에 댓글·조회수 자리(처음엔 숨김)")
+check("data-cm-top" not in pg and "data-comments" not in pg and "data-board-peek" not in pg, "리포트에 따로 된 댓글·종토방 칸 없음(커뮤니티 하나)")
+check('id="community" data-community data-about="zzzz-test-2026-01" data-board="b-zzzz"' in pg and "data-cmty-compose" in pg and "community.js" in pg and 'data-views hidden' in pg, "리포트 아래 '이 리포트 이야기'(커뮤니티 글)·조회수 자리")
 check("data-insights hidden" in home and "data-popular-list" in home and "data-trending-list" in home, "홈에 많이 본 리포트·많이 찾는 종목 자리(처음엔 숨김)")
 check(home.count('class="card post"') >= 1 and "data-post-like" in home and "data-post-top" in home and "data-ago" in home, "홈 피드: 게시물 카드(좋아요·대표 댓글·'n일 전')")
-check("data-report-bar" in pg and "data-dock" in pg and pg.count("data-post-like") >= 2, "리포트: 반응 줄과 휴대폰 고정 반응 줄")
-check("data-theme-list" in home and "data-recent-cm-list" in home and "data-pop-range" in home, "홈에 테마별 관심도·최근 댓글·오늘/7일 탭 자리")
+check("data-report-bar" in pg and "data-dock" not in pg and 'href="#community"' in pg, "리포트: 반응 줄(이야기 → 커뮤니티)")
+check("data-theme-list" in home and "data-recent-cm-list" not in home and "data-pop-range" in home, "홈에 테마별 관심도·오늘/7일 탭 자리(최근 댓글 칸 없음)")
 check(pg.find("data-next-reads hidden") > pg.find('class="prose"'), "리포트 끝에 '지금 많이 보는 리포트' 자리")
 check(all("ts" in x for x in json.loads((t / "dist/search.json").read_text(encoding="utf-8"))), "검색 색인에 테마 주소(ts)")
-check('data-board-peek="b-zzzz"' in pg and "/t/zzzz/#board" in pg, "리포트에서 종토방으로 연결(미리보기·반응 줄)")
+check("/t/zzzz/#community" in pg and "종토방" not in notpl(pg), "리포트에서 종목 커뮤니티로 연결(종토방이라는 이름 없음)")
 tk = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
-check('data-thread="b-zzzz"' in tk and 'data-kind="board"' in tk and "data-need-account" in tk, "종목 페이지에 종토방(계정 없으면 글쓰기 대신 안내)")
+check('id="community" data-community data-board="b-zzzz"' in tk and "data-about" not in tk and 'href="#community"' in tk, "종목 페이지에 그 종목 커뮤니티")
 check((t / "dist/u/index.html").exists() and "noindex" in (t / "dist/u/index.html").read_text(encoding="utf-8"), "프로필 페이지(검색 노출 안 함)")
 ad = (t / "dist/admin/index.html").read_text(encoding="utf-8")
 check("noindex,nofollow" in ad and "admin.js" in ad and "Disallow: /admin/" in (t / "dist/robots.txt").read_text(), "운영 통계 페이지: 검색 노출·수집 막음")
 check("/admin/" not in home, "운영 통계는 어디에도 링크하지 않음")
 check("data-tabbar" in home and "data-compose" in home, "휴대폰 아래 탭 줄(홈·검색·글쓰기·알림·내 정보)")
 _rp = next((t / "dist/r").glob("*/index.html")).read_text(encoding="utf-8")
-check("data-tabbar" not in _rp and "data-dock" in _rp, "리포트에는 탭 줄 대신 반응 줄")
+check("data-tabbar" in _rp and "data-dock" not in _rp, "리포트도 홈과 같은 아래 탭 줄")
 _mf = _json.loads((t / "dist/manifest.webmanifest").read_text(encoding="utf-8"))
 check(_mf["display"] == "standalone" and any(i.get("sizes") == "512x512" and i.get("purpose") == "maskable" for i in _mf["icons"]) and (t / "dist/static/icon-192.png").exists(), "웹앱 설치 정보(아이콘 192·512·마스크)")
 _sw = (t / "dist/sw.js").read_text(encoding="utf-8")
@@ -280,12 +297,12 @@ check(pp.exists() and "noindex" in pp.read_text(encoding="utf-8") and "data-post
 check("data-feed-tabs" not in home and 'value="b-talk"' in home and "data-composer" in home, "홈 피드: 탭 없이 하나의 피드 + 글쓰기 상자(라운지·종목 선택)")
 check("social.js" in home and '"tk": [' in home.replace("tk: [", '"tk": ['), "홈에 피드 스크립트와 종목 목록($티커 링크용)")
 check((t / "dist/terms/index.html").exists() and "data-open-account" in home, "이용약관·계정 버튼")
-check('name="website" class="hp"' in pg, "로봇 막는 숨은 칸")
+check('name="website" class="hp"' in home, "로봇 막는 숨은 칸(글쓰기 상자)")
 sy = yaml.safe_load((t / "site.yaml").read_text(encoding="utf-8")); sy["api_url"] = ""
 (t / "site.yaml").write_text(yaml.safe_dump(sy, allow_unicode=True), encoding="utf-8")
 run(t)
 pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
-check("community.js" not in pg and "data-comments" not in pg and "data-board-peek" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
+check("community.js" not in pg and "data-community" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
 w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
 check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
 

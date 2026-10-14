@@ -11,7 +11,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-RULES = ("종토방 규칙\n"
+RULES = ("커뮤니티 규칙\n"
          "· 이 종목에 대한 개인 의견을 나누는 곳이며, 투자 권유가 아닙니다.\n"
          "· 링크·연락처·리딩방·종목 추천 홍보는 자동으로 가려집니다.\n"
          "· 욕설·비방·개인정보·도배는 신고 3건이면 가려지고, 반복하면 이용이 제한됩니다.")
@@ -54,7 +54,7 @@ def main() -> None:
     for tk, (_, body) in sorted(latest.items()):
         t = tickers.get(tk) or {}
         name = t.get("name") or tk
-        head = f"{name}({tk}) 종토방을 엽니다."
+        head = f"{name}({tk}) 커뮤니티를 엽니다."
         intro = intro_of(body)
         text = "\n".join([head, "· 회사: " + intro if intro else "", "", RULES])[:500]
         esc = text.replace("'", "''")

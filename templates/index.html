@@ -65,10 +65,6 @@
       <h2 class="section-title">테마별 관심도 <span class="muted ins-sub">최근 7일 조회 비중</span></h2>
       <ul class="bars" data-theme-list></ul>
     </div>
-    <div class="ins-card" data-recent-cm hidden>
-      <h2 class="section-title">최근 댓글</h2>
-      <ul class="rc-list" data-recent-cm-list></ul>
-    </div>
   </section>
   {% endif %}
   {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
@@ -81,13 +77,13 @@
       <span class="composer-av" data-composer-av aria-hidden="true"></span>
       <form class="composer-form" data-composer-form novalidate>
         <label class="sr-only" for="cp-body">새 글</label>
-        <textarea id="cp-body" name="body" rows="2" maxlength="500" placeholder="종목 이야기를 나눠 보세요. $TSLA처럼 쓰면 그 종목 종토방에도 올라갑니다."></textarea>
+        <textarea id="cp-body" name="body" rows="2" maxlength="500" placeholder="종목 이야기를 나눠 보세요. $TSLA처럼 쓰면 그 종목 태그가 붙습니다."></textarea>
         <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <input name="nick" class="composer-nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임" hidden>
         <div class="composer-row">
-          <label class="sr-only" for="cp-board">올릴 곳</label>
+          <label class="sr-only" for="cp-board">종목 태그</label>
           <select id="cp-board" name="board" data-composer-board>
-            <option value="b-talk">라운지 (종목 없이)</option>
+            <option value="b-talk">종목 태그 없이</option>
             {% for t in ticker_list %}<option value="b-{{ t.code|lower }}">${{ t.code }} {{ t.name }}</option>{% endfor %}
           </select>
           <span class="cm-len muted" data-composer-len></span>
@@ -108,6 +104,7 @@
       {%- endfor %}
     </div>
     {% if rs|length < feed_first %}{{ list_ad|safe }}{% endif %}
+    {% if site.api_url and feed_more_ad %}<template data-feed-more-ad>{{ feed_more_ad|safe }}</template>{% endif %}
     {% if site.api_url %}<div class="feed-end" data-feed-end hidden><button type="button" class="btn" data-feed-more>글 더 보기</button></div>{% endif %}
     {{ page_bottom|safe }}
     {% else %}

@@ -140,7 +140,7 @@
         });
         document.querySelectorAll('[data-post-top]').forEach(function (n) {
           if (postSlug(n) !== sl || !x.top) return;
-          n.textContent = '';
+          n.textContent = ''; if (x.top.id) n.href = postUrl(x.top.id);
           n.appendChild(avatar(x.top.nick));
           var t = el('span', 'post-top-txt');
           t.appendChild(el('strong', null, x.top.nick + ' '));
@@ -171,11 +171,12 @@
   });
 
   // ---------- 공통: 글 묶음(slug) → 주소 ----------
+  // 커뮤니티 하나: 글은 종목 태그(b-티커)나 태그 없음(b-talk)으로만 나뉜다
   function threadUrl(sl) {
     var m = /^b-(.+)$/.exec(sl || '');
-    return m ? base + '/t/' + m[1] + '/#board' : base + '/r/' + sl + '/#comments';
+    return m && m[1] !== 'talk' ? base + '/t/' + m[1] + '/#community' : base + '/';
   }
-  function threadLabel(sl) { if (sl === 'b-talk') return '라운지'; var m = /^b-(.+)$/.exec(sl || ''); return m ? m[1].toUpperCase() + ' 종토방' : '리포트 댓글'; }
+  function threadLabel(sl) { var m = /^b-(.+)$/.exec(sl || ''); return m && m[1] !== 'talk' ? m[1].toUpperCase() + ' 커뮤니티' : '커뮤니티'; }
   function postUrl(id) { return base + '/p/?id=' + id; }
   // 글 하나로 가는 주소: 종토방·라운지 글은 글 상세, 리포트 댓글은 그 리포트 댓글 칸
   function itemUrl(sl, id) { return /^b-/.test(sl || '') && id ? postUrl(id) : threadUrl(sl); }
@@ -250,7 +251,7 @@
       }
       if (!ME) { // 로그인은 했지만 닉네임을 아직 안 정함
         var body2 = dialog('닉네임 정하기');
-        body2.appendChild(el('p', 'muted', '종토방과 댓글에 보일 이름입니다. 닉네임은 14일에 한 번 바꿀 수 있습니다.'));
+        body2.appendChild(el('p', 'muted', '커뮤니티에 보일 이름입니다. 닉네임은 14일에 한 번 바꿀 수 있습니다.'));
         var nick = el('input'); nick.maxLength = 12; nick.placeholder = '한글·영문·숫자 2~12자'; nick.autocomplete = 'off';
         var bio = el('input'); bio.maxLength = 80; bio.placeholder = '한 줄 소개 (선택)';
         var agree = el('input'); agree.type = 'checkbox';
@@ -531,8 +532,11 @@
       if (t.hasAttribute('data-tab-me')) { if (ME) location.href = profileUrl(ME.id); else openAccount(); return; }
       if (t.hasAttribute('data-tab-bell')) { if (ME) openBell(); else openAccount(); return; }
       // 글쓰기: 이 화면에 글 상자(홈 피드·종토방)가 있으면 그리로, 없으면 홈 피드 글쓰기로
-      var ta = document.querySelector('[data-composer]:not([hidden]) textarea, .comments.board [data-cm-form]:not([hidden]) textarea');
+      // 글쓰기: 홈은 글 상자로, 리포트·종목 화면은 그 화면의 커뮤니티 글쓰기(리포트 첨부·종목 태그)로, 그 밖은 홈 글쓰기로
+      var ta = document.querySelector('[data-composer]:not([hidden]) textarea');
       if (ta) { ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(function () { ta.focus(); }, 300); return; }
+      var cc = document.querySelector('[data-community] [data-cmty-compose]');
+      if (cc) { cc.click(); return; }
       location.href = base + '/?compose=1';
     });
   });
@@ -546,256 +550,6 @@
     e.preventDefault();
     if (t.hasAttribute('data-open-bell')) openBell(); else openAccount();
   });
-
-  // ---------- 댓글·종토방 묶음 ----------
-  function initThread(box) {
-    var tslug = box.getAttribute('data-thread'), kind = box.getAttribute('data-kind') || 'report';
-    var isReport = kind === 'report';
-    var listEl = box.querySelector('[data-cm-list]');
-    var bestEl = box.querySelector('[data-cm-best]');
-    var countEl = box.querySelector('[data-cm-count]');
-    var form = box.querySelector('[data-cm-form]');
-    var msg = box.querySelector('[data-cm-msg]');
-    var lenEl = box.querySelector('[data-cm-len]');
-    var sort = isReport ? 'top' : 'new';
-    var startedAt = 0;
-    var liked = {}, openRoots = {};
-    var noun = isReport ? '댓글' : '글';
-
-    function item(c, isBest, canReply) {
-      var li = el('li', 'cm-item' + (isBest ? ' cm-item-best' : '') + (c.parent ? ' cm-reply' : '') + (c.pinned ? ' cm-item-pinned' : ''));
-      li.setAttribute('data-cid', c.id); if (c.uid) { li.setAttribute('data-by-uid', c.uid); if (isBlocked(c.uid)) li.hidden = true; }
-      li.appendChild(avatar(c.nick, c.uid));
-      var main = el('div', 'cm-main'); li.appendChild(main);
-      var head = el('div', 'cm-head');
-      if (c.pinned) head.appendChild(el('span', 'cm-badge cm-badge-notice', '공지'));
-      if (isBest) head.appendChild(el('span', 'cm-badge', 'BEST'));
-      head.appendChild(nickEl(c, 'cm-nick'));
-      if (!isReport && !c.pinned) { var tl = el('a', 'cm-time muted', ago(c.created)); tl.href = postUrl(c.parent || c.id); head.appendChild(tl); }
-      else head.appendChild(el('span', 'cm-time muted', ago(c.created)));
-      main.appendChild(head);
-      main.appendChild(richText(el('p', 'cm-body'), c.body));
-      if (c.quote) main.appendChild(quoteBox(c.quote));
-      var act = el('div', 'cm-act');
-      var like = el('button', 'cm-like');
-      like.type = 'button';
-      like.setAttribute('data-cid', c.id);
-      setHeart(like, c.likes, liked[c.id]);
-      like.disabled = !!c.mine;
-      like.addEventListener('click', function () {
-        like.disabled = true;
-        api('/v1/comments/' + c.id + '/like', { method: 'POST' }).then(function (d) {
-          like.disabled = false;
-          if (d._status !== 200) { if (d.message) alert(d.message); return; }
-          liked[c.id] = d.liked;
-          document.querySelectorAll('.cm-like[data-cid="' + c.id + '"]').forEach(function (b) { setHeart(b, d.likes, d.liked); if (d.liked) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } });
-        }).catch(function () { like.disabled = false; });
-      });
-      act.appendChild(like);
-      if (canReply) {
-        var rb = el('button', 'cm-link', '답글'); rb.type = 'button';
-        rb.addEventListener('click', function () {
-          openReply(c.parent || c.id, c.nick);
-        });
-        act.appendChild(rb);
-      }
-      if (c.mine) {
-        var del = el('button', 'cm-link', '삭제'); del.type = 'button';
-        del.addEventListener('click', function () {
-          if (!confirm('이 ' + noun + '을 삭제할까요?')) return;
-          api('/v1/comments/' + c.id + '/delete', { method: 'POST' }).then(load).catch(function () {});
-        });
-        act.appendChild(del);
-      } else if (!c.pinned) {
-        var rep = el('button', 'cm-link', '신고'); rep.type = 'button';
-        rep.addEventListener('click', function () {
-          if (!confirm('이 ' + noun + '을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
-          api('/v1/comments/' + c.id + '/report', { method: 'POST' }).then(function () { rep.textContent = '신고됨'; rep.disabled = true; }).catch(function () {});
-        });
-        act.appendChild(rep);
-      }
-      main.appendChild(act);
-      return li;
-    }
-
-    // 답글 쓰기: 원래 글의 답글 묶음 아래에 작은 입력 칸을 연다(답글은 한 단계)
-    function openReply(rootId, toNick) {
-      var old = listEl.querySelector('.cm-reply-form'); if (old) old.remove();
-      var wrap = listEl.querySelector('[data-root="' + rootId + '"]'); if (!wrap) return;
-      var f = el('form', 'cm-reply-form'), started = 0;
-      var t = el('textarea'); t.rows = 2; t.maxLength = 500; t.placeholder = toNick + '님에게 답글'; t.setAttribute('aria-label', '답글 내용');
-      t.addEventListener('input', function () { if (!started) started = Date.now(); });
-      var row = el('div', 'cm-form-row'), m = el('span', 'cm-msg muted');
-      var cancel = el('button', 'cm-link', '취소'); cancel.type = 'button'; cancel.addEventListener('click', function () { f.remove(); });
-      var ok = el('button', 'btn btn-primary', '답글 등록'); ok.type = 'submit';
-      row.appendChild(m); row.appendChild(cancel); row.appendChild(ok);
-      f.appendChild(t); f.appendChild(row);
-      f.addEventListener('submit', function (e) {
-        e.preventDefault(); ok.disabled = true;
-        api('/v1/comments', { method: 'POST', body: { slug: tslug, nick: form.nick.value, body: t.value, website: '', parent: rootId, t: started ? Date.now() - started : 0 } })
-          .then(function (d) {
-            ok.disabled = false;
-            if (!d.ok) { m.textContent = d.message || '등록하지 못했습니다.'; return; }
-            if (d.status === 'held') { m.textContent = d.message; return; }
-            load().catch(function () {});
-          }).catch(function () { ok.disabled = false; m.textContent = '등록하지 못했습니다.'; });
-      });
-      wrap.appendChild(f); t.focus();
-    }
-
-    function load() {
-      return api('/v1/comments?slug=' + encodeURIComponent(tslug) + '&sort=' + sort).then(function (d) {
-        if (d._status !== 200) return;
-        box.hidden = false;
-        // 종토방 글쓰기는 계정이 있을 때만
-        // 종토방 글쓰기: 로그인이 켜져 있으면 계정이 있어야 하고, 로그인을 준비하는 동안에는 익명(닉네임 칸)으로 쓴다
-        if (!isReport) {
-          // 종토방도 익명으로 쓸 수 있다. 로그인 전이면 닉네임 칸과 '로그인하면 좋은 점' 한 줄을 보여 준다
-          form.hidden = false;
-          var na = box.querySelector('[data-need-account]'); if (na) na.hidden = !!ME || !PROVIDERS.length;
-          var ni = form.querySelector('[name=nick]'); if (ni) ni.hidden = !!ME;
-        }
-        liked = {}; (d.liked || []).forEach(function (id) { liked[id] = true; });
-        var real = d.comments.filter(function (c) { return !c.pinned; }).length; // 공지는 글 수에서 뺀다
-        countEl.textContent = real ? num(real) : '';
-        if (isReport) document.querySelectorAll('[data-post-cm]').forEach(function (n) { if (postSlug(n) === tslug) n.textContent = d.comments.length ? num(d.comments.length) : ''; });
-        var nickInput = form.querySelector('[name=nick]');
-        if (nickInput && !nickInput.value) {
-          if (ME) { nickInput.value = ME.nick; nickInput.readOnly = true; nickInput.title = '계정 닉네임'; nickInput.hidden = true; }
-          else nickInput.placeholder = '닉네임 (비우면 ' + d.me + ')';
-        }
-        var bol = bestEl.querySelector('ol'); bol.textContent = '';
-        (d.best || []).forEach(function (c) { bol.appendChild(item(c, true)); });
-        bestEl.hidden = !(d.best && d.best.length);
-        listEl.textContent = '';
-        // 원 글(정렬 순서 유지) 아래에 답글을 시간순으로
-        var roots = d.comments.filter(function (c) { return !c.parent; }), kids = {};
-        d.comments.filter(function (c) { return c.parent; }).sort(function (a, b) { return a.created - b.created; })
-          .forEach(function (c) { (kids[c.parent] = kids[c.parent] || []).push(c); });
-        roots.forEach(function (c) {
-          var li = item(c, false, true);
-          var rw = el('div', 'cm-thread'); rw.setAttribute('data-root', c.id);
-          var rs = kids[c.id] || [];
-          if (rs.length) { // 답글은 2개까지 보이고 나머지는 '답글 N개 더 보기'(쓰레드처럼 줄로 이어 보여 줌)
-            li.classList.add('has-replies');
-            var ul = el('ul', 'cm-replies');
-            rs.forEach(function (r, i) { var ri = item(r, false, true); if (i >= 2 && !openRoots[c.id]) ri.hidden = true; ul.appendChild(ri); });
-            rw.appendChild(ul);
-            if (rs.length > 2 && !openRoots[c.id]) {
-              var mb = el('button', 'cm-more-replies', '답글 ' + (rs.length - 2) + '개 더 보기'); mb.type = 'button';
-              mb.addEventListener('click', function () { openRoots[c.id] = 1; ul.querySelectorAll('li[hidden]').forEach(function (x) { x.hidden = false; }); mb.remove(); });
-              rw.appendChild(mb);
-            }
-          }
-          li.querySelector('.cm-main').appendChild(rw);
-          listEl.appendChild(li);
-        });
-        if (!real) listEl.appendChild(el('li', 'cm-empty muted', isReport ? '첫 댓글을 남겨 주세요.' : '아직 글이 없습니다. 첫 글을 남겨 보세요.'));
-        // 종토방 머리 줄: 참여한 사람 수·오늘 글 수(토스증권 커뮤니티처럼 활기를 숫자로)
-        var stEl = box.querySelector('[data-board-stats]');
-        if (stEl && real) {
-          var who = {}, today = 0, t0 = new Date(); t0.setHours(0, 0, 0, 0);
-          d.comments.forEach(function (c) { if (c.pinned) return; who[c.uid || c.nick] = 1; if (c.created >= t0.getTime()) today++; });
-          stEl.textContent = '참여 ' + num(Object.keys(who).length) + '명 · 오늘 글 ' + num(today) + '개';
-          stEl.hidden = false;
-          document.querySelectorAll('[data-board-n-tab]').forEach(function (x) { x.textContent = num(real); });
-        }
-        d.roots = roots;
-        placeAds();
-        if (isReport && sort === 'top') renderTop(d);
-      });
-    }
-
-    // 대화 사이 광고: 글이 first개를 넘으면 first번째 글 뒤부터 every개마다, 최대 max개(마지막 글 뒤에는 넣지 않음)
-    var adTpl = box.querySelector('template[data-thread-ad]');
-    function placeAds() {
-      if (!adTpl) return;
-      var first = +box.getAttribute('data-ad-first') || 8, every = +box.getAttribute('data-ad-every') || 8, max = +box.getAttribute('data-ad-max') || 0;
-      var items = Array.prototype.slice.call(listEl.children).filter(function (x) { return x.classList.contains('cm-item'); });
-      for (var i = first, k = 0; i < items.length && k < max; i += every, k++) {
-        var frag = document.importNode(adTpl.content, true);
-        var li = el('li', 'cm-ad'); li.appendChild(frag);
-        items[i - 1].after(li);
-        if (window.kwAdNew) window.kwAdNew(li.querySelector('.ad-coupang-products')); // 학습 자료로 묶음 고르기 + 노출 기록
-        if (li.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
-      }
-    }
-
-    // (리포트만) 요약 바로 아래 '인기 댓글': 베스트 → 좋아요 받은 댓글 많은 순 2개 → 없으면 최근 댓글 1개
-    var topEl = isReport ? document.querySelector('[data-cm-top]') : null;
-    function renderTop(d) {
-      if (!topEl) return;
-      var seen = {};
-      var picks = (d.best || []).concat(d.roots.filter(function (c) { return c.likes > 0; }))
-        .filter(function (c) { if (seen[c.id]) return false; seen[c.id] = 1; return true; }).slice(0, 2);
-      var hot = picks.length > 0;
-      if (!hot) picks = d.roots.slice(0, 1);
-      topEl.querySelector('.cm-top-title').textContent = hot ? '인기 댓글' : '최근 댓글';
-      var ol = topEl.querySelector('ol'); ol.textContent = '';
-      var bestIds = (d.best || []).map(function (b) { return b.id; });
-      picks.forEach(function (c) { ol.appendChild(item(c, bestIds.indexOf(c.id) >= 0)); });
-      var more = topEl.querySelector('[data-cm-more]');
-      if (more) more.textContent = '댓글 ' + num(d.comments.length) + '개 모두 보기 · 쓰기';
-      topEl.hidden = !picks.length;
-    }
-
-    box.querySelectorAll('[data-sort]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        sort = b.getAttribute('data-sort');
-        box.querySelectorAll('[data-sort]').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
-        load().catch(function () {});
-      });
-    });
-    var ta = form.querySelector('textarea');
-    ta.addEventListener('input', function () { if (!startedAt) startedAt = Date.now(); lenEl.textContent = ta.value.length + '/500'; });
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var btn2 = form.querySelector('[type=submit]'); btn2.disabled = true; msg.textContent = '';
-      api('/v1/comments', { method: 'POST', body: {
-        slug: tslug, nick: form.nick.value, body: ta.value, website: form.website.value,
-        t: startedAt ? Date.now() - startedAt : 0
-      } }).then(function (d) {
-        btn2.disabled = false;
-        if (d.error === 'account') { openAccount(); return; }
-        if (!d.ok) { msg.textContent = d.message || '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
-        ta.value = ''; lenEl.textContent = '0/500'; startedAt = 0; if (window.kwEv) kwEv('post_submit');
-        msg.textContent = d.status === 'held' ? d.message : '등록했습니다.';
-        if (d.status !== 'held' && !ME && PROVIDERS.length) { // 익명으로 쓴 뒤: 로그인하면 답글 알림을 받는다고 한 줄
-          var lk = el('button', 'cm-link', ' 로그인하면 답글이 달릴 때 알림을 받아요 →'); lk.type = 'button'; lk.addEventListener('click', openAccount); msg.appendChild(lk);
-        }
-        sort = 'new';
-        box.querySelectorAll('[data-sort]').forEach(function (x) { x.setAttribute('aria-selected', x.getAttribute('data-sort') === 'new' ? 'true' : 'false'); });
-        load().catch(function () {});
-      }).catch(function () { btn2.disabled = false; msg.textContent = '등록하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
-    });
-
-    // 첫 화면을 다 그린 뒤 불러온다(본문 표시를 늦추지 않게). 주소가 이 묶음을 가리키면 바로
-    var here = location.hash === '#' + box.id;
-    var go = function () { meReady.then(load).then(function () { if (location.hash === '#' + box.id) box.scrollIntoView(); }).catch(function () {}); };
-    if (here || !isReport) go(); else setTimeout(go, 300);
-  }
-  document.querySelectorAll('[data-comments]').forEach(initThread);
-
-  // ---------- 리포트: 이 종목 종토방 미리보기(최신 글 3개) ----------
-  var peek = document.querySelector('[data-board-peek]');
-  if (peek) {
-    api('/v1/comments?slug=' + peek.getAttribute('data-board-peek') + '&sort=new').then(function (d) {
-      var all = (d.comments || []).filter(function (c) { return !c.pinned; });
-      var roots = all.filter(function (c) { return !c.parent; });
-      var n = peek.querySelector('[data-board-n]'); if (n && all.length) n.textContent = ' · 글 ' + num(all.length);
-      if (!roots.length) return;
-      peek.querySelector('[data-board-empty]').hidden = true;
-      var ol = peek.querySelector('[data-board-list]');
-      roots.slice(0, 3).forEach(function (c) {
-        var li = el('li', 'cm-item'); li.appendChild(avatar(c.nick, c.uid)); if (c.uid) li.setAttribute('data-by-uid', c.uid);
-        var main = el('div', 'cm-main'), head = el('div', 'cm-head');
-        head.appendChild(nickEl(c, 'cm-nick')); head.appendChild(el('span', 'cm-time muted', ago(c.created)));
-        if (c.likes) head.appendChild(el('span', 'muted', '♥ ' + num(c.likes)));
-        main.appendChild(head); main.appendChild(richText(el('p', 'cm-body board-peek-body'), c.body));
-        li.appendChild(main); ol.appendChild(li);
-      });
-    }).catch(function () {});
-  }
 
   // ---------- 검색어 기록(검색 페이지) ----------
   var lastLogged = '', logTimer = 0;
@@ -845,11 +599,11 @@
     var show = function (sel) { ins.querySelector(sel).hidden = false; ins.hidden = false; };
     Promise.all([loadIndex(), popular(7), popular(1),
       api('/v1/trending?days=7').catch(function () { return {}; }),
-      api('/v1/comments/recent?limit=' + (document.querySelector('[data-explore]') ? 10 : 5)).catch(function () { return {}; }),
+      Promise.resolve({}),
       document.querySelector('[data-recent-board]') ? api('/v1/comments/recent?kind=board&limit=10').catch(function () { return {}; }) : Promise.resolve({})
     ]).then(function (res) {
       var I = res[0], keep = function (x) { return I.bySlug[x.slug]; };
-      var p7 = res[1].filter(keep), p1 = res[2].filter(keep), tr = res[3] || {}, rc = (res[4] || {}).items || [];
+      var p7 = res[1].filter(keep), p1 = res[2].filter(keep), tr = res[3] || {};
 
       // 1) 많이 본 리포트 (오늘 / 7일)
       if (p7.length >= 2) {
@@ -908,28 +662,13 @@
         show('[data-themes]');
       }
 
-      // 4) 최근 댓글
-      var rcs = rc.filter(keep);
-      if (rcs.length) {
-        var cl = ins.querySelector('[data-recent-cm-list]');
-        rcs.forEach(function (c) {
-          var r = I.bySlug[c.slug], li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = r.u + '#comments';
-          var head = el('span', 'rc-head');
-          head.appendChild(el('span', 'rank-tick', r.k));
-          head.appendChild(el('strong', 'rc-nick', c.nick));
-          head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
-          a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
-          li.appendChild(a); cl.appendChild(li);
-        });
-        show('[data-recent-cm]');
-      }
-      // 5) 탐색 화면: 종토방·라운지 최근 글
+      // 4) 탐색 화면: 커뮤니티 최근 글(종목 태그 + 글)
       var bl2 = ins.querySelector('[data-recent-board-list]'), rb = (res[5] || {}).items || [];
       if (bl2 && rb.length) {
         rb.forEach(function (c) {
           var li = el('li', 'rc-item'), a = el('a', 'rc-link'); a.href = postUrl(c.id);
           var head = el('span', 'rc-head');
-          head.appendChild(el('span', 'rank-tick', threadLabel(c.slug).replace(' 종토방', '')));
+          var btk = /^b-(.+)$/.exec(c.slug || ''); if (btk && btk[1] !== 'talk') head.appendChild(el('span', 'rank-tick', btk[1].toUpperCase()));
           head.appendChild(el('strong', 'rc-nick', c.nick));
           head.appendChild(el('span', 'muted', ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
           a.appendChild(head); a.appendChild(el('span', 'rc-body', c.body));
@@ -937,7 +676,7 @@
         });
         show('[data-recent-board]');
       }
-      var te = ins.querySelector('[data-talk-empty]'); if (te) te.hidden = !!(rcs.length || rb.length);
+      var te = ins.querySelector('[data-talk-empty]'); if (te) te.hidden = !!rb.length;
     }).catch(function () {});
 
   }
@@ -1176,11 +915,16 @@
     var a = el('a', 'quote-box');
     var words = String(q.text).split(' ');
     var frag = words.length > 8 ? encodeURIComponent(words.slice(0, 4).join(' ')) + ',' + encodeURIComponent(words.slice(-4).join(' ')) : encodeURIComponent(q.text);
-    a.href = q.kind === 'r' ? reportUrl(q.ref) + '#:~:text=' + frag : postUrl(q.ref);
+    a.href = q.kind === 'r' ? reportUrl(q.ref) + (q.text ? '#:~:text=' + frag : '') : postUrl(q.ref);
     var src = el('span', 'quote-src', q.kind === 'r' ? '리포트' : '원글');
     a.appendChild(src);
-    a.appendChild(richText(el('span', 'quote-text'), q.text));
-    if (q.kind === 'r') reportTitle(q.ref).then(function (r) { src.textContent = (r.k ? r.k + ' · ' : '') + shortTitle(r.t); });
+    if (q.text) a.appendChild(richText(el('span', 'quote-text'), q.text));
+    else { // 문장 없이 리포트 통째로 공유: 리포트 카드(제목 + 읽기)
+      a.classList.add('quote-report');
+      var tt = el('span', 'quote-title', '리포트'); a.appendChild(tt); a.appendChild(el('span', 'quote-go', '리포트 읽기 →'));
+      reportTitle(q.ref).then(function (r) { tt.textContent = shortTitle(r.t); });
+    }
+    if (q.kind === 'r') reportTitle(q.ref).then(function (r) { src.textContent = (r.k ? r.k + ' · ' : '') + (q.text ? shortTitle(r.t) : '김박사 월드 리포트'); });
     return a;
   }
   function doRepost(kind, ref) {
@@ -1213,38 +957,50 @@
     var b = e.target.closest && e.target.closest('[data-repost]'); if (!b || b.disabled) return;
     e.preventDefault(); openRepostMenu(b);
   });
-  // 인용 글쓰기 창
-  function openQuote(q) {
+  // 커뮤니티 글쓰기 창: 인용(문장) · 리포트 공유(문장 없이 리포트 첨부) · 그냥 새 글(종목 태그만). opts: { board, onDone }
+  function openQuote(q, opts) {
+    opts = opts || {};
+    if (!opts.onDone && window.kwCmtyDone) opts.onDone = window.kwCmtyDone; // 리포트·종목 화면: 올린 뒤 그 화면 커뮤니티 목록에 바로
     meReady.then(function () {
       if (LOGGED && !ME) { openAccount(); return; }
-      var body = dialog('인용하기'); if (window.kwEv) kwEv('quote_open');
-      var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); body.appendChild(pv);
-      var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500; ta.placeholder = '이 부분에 대한 내 생각을 써 주세요';
+      var body = dialog(!q ? '새 글' : q.text ? '인용하기' : '리포트 공유'); if (window.kwEv) kwEv(q ? 'quote_open' : 'compose_open');
+      var head = el('div', 'qt-who'); head.appendChild(ME ? avatar(ME.nick, ME.id) : avatar('익')); head.appendChild(el('strong', null, ME ? ME.nick : '익명으로 쓰기'));
+      body.appendChild(head);
+      var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500;
+      ta.placeholder = !q ? '이 종목에 대한 생각을 나눠 보세요' : q.text ? '이 부분에 대한 내 생각을 써 주세요' : '이 리포트에 대한 생각을 써 주세요';
       body.appendChild(ta);
+      if (q) { var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); body.appendChild(pv); }
       var nick = null;
       if (!ME) { nick = el('input', 'qt-nick'); nick.maxLength = 12; nick.placeholder = '닉네임 (비우면 익명)'; body.appendChild(nick); }
+      // 종목 태그: 리포트·종목 화면이면 그 종목이 기본, 지우면 태그 없이(커뮤니티 전체에만)
       var sel = el('select', 'qt-board');
+      var TKN = {}; (KW.tk || []).forEach(function (x) { TKN[x.c] = x.n; });
       var add = function (v, label) { var o = el('option', null, label); o.value = v; sel.appendChild(o); };
       var setDefault = function (tk) {
-        if (tk && (KW.tk || []).some(function (x) { return x.c === tk; })) add('b-' + tk.toLowerCase(), '$' + tk + ' 종토방');
-        add('b-talk', '라운지');
+        if (tk && TKN[tk] !== undefined) add('b-' + tk.toLowerCase(), (TKN[tk] || tk) + ' ($' + tk + ')');
+        add('b-talk', '종목 태그 없이');
       };
-      if (q.kind === 'r') reportTitle(q.ref).then(function (r) { setDefault(r.k); });
-      else { var bm = /^b-(.+)$/.exec(q.slug || ''); setDefault(bm && bm[1] !== 'talk' ? bm[1].toUpperCase() : ''); }
-      body.appendChild(field('올릴 곳', sel));
+      var bm = /^b-(.+)$/.exec(opts.board || (q && q.slug) || '');
+      if (q && q.kind === 'r') reportTitle(q.ref).then(function (r) { setDefault(r.k); });
+      else setDefault(bm && bm[1] !== 'talk' ? bm[1].toUpperCase() : '');
+      body.appendChild(field('종목 태그', sel));
       var m = el('p', 'kw-msg'); m.setAttribute('role', 'status');
       var started = 0; ta.addEventListener('input', function () { if (!started) started = Date.now(); });
-      var go = btn('인용해서 올리기', 'btn btn-primary', function () {
+      var go = btn('게시', 'btn btn-primary', function () {
         go.disabled = true; m.textContent = '';
-        api('/v1/comments', { method: 'POST', body: { slug: sel.value, body: ta.value, nick: nick ? nick.value : '', website: '', t: started ? Date.now() - started : 0, quote: { kind: q.kind, ref: q.ref, text: q.text.replace(/…$/, '') } } }).then(function (d) {
+        var b = { slug: sel.value, body: ta.value, nick: nick ? nick.value : '', website: '', t: started ? Date.now() - started : 0 };
+        if (q) b.quote = { kind: q.kind, ref: q.ref, text: String(q.text || '').replace(/…$/, '') };
+        api('/v1/comments', { method: 'POST', body: b }).then(function (d) {
           go.disabled = false;
           if (!d.ok) { m.textContent = d.message || '올리지 못했습니다.'; return; }
           if (d.status === 'held') { m.textContent = d.message; return; }
-          if (window.kwEv) kwEv('quote_submit');
+          if (window.kwEv) kwEv(q ? 'quote_submit' : 'post_submit');
+          if (opts.onDone) { var dd = document.querySelector('dialog.kw-dlg[open]'); if (dd) dd.close(); flash('커뮤니티에 올렸습니다'); opts.onDone(d, b); return; }
           location.href = postUrl(d.id);
         }).catch(function () { go.disabled = false; m.textContent = '올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
       });
       body.appendChild(go); body.appendChild(m);
+      body.appendChild(el('p', 'muted kw-small qt-note', '커뮤니티 피드와 ' + (q && q.kind === 'r' ? '이 리포트 아래' : '종목 화면') + '에 함께 보입니다. 링크·연락처·종목 추천 홍보는 자동으로 가려집니다.'));
       setTimeout(function () { ta.focus(); }, 50);
     });
   }
@@ -1265,7 +1021,7 @@
     var h1 = document.querySelector('meta[property="og:title"]');
     return {
       ticker: art ? art.getAttribute('data-ticker') : (q.slug && /^b-/.test(q.slug) && q.slug !== 'b-talk' ? q.slug.slice(2).toUpperCase() : ''),
-      title: q.kind === 'r' ? ((h1 && h1.content) || document.title) : (q.slug === 'b-talk' ? '라운지' : (q.slug ? '$' + q.slug.slice(2).toUpperCase() + ' 종토방' : '김박사 월드'))
+      title: q.kind === 'r' ? ((h1 && h1.content) || document.title) : (q.slug === 'b-talk' ? '커뮤니티' : (q.slug ? '$' + q.slug.slice(2).toUpperCase() + ' 커뮤니티' : '김박사 월드'))
     };
   }
   function shareQuote(q) {
@@ -1417,7 +1173,7 @@
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
     myTopics: myTopics, topicBoards: topicBoards,
-    quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
+    openCompose: openQuote, quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, seedAv: seedAv, isBlocked: isBlocked, hideBlocked: hideBlocked, richText: richText, nickEl: nickEl, dialog: dialog, btn: btn, apiBase: API, openFollows: openFollows, dev: DEV, flash: function (t) { flash(t); },
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
     setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS, dmUnread: DMN, dmRequests: DMREQ }; }, setDm: function (n, r) { DMN = n; DMREQ = r; paintHeader(); }, setBlocked: function (uid, on) { if (on) BLOCKED[uid] = 1; else delete BLOCKED[uid]; hideBlocked(); }

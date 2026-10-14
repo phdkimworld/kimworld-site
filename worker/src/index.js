@@ -255,9 +255,9 @@ async function analytics(db, now, daysIn) {
     one("SELECT COUNT(*) AS n, SUM(status != 'ok') AS banned FROM users"),
     all(`SELECT ${dayOf} AS day, COUNT(*) AS n FROM users WHERE created >= ? GROUP BY day`, now - days * 864e5),
     one("SELECT COUNT(*) AS n FROM users WHERE created >= ? AND created < ?", now - 2 * days * 864e5, now - days * 864e5),
-    one(`SELECT SUM(slug LIKE 'b-%' AND parent_id IS NULL) AS board, SUM(slug LIKE 'b-%' AND parent_id IS NOT NULL) AS replies, SUM(slug NOT LIKE 'b-%') AS report,
+    one(`SELECT SUM(slug LIKE 'b-%' AND parent_id IS NULL) AS board, SUM(slug LIKE 'b-%' AND parent_id IS NOT NULL) AS replies, SUM(q_kind = 'r' AND parent_id IS NULL) AS report,
          COUNT(DISTINCT uid) AS writers FROM comments WHERE status = 'ok' AND pinned = 0 AND created >= ?`, now - days * 864e5),
-    all(`SELECT ${dayOf} AS day, SUM(slug LIKE 'b-%') AS board, SUM(slug NOT LIKE 'b-%') AS report FROM comments WHERE status = 'ok' AND pinned = 0 AND created >= ? GROUP BY day`, now - days * 864e5),
+    all(`SELECT ${dayOf} AS day, SUM(slug LIKE 'b-%') AS board, SUM(q_kind = 'r' AND parent_id IS NULL) AS report FROM comments WHERE status = 'ok' AND pinned = 0 AND created >= ? GROUP BY day`, now - days * 864e5),
     one("SELECT COUNT(*) AS n FROM post_likes WHERE created >= ?", now - days * 864e5),
     one("SELECT COUNT(*) AS total, SUM(created >= ?) AS recent FROM follows", now - days * 864e5),
     all("SELECT q, SUM(n) AS n FROM searches WHERE day >= ? GROUP BY q ORDER BY n DESC LIMIT 15", since),
@@ -414,11 +414,12 @@ export default {
         const [v, l, c, mine, top, rp, rpMine] = await Promise.all([
           db.prepare(`SELECT slug, n FROM views_total WHERE slug IN (${q})`).bind(...slugs).all(),
           db.prepare(`SELECT slug, n FROM likes_total WHERE slug IN (${q})`).bind(...slugs).all(),
-          db.prepare(`SELECT slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND slug IN (${q}) GROUP BY slug`).bind(...slugs).all(),
+          // 리포트의 '댓글 수' = 그 리포트를 공유·인용한 커뮤니티 글 수
+          db.prepare(`SELECT q_ref AS slug, COUNT(*) AS n FROM comments WHERE status = 'ok' AND q_kind = 'r' AND parent_id IS NULL AND q_ref IN (${q}) GROUP BY q_ref`).bind(...slugs).all(),
           db.prepare(`SELECT slug FROM post_likes WHERE ih = ? AND slug IN (${q})`).bind(actor, ...slugs).all(),
-          db.prepare(`SELECT slug, nick, body, likes, created FROM (SELECT slug, nick, body, likes, created,
-              ROW_NUMBER() OVER (PARTITION BY slug ORDER BY likes DESC, created DESC) AS rn
-              FROM comments WHERE status = 'ok' AND parent_id IS NULL AND slug IN (${q})) WHERE rn = 1`).bind(...slugs).all(),
+          db.prepare(`SELECT slug, id, nick, body, likes, created FROM (SELECT q_ref AS slug, id, nick, body, likes, created,
+              ROW_NUMBER() OVER (PARTITION BY q_ref ORDER BY likes DESC, created DESC) AS rn
+              FROM comments WHERE status = 'ok' AND q_kind = 'r' AND parent_id IS NULL AND q_ref IN (${q})) WHERE rn = 1`).bind(...slugs).all(),
           db.prepare(`SELECT ref, COUNT(*) AS n FROM reposts WHERE kind = 'r' AND ref IN (${q}) GROUP BY ref`).bind(...slugs).all(),
           session ? db.prepare(`SELECT r.ref FROM reposts r JOIN users u ON u.id = r.uid WHERE u.actor = ? AND r.kind = 'r' AND r.ref IN (${q})`).bind(actor, ...slugs).all() : { results: [] },
         ]);
@@ -430,7 +431,7 @@ export default {
         for (const r of l.results || []) stats[r.slug].likes = r.n;
         for (const r of c.results || []) stats[r.slug].comments = r.n;
         for (const r of mine.results || []) stats[r.slug].liked = true;
-        for (const r of top.results || []) stats[r.slug].top = { nick: r.nick, body: r.body.length > 70 ? r.body.slice(0, 70) + "…" : r.body, likes: r.likes, created: r.created };
+        for (const r of top.results || []) stats[r.slug].top = { id: r.id, nick: r.nick, body: r.body.length > 70 ? r.body.slice(0, 70) + "…" : r.body, likes: r.likes, created: r.created };
         return json(req, { stats }, 200, { "Cache-Control": "no-store" });
       }
       if (p === "/v1/like" && req.method === "POST") {
@@ -603,6 +604,8 @@ export default {
         const b = await readJson(req);
         const slug = b.slug || "";
         if (!SLUG_RE.test(slug)) return json(req, { error: "slug" }, 400);
+        // 커뮤니티 하나: 모든 글은 종목 묶음(b-티커)이나 b-talk에 올린다. 리포트 이야기는 리포트를 공유·인용한 커뮤니티 글로
+        if (!isBoard(slug)) return json(req, { error: "community", message: "리포트 댓글은 이제 커뮤니티 글로 올립니다. 화면을 새로 고쳐 주세요." }, 400);
         if (b.website) return json(req, { ok: true, status: "held" }); // 로봇이 채우는 숨은 칸
         if (typeof b.t === "number" && b.t < LIMITS.minTypingMs) return json(req, { error: "too_fast", message: "조금 천천히 다시 시도해 주세요." }, 429);
         const body = cleanText(b.body, LIMITS.bodyMax + 1);
@@ -638,7 +641,9 @@ export default {
         let q = null, qTarget = null;
         if (b.quote && !parent) {
           const qt = cleanText(b.quote.text, 301).replace(/\s+/g, " ");
-          if (qt.length < 2 || qt.length > 300) return json(req, { error: "quote", message: "인용할 부분은 2~300자로 골라 주세요." }, 400);
+          // 리포트는 문장 없이 통째로 공유할 수도 있다(빈 글자 = 리포트 카드만 붙임)
+          const share = b.quote.kind === "r" && qt === "";
+          if (!share && (qt.length < 2 || qt.length > 300)) return json(req, { error: "quote", message: "인용할 부분은 2~300자로 골라 주세요." }, 400);
           if (b.quote.kind === "r" && SLUG_RE.test(String(b.quote.ref || "")) && !String(b.quote.ref).startsWith("b-")) q = { kind: "r", ref: String(b.quote.ref), text: qt };
           else if (b.quote.kind === "p") {
             qTarget = await db.prepare("SELECT id, uid, did, slug, body, status FROM comments WHERE id = ?").bind(parseInt(b.quote.ref, 10) || 0).first();
@@ -921,9 +926,15 @@ export default {
         if (following && !me) return json(req, p === "/v1/feed" ? { items: [], more: false } : { n: 0 }, 200, { "Cache-Control": "no-store" });
         // 팔로잉 탭: 팔로우한 사람 + 나 + 팔로우한 종목·테마의 종토방(화면이 boards=b-pltr,b-ionq로 알려 줌)
         const boards = following ? (url.searchParams.get("boards") || "").split(",").filter((x) => /^b-[a-z0-9.-]{1,12}$/.test(x)).slice(0, 80) : [];
-        const where = `c.slug LIKE 'b-%' AND c.parent_id IS NULL AND c.pinned = 0 AND c.status = 'ok'` +
+        let where = `c.slug LIKE 'b-%' AND c.parent_id IS NULL AND c.pinned = 0 AND c.status = 'ok'` +
           (following ? ` AND (c.uid = ? OR c.uid IN (SELECT followee FROM follows WHERE follower = ?)${boards.length ? ` OR c.slug IN (${boards.map(() => "?").join(",")})` : ""})` : "");
         const fb = following ? [me.id, me.id, ...boards] : [];
+        // 범위: board=b-티커(그 종목 커뮤니티 글) · about=리포트 주소(그 리포트를 공유·인용한 글)
+        const scopeBoard = (url.searchParams.get("board") || "").toLowerCase();
+        const scopeAbout = url.searchParams.get("about") || "";
+        let scoped = false;
+        if (!following && /^b-[a-z0-9.-]{1,12}$/.test(scopeBoard)) { where += " AND c.slug = ?"; fb.push(scopeBoard); scoped = true; }
+        if (!following && SLUG_RE.test(scopeAbout) && !isBoard(scopeAbout)) { where += " AND c.q_kind = 'r' AND c.q_ref = ?"; fb.push(scopeAbout); scoped = true; }
         if (p === "/v1/feed/new") { // 새 글 알림 줄: 이 시각 뒤에 올라온 글 수(최대 99)
           const since = Math.max(0, parseInt(url.searchParams.get("since") || String(now), 10) || 0);
           const r = await db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM comments c WHERE ${where} AND c.created > ? AND (c.did IS NULL OR c.did != ?) LIMIT 99)`).bind(...fb, since, actor).first();
@@ -939,7 +950,7 @@ export default {
         // ---- 하나의 피드(tab=mix): 추천과 팔로잉을 한 줄로 섞는다 ----
         // 점수 = 반응 × 나와의 관계 × 신선도(팔로우한 사람 +3, 팔로우한 종목·테마 +0.8, 최근 반응한 사람 +0.7, 나를 팔로우한 사람 +0.4). 반응은 로그(인기 글이 끝없이 위에 머물지 않게), 관계는 팔로우한 사람·종목·테마,
         // 최근 내가 좋아요·답글한 사람, 나를 팔로우한 사람. 팔로우한 사람의 글은 더 천천히 식는다. 고른 뒤 같은 사람·같은 종토방이 몰리지 않게 펼친다.
-        if (url.searchParams.get("tab") === "mix") {
+        if (url.searchParams.get("tab") === "mix" && !scoped) {
           const off = Math.max(0, Math.min(300, parseInt(url.searchParams.get("offset") || "0", 10) || 0));
           const mixBoards = (url.searchParams.get("boards") || "").split(",").filter((x) => /^b-[a-z0-9.-]{1,12}$/.test(x)).slice(0, 80);
           const mid = me ? me.id : 0;
@@ -1025,7 +1036,12 @@ export default {
           reposts = rr.map((x) => x.kind === "r" ? { type: "report", slug: x.ref, rp: { nick: x.nick, uid: x.uid, at: x.created } }
             : prow[x.ref] ? { ...pub(prow[x.ref]), rp: { nick: x.nick, uid: x.uid, at: x.created } } : null).filter(Boolean);
         }
-        return json(req, { items, more, hot: usedHot, reposts }, 200, { "Cache-Control": "no-store" });
+        // 종목 커뮤니티 첫 화면: 운영자 공지(고정 글)를 맨 위에
+        let pinned = [];
+        if (scoped && scopeBoard && !url.searchParams.get("before") && !parseInt(url.searchParams.get("offset") || "0", 10)) {
+          pinned = ((await db.prepare(`SELECT ${cols} FROM comments c WHERE c.slug = ? AND c.parent_id IS NULL AND c.pinned = 1 AND c.status = 'ok' ORDER BY c.created DESC LIMIT 2`).bind(actor, me ? me.id : 0, scopeBoard).all()).results || []).map((c) => ({ ...pub(c), pinned: true }));
+        }
+        return json(req, { items, more, hot: usedHot, reposts, pinned }, 200, { "Cache-Control": "no-store" });
       }
       // 글 하나와 답글(글 상세 화면). 답글 번호로 열면 원글을 보여 준다
       const pm = p.match(/^\/v1\/post\/(\d+)$/);
@@ -1081,7 +1097,7 @@ export default {
         if (shm[1] === "p") {
           let c = await db.prepare("SELECT id, slug, nick, uid, body, parent_id, status FROM comments WHERE id = ?").bind(id).first();
           if (c && c.status === "ok" && /^b-/.test(c.slug)) {
-            const code = c.slug.slice(2), board = code === "talk" ? "라운지" : `$${code.toUpperCase()} 종토방`;
+            const code = c.slug.slice(2), board = code === "talk" ? "커뮤니티" : `$${code.toUpperCase()} 커뮤니티`;
             const replies = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE parent_id = ? AND status = 'ok'").bind(c.parent_id || c.id).first();
             title = `${c.nick}님 · ${board}`;
             desc = cut(c.body, 110) + (replies?.n ? ` (답글 ${replies.n}개)` : "");

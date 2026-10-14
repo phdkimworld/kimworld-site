@@ -18,7 +18,7 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# 리포트 카드: SNS 게시물 모양(작성자 줄 → 제목·요약·대표 차트 → 대표 댓글 → 좋아요·댓글·조회·공유) #}
+{# 리포트 카드: SNS 게시물 모양(작성자 줄 → 제목·요약·대표 차트 → 대표 커뮤니티 글 → 좋아요·이야기·조회·공유) #}
 {% macro card(r, base, show_theme=true, media=true) -%}
 <article class="card post" data-slug="{{ r.slug }}" data-ticker="{{ r.ticker }}" data-theme-slug="{{ r.theme_slug }}">
   <header class="post-head">
@@ -38,10 +38,10 @@
     <p class="card-summary">{{ r.summary }}</p>
     {% if media and r.chart %}<span class="post-media"><img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}"></span>{% endif %}
   </a>
-  <a class="post-top" href="{{ r.url }}#comments" data-post-top hidden></a>
+  <a class="post-top" href="{{ r.url }}#community" data-post-top hidden></a>
   <footer class="post-actions">
     <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>
-    <a class="pa" href="{{ r.url }}#comments" aria-label="댓글">{{ icon('comment') }}<span data-post-cm></span></a>
+    <a class="pa" href="{{ r.url }}#community" aria-label="커뮤니티 이야기">{{ icon('comment') }}<span data-post-cm></span></a>
     <span class="pa pa-static" aria-label="조회수" data-post-views-wrap hidden>{{ icon('eye') }}<span data-post-views></span></span>
     <span class="pa-min" aria-hidden="true"></span>
     <button type="button" class="pa pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span data-n></span></button>
@@ -51,35 +51,18 @@
 {%- endmacro %}
 
 
-{# 댓글·종토방 공통 묶음. kind: report(익명 가능) | board(계정이 있어야 글쓰기) #}
-{% macro thread(slug, kind, title, sec_id, ad_html='', rhythm=none) -%}
-<section class="comments{% if kind == 'board' %} board{% endif %}" id="{{ sec_id }}" data-comments data-thread="{{ slug }}" data-kind="{{ kind }}"{% if ad_html and rhythm %} data-ad-first="{{ rhythm.first }}" data-ad-every="{{ rhythm.every }}" data-ad-max="{{ rhythm.max }}"{% endif %} hidden aria-labelledby="{{ sec_id }}-h">
+{# 커뮤니티 묶음(리포트·종목 화면). 댓글·종토방을 따로 두지 않고 커뮤니티 글 하나로:
+   about = 리포트 주소(그 리포트를 공유·인용한 글) · board = 종목 태그(b-티커) #}
+{% macro community(about, board, title, placeholder, ad_html='', rhythm=none, all_url='', all_label='') -%}
+<section class="cmty" id="community" data-community{% if about %} data-about="{{ about }}"{% endif %} data-board="{{ board }}"{% if ad_html and rhythm %} data-ad-first="{{ rhythm.first }}" data-ad-every="{{ rhythm.every }}" data-ad-max="{{ rhythm.max }}"{% endif %} hidden aria-labelledby="community-h">
   {% if ad_html and rhythm %}<template data-thread-ad>{{ ad_html|safe }}</template>{% endif %}
-  <h2 id="{{ sec_id }}-h">{{ title }} <span class="cm-count" data-cm-count></span></h2>
-  {% if kind == 'board' %}
-  <p class="cm-stats" data-board-stats hidden></p>
-  <p class="cm-rule muted">이 종목에 대한 개인 의견을 나누는 곳입니다. 투자 권유가 아니며, 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려집니다. <a href="/terms/">이용약관</a></p>
-  <p class="cm-hint muted" data-need-account hidden>로그인 없이 익명으로 쓸 수 있습니다. 로그인하면 닉네임이 고정되고 팔로우·답글 알림을 받을 수 있어요. <button type="button" class="cm-link" data-open-account>로그인</button></p>
-  {% else %}
-  <p class="cm-rule muted">회원 가입 없이 쓸 수 있습니다. 링크·연락처·종목 추천·홍보 글은 자동으로 가려지고, 신고가 쌓인 댓글도 가려집니다. 운영자는 개별 종목의 매매 질문에 답하지 않습니다.</p>
-  {% endif %}
-  <form class="cm-form" data-cm-form novalidate>
-    <input name="nick" maxlength="12" placeholder="닉네임 (비우면 익명)" autocomplete="nickname" aria-label="닉네임">
-    <textarea name="body" maxlength="500" rows="3" placeholder="{% if kind == 'board' %}이 종목에 대한 생각을 나눠 주세요{% else %}이 리포트에 대한 생각을 남겨 주세요{% endif %}" aria-label="글 내용"></textarea>
-    <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <div class="cm-form-row"><span class="cm-len muted" data-cm-len>0/500</span><button class="btn btn-primary" type="submit">등록</button></div>
-    <p class="cm-msg" data-cm-msg role="status"></p>
-  </form>
-  <div class="cm-best" data-cm-best hidden><h3>베스트</h3><ol class="cm-list"></ol></div>
-  <div class="cm-tabs" role="tablist" aria-label="정렬">
-    {% if kind == 'board' %}
-    <button type="button" role="tab" data-sort="new" aria-selected="true">최신순</button>
-    <button type="button" role="tab" data-sort="top" aria-selected="false">인기순</button>
-    {% else %}
-    <button type="button" role="tab" data-sort="top" aria-selected="true">인기순</button>
-    <button type="button" role="tab" data-sort="new" aria-selected="false">최신순</button>
-    {% endif %}
+  <div class="cmty-head">
+    <h2 id="community-h">{{ title }} <span class="cmty-n muted" data-cmty-n></span></h2>
+    {% if all_url %}<a class="cmty-all" href="{{ all_url }}">{{ all_label }}</a>{% endif %}
   </div>
-  <ol class="cm-list" data-cm-list></ol>
+  <button type="button" class="cmty-compose" data-cmty-compose><span class="cmty-av" data-cmty-av aria-hidden="true"></span><span class="cmty-ph">{{ placeholder }}</span><span class="cmty-post">게시</span></button>
+  <div class="cmty-list" data-cmty-list></div>
+  <button type="button" class="btn cmty-more" data-cmty-more hidden>더 보기</button>
+  <p class="cmty-rule muted">개인 의견을 나누는 곳이며 투자 권유가 아닙니다. 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려지고, 신고가 쌓인 글도 가려집니다. <a href="/terms/">이용약관</a></p>
 </section>
 {%- endmacro %}

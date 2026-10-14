@@ -314,6 +314,13 @@ class Ads:
         # 단위마다 크기가 다를 수 있다(예: 본문 중간 300x250). 없으면 width/height
         self.adfit_sizes = {k: (int(v[0]), int(v[1])) for k, v in (f.get("sizes") or {}).items() if isinstance(v, (list, tuple)) and len(v) == 2}
         self.adfit_units = {k: str(v or "").strip() for k, v in (f.get("units") or {}).items()}
+        # 카카오 애드핏 운영정책: 한 페이지에 카카오 광고 4개 초과 금지, 콘텐츠와 함께 광고를 계속 동적으로 불러오기 금지.
+        # 그래서 애드핏은 처음 받는 HTML의 고정 자리에만, 한 페이지 4개까지(같은 단위는 한 번). 아래로 더 내려가며 채우는 자리는 애드센스·쿠팡
+        self.adfit_max = int(f.get("max_per_page") or 4)
+        if self.adfit_max > 4:
+            log.err("ads.yaml adfit.max_per_page 는 4 이하(애드핏 운영정책: 한 페이지 4개 초과 금지)")
+            self.adfit_max = 4
+        self._page_adfit: set = set()
         for k, v in self.adfit_units.items():
             if v and not ADFIT_RE.match(v):
                 log.err(f"ads.yaml adfit.units.{k} 형식 오류(DAN-로 시작)")
@@ -362,7 +369,7 @@ class Ads:
                        "home_feed": _r("home_feed", (4, 6, 5))}
         if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
             log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_rail", "coupang_banner", "coupang_products", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom", "coupang_banner", "coupang_products", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
@@ -375,7 +382,15 @@ class Ads:
         return sorted(h for h in hosts if not any(h == d or h.endswith("." + d) for d in self.c_allowed))
 
     # 자리 → 광고 종류
-    ADFIT_KEY = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end", "adfit_feed": "feed", "adfit_rail": "rail"}
+    ADFIT_KEY = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end", "adfit_feed": "feed", "adfit_feed2": "feed2",
+                 "adfit_rail": "rail", "adfit_bottom": "bottom"}
+
+    def begin_page(self) -> None:
+        """새 페이지를 그리기 시작: 이 페이지에서 쓴 애드핏 단위 기록을 비운다(한 페이지 4개·같은 단위 한 번)."""
+        self._page_adfit = set()
+
+    def adfit_count(self) -> int:
+        return len(self._page_adfit)
 
     def adfit_key(self, kind: str) -> str:
         if kind == "adfit_list":
@@ -388,9 +403,11 @@ class Ads:
         if not self.on:
             return None
         v = self.place.get(slot)
-        used = (ctx or {}).get("_adfit_used", set())
+        used, no_adfit = self._page_adfit, bool((ctx or {}).get("no_adfit"))
         for one in (v if isinstance(v, list) else [v]):
-            if self.available(one) and not (str(one).startswith("adfit_") and self.adfit_key(one) in used):
+            if str(one).startswith("adfit_") and (no_adfit or self.adfit_key(one) in used or len(used) >= self.adfit_max):
+                continue
+            if self.available(one):
                 return one
         return None
 
@@ -407,7 +424,7 @@ class Ads:
             return bool(self.adfit_units.get("report_end"))
         if kind == "adfit_list":
             return bool(self.adfit_units.get("list") or self.adfit_units.get("report_end"))
-        if kind in ("adfit_feed", "adfit_rail"):
+        if kind in ("adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom"):
             return bool(self.adfit_units.get(self.ADFIT_KEY[kind]))
         if kind == "coupang_banner":
             return bool(self.c_banner)
@@ -475,13 +492,16 @@ class Ads:
             )
         if str(kind).startswith("adfit_"):
             key = self.adfit_key(kind)
-            ctx.setdefault("_adfit_used", set()).add(key)
+            self._page_adfit.add(key)
             unit = self.adfit_units.get(key)
             w, h = self.adfit_sizes.get(key, (self.adfit_w, self.adfit_h))
+            # PC 오른쪽 칸 상자: 휴대폰처럼 그 칸이 안 보이는 화면에서는 광고를 아예 부르지 않는다(보이지 않는 노출 금지)
+            guard = ('<script>(function(a){if(a&&a.offsetParent===null&&a.parentNode)a.parentNode.removeChild(a)})(document.currentScript.parentNode)</script>'
+                     if kind == "adfit_rail" else "")
             return (
                 f'<aside class="ad ad-adfit" data-slot="{slot}" aria-label="광고" style="min-height:{h + 24}px">{label}'
                 f'<ins class="kakao_ad_area" style="display:none;" data-ad-unit="{unit}" '
-                f'data-ad-width="{w}" data-ad-height="{h}" data-ad-onfail="kwAdFail"></ins>'
+                f'data-ad-width="{w}" data-ad-height="{h}" data-ad-onfail="kwAdFail"></ins>{guard}'
                 f'<script async src="https://t1.daumcdn.net/kas/static/ba.min.js" onerror="this.parentNode.classList.add(\'hidden\')"></script></aside>'
             )
         if kind == "coupang_banner":
@@ -743,6 +763,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     og_dir.mkdir()
     og_font = find_font()
     for r in reports:
+        ads.begin_page()
         body, used_terms = apply_glossary(r["body_html"], glossary)
         exclude = []  # 리포트에서 다룬 회사의 상품도 광고에 나올 수 있다(법적 제한 없음)
         ad_ctx = {"theme": r["theme"], "exclude": exclude}
@@ -762,7 +783,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         rail_html = ads.render("rail", far_ctx)
         end_html = ads.render("report_end", ad_ctx)
         bottom_html = "" if r["sponsor"] else ads.render("report_bottom", ad_ctx)
-        page_bottom = "" if r["sponsor"] else ads.render("page_bottom", ad_ctx)
+        page_bottom = "" if r["sponsor"] else ads.render("page_bottom", {**ad_ctx, "no_adfit": True})  # 바로 위가 애드핏 하단 상자라 애드핏을 붙여 두지 않는다
         used_ads = [x for x in pieces if x.startswith('<aside class="ad')] + [x for x in (end_html, bottom_html) if x]
         has_coupang = any("ad-coupang" in x for x in used_ads)
         og_rel = f"og/{r['slug']}.png"
@@ -779,28 +800,37 @@ def build(drafts=False, strict=False, out: Path = DIST):
         t = tickers[code]
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
         tex = [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]
+        ads.begin_page()
         write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs,
               list_ad=ads.render("list", {"theme": t.get("theme", "")}), page_bottom=ads.render("page_bottom", {}),
               thread_ad=ads.render("thread_inline", {"theme": "*"}))
     for th in themes:
         rs = [r for r in public if r["theme"] == th["name"]]
+        ads.begin_page()
         write(f"theme/{th['slug']}/index.html", "theme.html", th=th, rs=rs, list_ad=ads.render("list", {"theme": th["name"]}), page_bottom=ads.render("page_bottom", {}))
+    ads.begin_page()
     home_ctx = {"theme": "*"}  # 같은 ctx를 이어 써서 피드 광고마다 다른 상품 묶음
     home_list = ads.render("list", home_ctx)
     hf = ads.rhythm["home_feed"]
     feed_ads = [x for x in (ads.render("feed_inline", home_ctx) for _ in range(max(0, hf["max"] - 1))) if x]
     home_rail = ads.render("rail", home_ctx)
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
-          feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail, page_bottom=ads.render("page_bottom", home_ctx), is_home=True)
+          feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail,
+          page_bottom=ads.render("page_bottom", home_ctx), is_home=True,
+          feed_more_ad=ads.render("thread_inline", {"theme": "*"}))  # '글 더 보기'로 이어 불러온 글 사이(애드센스·쿠팡만, 애드핏은 정책상 불가)
+    ads.begin_page()
     ex_ctx = {"theme": "*"}
     write("search/index.html", "search.html", rs=public, ticker_list=ticker_list, explore_ad=ads.render("explore", ex_ctx),
           explore_inline=ads.render("explore_inline", {"theme": "*"}), page_bottom=ads.render("page_bottom", {}))
     if site.get("api_url"):
+        ads.begin_page()
         write("u/index.html", "user.html", profile_ad=ads.render("profile_inline", {"theme": "*"}), page_bottom=ads.render("page_bottom", {}))
+        ads.begin_page()
         write("dm/index.html", "dm.html", dm_ad=ads.render("dm_list", {"theme": "*"}))  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
         write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
         pd_ctx = {"theme": "*"}
+        ads.begin_page()
         write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"],
               post_ad=ads.render("post_detail", pd_ctx), page_bottom=ads.render("page_bottom", {}))
     write("404.html", "404.html")
@@ -828,6 +858,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
         html_body = wrap_tables(md_renderer().convert(body), "table-text")
         pages.append({"slug": p.stem, "title": meta.get("title", p.stem)})
+        ads.begin_page()
         write(f"{p.stem}/index.html", "page.html", p={"title": meta.get("title"), "description": meta.get("description", ""),
               "updated": to_date(meta.get("updated")), "html": html_body}, page_bottom=ads.render("page_bottom", {}))
 

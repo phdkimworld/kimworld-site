@@ -1,5 +1,6 @@
 // 홈 피드(쓰레드·트위터식)와 글 상세(/p/?id=번호)
-// · 홈: '추천'(모든 종토방·라운지 글) / '팔로잉'(내가 팔로우한 사람 + 내 글) 탭. 김박사 월드 리포트(메인 포스트)는 두 탭 모두에 섞여 나온다.
+// · 홈: 하나의 커뮤니티 피드(추천·팔로잉을 섞은 순위). 김박사 월드 리포트(메인 포스트)가 사이사이 섞여 나온다.
+// · 리포트·종목 화면: 그 리포트를 공유·인용한 글 / 그 종목 태그 글(댓글·종토방 대신)
 // · 글은 시간순으로 리포트 사이에 끼워 넣되, 리포트 사이 한 칸에 3개까지만(리포트가 글에 묻히지 않게).
 // · 새 글 알림 줄: 화면을 보고 있을 때만 1분마다 개수만 묻는다(최대 30번).
 (function () {
@@ -49,12 +50,15 @@
     if (c.uid) { art.setAttribute('data-by-uid', c.uid); if (C.isBlocked(c.uid)) art.hidden = true; }
     var who = el('div', 'post-who');
     who.appendChild(C.nickEl(c, 'post-name'));
-    // 쓰레드처럼 '닉네임 › 그룹': 종토방 글은 종목 이름(누르면 그 종토방), 라운지 글은 '라운지'
+    // 쓰레드처럼 '닉네임 › 종목': 종목 태그가 있으면 종목 이름(누르면 그 종목 커뮤니티), 없으면 이름만
     var tk = boardOf(c.slug), TKN = {}; ((window.KW || {}).tk || []).forEach(function (t) { TKN[t.c] = t.n; });
-    who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
-    var grp = el(tk ? 'a' : 'span', 'post-group', tk ? (TKN[tk] || '$' + tk) : '라운지');
-    if (tk) { grp.href = base + '/t/' + tk.toLowerCase() + '/#board'; grp.title = tk + ' 종토방'; }
-    who.appendChild(grp);
+    if (tk && !opt.noGroup) {
+      who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
+      var grp = el('a', 'post-group', TKN[tk] || '$' + tk);
+      grp.href = base + '/t/' + tk.toLowerCase() + '/#community'; grp.title = tk + ' 커뮤니티';
+      who.appendChild(grp);
+    }
+    if (c.pinned) who.appendChild(el('span', 'post-pin', '공지'));
     var tm = el(opt.detail ? 'span' : 'a', 'post-time muted', '· ' + ago(c.created));
     if (!opt.detail) tm.href = C.postUrl(c.id);
     tm.title = new Date(c.created).toLocaleString('ko-KR');
@@ -118,7 +122,7 @@
         if (!confirm('이 글을 신고할까요? 신고가 쌓이면 자동으로 가려집니다.')) return;
         api('/v1/comments/' + c.id + '/report', { method: 'POST' }).then(function () { toast('신고했습니다'); menu.remove(); });
       }));
-      if (tk) { var bl = el('a', 'post-menu-i', tk + ' 종토방 가기'); bl.href = base + '/t/' + tk.toLowerCase() + '/#board'; menu.appendChild(bl); }
+      if (tk) { var bl = el('a', 'post-menu-i', tk + ' 커뮤니티 가기'); bl.href = base + '/t/' + tk.toLowerCase() + '/#community'; menu.appendChild(bl); }
       if (c.uid) { var pl = el('a', 'post-menu-i', c.nick + '님 프로필'); pl.href = C.profileUrl(c.uid); menu.appendChild(pl); }
       act.after(menu);
     });
@@ -211,7 +215,18 @@
       R.forEach(function (r, i) { gaps[i].forEach(function (c) { r.node.before(render(c)); }); });
       appendTail(tail);
     }
-    function appendTail(items) { items.forEach(function (c) { list.appendChild(render(c)); }); }
+    // '글 더 보기'로 이어 불러온 글 사이에도 광고를 계속(8개마다). 애드핏은 운영정책상 이렇게 계속 불러올 수 없어 애드센스·쿠팡만(빌드가 검사)
+    var moreAdT = document.querySelector('template[data-feed-more-ad]'), moreN = 0;
+    function appendTail(items, more) {
+      items.forEach(function (c) {
+        list.appendChild(render(c));
+        if (more && moreAdT && ++moreN % 8 === 0) {
+          var w = el('div', 'feed-ad-more'); w.appendChild(document.importNode(moreAdT.content, true)); list.appendChild(w);
+          if (window.kwAdNew) window.kwAdNew(w.querySelector('.ad-coupang-products'));
+          if (w.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
+        }
+      });
+    }
     // 팔로우한 사람이 리포스트한 리포트: 피드에 있는 그 리포트 카드를 복제해 '○○님이 리포스트함' 줄을 붙인다
     function render(c) {
       if (c.type !== 'report') return postCard(c);
@@ -247,7 +262,7 @@
           (d.reposts || []).forEach(function (x) { if (x.type === 'report' || !have[x.id]) { x._t = x.rp.at; items.push(x); if (x.id) have[x.id] = 1; } });
           if (d.reposts && d.reposts.length) items.sort(function (a, b) { return (b._t || b.created) - (a._t || a.created); });
           place(items, hotMode); nudge();
-        } else appendTail(items);
+        } else appendTail(items, true);
         loaded += items.length;
         var ts = items.filter(function (c) { return c.created && !c.rp; }).map(function (c) { return c.created; });
         if (ts.length) oldest = Math.min.apply(null, ts);
@@ -346,25 +361,25 @@
       line.appendChild(el('span', 'composer-name', s.me ? s.me.nick : '익명으로 쓰기'));
       line.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
       var topicBtn = el('button', 'cp-topic'); topicBtn.type = 'button';
-      var topicX = el('button', 'cp-topic-x', '×'); topicX.type = 'button'; topicX.setAttribute('aria-label', '종목 지우기(라운지에 올림)');
+      var topicX = el('button', 'cp-topic-x', '×'); topicX.type = 'button'; topicX.setAttribute('aria-label', '종목 태그 지우기');
       line.appendChild(topicBtn); line.appendChild(topicX);
       cp.querySelector('[data-composer-form]').insertBefore(line, ta);
       var chosen = false; // 직접 고르거나 $티커로 정해졌는지
       function paintTopic() {
         var o = sel.options[sel.selectedIndex], v = sel.value;
         topicBtn.textContent = '';
-        if (!chosen || !o) { topicBtn.appendChild(document.createTextNode('+ 종목 또는 라운지')); topicBtn.classList.remove('on'); topicX.hidden = true; return; }
+        if (!chosen || !o) { topicBtn.appendChild(document.createTextNode('+ 종목 태그')); topicBtn.classList.remove('on'); topicX.hidden = true; return; }
         topicBtn.classList.add('on'); topicX.hidden = false;
-        topicBtn.appendChild(document.createTextNode(v === 'b-talk' ? '라운지' : o.textContent.replace(/^\$\S+\s*/, '') || o.textContent));
+        topicBtn.appendChild(document.createTextNode(v === 'b-talk' ? '종목 태그 없음' : o.textContent.replace(/^\$\S+\s*/, '') || o.textContent));
         if (v !== 'b-talk') topicBtn.appendChild(el('span', 'cp-topic-code', ' ' + v.slice(2).toUpperCase()));
       }
       cp._paintTopic = function () { chosen = true; paintTopic(); };
       topicX.addEventListener('click', function () { sel.value = 'b-talk'; chosen = false; paintTopic(); ta.focus(); });
-      topicBtn.addEventListener('click', function () { // 고르기 창: 검색 + 라운지 + 팔로우한 종목 먼저 + 전체 종목
-        var body = C.dialog('어디에 올릴까요?');
+      topicBtn.addEventListener('click', function () { // 고르기 창: 검색 + 태그 없음 + 팔로우한 종목 먼저 + 전체 종목
+        var body = C.dialog('종목 태그');
         var q = el('input', 'cp-pick-q'); q.type = 'search'; q.placeholder = '종목 이름이나 티커'; q.autocomplete = 'off'; body.appendChild(q);
         var ul = el('ul', 'kw-users cp-pick'); body.appendChild(ul);
-        var opts = Array.prototype.slice.call(sel.options).map(function (o) { return { v: o.value, t: o.value === 'b-talk' ? '라운지' : o.textContent.replace(/^\$\S+\s*/, ''), c: o.value === 'b-talk' ? '' : o.value.slice(2).toUpperCase() }; });
+        var opts = Array.prototype.slice.call(sel.options).map(function (o) { return { v: o.value, t: o.value === 'b-talk' ? '종목 태그 없이' : o.textContent.replace(/^\$\S+\s*/, ''), c: o.value === 'b-talk' ? '' : o.value.slice(2).toUpperCase() }; });
         C.myTopics().then(function (items) {
           var fav = {}; items.forEach(function (x) { if (x.kind === 't') fav['b-' + x.key.toLowerCase()] = 1; });
           opts.sort(function (a, b) { return (a.v === 'b-talk' ? -2 : fav[a.v] ? -1 : 0) - (b.v === 'b-talk' ? -2 : fav[b.v] ? -1 : 0); });
@@ -374,7 +389,7 @@
               var li = el('li', 'kw-user kw-user-pick'); li.tabIndex = 0;
               var ic = el('span', 'cp-pick-ic' + (o.v === 'b-talk' ? ' talk' : ''), o.v === 'b-talk' ? '💬' : o.c.slice(0, 4)); li.appendChild(ic);
               var w = el('div', 'kw-user-who'); w.appendChild(el('strong', null, o.t));
-              w.appendChild(el('span', 'muted kw-small', o.v === 'b-talk' ? '종목 없이 나누는 이야기' : '$' + o.c + ' 종토방' + (fav[o.v] ? ' · 팔로우 중' : ''))); li.appendChild(w);
+              w.appendChild(el('span', 'muted kw-small', o.v === 'b-talk' ? '커뮤니티 전체에만 올리기' : '$' + o.c + (fav[o.v] ? ' · 팔로우 중' : ''))); li.appendChild(w);
               if (o.v === sel.value && chosen) li.appendChild(el('span', 'cp-pick-on', '✓'));
               var go = function () { sel.value = o.v; chosen = true; paintTopic(); var d = document.querySelector('dialog.kw-dlg[open]'); if (d) d.close(); setTimeout(function () { ta.focus(); }, 30); };
               li.addEventListener('click', go); li.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
@@ -411,7 +426,7 @@
         av.className += ' composer-av-guest';
         cp.addEventListener('focusin', function () { nickIn.hidden = false; });
       }
-      cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '$티커를 쓰면 그 종목 종토방에도 올라가요'; });
+      cp.addEventListener('focusin', function () { cp.classList.add('composer-on'); if (!ta.value) ta.placeholder = '$티커를 쓰면 그 종목 태그가 붙어요'; });
       cp.addEventListener('focusout', function () {
         setTimeout(function () { if (!cp.classList.contains('cp-full') && !cp.contains(document.activeElement) && !document.querySelector('dialog.kw-dlg[open]') && !ta.value.trim()) { cp.classList.remove('composer-on'); ta.placeholder = '새로운 소식이 있나요?'; } }, 150);
       });
@@ -428,6 +443,72 @@
       suggestList(sgBox.querySelector('[data-suggest-list]'), items);
       sgBox.hidden = false;
     });
+  }
+
+  // ---------- 리포트·종목 화면의 커뮤니티 ----------
+  // 댓글·종토방을 따로 두지 않는다. 리포트 아래에는 '이 리포트를 공유·인용한 커뮤니티 글'(+ 같은 종목 최근 글),
+  // 종목 화면에는 그 종목 태그가 붙은 커뮤니티 글. 글쓰기는 리포트를 첨부하거나 종목 태그를 붙여 커뮤니티에 올린다.
+  var cm = document.querySelector('[data-community]');
+  if (cm) {
+    var about = cm.getAttribute('data-about') || '', cboard = cm.getAttribute('data-board') || '', ctk = boardOf(cboard);
+    var cl = cm.querySelector('[data-cmty-list]'), cmore = cm.querySelector('[data-cmty-more]'), cn = cm.querySelector('[data-cmty-n]');
+    var cadT = cm.querySelector('template[data-thread-ad]');
+    var adFirst = +cm.getAttribute('data-ad-first') || 4, adEvery = +cm.getAttribute('data-ad-every') || 6, adMax = +cm.getAttribute('data-ad-max') || 0;
+    var cOld = 0, shown = {}, nPosts = 0, nAds = 0, cLoading = false;
+    var CTKN = {}; ((window.KW || {}).tk || []).forEach(function (t) { CTKN[t.c] = t.n; });
+    function cAd() { // 글 사이 광고(같은 리듬: 4개 뒤부터 6개마다)
+      if (!cadT || nAds >= adMax || nPosts < adFirst || (nPosts - adFirst) % adEvery) return;
+      var w = el('div', 'cmty-ad'); w.appendChild(document.importNode(cadT.content, true)); cl.appendChild(w); nAds++;
+      if (window.kwAdNew) window.kwAdNew(w.querySelector('.ad-coupang-products'));
+      if (w.querySelector('ins.adsbygoogle')) { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} }
+    }
+    function cAdd(items) {
+      items.forEach(function (c) {
+        if (shown[c.id]) return; shown[c.id] = 1;
+        cl.appendChild(postCard(c, { noGroup: !!ctk && c.slug === cboard })); nPosts++; cAd();
+      });
+    }
+    function cEmpty(t) { var p = el('p', 'cmty-empty muted', t); cl.appendChild(p); }
+    function cLoad(reset) {
+      if (cLoading) return Promise.resolve(); cLoading = true;
+      if (reset) { cOld = 0; shown = {}; nPosts = 0; nAds = 0; }
+      var reqs = about
+        ? [api('/v1/feed?about=' + about + '&limit=30'), cboard ? api('/v1/feed?board=' + cboard + '&limit=8') : Promise.resolve({})]
+        : [api('/v1/feed?board=' + cboard + '&limit=20' + (reset ? '' : '&before=' + cOld))];
+      return Promise.all(reqs).then(function (res) {
+        cLoading = false;
+        var d = res[0] || {}, items = d.items || [];
+        if (reset) cl.textContent = '';
+        if (about) {
+          cn.textContent = items.length ? num(items.length) + (d.more ? '+' : '') : '';
+          document.querySelectorAll('[data-report-bar] [data-post-cm]').forEach(function (x) { x.textContent = items.length ? num(items.length) + (d.more ? '+' : '') : ''; });
+          if (!items.length) cEmpty('아직 이 리포트 이야기가 없어요. 첫 글을 남겨 보세요.');
+          cAdd(items);
+          var more = ((res[1] || {}).items || []).filter(function (x) { return !(x.quote && x.quote.ref === about); }).slice(0, 5);
+          if (more.length) { cl.appendChild(el('h3', 'cmty-sub', (CTKN[ctk] || ctk) + ' 커뮤니티 최근 글')); cAdd(more); }
+        } else {
+          if (reset) cAdd(d.pinned || []);
+          if (reset && !items.length) cEmpty('아직 글이 없어요. 이 종목에 대한 첫 글을 남겨 보세요.');
+          cAdd(items);
+          var ts = items.map(function (c) { return c.created; }); if (ts.length) cOld = Math.min.apply(null, ts);
+          if (cmore) cmore.hidden = !d.more;
+          if (reset) document.querySelectorAll('[data-cmty-n-tab]').forEach(function (x) { x.textContent = items.length ? num(items.length) + (d.more ? '+' : '') : ''; });
+        }
+        cm.hidden = false;
+      }).catch(function () { cLoading = false; });
+    }
+    if (cmore) cmore.addEventListener('click', function () { cmore.disabled = true; cLoad(false).then(function () { cmore.disabled = false; }); });
+    var cbtn = cm.querySelector('[data-cmty-compose]');
+    window.kwCmtyDone = function () { cLoad(true).then(function () { cm.scrollIntoView({ behavior: 'smooth', block: 'start' }); }); };
+    cbtn.addEventListener('click', function () { C.openCompose(about ? { kind: 'r', ref: about, text: '' } : null, { board: cboard }); });
+    C.meReady.then(function () {
+      var s = C.state(), avb = cm.querySelector('[data-cmty-av]');
+      if (avb) { avb.textContent = ''; avb.appendChild(s.me ? C.avatar(s.me.nick, s.me.id) : C.avatar('익')); }
+    });
+    // 예전 주소(#comments·#board)로 들어와도 커뮤니티로
+    var cHere = /^#(community|comments|board)$/.test(location.hash);
+    var cGo = function () { cLoad(true).then(function () { if (cHere) cm.scrollIntoView(); }); };
+    if (cHere || !about) cGo(); else setTimeout(cGo, 300); // 리포트는 본문을 먼저 그린 뒤
   }
 
   // ---------- 글 상세(/p/?id=번호) ----------
@@ -463,7 +544,7 @@
       act.appendChild(x); main.appendChild(act); li.appendChild(main);
       return li;
     }
-    function placeAds() { // 답글 사이 광고(종토방과 같은 리듬)
+    function placeAds() { // 답글 사이 광고(커뮤니티 목록과 같은 리듬)
       if (!adTpl) return;
       var first = +pp.getAttribute('data-ad-first') || 4, every = +pp.getAttribute('data-ad-every') || 6, max = +pp.getAttribute('data-ad-max') || 0;
       var items = Array.prototype.slice.call(rlist.children);
@@ -483,7 +564,7 @@
         holder.appendChild(postCard({ id: post.id, slug: post.slug, nick: post.nick, uid: post.uid, body: post.body, likes: post.likes, created: post.created, replies: d.replies.length, liked: !!likedSet[post.id], mine: post.mine, quote: post.quote, reposts: post.reposts, reposted: post.reposted },
           { detail: true, onDelete: function () { location.href = base + '/'; } }));
         var tk = boardOf(post.slug), bl = pp.ownerDocument.querySelector('[data-pp-board]');
-        if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 종토방 전체 글'); a.href = base + '/t/' + tk.toLowerCase() + '/#board'; bl.appendChild(a); } else bl.appendChild(el('span', 'muted', '· 라운지')); }
+        if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 커뮤니티 전체 글'); a.href = base + '/t/' + tk.toLowerCase() + '/#community'; bl.appendChild(a); } }
         document.title = post.nick + ': ' + post.body.slice(0, 30) + ' | ' + document.title.split('|').pop().trim();
         rbox.hidden = false;
         pp.querySelector('[data-pp-count]').textContent = d.replies.length ? num(d.replies.length) : '';

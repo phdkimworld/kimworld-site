@@ -10,7 +10,7 @@
   var pct = function (a, b) { return b ? Math.round(a / b * 1000) / 10 + '%' : '–'; };
   var dur = function (s) { s = Math.round(s || 0); return s >= 60 ? Math.floor(s / 60) + '분 ' + (s % 60) + '초' : s + '초'; };
   function dayAgo(n) { return new Date(Date.now() + 9 * 3600e3 - n * 864e5).toISOString().slice(0, 10); }
-  var TYPE = { h: '홈 피드', r: '리포트', t: '종목·종토방', th: '테마', p: '글 상세', u: '프로필', s: '검색', o: '기타' };
+  var TYPE = { h: '홈 피드', r: '리포트', t: '종목·커뮤니티', th: '테마', p: '글 상세', u: '프로필', s: '검색', o: '기타' };
 
   // 이 기기 방문 빼기
   var noan = root.querySelector('[data-an-noan]');
@@ -341,7 +341,7 @@
     var sAvg = d.series.map(function (r) { return { day: r.day, v: r.pv ? r.secs / r.pv : 0 }; });
     g.appendChild(bars('일별 평균 체류시간', sAvg, 'v', function (v) { return dur(v); }, { label: dayLabel, sub: function () { return '기간 평균 ' + dur(avg); } }));
     g.appendChild(bars('일별 가입자', d.series, 'signups', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '명'; } }));
-    g.appendChild(bars('일별 새 글(종토방·라운지)', d.series, 'board', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '개'; } }));
+    g.appendChild(bars('일별 새 커뮤니티 글', d.series, 'board', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '개'; } }));
     var hours = []; for (var h = 0; h < 24; h++) hours.push({ h: h, pv: 0 });
     (d.hours || []).forEach(function (x) { hours[x.h].pv = x.pv; });
     g.appendChild(bars('시간대별 페이지뷰 (한국 시각)', hours, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hours.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시'; } }));
@@ -361,14 +361,14 @@
     body.appendChild(table('많이 본 페이지', ['페이지', '페이지뷰', '평균 체류', '첫 페이지', '평균 스크롤'], (d.pages || []).map(function (x) {
       var m = /^\/(t|theme)\/([^/]+)\/$/.exec(x.path);
       var name = titles[x.path] || ({ '/': '홈 피드', '/p/': '글 상세(모든 글)', '/u/': '프로필', '/search/': '검색', '/(기타)': '기타 페이지' })[x.path]
-        || (m ? (m[1] === 't' ? m[2].toUpperCase() + ' 종목·종토방' : '테마: ' + m[2]) : x.path);
+        || (m ? (m[1] === 't' ? m[2].toUpperCase() + ' 종목·커뮤니티' : '테마: ' + m[2]) : x.path);
       return [link(name, x.path === '/(기타)' ? '#' : base + x.path), nf(x.pv), dur(x.pv ? x.secs / x.pv : 0), nf(x.entries), x.scroll_n ? Math.round(x.scroll / x.scroll_n) + '%' : '–'];
     }), { note: '평균 스크롤: 페이지를 어디까지 내려 읽었는지(맨 끝 = 100%).' }));
 
     var g3 = el('div', 'an-grid2');
     g3.appendChild(table('커뮤니티', ['항목', '값'], [
       ['전체 가입자', nf(CM.users)], ['정지 계정', nf(CM.banned)], ['기간 내 글 쓴 사람', nf(CM.writers)],
-      ['새 글(종토방·라운지)', nf(CM.board)], ['답글', nf(CM.replies)], ['리포트 댓글', nf(CM.report)],
+      ['새 커뮤니티 글', nf(CM.board)], ['답글', nf(CM.replies)], ['리포트 공유·인용 글', nf(CM.report)],
       ['리포트 좋아요', nf(CM.postLikes)], ['팔로우(전체 / 기간 내)', nf(CM.follows) + ' / ' + nf(CM.newFollows)]
     ]));
     g3.appendChild(table('활발한 사용자', ['닉네임', '글', '받은 좋아요', '팔로워'], (d.topUsers || []).filter(function (u) { return u.posts; }).map(function (u) {
