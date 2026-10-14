@@ -300,3 +300,9 @@ NTLA:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["인텔리아", "Intellia", "Intellia Therapeutics"]
+CRML:
+  name: "크리티컬 메탈스"
+  name_en: "Critical Metals Corp."
+  exchange: "NASDAQ"
+  theme: "광물·자원"
+  aliases: ["크리티컬메탈스", "Critical Metals", "탄브리즈", "Tanbreez"]
