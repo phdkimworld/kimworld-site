@@ -248,11 +248,95 @@ def fold_event_cards(body_html: str) -> str:
     return body_html
 
 
+def _h2_sections(body_html: str):
+    """본문의 <h2> 위치와 제목 목록."""
+    out = []
+    for m in re.finditer(r'<h2( id="([^"]*)")?>(.*?)</h2>', body_html, flags=re.S):
+        out.append((m.start(), m.end(), m.group(2) or "", re.sub(r"<[^>]+>", "", m.group(3)).strip()))
+    return out
+
+
+def _fold_h3(sec: str, keep, summary_extra=None, lift_lesson=False) -> str:
+    """구간 안의 <h3> 묶음을 접힌 상자로 바꾼다. keep(title)이 True면 그대로 둔다.
+    lift_lesson: 묶음 안 '교훈' 인용 블록은 상자 밖(바로 아래)에 꺼내 두어 접어도 요점은 보이게 한다."""
+    h3 = list(re.finditer(r'<h3( id="[^"]*")?>(.*?)</h3>', sec, flags=re.S))
+    if not h3:
+        return sec
+    out, last = [], 0
+    for j, m in enumerate(h3):
+        title = re.sub(r"<[^>]+>", "", m.group(2)).strip()
+        stop = h3[j + 1].start() if j + 1 < len(h3) else len(sec)
+        if keep(title, j, len(h3)):
+            continue
+        inner = sec[m.end():stop]
+        lesson = ""
+        if lift_lesson:
+            lm = re.search(r"<blockquote>\s*<p><strong>교훈</strong>.*?</blockquote>", inner, flags=re.S)
+            if lm:
+                lesson = lm.group(0).replace("<blockquote>", '<blockquote class="lesson-out">', 1)
+                inner = inner[:lm.start()] + inner[lm.end():]
+        extra = summary_extra(inner) if summary_extra else ""
+        out.append(sec[last:m.start()])
+        out.append(f'<details class="fold"{m.group(1) or ""}><summary><span class="fold-t">{title}</span>{extra}</summary>{inner}</details>\n{lesson}')
+        last = stop
+    out.append(sec[last:])
+    return "".join(out)
+
+
+def shape_for_reading(body_html: str) -> str:
+    """중간 이탈을 줄이는 본문 정리(2026-10-14). 원고는 그대로 두고 화면에서만 바꾼다.
+    - '먼저 알아둘 용어' 목록을 접는다(첫머리 속도 방지턱. 본문에서는 용어를 눌러 뜻을 본다)
+    - 2부 연대기: 가장 최근 시기만 펼치고 나머지는 접되 각 시기의 '교훈'은 밖에 보인다
+    - 4부 패턴: 패턴마다 접고 '전형적 반응'을 제목 옆에 보인다. '큰 그림'은 펼친다
+    - 5부: 5.1 국면 진단·5.5 고유 계산만 펼치고 나머지 절은 접는다. 6부: 체크리스트만 펼친다
+    - 부가 끝날 때마다 다음 부의 핵심 첫 문장을 '다음 이야기' 줄로 보여 준다(열린 고리)
+    - '진단' 인용 블록에 #diagnosis 를 단다(요약 상자·영상 바로가기에서 링크)"""
+    secs = _h2_sections(body_html)
+    if not secs:
+        return body_html
+    pieces, last = [], 0
+    for i, (st, en, sid, title) in enumerate(secs):
+        sec_end = secs[i + 1][0] if i + 1 < len(secs) else len(body_html)
+        head, sec = body_html[st:en], body_html[en:sec_end]
+        if title.startswith("먼저 알아둘 용어"):
+            n = len(re.findall(r"<li>", sec))
+            m = re.search(r"<ul>.*?</ul>", sec, flags=re.S)
+            if m and n:
+                sec = sec[:m.start()] + f'<details class="fold"><summary><span class="fold-t">용어 {n}개 보기</span> <span class="fold-n">본문에서 밑줄 친 용어를 누르면 뜻이 나옵니다</span></summary>{m.group(0)}</details>' + sec[m.end():]
+        elif re.match(r"2부", title):
+            sec = _fold_h3(sec, keep=lambda t, j, n: j == n - 1 or not t.startswith("시기"), lift_lesson=True)
+        elif re.match(r"4부", title):
+            def typ(inner):
+                m = re.search(r"<li><strong>전형적 반응</strong>:?\s*(.*?)</li>", inner, flags=re.S)
+                return f' <span class="fold-n">{re.sub(r"<[^>]+>", "", m.group(1)).strip()}</span>' if m else ""
+            sec = _fold_h3(sec, keep=lambda t, j, n: not re.match(r"P\d", t), summary_extra=typ)
+        elif re.match(r"5부", title):
+            sec = _fold_h3(sec, keep=lambda t, j, n: bool(re.match(r"5\.[15]\b", t)) or not re.match(r"5\.\d", t))
+        elif re.match(r"6부", title):
+            sec = _fold_h3(sec, keep=lambda t, j, n: "체크리스트" in t or not re.match(r"6\.\d", t))
+        # 다음 부 예고(이 부의 끝에): 다음 h2가 'N부'면 그 부의 '핵심' 첫 문장
+        if re.match(r"[1-5]부", title) and i + 1 < len(secs) and re.match(r"[2-6]부", secs[i + 1][3]):
+            nst, nen, nid, ntitle = secs[i + 1]
+            nxt_end = secs[i + 2][0] if i + 2 < len(secs) else len(body_html)
+            km = re.search(r"<p><strong>핵심</strong>\s*(.*?)</p>", body_html[nen:nxt_end], flags=re.S)
+            if km and nid:
+                sents = re.split(r"(?<=다\.)\s", re.sub(r"<[^>]+>", "", km.group(1)).strip())
+                first = sents[0] if len(sents[0]) >= 30 or len(sents) == 1 else sents[0] + " " + sents[1]
+                sec += f'<a class="next-part" href="#{nid}"><span class="np-k">다음 · {html.escape(ntitle)}</span><span class="np-t">{html.escape(first)}</span></a>\n'
+        pieces.append(body_html[last:st]); pieces.append(head + sec); last = sec_end
+    pieces.append(body_html[last:])
+    out = "".join(pieces)
+    out = re.sub(r"<blockquote>(\s*<p><strong>[^<]*진단)", r'<blockquote id="diagnosis">\1', out, count=1)
+    return out
+
+
 def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late: bool = False) -> list[tuple[str, str]]:
     """본문을 광고 자리에서 나눈다. 반환: [("html", 조각) | ("ad", 자리이름)]
     want_late: 긴 리포트에서 본문 4분의 3쯤 소제목 앞에 한 자리 더(가운데 광고와 끝 광고 사이가 너무 멀지 않게)."""
     h2 = [m.start() for m in re.finditer(r"<h2[\s>]", body_html)]
-    mid = h2[2] if want_mid and len(h2) >= 3 else -1
+    # 가운데 광고: 첫머리(훅·같은 뉴스) 안이 아니라 1부와 대표 차트를 지난 '2부' 제목 앞에 둔다(2026-10-14, 첫머리 이탈 줄이기)
+    part2 = [p for p in h2 if re.match(r"<h2[^>]*>\s*2부", body_html[p:p + 80])]
+    mid = (part2[0] if part2 else (h2[2] if len(h2) >= 3 else -1)) if want_mid else -1
     prod = -1
     if want_products:
         prod = len(body_html)
@@ -677,7 +761,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             if ph in body or ph in str(meta.get("title")) or ph in str(meta.get("summary")):
                 log.err(f"{name}: 금지 표현 '{ph}'")
         md = md_renderer()
-        body_html = fold_event_cards(wrap_tables(md.convert(body)))
+        body_html = shape_for_reading(fold_event_cards(wrap_tables(md.convert(body))))
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
                            r'<a class="chart-link" href="\2" target="_blank" rel="noopener" aria-label="차트 크게 보기">\1</a>', body_html)
@@ -724,6 +808,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             flat.append(t); flat.extend(t.get("children") or [])
         r["check_id"] = next((t["id"] for t in flat if "체크리스트" in t["name"]), "") or next((t["id"] for t in flat if "리스크" in t["name"]), "")
         r["yt_jump"] = [t for t in r["toc"] if re.match(r"^[3-6]부", t["name"])][:4] or r["toc"][2:6]
+        r["has_diag"] = 'id="diagnosis"' in r["body_html"]
         idx = public.index(r) if r in public else -1
         r["prev"] = public[idx + 1] if idx >= 0 and idx + 1 < len(public) else None
         r["next"] = public[idx - 1] if idx > 0 else None

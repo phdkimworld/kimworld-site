@@ -44,7 +44,7 @@
 {% block main %}
 <div class="progress" aria-hidden="true"><span></span></div>
 <div class="wrap report-layout">
-  <article class="report" data-slug="{{ r.slug }}" data-ticker="{{ r.ticker }}" data-theme="{{ r.theme }}" data-theme-slug="{{ r.theme_slug }}" data-title="{{ r.title }}" data-url="{{ r.url }}" data-asof="{{ r.data_as_of|iso }}">
+  <article class="report" data-min="{{ r.minutes }}" data-slug="{{ r.slug }}" data-ticker="{{ r.ticker }}" data-theme="{{ r.theme }}" data-theme-slug="{{ r.theme_slug }}" data-title="{{ r.title }}" data-url="{{ r.url }}" data-asof="{{ r.data_as_of|iso }}">
     {% if r.sponsor %}<p class="sponsor-flag">[광고] 이 페이지에는 유료 광고가 포함되어 있습니다. 광고주는 분석 내용에 관여하지 않았습니다.</p>{% endif %}
     {% if r.draft %}<p class="draft-flag">초안 — 공개되지 않은 미리보기입니다.</p>{% endif %}
 
@@ -87,6 +87,7 @@
       {% else %}
       <p>{{ r.summary }}</p>
       {% endif %}
+      {% if r.has_diag %}<p class="sum-jump sum-diag"><a href="#diagnosis">➜ 결론부터: 지금 어느 국면인지 진단 바로 보기</a></p>{% endif %}
       {% if r.check_id %}<p class="sum-jump"><a href="#{{ r.check_id }}">✓ 리스크와 매매 전 체크리스트 바로 보기</a></p>{% endif %}
       <div class="disclosure">
         {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
@@ -108,7 +109,7 @@
     {% if r.yt_jump %}
     <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
       <p class="yt-jump-t">▶ 영상 보고 오셨나요? 영상에서 다 못 다룬 내용으로 바로 가기</p>
-      <div class="chip-row">{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
+      <div class="chip-row">{% if r.has_diag %}<a class="chip chip-hot" href="#diagnosis">지금 국면 진단</a>{% endif %}{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
     </nav>
     {% endif %}
     {% if r.toc %}
@@ -195,5 +196,6 @@
   {% endif %}
 </div>
 <button type="button" class="to-top" data-action="top" aria-label="맨 위로">↑</button>
+<a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
 <div class="term-pop" role="tooltip" hidden></div>
 {% endblock %}

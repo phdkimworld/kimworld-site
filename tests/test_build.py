@@ -418,6 +418,28 @@ if (D / "r/stx-2026-10/index.html").exists():
     check('og:image:alt' in h and 'twitter:image:alt' in h and 'article:tag' in h, "그림 설명·태그")
     check((D / "og/b-talk.png").exists() and (D / "og/b-stx.png").exists(), "종토방·라운지 공유 그림")
 
+print("17) 중간 이탈 줄이기: 접기·다음 부 예고·진단 바로가기·가운데 광고 자리")
+sys.path.insert(0, str(SRC))
+import build as _b
+_doc = ("<h2 id=\"a\">짧은 답</h2><p>x</p><h2 id=\"g\">먼저 알아둘 용어</h2><ul><li>가</li><li>나</li></ul>"
+        "<h2 id=\"p1\">1부. 회사</h2><p><strong>핵심</strong> 일부. 둘째.</p>"
+        "<h2 id=\"p2\">2부. 연대기</h2><p><strong>핵심</strong> 연대기의 핵심 문장은 서른 자를 넘기도록 충분히 길게 쓴 문장이다. 다음.</p>"
+        "<h3 id=\"s1\">시기 1 · 처음</h3><p>본문1</p><blockquote><p><strong>교훈</strong> 하나</p></blockquote>"
+        "<h3 id=\"s2\">시기 2 · 지금</h3><p>본문2</p><blockquote><p><strong>교훈</strong> 둘</p></blockquote>"
+        "<h2 id=\"p5\">5부. 규칙</h2><h3 id=\"q1\">5.1 단계</h3><blockquote><p><strong>2026년 진단: B</strong> 근거</p></blockquote><h3 id=\"q2\">5.2 확인</h3><p>z</p>")
+_o = _b.shape_for_reading(_doc)
+check('용어 2개 보기' in _o, "용어 목록 접기")
+check('<details class="fold" id="s1">' in _o and '<details class="fold" id="s2">' not in _o, "2부: 마지막 시기만 펼침")
+check('class="lesson-out"' in _o and _o.index('class="lesson-out"') > _o.index('id="s1"'), "접은 시기의 교훈은 상자 밖에")
+check('class="next-part" href="#p2"' in _o and '연대기의 핵심 문장' in _o, "1부 끝에 2부 예고")
+check('<blockquote id="diagnosis">' in _o and '<details class="fold" id="q2">' in _o and 'id="q1"><' not in _o.replace('<h3 id="q1">', ''), "진단 앵커·5.2 접기·5.1 펼침")
+_parts = _b.split_for_ads(_o, True, False)
+_first_ad = next(i for i, (k, v) in enumerate(_parts) if k == "ad")
+check("2부. 연대기" in _parts[_first_ad + 1][1][:200], "가운데 광고는 2부 제목 앞")
+if (D / "r/ntla-2026-10/index.html").exists():
+    h = (D / "r/ntla-2026-10/index.html").read_text(encoding="utf-8")
+    check('href="#diagnosis"' in h and 'data-read-pill' in h and h.count('class="next-part"') >= 4, "실제 리포트: 진단 바로가기·읽기 위치·다음 부 예고")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

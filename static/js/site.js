@@ -113,6 +113,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc-side a'));
     var heads = tocLinks.map(function (a) { return document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1))); });
     var ticking = false;
+    var pill = document.querySelector('[data-read-pill]');
+    var pillPart = pill && pill.querySelector('[data-rp-part]'), pillLeft = pill && pill.querySelector('[data-rp-left]');
+    var mins = parseInt(report.getAttribute('data-min') || '0', 10) || 20;
     function onScroll() {
       ticking = false;
       var rect = report.getBoundingClientRect();
@@ -123,6 +126,22 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       var active = -1;
       for (var i = 0; i < heads.length; i++) { if (heads[i] && heads[i].getBoundingClientRect().top < 140) active = i; }
       tocLinks.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+      // 읽는 중 위치 알림(지금 몇 부 · 남은 시간): 1부를 지나면 보이고 끝에 가면 숨는다. 누르면 다음 부로
+      if (pill) {
+        var cur = active >= 0 ? tocLinks[active].textContent.trim() : '';
+        var m = /^([1-6])부/.exec(cur);
+        var show = !!m && p > 0.04 && p < 0.97;
+        pill.hidden = !show;
+        if (show) {
+          var left = Math.max(1, Math.round(mins * (1 - p)));
+          pillPart.textContent = m[1] + '부 / 6부';
+          pillLeft.textContent = '남은 약 ' + left + '분';
+          var nx = null;
+          for (var k = active + 1; k < tocLinks.length; k++) { if (/^[2-6]부/.test(tocLinks[k].textContent.trim())) { nx = tocLinks[k]; break; } }
+          pill.setAttribute('href', nx ? nx.getAttribute('href') : '#community');
+          pill.setAttribute('aria-label', nx ? '다음: ' + nx.textContent.trim() : '이야기로');
+        }
+      }
     }
     window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
     onScroll();
