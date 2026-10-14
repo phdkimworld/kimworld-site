@@ -486,7 +486,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
 // 실제로 보고 있던 시간(화면이 보이고 최근 30초 안에 움직임이 있던 초)·스크롤 깊이. 사람을 알아볼 정보는 없다.
 (function () {
   var KW = window.KW || {}, API = (KW.api || '').replace(/\/+$/, '');
-  if (!API || navigator.webdriver || /bot|crawl|spider|preview|lighthouse/i.test(navigator.userAgent)) return;
+  if (!API || navigator.webdriver || /bot|crawl|spider|preview|lighthouse|headless|externalhit|meta-external|scrap/i.test(navigator.userAgent)) return;
   var LS = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
   var SS = function (k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
   if (LS('kw-noan') === '1') return; // 운영자가 '내 방문 빼기'를 켠 기기
@@ -556,18 +556,21 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     for (var i = 0; i < R.length; i++) if (R[i][0].test(h)) return [R[i][1], R[i][2]];
     return ['referral', h.replace(/^www\./, '').replace(/^m\./, '').slice(0, 40)];
   }
-  var active = 0, last = Date.now(), maxSc = 0, sent = false;
-  ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove'].forEach(function (e) { addEventListener(e, function () { last = Date.now(); }, { passive: true }); });
+  var active = 0, last = Date.now(), maxSc = 0, sent = false, human = false;
+  ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach(function (e) { addEventListener(e, function (ev) { last = Date.now(); if (ev.isTrusted && e !== 'scroll') human = true; }, { passive: true }); });
   setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - last < 30000) active++; }, 1000);
   addEventListener('scroll', function () {
     var d = document.documentElement, max = d.scrollHeight - innerHeight;
     if (max > 0) maxSc = Math.max(maxSc, Math.round(Math.min(1, scrollY / max) * 100));
   }, { passive: true });
   function send() {
-    if (sent) return; sent = true;
+    if (sent) return;
+    // 봇 걸러내기: 화면을 한 번도 만지지 않았고 15초도 머물지 않았으면 보내지 않는다(링크 검사·미리보기 봇은 열었다 바로 닫는다)
+    if (!human && active < 15) return;
+    sent = true;
     var did = LS('kw-did') || '';
     var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc,
-      app: isApp ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}),
+      app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}),
       ch: SS('kw-ch') || 'direct', sd: SS('kw-sd') || src, rh: n === 1 ? (SS('kw-rh') || '') : '', lp: SS('kw-lp') || location.pathname, u: (function () { try { return JSON.parse(SS('kw-utm') || 'null'); } catch (e) { return null; } })() });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
     try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}

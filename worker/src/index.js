@@ -249,6 +249,31 @@ async function oauthSubject(provider, code, env, redirectUri) {
 }
 
 // ---------- 운영자 애널리틱스 집계: 지금 기간과 바로 앞 같은 길이 기간을 함께 계산(증감 비교) ----------
+// ---------- 봇 판정(2026-10-14) ----------
+// 쓰레드 홍보 글을 올린 뒤 링크 검사·미리보기·수집 봇이 페이지를 열어 방문 통계·조회수를 부풀렸다.
+// ① 이름표(User-Agent)가 봇 ② 사람이 쓰지 않는 데이터센터·클라우드 망(ASN)에서 온 요청은 통계·조회수·광고 통계에 넣지 않는다.
+// 아이클라우드 비공개 릴레이·와프(클라우드플레어·아카마이·패스틀리)와 VPN 망은 사람도 쓰므로 넣지 않았다.
+const BOT_UA = /(?<!cu)bot\b|bot\/|crawl|spider|slurp|preview|externalhit|meta-external|facebookcatalog|headless|lighthouse|pagespeed|phantom|puppeteer|playwright|selenium|python|curl\/|wget|axios|go-http|java\/|okhttp|node-fetch|undici|scrapy|httpclient|bytespider|petalbot|ahrefs|semrush|mj12|dotbot|yeti|scrap|scanner|validator|uptime|monitor/i;
+const DC_ASN = new Set([
+  32934, 63293, // 메타(페이스북·인스타그램·쓰레드) 링크 검사
+  15169, 396982, 19527, // 구글·구글 클라우드
+  16509, 14618, 8987, // 아마존 AWS
+  8075, 8068, // 마이크로소프트·애저
+  14061, 24940, 16276, 63949, 20473, 31898, 51167, 12876, 197540, 202053, 62567, // 디지털오션·헤츠너·OVH·리노드·벌처·오라클·콘타보·스케일웨이·넷컵 등
+  45102, 37963, 132203, 45090, 136907, 55990, 38365, 4134, // 알리바바·텐센트·화웨이 클라우드·바이두·중국 IDC
+  23576, // 네이버 클라우드(예티 등 수집기)
+]);
+function botWhy(req) {
+  const ua = req.headers.get("User-Agent") || "";
+  if (!ua || BOT_UA.test(ua)) return "ua";
+  const asn = Number(req.cf?.asn || 0);
+  if (asn && DC_ASN.has(asn)) return "dc";
+  return "";
+}
+function countBot(db, today, why) {
+  return db.prepare("INSERT INTO an_bot (day, why, n) VALUES (?, ?, 1) ON CONFLICT(day, why) DO UPDATE SET n = n + 1").bind(today, why).run().catch(() => {});
+}
+
 async function analytics(db, now, daysIn) {
   const days = [7, 30, 90].includes(daysIn) ? daysIn : 30;
   const D = (k) => kstDay(now - k * 864e5);
@@ -357,6 +382,8 @@ async function analytics(db, now, daysIn) {
     actions: { reposts: rpN?.n || 0, quotes: qN?.n || 0 },
     acq,
   };
+  const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
+  ext.bots = Object.fromEntries(botRows.map((x) => [x.why, x.n]));
   // 날짜 축을 빈 날 없이 채운다
   const axis = []; for (let k = days - 1; k >= 0; k--) axis.push(D(k));
   const by = (rows) => Object.fromEntries(rows.map((r) => [r.day, r]));
@@ -409,12 +436,13 @@ export default {
     }
     const p = url.pathname.replace(/\/+$/, "");
     try {
+      const bot = req.method === "POST" && /^\/v1\/(hit|view|post-views|ad\/events)$/.test(p) ? botWhy(req) : "";
       // ---------- 조회수 ----------
       if (p === "/v1/view" && req.method === "POST") {
         const { slug } = await readJson(req);
         if (!SLUG_RE.test(slug || "")) return json(req, { error: "slug" }, 400);
         const day = kstDay(now);
-        const seen = await db.prepare("INSERT OR IGNORE INTO view_seen (day, slug, ih) VALUES (?, ?, ?)").bind(day, slug, ih).run();
+        const seen = bot ? { meta: { changes: 0 } } : await db.prepare("INSERT OR IGNORE INTO view_seen (day, slug, ih) VALUES (?, ?, ?)").bind(day, slug, ih).run();
         if (seen.meta?.changes) {
           await db.batch([
             db.prepare("INSERT INTO views_total (slug, n) VALUES (?, 1) ON CONFLICT(slug) DO UPDATE SET n = n + 1").bind(slug),
@@ -491,7 +519,7 @@ export default {
         const b = await readJson(req);
         const seg = String(b.seg || "");
         const ev = Array.isArray(b.e) ? b.e.slice(0, 40) : [];
-        if (!/^[md]\.[a-z]{1,2}$/.test(seg) || !ev.length) return json(req, { ok: false });
+        if (!/^[md]\.[a-z]{1,2}$/.test(seg) || !ev.length || bot) return json(req, { ok: false });
         if (!(await allow(db, `adev|${ih}`, 400, 864e5, now))) return json(req, { ok: false });
         const SLOTS = new Set(["report_mid", "report_products", "report_late", "report_end", "list", "feed_inline", "thread_inline", "rail", "explore", "explore_inline", "profile_inline", "dm_list", "post_detail"]);
         const agg = new Map(); // 한 페이지에서 같은 묶음·자리는 노출 1, 클릭 1까지만(부풀리기 막기)
@@ -529,6 +557,9 @@ export default {
           "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
+        // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
+        const why = bot || (a < 2 && !sc && !evs.length && !b.hu ? "idle" : "");
+        if (why) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) await countBot(db, today, why); return json(req, { ok: true }); }
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
         const hour = new Date(now + 9 * 3600e3).getUTCHours();
         const q = [
@@ -1078,7 +1109,7 @@ export default {
       if (p === "/v1/post-views" && req.method === "POST") {
         const b = await readJson(req);
         const ids = [...new Set((Array.isArray(b.ids) ? b.ids : []).map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 30);
-        if (!ids.length) return json(req, { ok: true });
+        if (!ids.length || bot) return json(req, { ok: true });
         if (!(await allow(db, `pv|${ih}`, 300, 864e5, now))) return json(req, { ok: true }); // 하루 300번(한 번에 30개)까지만
         const day = kstDay(now);
         const res = await db.batch(ids.map((id) => db.prepare("INSERT OR IGNORE INTO post_seen (day, cid, ih) VALUES (?, ?, ?)").bind(day, id, ih)));

@@ -40,13 +40,16 @@ let fails = 0;
 const check = (cond, msg) => { console.log((cond ? "  ok  " : "  FAIL ") + msg); if (!cond) fails++; };
 // 기기 번호(d=)는 따로 주지 않으면 IP마다 다른 기기로 본다(기존 검사가 "IP = 사람"으로 짜여 있어서)
 const devOf = (ip) => ("dev" + ip.replace(/\./g, "_") + "_".repeat(30)).slice(0, 30);
-async function call(method, path, { body, ip = "1.1.1.1", dev, auth, cookie, origin = "https://drkimworld.com" } = {}) {
+async function call(method, path, { body, ip = "1.1.1.1", dev, auth, cookie, origin = "https://drkimworld.com", ua = "Mozilla/5.0 (Linux; Android 14) Chrome/129.0 Mobile Safari/537.36", cf } = {}) {
   const headers = { "CF-Connecting-IP": ip, Origin: origin, "Content-Type": "application/json" };
+  if (ua) headers["User-Agent"] = ua;
   if (auth) headers.Authorization = auth;
   if (cookie) headers.Cookie = cookie;
   const d = dev === null ? "" : (dev || devOf(ip));
   const u = "https://api.drkimworld.com" + path + (d ? (path.includes("?") ? "&" : "?") + "d=" + d : "");
-  const res = await worker.fetch(new Request(u, { method, headers, body: body ? JSON.stringify(body) : undefined }), env);
+  const rq = new Request(u, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (cf) Object.defineProperty(rq, "cf", { value: cf });
+  const res = await worker.fetch(rq, env);
   return { status: res.status, data: await res.json().catch(() => null), headers: res.headers };
 }
 // 소셜 로그인: 시작 → (구글·카카오 화면) → 돌아오기. 쿠키를 돌려준다
@@ -447,6 +450,22 @@ await call("POST", "/v1/hit", { body: { p: "/", r: "naver", ch: "search", sd: "n
 await call("POST", "/v1/hit", { body: { p: "/r/ionq-2026-10/", r: "youtube", ch: "youtube", sd: "youtube", rh: "www.youtube.com", lp: "/r/ionq-2026-10/", m: 1, n: 0, s: 1, a: 200, sc: 90,
   u: { s: "YouTube", m: "video", c: "ionq-2026-10", t: "pinned<script>" } }, ip: "92.0.0.2" });
 await call("POST", "/v1/hit", { body: { p: "/", r: "direct", ch: "hacker", sd: "BAD SRC!", lp: "/../etc", s: 1, a: 5 }, ip: "92.0.0.3" });
+{ // 봇 걸러내기: 봇 이름표·데이터센터 망·반응 없는 방문은 통계·조회수에 넣지 않고 이유별 합계만
+  const pv0 = (await env.DB.prepare("SELECT SUM(pv) AS n FROM an_page").first()).n;
+  const v0 = (await call("POST", "/v1/view", { body: { slug: "bot-test-2026-10" }, ip: "93.0.0.9" })).data.views;
+  await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 40, sc: 50 }, ip: "93.0.0.1", ua: "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)" });
+  await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 40, sc: 50 }, ip: "93.0.0.2", ua: "" });
+  await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 40, sc: 50 }, ip: "93.0.0.3", cf: { asn: 32934 } });
+  await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 0, sc: 0 }, ip: "93.0.0.4" });
+  const v1 = (await call("POST", "/v1/view", { body: { slug: "bot-test-2026-10" }, ip: "93.0.0.5", cf: { asn: 16509 } })).data.views;
+  const v2 = (await call("POST", "/v1/view", { body: { slug: "bot-test-2026-10" }, ip: "93.0.0.6", ua: "Mozilla/5.0 HeadlessChrome/129.0" })).data.views;
+  const pv1 = (await env.DB.prepare("SELECT SUM(pv) AS n FROM an_page").first()).n;
+  const bt = Object.fromEntries(((await env.DB.prepare("SELECT why, SUM(n) AS n FROM an_bot GROUP BY why").all()).results || []).map((x) => [x.why, x.n]));
+  check(pv1 === pv0 && bt.ua === 2 && bt.dc === 1 && bt.idle === 1, "봇 걸러내기: 이름표·빈 이름표·메타 망·반응 없음은 페이지뷰에 안 들어가고 이유별로만 센다");
+  check(v1 === v0 && v2 === v0, "봇 걸러내기: 클라우드 망·헤드리스 브라우저는 리포트 조회수를 올리지 않는다");
+  await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 0, sc: 0, hu: 1 }, ip: "93.0.0.7", ua: "Mozilla/5.0 (Linux; Android 14; CUBOT X30) Chrome/129.0 Mobile Safari/537.36" });
+  check((await env.DB.prepare("SELECT SUM(pv) AS n FROM an_page").first()).n === pv0 + 1, "봇 걸러내기: 화면을 만진 사람(이름에 bot이 든 휴대폰 포함)은 센다");
+}
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const A = an.data.acq;
 const ns = A.sources.find((x) => x.src === "naver-search");
