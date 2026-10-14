@@ -8,5 +8,10 @@
     "path": "static/social/lqda-2026-10/LQDA_shorts.mp4",
     "cover": "static/social/lqda-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-14T18:17:53-04:00"
+  "publish_at": "2026-10-14T18:17:53-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    }
+  }
 }
