@@ -60,10 +60,12 @@ jobs:
         # 일부 채널이 실패해도, 이미 게시한 결과는 반드시 커밋한다(중복 게시 방지)
         if: always() && env.WEEKLY != 'true' && env.MODE != 'ping' && env.MODE != 'check'
         run: |
+          # rebase도 커밋을 다시 쓰므로 이름·메일을 저장소 설정으로 둔다(-c 로만 주면 재시도 rebase가 실패해 기록이 사라지고 다음 실행이 같은 글을 또 올린다)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A social
           if git diff --cached --quiet; then echo "바뀐 기록 없음"; exit 0; fi
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -q -m "SNS 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          git commit -q -m "SNS 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
           for i in 1 2 3 4; do
             git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
             sleep $((i * 5))

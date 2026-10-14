@@ -81,4 +81,8 @@ with tempfile.TemporaryDirectory() as d:
     check("인스타 실패 시 Threads 결과 저장, 종료 코드 1", first == 1 and saved["results"]["threads"]["done"])
     log.clear()
     check("다시 돌면 인스타만 게시", sp.main([]) == 0 and not any(l[0] == sp.TH_API and l[2].endswith("/threads") for l in log))
+wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").read_text(encoding="utf-8")
+step = wf[wf.index("Commit results"):]
+check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로 둠(중복 게시 방지)",
+      step.find("git config user.name") != -1 and step.find("git config user.name") < step.find("pull -q --rebase"))
 print(f"\n모두 통과 ({ok})")
