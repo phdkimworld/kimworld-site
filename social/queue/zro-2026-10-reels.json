@@ -8,5 +8,10 @@
     "path": "static/social/zro-2026-10/ZRO_shorts.mp4",
     "cover": "static/social/zro-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-15T00:15:01-04:00"
+  "publish_at": "2026-10-15T00:15:01-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    }
+  }
 }
