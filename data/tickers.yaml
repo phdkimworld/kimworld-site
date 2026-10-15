@@ -372,3 +372,9 @@ AXTI:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["AXT", "에이엑스티", "AXT Inc", "퉁메이", "Tongmei"]
+ERAS:
+  name: "에라스카"
+  name_en: "Erasca, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["에라스카", "Erasca", "ERAS-0015"]
