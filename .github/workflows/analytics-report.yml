@@ -21,6 +21,8 @@ jobs:
           ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
           echo "::add-mask::$ADMIN"
           mkdir -p .cache
-          curl -sS --max-time 60 -H "Authorization: Bearer $ADMIN" "https://api.drkimworld.com/v1/admin/analytics?days=7" > .cache/an.json
+          CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "https://api.drkimworld.com/v1/admin/analytics?days=7")
+          echo "HTTP $CODE, $(wc -c < .cache/an.json) bytes"
+          if [ "$CODE" != "200" ]; then head -c 300 .cache/an.json | tr -d '\r' | sed 's/^/body: /'; echo; fi
       - name: Report
         run: python3 scripts/analytics_report.py
