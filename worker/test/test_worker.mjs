@@ -689,7 +689,7 @@ console.log("푸시 알림");
   const vk = await subtle.importKey("raw", UB(m[4]), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
   const claims = JSON.parse(Buffer.from(m[2], "base64url").toString());
   check(m[4] === key && claims.aud === "https://fcm.googleapis.com" && claims.exp > Date.now() / 1000 && await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, vk, UB(m[3]), te.encode(m[1] + "." + m[2])), "푸시: VAPID 서명이 공개 키로 확인된다");
-  check(h["Content-Encoding"] === "aes128gcm" && (await decrypt(PUSHED[0].body)).t.includes("알림이 켜졌습니다"), "푸시: 암호문을 기기 키로 풀면 알림 문구");
+  check(h["Content-Encoding"] === "aes128gcm" && (await decrypt(PUSHED[0].body)).t.includes("알림이 켜졌어요"), "푸시: 암호문을 기기 키로 풀면 알림 문구");
   // 답글·좋아요·팔로우 → 대기열 → 1분 작업이 보낸다
   const post = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "푸시 시험 글입니다", t: 8000 })).data;
   await as(P2, "POST", "/v1/comments", { slug: "b-talk", body: "답글 남겨요", parent: post.id, t: 8000 });

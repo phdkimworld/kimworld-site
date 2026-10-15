@@ -60,7 +60,7 @@ export function pushMessage(r) {
     case "dm": return r.slug === "req"
       ? { t: (r.from_nick || "누군가") + "님의 쪽지 요청", b: "처음 보는 사람이 쪽지를 보냈어요", u: "/dm/?t=" + r.ref, g }
       : { t: (r.from_nick || "누군가") + "님의 쪽지" + (r.n > 1 ? " " + r.n + "개" : ""), b: "새 쪽지가 왔어요", u: "/dm/?t=" + r.ref, g };
-    case "test": return { t: "김박사 월드 알림이 켜졌습니다", b: "팔로우한 종목의 새 리포트와 내 글 소식을 이렇게 알려 드려요", u: "/settings/", g };
+    case "test": return { t: "알림이 켜졌어요", b: "팔로우한 종목의 새 리포트와 내 글 소식을 이렇게 알려 드려요", u: "/settings/", g };
     default: return null;
   }
 }

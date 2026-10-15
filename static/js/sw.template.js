@@ -35,7 +35,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { t: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.t || '김박사 월드', {
-    body: d.b || '', icon: BASE + '/static/icon-192.png', badge: BASE + '/static/icon-192.png',
+    body: d.b || '', icon: BASE + '/static/icon-192.png', badge: BASE + '/static/badge-96.png', // 상태 표시줄용 흰색 단색 아이콘(안드로이드는 색을 지우고 모양만 쓴다)
     tag: d.g || undefined, renotify: !!d.g, data: { u: d.u || '/' }, lang: 'ko',
   }));
 });
