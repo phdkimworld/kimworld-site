@@ -25,7 +25,7 @@
   - `reels`는 `/{page}/video_reels` 3단계(start → `rupload.facebook.com`에 `file_url` → finish)로 올리고, 캡션은 `channel_text.facebook`이 없으면 인스타 캡션을 쓴다. `image`는 `/photos`, `carousel`은 사진을 `published=false`로 올린 뒤 `feed`의 `attached_media`로 묶는다.
   - 오류 190(토큰)·200(권한)은 재시도하지 않고 실패로 표시한다. 일시 오류(5xx·속도 제한)는 20·60·120초 간격으로 최대 3회 다시 시도한다.
   - 앱이 개발 모드라 공개 노출을 확인해야 한다. `social/FACEBOOK_LIVE` 파일이 없으면 페이스북 글은 한 건만 올리고 나머지는 '공개 확인 대기'로 둔다. 로그아웃 상태에서 첫 글이 보이면 이 파일을 커밋한다. 안 보이면 앱을 라이브로 바꿔야 한다.
-  - 비밀값 `FB_PAGE_ID`, `FB_PAGE_TOKEN`. 페이지 토큰은 만료가 없지만 **2027-01-13 전에 앱 데이터 접근을 다시 승인**해야 한다.
+  - 비밀값 `FB_PAGE_ID`, `FB_PAGE_TOKEN`. 페이지 토큰은 비즈니스 포트폴리오 '김박사 월드'의 시스템 사용자 `kimworld-bot`에서 받은 것으로, 토큰 만료·데이터 접근 만료가 모두 없다(재발급: Business Suite → 설정 → 시스템 사용자 → 토큰 생성 → `/{page-id}?fields=access_token`).
 - **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드. `poll`(보기 2~4개, 각 25바이트 이하 = 한글 약 8자)은 본문에 투표로 붙고(24시간), 본문의 `link_attachment`와 함께 쓸 수 없다.
 - **Instagram**: 미디어가 있어야 게시한다(없으면 건너뜀). `media.type`
   - `image`: `path` 1장(JPEG 권장)
@@ -73,7 +73,7 @@ gh secret set IG_ACCESS_TOKEN -R phdkimworld/kimworld-site
 
 - 필요한 비밀값 `GH_SECRETS_PAT`: GitHub → Settings → Developer settings → Fine-grained tokens → 저장소 `phdkimworld/kimworld-site`만 선택, 권한 **Secrets: Read and write** 하나만. 만료는 최대(또는 없음)로 두고, 이 토큰이 만료되면 새로 만들어 넣는다.
 - 실패하면 워크플로가 실패로 표시된다. 60일 넘게 실패가 이어지면 토큰이 만료되어 새로 발급해야 한다.
-- 페이스북 페이지 토큰은 만료가 없어 자동 갱신 대상이 아니다(2027-01-13 전 데이터 접근 재승인만 필요).
+- 페이스북 페이지 토큰은 시스템 사용자 토큰이라 만료가 없어 자동 갱신 대상이 아니다.
 
 이미 만료됐다면 갱신이 안 되므로 Meta 개발자 앱에서 단기 토큰을 다시 받아 장기 토큰으로 교환한 뒤 같은 방법으로 넣는다.
 

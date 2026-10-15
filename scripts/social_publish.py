@@ -38,7 +38,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   python scripts/social_publish.py --delete threads <글 ID>   # Threads 글 삭제(threads_delete 권한 필요)
 
 비밀값(환경변수): THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID, FB_PAGE_ID, FB_PAGE_TOKEN.
-값은 출력하지 않는다. 페이지 토큰은 만료가 없지만 2027-01-13 전에 앱 데이터 접근을 다시 승인해야 한다.
+값은 출력하지 않는다. 페이지 토큰은 시스템 사용자(kimworld-bot) 토큰이라 만료가 없다.
 검사·게시 실패가 하나라도 있으면 종료 코드 1. 중간에 실패하면 이미 게시한 채널·댓글은 파일의 "results" 에
 남겨 다음 실행에서 건너뛴다(중복 게시 방지).
 """
