@@ -94,6 +94,14 @@ def report_alerts(now_ms: int) -> list[str]:
             f"WHERE ((kind = 't' AND key = '{tk}') OR (kind = 'th' AND key = '{th}')) "
             f"AND NOT EXISTS (SELECT 1 FROM report_notified WHERE slug = '{slug}') "
             "ON CONFLICT(uid, type, ref) DO NOTHING;")
+        # 푸시 알림 대기열(0019): 푸시를 켠 팔로워에게만. 워커가 1분 안에 설정(새 리포트 켬·방해 금지 시간)을 보고 보낸다
+        out.append(
+            "INSERT INTO push_pending (uid, type, ref, slug, from_nick, n, updated, pushed) "
+            f"SELECT DISTINCT tf.uid, 'report', '{slug}', '', '{title}', 1, {now_ms}, 0 FROM topic_follows tf "
+            f"WHERE ((tf.kind = 't' AND tf.key = '{tk}') OR (tf.kind = 'th' AND tf.key = '{th}')) "
+            f"AND NOT EXISTS (SELECT 1 FROM report_notified WHERE slug = '{slug}') "
+            "AND EXISTS (SELECT 1 FROM push_subs s WHERE s.uid = tf.uid) "
+            "ON CONFLICT(uid, type, ref) DO NOTHING;")
         out.append(f"INSERT OR IGNORE INTO report_notified (slug, created) VALUES ('{slug}', {now_ms});")
     return out
 

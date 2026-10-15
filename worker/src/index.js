@@ -1,3 +1,4 @@
+import { queuePush, prefsOf, cleanPrefs, vapidKeys, pushToUser, drainPush, PUSH_HOST, pushMessage } from "./push.js";
 // 김박사 월드 API (Cloudflare Worker + D1)
 // - 조회수: 같은 사람(해시)·같은 글은 하루 한 번만 센다
 // - 댓글: 닉네임만(회원 가입 없음), 링크·연락처·리딩방 유도 문구는 자동 보류, 신고 3건이면 숨김
@@ -125,6 +126,7 @@ async function notify(db, uid, type, ref, slug, fromNick, now) {
   await db.prepare(`INSERT INTO notifs (uid, type, ref, slug, from_nick, n, updated, seen) VALUES (?, ?, ?, ?, ?, 1, ?, 0)
     ON CONFLICT(uid, type, ref) DO UPDATE SET n = CASE WHEN seen = 1 THEN 1 ELSE n + 1 END, from_nick = excluded.from_nick, updated = excluded.updated, seen = 0`)
     .bind(uid, type, String(ref), slug || "", fromNick || "", now).run();
+  await queuePush(db, uid, type, ref, slug, fromNick, now); // 푸시를 켠 사람만 대기열에(1분 안에 보낸다)
 }
 
 // ---------- 멘션(@닉네임): 있는 닉네임만 링크·알림. 있는 닉네임의 @는 홍보 판정에서 뺀다 ----------
@@ -360,7 +362,8 @@ async function analytics(db, now, daysIn) {
     all("SELECT day, ch, SUM(sess) AS sess FROM an_acq WHERE day >= ? GROUP BY day, ch", since),
     all("SELECT path, src, SUM(sess) AS sess, SUM(multi) AS multi, SUM(pv) AS pv, SUM(secs) AS secs FROM an_land WHERE day >= ? GROUP BY path, src HAVING SUM(sess) > 0 ORDER BY sess DESC LIMIT 120", since),
     all("SELECT host, SUM(sess) AS sess FROM an_ref WHERE day >= ? GROUP BY host ORDER BY sess DESC LIMIT 50", since),
-    all("SELECT src, med, camp, cont, SUM(sess) AS sess, SUM(pv) AS pv, SUM(secs) AS secs, SUM(multi) AS multi FROM an_camp WHERE day >= ? GROUP BY src, med, camp, cont ORDER BY sess DESC LIMIT 50", since),
+    // 위치별(출처·매체·위치)로 합친다. 캠페인(종목·영상)은 나누지 않고 몇 개였는지만(운영자 요청 2026-10-14)
+    all("SELECT src, med, cont, COUNT(DISTINCT camp) AS camps, SUM(sess) AS sess, SUM(pv) AS pv, SUM(secs) AS secs, SUM(multi) AS multi FROM an_camp WHERE day >= ? GROUP BY src, med, cont ORDER BY sess DESC LIMIT 50", since),
     all("SELECT src, ev, SUM(n) AS n FROM an_srcev WHERE day >= ? GROUP BY src, ev", since),
     all("SELECT CAST(strftime('%w', day) AS INTEGER) AS dow, ch, SUM(sess) AS sess FROM an_acq WHERE day >= ? GROUP BY dow, ch", since),
   ]);
@@ -554,7 +557,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -784,6 +787,8 @@ export default {
       }
       if (p === "/v1/auth/logout" && req.method === "POST") {
         if (session) await db.prepare("DELETE FROM sessions WHERE th = ?").bind(session.th).run();
+        const lo = await readJson(req).catch(() => ({}));
+        if (lo && typeof lo.endpoint === "string") await db.prepare("DELETE FROM push_subs WHERE endpoint = ?").bind(lo.endpoint.slice(0, 600)).run(); // 로그아웃한 기기로는 푸시를 보내지 않는다
         return json(req, { ok: true }, 200, { "Set-Cookie": clearCookie });
       }
 
@@ -846,6 +851,9 @@ export default {
           db.prepare("DELETE FROM topic_follows WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM notifs WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM avatars WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM push_subs WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM push_prefs WHERE uid = ?").bind(me.id),
+          db.prepare("DELETE FROM push_pending WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM blocks WHERE blocker = ? OR blocked = ?").bind(me.id, me.id),
           db.prepare("DELETE FROM user_reports WHERE uid = ?").bind(me.id),
           db.prepare("DELETE FROM dm_reports WHERE mid IN (SELECT m.id FROM dm_msgs m JOIN dm_threads t ON t.id = m.tid WHERE t.a = ? OR t.b = ?)").bind(me.id, me.id),
@@ -1128,6 +1136,56 @@ export default {
             GROUP BY u.id ORDER BY likes DESC, posts DESC, u.id DESC LIMIT 5`).bind(now - 30 * 864e5, mid, mid).all();
         return json(req, { items: r.results || [] }, 200, { "Cache-Control": "no-store" });
       }
+      // ---------- 푸시 알림(웹앱·브라우저) ----------
+      if (p === "/v1/push/key" && req.method === "GET") {
+        return json(req, { key: (await vapidKeys(db)).pub }, 200, { "Cache-Control": "public, max-age=3600" });
+      }
+      if (p.startsWith("/v1/push/")) {
+        const me = session ? await userByActor(db, actor) : null;
+        if (!me) return json(req, { error: "login", message: "로그인하면 알림을 켤 수 있습니다." }, 401);
+        if (p === "/v1/push/prefs" && req.method === "GET") {
+          const ep = String(url.searchParams.get("ep") || "").slice(0, 600);
+          const [n, mine] = await Promise.all([
+            db.prepare("SELECT COUNT(*) AS n FROM push_subs WHERE uid = ?").bind(me.id).first(),
+            ep ? db.prepare("SELECT 1 AS y FROM push_subs WHERE uid = ? AND endpoint = ?").bind(me.id, ep).first() : null,
+          ]);
+          return json(req, { prefs: await prefsOf(db, me.id), devices: n?.n || 0, thisDevice: !!mine }, 200, { "Cache-Control": "no-store" });
+        }
+        if (p === "/v1/push/prefs" && req.method === "POST") {
+          const b = await readJson(req);
+          const pr = cleanPrefs({ ...(await prefsOf(db, me.id)), ...(b.prefs || {}) });
+          await db.prepare("INSERT INTO push_prefs (uid, prefs, updated) VALUES (?, ?, ?) ON CONFLICT(uid) DO UPDATE SET prefs = excluded.prefs, updated = excluded.updated").bind(me.id, JSON.stringify(pr), now).run();
+          return json(req, { ok: true, prefs: pr });
+        }
+        if (p === "/v1/push/subscribe" && req.method === "POST") {
+          const b = await readJson(req);
+          const sub = b.sub || {}, ep = String(sub.endpoint || ""), k = sub.keys || {};
+          if (ep.length > 600 || !PUSH_HOST.test(ep) || !/^[A-Za-z0-9_-]{80,100}$/.test(k.p256dh || "") || !/^[A-Za-z0-9_-]{16,32}$/.test(k.auth || ""))
+            return json(req, { error: "sub", message: "이 브라우저의 알림 주소를 확인하지 못했습니다." }, 400);
+          if (!(await allow(db, `psub|${me.id}`, 30, 864e5, now))) return json(req, { error: "rate" }, 429);
+          await db.prepare(`INSERT INTO push_subs (endpoint, uid, p256dh, auth, ua, created) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(endpoint) DO UPDATE SET uid = excluded.uid, p256dh = excluded.p256dh, auth = excluded.auth, fails = 0`)
+            .bind(ep, me.id, k.p256dh, k.auth, /iphone|ipad/i.test(req.headers.get("User-Agent") || "") ? "ios" : /android/i.test(req.headers.get("User-Agent") || "") ? "android" : "pc", now).run();
+          // 한 계정에 기기 10대까지(오래된 것부터 정리)
+          await db.prepare("DELETE FROM push_subs WHERE uid = ? AND endpoint NOT IN (SELECT endpoint FROM push_subs WHERE uid = ? ORDER BY created DESC LIMIT 10)").bind(me.id, me.id).run();
+          if (b.tz != null) {
+            const pr = cleanPrefs({ ...(await prefsOf(db, me.id)), tz: b.tz });
+            await db.prepare("INSERT INTO push_prefs (uid, prefs, updated) VALUES (?, ?, ?) ON CONFLICT(uid) DO UPDATE SET prefs = excluded.prefs, updated = excluded.updated").bind(me.id, JSON.stringify(pr), now).run();
+          }
+          return json(req, { ok: true });
+        }
+        if (p === "/v1/push/unsubscribe" && req.method === "POST") {
+          const b = await readJson(req);
+          await db.prepare("DELETE FROM push_subs WHERE uid = ? AND endpoint = ?").bind(me.id, String(b.endpoint || "").slice(0, 600)).run();
+          return json(req, { ok: true });
+        }
+        if (p === "/v1/push/test" && req.method === "POST") {
+          if (!(await allow(db, `ptest|${me.id}`, 10, 3600e3, now))) return json(req, { error: "rate", message: "잠시 뒤에 다시 눌러 주세요." }, 429);
+          const r = await pushToUser(db, me.id, pushMessage({ type: "test", ref: "0" }), now);
+          return json(req, { ok: r.ok > 0, ...r });
+        }
+        return json(req, { error: "not_found" }, 404);
+      }
       if (p === "/v1/notifications" && req.method === "GET") {
         const me = await userByActor(db, actor);
         if (!me) return json(req, { items: [], unread: 0 }, 200, { "Cache-Control": "no-store" });
@@ -1379,6 +1437,7 @@ export default {
           const mid = ins.meta?.last_row_id, sd = side(t);
           await db.prepare(`UPDATE dm_threads SET last_at = ?, last_id = ?, last_from = ?, last_body = ?, ${sd}_read = ?${accept ? ", accepted = 1" : ""} WHERE id = ?`)
             .bind(now, mid, me.id, body.length > 80 ? body.slice(0, 80) + "…" : body, mid, t.id).run();
+          await queuePush(db, oid, "dm", t.id, t.accepted || accept ? "" : "req", me.nick, now);
           return json(req, { ok: true, id: mid, tid: t.id, accepted: !!(t.accepted || accept), at: now });
         }
         const am2 = p.match(/^\/v1\/dm\/(\d+)\/(accept|delete)$/);
@@ -1509,5 +1568,9 @@ export default {
     } catch (e) {
       return json(req, { error: "server" }, 500);
     }
+  },
+  // 1분마다: 푸시 알림 대기열 보내기(wrangler.toml [triggers])
+  async scheduled(ev, env, ctx) {
+    ctx.waitUntil(drainPush(env.DB, Date.now()).catch(() => {}));
   },
 };

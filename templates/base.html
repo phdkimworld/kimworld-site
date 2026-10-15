@@ -78,6 +78,7 @@
         {{ icon('user') }}<span class="icon-label" data-account-label>로그인</span>
       </button>
       {% endif %}
+      {% if site.api_url %}<a href="{{ base }}/settings/" class="icon-btn hdr-settings" aria-label="설정">{{ icon('gear') }}<span class="icon-label">설정</span></a>{% endif %}
       <button type="button" class="icon-btn hdr-install" data-install data-src="header" aria-label="앱 설치" hidden>
         {{ icon('app') }}<span class="icon-label">앱 설치</span>
       </button>
@@ -117,6 +118,7 @@
   <button type="button" class="tab-compose" data-compose aria-label="글쓰기">{{ icon('plus') }}</button>
   <button type="button" data-tab-bell>{{ icon('bell') }}<span>알림</span><span class="bell-n" data-bell-n hidden></span></button>
   <button type="button" data-tab-me>{{ icon('user') }}<span>로그인</span></button>
+  <a href="{{ base }}/settings/" data-path="/settings/">{{ icon('gear') }}<span>설정</span></a>
 </nav>
 {% endif %}
 <div class="toast" role="status" aria-live="polite"></div>

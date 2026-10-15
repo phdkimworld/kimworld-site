@@ -23,6 +23,7 @@ const DB = { prepare: (sql) => stmt(sql), batch: async (list) => Promise.all(lis
 const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey" };
 // 구글·카카오 서버 흉내
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+const PUSHED = [];
 globalThis.fetch = async (u, opt = {}) => {
   u = String(u);
   if (u.startsWith("https://oauth2.googleapis.com/token")) {
@@ -33,6 +34,10 @@ globalThis.fetch = async (u, opt = {}) => {
   }
   if (u.startsWith("https://kauth.kakao.com/oauth/token")) return new Response(JSON.stringify({ access_token: "at-" + new URLSearchParams(String(opt.body)).get("code") }));
   if (u.startsWith("https://kapi.kakao.com/v2/user/me")) return new Response(JSON.stringify({ id: 4242 }));
+  if (u.startsWith("https://fcm.googleapis.com/") || u.startsWith("https://web.push.apple.com/")) { // 푸시 서비스 흉내: 받은 요청을 모은다
+    PUSHED.push({ u, headers: opt.headers, body: new Uint8Array(opt.body) });
+    return new Response("", { status: u.includes("/gone") ? 410 : 201 });
+  }
   throw new Error("unexpected fetch " + u);
 };
 
@@ -472,7 +477,7 @@ const ns = A.sources.find((x) => x.src === "naver-search");
 check(ns && ns.ch === "search" && ns.sess === 1 && ns.multi === 1 && ns.pv === 2 && ns.secs === 60 && ns.ev.signup === 1, "세부 출처: 세션·2페이지·체류·가입");
 check(A.landings.some((x) => x.path === "/r/ionq-2026-10/" && x.src === "youtube" && x.sess === 1 && x.secs === 200), "랜딩 페이지 × 출처(유튜브 영상별)");
 check(A.refs.some((x) => x.host === "m.search.naver.com"), "리퍼러 도메인");
-check(A.campaigns.some((x) => x.src === "youtube" && x.camp === "ionq-2026-10" && x.cont === "pinnedscript"), "UTM 캠페인(이상한 글자는 지움)");
+check(A.campaigns.some((x) => x.src === "youtube" && x.camps >= 1 && x.cont === "pinnedscript" && x.camp === undefined), "UTM: 종목 구분 없이 위치별로 합친다(이상한 글자는 지움)");
 check(A.channels.some((x) => x.ch === "direct") && !A.channels.some((x) => x.ch === "hacker") && A.landings.some((x) => x.path === "/(기타)"), "모르는 채널·경로는 기본값으로");
 
 console.log("광고 성과");
@@ -648,6 +653,101 @@ console.log("공유 미리보기");
   check(rows[2].q_kind === null && rows[3].body.includes("커뮤니티를 엽니다") && rows[3].body.includes("커뮤니티 규칙"), "원래 종토방 글은 그대로, 공지 이름만 바뀜");
   const ns = m.prepare("SELECT type, slug FROM notifs ORDER BY type").all();
   check(ns.find((x) => x.type === "reply").slug === "b-ntla" && ns.find((x) => x.type === "report").slug === "", "답글 알림은 새 자리로, 새 리포트 알림은 그대로");
+}
+
+console.log("푸시 알림");
+{ // 기기(브라우저)를 흉내: 키를 만들고 구독 → 서버가 보낸 것을 직접 풀어 본다
+  const { subtle } = globalThis.crypto;
+  const B = (x) => Buffer.from(x).toString("base64url"), UB = (x) => new Uint8Array(Buffer.from(x, "base64url"));
+  const kp = await subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const uaPub = new Uint8Array(await subtle.exportKey("raw", kp.publicKey)), authS = crypto.getRandomValues(new Uint8Array(16));
+  const hk = async (salt, ikm, info, n) => new Uint8Array(await subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, await subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]), n * 8));
+  const te = new TextEncoder();
+  async function decrypt(body) {
+    const salt = body.slice(0, 16), idlen = body[20], asPub = body.slice(21, 21 + idlen), ct = body.slice(21 + idlen);
+    const shared = new Uint8Array(await subtle.deriveBits({ name: "ECDH", public: await subtle.importKey("raw", asPub, { name: "ECDH", namedCurve: "P-256" }, false, []) }, kp.privateKey, 256));
+    const ikm = await hk(authS, shared, new Uint8Array([...te.encode("WebPush: info\0"), ...uaPub, ...asPub]), 32);
+    const cek = await hk(salt, ikm, te.encode("Content-Encoding: aes128gcm\0"), 16), nonce = await hk(salt, ikm, te.encode("Content-Encoding: nonce\0"), 12);
+    const pt = new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv: nonce }, await subtle.importKey("raw", cek, "AES-GCM", false, ["decrypt"]), ct));
+    return JSON.parse(new TextDecoder().decode(pt.slice(0, pt.lastIndexOf(2))));
+  }
+  const P1 = await mkUser("push1", "알림받기", "71.0.0.1"), P2 = await mkUser("push2", "알림주기", "71.0.0.2"), P3 = await mkUser("push3", "모르는이", "71.0.0.3");
+  await env.DB.prepare("UPDATE users SET created = created - 3 * 86400000 WHERE id IN (?, ?, ?)").bind(P1.id, P2.id, P3.id).run(); // 새 계정 글쓰기 제한을 피한다
+  const key = (await call("GET", "/v1/push/key")).data.key;
+  check(/^[A-Za-z0-9_-]{87}$/.test(key) && UB(key)[0] === 4, "푸시: 서버 공개 키(처음 한 번 만들어 둔다)");
+  check((await call("GET", "/v1/push/key")).data.key === key, "푸시: 키는 한 번 만들면 그대로");
+  const sub = { endpoint: "https://fcm.googleapis.com/fcm/send/abc123", keys: { p256dh: B(uaPub), auth: B(authS) } };
+  check((await call("POST", "/v1/push/subscribe", { body: { sub }, ip: "71.0.0.9" })).status === 401, "푸시: 로그인해야 켤 수 있다");
+  check((await as(P1, "POST", "/v1/push/subscribe", { sub: { ...sub, endpoint: "https://evil.example.com/x" } })).status === 400, "푸시: 푸시 서비스가 아닌 주소는 거절");
+  check((await as(P1, "POST", "/v1/push/subscribe", { sub, tz: -540 })).data.ok, "푸시: 이 기기 구독");
+  let pr = (await call("GET", "/v1/push/prefs?ep=" + encodeURIComponent(sub.endpoint), { ip: P1.ip, cookie: P1.cookie })).data;
+  check(pr.thisDevice && pr.devices === 1 && pr.prefs.report === "on" && pr.prefs.reply === "all", "푸시: 기본 설정(모두 켬)과 이 기기 구독 상태");
+  // 시험 알림: 바로 보낸다. 서버 서명(VAPID)과 암호화를 실제로 풀어 확인
+  PUSHED.length = 0;
+  check((await as(P1, "POST", "/v1/push/test")).data.ok && PUSHED.length === 1, "푸시: 시험 알림 보내기");
+  const h = PUSHED[0].headers, m = /^vapid t=([^.]+)\.([^.]+)\.([^,]+), k=(.+)$/.exec(h.Authorization);
+  const vk = await subtle.importKey("raw", UB(m[4]), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const claims = JSON.parse(Buffer.from(m[2], "base64url").toString());
+  check(m[4] === key && claims.aud === "https://fcm.googleapis.com" && claims.exp > Date.now() / 1000 && await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, vk, UB(m[3]), te.encode(m[1] + "." + m[2])), "푸시: VAPID 서명이 공개 키로 확인된다");
+  check(h["Content-Encoding"] === "aes128gcm" && (await decrypt(PUSHED[0].body)).t.includes("알림이 켜졌습니다"), "푸시: 암호문을 기기 키로 풀면 알림 문구");
+  // 답글·좋아요·팔로우 → 대기열 → 1분 작업이 보낸다
+  const post = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "푸시 시험 글입니다", t: 8000 })).data;
+  await as(P2, "POST", "/v1/comments", { slug: "b-talk", body: "답글 남겨요", parent: post.id, t: 8000 });
+  await as(P2, "POST", "/v1/follow", { uid: P1.id });
+  const q = (await env.DB.prepare("SELECT type, n FROM push_pending WHERE uid = ? ORDER BY type").bind(P1.id).all()).results;
+  check(q.some((x) => x.type === "reply") && q.some((x) => x.type === "follow"), "푸시: 알림이 생기면 대기열에(푸시 켠 사람만)");
+  check(!(await env.DB.prepare("SELECT 1 AS y FROM push_pending WHERE uid = ?").bind(P2.id).first()), "푸시: 푸시 안 켠 사람은 대기열에 안 쌓인다");
+  PUSHED.length = 0;
+  let r = await worker.scheduled({}, env, { waitUntil: (p) => p });
+  await new Promise((ok) => setTimeout(ok, 50));
+  const got = await Promise.all(PUSHED.map((x) => decrypt(x.body)));
+  check(got.some((x) => x.t === "알림주기님이 답글을 달았습니다" && x.u === "/p/?id=" + post.id) && got.some((x) => x.t.includes("팔로우했습니다")), "푸시: 1분 작업이 답글·팔로우 알림을 보낸다");
+  // 설정: 답글은 '내가 팔로우한 사람만', 팔로우 알림 끔 → 모르는 사람 답글은 안 옴, 팔로우한 사람 답글은 옴
+  await as(P1, "POST", "/v1/push/prefs", { prefs: { reply: "following", follow: "off", bogus: 1 } });
+  pr = (await call("GET", "/v1/push/prefs", { ip: P1.ip, cookie: P1.cookie })).data.prefs;
+  check(pr.reply === "following" && pr.follow === "off" && pr.bogus === undefined, "푸시: 설정 저장(모르는 항목은 버린다)");
+  const post2 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "두 번째 시험 글", t: 8000 })).data;
+  await as(P3, "POST", "/v1/comments", { slug: "b-talk", body: "모르는 사람 답글", parent: post2.id, t: 8000 });
+  await as(P3, "POST", "/v1/follow", { uid: P1.id });
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  check(PUSHED.length === 0, "푸시: '팔로우한 사람만'·끔 설정이면 보내지 않는다");
+  await as(P1, "POST", "/v1/follow", { uid: P3.id });
+  await env.DB.prepare("DELETE FROM rate").run(); await env.DB.prepare("UPDATE comments SET created = created - 3600000 WHERE uid IN (?, ?)").bind(P1.id, P3.id).run(); // 글쓰기 간격 제한을 비운다(시험용)
+  const post3 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "세 번째 시험 글", t: 8000 })).data;
+  await as(P3, "POST", "/v1/comments", { slug: "b-talk", body: "이제 팔로우한 사람 답글", parent: post3.id, t: 8000 });
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  const gotF = await Promise.all(PUSHED.map((x) => decrypt(x.body)));
+  check(PUSHED.length === 1 && gotF[0].t.startsWith("모르는이님"), "푸시: 내가 팔로우한 사람의 답글은 보낸다");
+  // 일시 중지·방해 금지 시간
+  await as(P1, "POST", "/v1/push/prefs", { prefs: { pause: Date.now() + 3600e3 } });
+  await env.DB.prepare("DELETE FROM rate").run(); await env.DB.prepare("UPDATE comments SET created = created - 3600000 WHERE uid IN (?, ?)").bind(P1.id, P3.id).run();
+  const post4 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "네 번째 시험 글", t: 8000 })).data;
+  await as(P2, "POST", "/v1/comments/" + post4.id + "/like");
+  await env.DB.prepare("INSERT INTO push_pending (uid, type, ref, slug, from_nick, n, updated) VALUES (?, 'report', 'rgti-2026-10', '', '리게티 주가 내러티브와 패턴 투자전략: 정부가 주주가 됐다', 1, ?)").bind(P1.id, Date.now()).run();
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  check(PUSHED.length === 0, "푸시: 일시 중지 중에는 보내지 않는다");
+  await as(P1, "POST", "/v1/push/prefs", { prefs: { pause: 0, quiet: true, qFrom: 0, qTo: 1439, tz: 0 } });
+  await env.DB.prepare("UPDATE push_pending SET updated = updated + 1 WHERE uid = ? AND type = 'report'").bind(P1.id).run();
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  check(PUSHED.length === 0, "푸시: 방해 금지 시간에는 보내지 않는다");
+  await as(P1, "POST", "/v1/push/prefs", { prefs: { quiet: false } });
+  await env.DB.prepare("UPDATE push_pending SET updated = updated + 2 WHERE uid = ? AND type = 'report'").bind(P1.id).run();
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  const rep = PUSHED.length === 1 ? await decrypt(PUSHED[0].body) : {};
+  check(rep.t === "새 리포트 · RGTI" && rep.b === "정부가 주주가 됐다" && rep.u === "/r/rgti-2026-10/", "푸시: 팔로우한 종목 새 리포트 알림(제목은 짧게)");
+  // 쪽지: 처음 보는 사람의 쪽지는 '쪽지 요청'으로, 요청 알림 끔이면 안 옴
+  await as(P1, "POST", "/v1/push/prefs", { prefs: { dmreq: "off" } });
+  await as(P2, "POST", "/v1/dm/send", { to: P1.id, body: "안녕하세요 처음 인사드려요" });
+  const dq = await env.DB.prepare("SELECT slug FROM push_pending WHERE uid = ? AND type = 'dm'").bind(P1.id).first();
+  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  check(dq && dq.slug === "req" && PUSHED.length === 0, "푸시: 처음 보는 사람 쪽지는 '쪽지 요청', 끄면 안 옴");
+  // 구독이 끝난 기기(410)는 지운다 · 로그아웃하면 이 기기 구독을 지운다
+  const gone = { endpoint: "https://web.push.apple.com/gone/1", keys: sub.keys };
+  await as(P1, "POST", "/v1/push/subscribe", { sub: gone });
+  await as(P1, "POST", "/v1/push/test");
+  check(!(await env.DB.prepare("SELECT 1 AS y FROM push_subs WHERE endpoint = ?").bind(gone.endpoint).first()), "푸시: 끝난 구독(410)은 지운다");
+  await as(P1, "POST", "/v1/auth/logout", { endpoint: sub.endpoint });
+  check(!(await env.DB.prepare("SELECT 1 AS y FROM push_subs WHERE endpoint = ?").bind(sub.endpoint).first()), "푸시: 로그아웃하면 이 기기로는 보내지 않는다");
 }
 
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");

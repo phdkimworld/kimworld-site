@@ -12,3 +12,7 @@ binding = "DB"
 database_name = "kimworld"
 database_id = "__D1_ID__"
 migrations_dir = "migrations"
+
+# 푸시 알림 대기열을 1분마다 보낸다(src/push.js drainPush)
+[triggers]
+crons = ["* * * * *"]

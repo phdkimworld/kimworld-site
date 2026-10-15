@@ -243,9 +243,12 @@
     }), { note: '계속 읽은 비율 = 첫 페이지 뒤 다른 페이지로 넘어간 방문.' }));
     g2.appendChild(table('들어온 사이트(도메인)', ['도메인', '방문', '비율'], A.refs.map(function (x) { return [x.host, nf(x.sess), share(x.sess, total)]; }),
       { note: '주소의 도메인만 기록합니다(검색어·전체 주소는 브라우저가 보내지 않음). 처음 보는 사이트가 보이면 어디서 링크됐는지 확인해 보세요.' }));
-    g2.appendChild(table('캠페인(UTM)', ['출처 / 매체', '캠페인', '내용', '방문', '계속 읽은 비율', '방문당 체류'], A.campaigns.map(function (x) {
-      return [x.src + ' / ' + x.med, x.camp, x.cont, nf(x.sess), pct(x.multi, x.sess), dur(x.sess ? x.secs / x.sess : 0)];
-    }), { note: '링크 끝에 ?utm_source=youtube&utm_medium=video&utm_campaign=ionq-2026-10&utm_content=pinned 처럼 붙이면 설명란·고정 댓글·쇼츠를 나눠 볼 수 있습니다.' }));
+    // 링크 위치별(설명란·고정 댓글·영상 속 안내…) 성과. 종목·영상(캠페인)은 합쳐서 본다
+    var POS = { pinned: '고정 댓글', comment: '고정 댓글', desc: '설명란', description: '설명란', midroll: '영상 속 안내', endcard: '엔드 카드', end: '엔드 카드', card: '카드', shorts: '쇼츠', bio: '프로필 링크', post: '게시물', quote: '인용 카드', link: '링크', video: '영상', '-': '(위치 없음)' };
+    var pos = function (v) { return POS[v] ? POS[v] + (POS[v] !== v && v !== '-' ? ' (' + v + ')' : '') : v; };
+    g2.appendChild(table('링크 위치별 유입(UTM)', ['출처 / 매체', '위치', '방문', '계속 읽은 비율', '방문당 체류', '종목·영상 수'], A.campaigns.map(function (x) {
+      return [x.src + ' / ' + pos(x.med), pos(x.cont), nf(x.sess), pct(x.multi, x.sess), dur(x.sess ? x.secs / x.sess : 0), nf(x.camps || 0)];
+    }), { note: '종목·영상(utm_campaign)은 합쳐서 위치(utm_content)별로 봅니다. 링크 끝에 ?utm_source=youtube&utm_medium=video&utm_content=pinned 처럼 붙이면 설명란·고정 댓글·영상 속 안내를 나눠 볼 수 있습니다.' }));
     wrap.appendChild(g2);
     return wrap;
   }

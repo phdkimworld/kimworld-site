@@ -968,6 +968,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         ads.begin_page()
         write("dm/index.html", "dm.html", dm_ad=ads.render("dm_list", {"theme": "*"}))  # 쪽지함(화면에서 API로 채움, 검색 노출 안 함)  # 이용자 프로필(화면에서 API로 채움, 검색 노출 안 함)
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
+        write("settings/index.html", "settings.html")  # 설정(푸시 알림·쪽지 받기·글자 크기·앱·계정). 아래 탭 줄 '설정'
         write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
         pd_ctx = {"theme": "*"}
         ads.begin_page()
@@ -1048,7 +1049,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         + "".join(items) + "</channel></rss>"
     )
     (out / "rss.xml").write_text(rss, encoding="utf-8")
-    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /dm/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
+    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /dm/\nDisallow: /settings/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
     if seo.get("daum_webmaster_pin"):  # 다음 웹마스터도구 소유 확인 줄(공개값)
         robots += f"\n#DaumWebMasterTool:{seo['daum_webmaster_pin']}\n"
     (out / "robots.txt").write_text(robots, encoding="utf-8")
@@ -1075,7 +1076,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     }
     (out / "manifest.webmanifest").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     sw = (ROOT / "static" / "js" / "sw.template.js").read_text(encoding="utf-8")
-    (out / "sw.js").write_text(sw.replace("__VER__", asset_ver).replace("__BASE__", base_path), encoding="utf-8")
+    (out / "sw.js").write_text(sw.replace("__VER__", asset_ver).replace("__BASE__", base_path).replace("__API__", str(site.get("api_url") or "").rstrip("/")), encoding="utf-8")
     write("offline/index.html", "offline.html")
     host = urlparse(su).hostname or ""
     if host and not host.endswith("github.io"):

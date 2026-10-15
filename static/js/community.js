@@ -491,7 +491,14 @@
     }
     load();
   }
-  function logout() { api('/v1/auth/logout', { method: 'POST' }).then(function () { location.reload(); }, function () { location.reload(); }); }
+  function logout() { // 이 기기의 푸시 구독도 함께 끊는다(로그아웃한 기기로 알림이 가지 않게)
+    var go = function (ep) { api('/v1/auth/logout', { method: 'POST', body: ep ? { endpoint: ep } : {} }).then(function () { location.reload(); }, function () { location.reload(); }); };
+    try {
+      if (!('serviceWorker' in navigator) || !window.PushManager) return go('');
+      navigator.serviceWorker.getRegistration().then(function (r) { return r && r.pushManager ? r.pushManager.getSubscription() : null; })
+        .then(function (s) { if (s) { var ep = s.endpoint; s.unsubscribe().catch(function () {}); go(ep); } else go(''); }, function () { go(''); });
+    } catch (e) { go(''); }
+  }
   // 로그인에서 돌아왔을 때: 주소의 ?login= 을 지우고, 닉네임이 없으면 바로 정하게 한다
   (function () {
     var m = /[?&]login=(ok|fail)/.exec(location.search); if (!m) return;
@@ -500,11 +507,22 @@
     if (m[1] === 'fail') { meReady.then(function () { var b = dialog('로그인하지 못했습니다'); b.appendChild(el('p', null, '잠시 뒤 다시 시도해 주세요.')); }); return; }
     meReady.then(function () { if (LOGGED && !ME) openAccount(); });
   })();
+  // 알림 창 아래: 이 기기 푸시가 꺼져 있으면 설정으로 안내(설치한 앱·지원 브라우저에서만)
+  function pushPromo(body) {
+    try {
+      if (!('serviceWorker' in navigator) || !window.PushManager || !window.Notification || Notification.permission === 'denied') return;
+      navigator.serviceWorker.getRegistration().then(function (r) { return r && r.pushManager ? r.pushManager.getSubscription() : null; }).then(function (s) {
+        if (s) return;
+        var a = el('a', 'kw-push-promo', '🔔 휴대폰 알림 켜기 — 팔로우한 종목의 새 리포트를 바로 받아 보세요 →'); a.href = base + '/settings/#push';
+        body.appendChild(a);
+      }).catch(function () {});
+    } catch (e) {}
+  }
   function openBell() {
     var body = dialog('알림'); if (window.kwEv) kwEv('notif_open');
     api('/v1/notifications').then(function (d) {
       var items = d.items || [];
-      if (!items.length) { body.appendChild(el('p', 'muted', '아직 알림이 없습니다.')); return; }
+      if (!items.length) { body.appendChild(el('p', 'muted', '아직 알림이 없습니다.')); pushPromo(body); return; }
       var ul = el('ul', 'kw-notifs');
       items.forEach(function (x) {
         var li = el('li', x.seen ? '' : 'unread'), a = el('a');
@@ -521,6 +539,7 @@
         ul.appendChild(li);
       });
       body.appendChild(ul);
+      pushPromo(body);
       api('/v1/notifications/read', { method: 'POST' }).then(function () { UNREAD = 0; paintHeader(); });
     }).catch(function () { body.appendChild(el('p', 'muted', '알림을 불러오지 못했습니다.')); });
   }

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}설정 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ site.site_name }} 알림·화면 설정{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block main %}
+{# 설정(2026-10-14): 푸시 알림(이 기기 켜기·종류별·일시 중지·방해 금지 시간), 쪽지 받기, 글자 크기, 앱, 계정, 정보.
+   알림 종류는 인스타그램·쓰레드·X처럼 '끔 / 내가 팔로우한 사람 / 모든 사람'. 화면은 static/js/settings.js가 API로 채운다 #}
+<div class="wrap set-wrap" data-settings>
+  <h1 class="set-h1">설정</h1>
+
+  <section class="set-sec" id="push" aria-labelledby="set-push">
+    <h2 id="set-push">푸시 알림</h2>
+    <div class="set-card">
+      <div class="set-row">
+        <div class="set-txt"><strong>이 기기로 알림 받기</strong><span class="set-sub" data-push-state>확인하는 중…</span></div>
+        <label class="sw"><input type="checkbox" data-push-on disabled aria-label="이 기기로 알림 받기"><span aria-hidden="true"></span></label>
+      </div>
+      <div class="set-help" data-push-help hidden></div>
+      <div class="set-row set-row-btn" data-push-testrow hidden>
+        <button type="button" class="btn btn-small" data-push-test>시험 알림 보내기</button>
+        <span class="set-sub" data-push-devices></span>
+      </div>
+    </div>
+
+    <div data-push-prefs hidden>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-txt"><strong>모두 일시 중지</strong><span class="set-sub" data-pause-state>꺼져 있음</span></div>
+          <select class="set-sel" data-pref-pause aria-label="모두 일시 중지">
+            <option value="0">끔</option><option value="60">1시간</option><option value="480">8시간</option><option value="1440">24시간</option>
+          </select>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><strong>방해 금지 시간</strong><span class="set-sub">이 시간에는 알림을 울리지 않아요</span></div>
+          <label class="sw"><input type="checkbox" data-pref-quiet aria-label="방해 금지 시간"><span aria-hidden="true"></span></label>
+        </div>
+        <div class="set-row set-quiet" data-quiet-times hidden>
+          <label>시작 <input type="time" data-pref-qfrom value="23:00"></label>
+          <label>끝 <input type="time" data-pref-qto value="07:00"></label>
+        </div>
+      </div>
+
+      <h3 class="set-h3">리포트</h3>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-txt"><strong>팔로우한 종목·테마의 새 리포트</strong><span class="set-sub">종목·테마 화면에서 '+ 팔로우'한 것만 알려 드려요</span></div>
+          <label class="sw"><input type="checkbox" data-pref-on="report" aria-label="새 리포트 알림"><span aria-hidden="true"></span></label>
+        </div>
+      </div>
+
+      <h3 class="set-h3">내 글 반응</h3>
+      <div class="set-card">
+        {% for k, name, sub in [('reply', '답글', '내 글에 답글이 달리면'), ('mention', '멘션', '누가 @로 나를 부르면'), ('quote', '인용', '누가 내 글을 인용하면'), ('repost', '리포스트', '누가 내 글을 리포스트하면')] %}
+        <div class="set-row set-row-col">
+          <div class="set-txt"><strong>{{ name }}</strong><span class="set-sub">{{ sub }}</span></div>
+          <div class="seg3" role="radiogroup" aria-label="{{ name }} 알림">
+            <label><input type="radio" name="p-{{ k }}" value="off" data-pref-who="{{ k }}"><span>끔</span></label>
+            <label><input type="radio" name="p-{{ k }}" value="following" data-pref-who="{{ k }}"><span>팔로우한 사람</span></label>
+            <label><input type="radio" name="p-{{ k }}" value="all" data-pref-who="{{ k }}"><span>모든 사람</span></label>
+          </div>
+        </div>
+        {% endfor %}
+        <div class="set-row">
+          <div class="set-txt"><strong>좋아요</strong><span class="set-sub">몰려 오면 10분에 한 번 모아서</span></div>
+          <label class="sw"><input type="checkbox" data-pref-on="like" aria-label="좋아요 알림"><span aria-hidden="true"></span></label>
+        </div>
+      </div>
+
+      <h3 class="set-h3">팔로워·쪽지</h3>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-txt"><strong>새 팔로워</strong></div>
+          <label class="sw"><input type="checkbox" data-pref-on="follow" aria-label="새 팔로워 알림"><span aria-hidden="true"></span></label>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><strong>쪽지</strong><span class="set-sub">대화 중인 사람의 새 쪽지</span></div>
+          <label class="sw"><input type="checkbox" data-pref-on="dm" aria-label="쪽지 알림"><span aria-hidden="true"></span></label>
+        </div>
+        <div class="set-row">
+          <div class="set-txt"><strong>쪽지 요청</strong><span class="set-sub">처음 보는 사람의 쪽지</span></div>
+          <label class="sw"><input type="checkbox" data-pref-on="dmreq" aria-label="쪽지 요청 알림"><span aria-hidden="true"></span></label>
+        </div>
+      </div>
+      <p class="set-note muted">알림 목록(종 모양)에는 설정과 관계없이 모두 남습니다. 여기서는 휴대폰에 울릴지만 정합니다.</p>
+    </div>
+  </section>
+
+  <section class="set-sec" data-set-login-only hidden aria-labelledby="set-dm">
+    <h2 id="set-dm">쪽지</h2>
+    <div class="set-card">
+      <div class="set-row set-row-col">
+        <div class="set-txt"><strong>쪽지 받기</strong><span class="set-sub">누가 나에게 처음 쪽지를 보낼 수 있는지</span></div>
+        <div class="seg3" role="radiogroup" aria-label="쪽지 받기">
+          <label><input type="radio" name="dm-pref" value="all" data-dm-pref><span>모든 사람</span></label>
+          <label><input type="radio" name="dm-pref" value="following" data-dm-pref><span>팔로우한 사람</span></label>
+          <label><input type="radio" name="dm-pref" value="none" data-dm-pref><span>받지 않음</span></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="set-sec" aria-labelledby="set-view">
+    <h2 id="set-view">화면</h2>
+    <div class="set-card">
+      <div class="set-row set-row-col">
+        <div class="set-txt"><strong>글자 크기</strong><span class="set-sub">리포트와 글 본문</span></div>
+        <div class="seg3" role="radiogroup" aria-label="글자 크기">
+          <label><input type="radio" name="font" value="" data-font><span>기본</span></label>
+          <label><input type="radio" name="font" value="lg" data-font><span>크게</span></label>
+          <label><input type="radio" name="font" value="xl" data-font><span>아주 크게</span></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="set-sec" aria-labelledby="set-app">
+    <h2 id="set-app">앱</h2>
+    <div class="set-card">
+      <div class="set-row" data-install data-src="settings" hidden>
+        <div class="set-txt"><strong>홈 화면에 앱 설치</strong><span class="set-sub">설치하면 아이폰에서도 푸시 알림을 받을 수 있어요</span></div>
+        <button type="button" class="btn btn-small btn-primary">설치</button>
+      </div>
+      <div class="set-row">
+        <div class="set-txt"><strong>읽은 기록·저장 지우기</strong><span class="set-sub">이 기기의 최근 본 리포트와 저장한 리포트</span></div>
+        <button type="button" class="btn btn-small" data-clear-local>지우기</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="set-sec" aria-labelledby="set-acct">
+    <h2 id="set-acct">계정</h2>
+    <div class="set-card">
+      <div class="set-row">
+        <div class="set-txt"><strong data-acct-name>로그인하지 않음</strong><span class="set-sub" data-acct-sub>로그인하면 알림·쪽지 설정을 쓸 수 있어요</span></div>
+        <button type="button" class="btn btn-small" data-acct-btn>로그인</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="set-sec" aria-labelledby="set-info">
+    <h2 id="set-info">정보</h2>
+    <div class="set-card set-links">
+      <a class="set-row" href="{{ base }}/about/">김박사 월드 소개</a>
+      <a class="set-row" href="{{ base }}/terms/">이용약관</a>
+      <a class="set-row" href="{{ base }}/privacy/">개인정보처리방침</a>
+      <a class="set-row" href="{{ base }}/disclaimer/">면책 고지</a>
+      <a class="set-row" href="{{ base }}/contact/">문의하기</a>
+    </div>
+  </section>
+</div>
+<script src="{{ base }}/static/js/settings.js?v={{ asset_ver }}" defer></script>
+{% endblock %}

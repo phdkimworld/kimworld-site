@@ -642,7 +642,7 @@ button { font: inherit; color: inherit; }
 /* ---------- 쓰레드·토스증권식 다듬기: 아래 탭 줄, 답글 줄, 하트, 두 번 톡 좋아요, 불러오는 자리, 종목 탭 ---------- */
 .tabbar { display: none; }
 @media (max-width: 759px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center;
     height: calc(58px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
     background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
   .tabbar > a, .tabbar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 58px;
@@ -653,7 +653,7 @@ button { font: inherit; color: inherit; }
   .tabbar .tab-compose:active { transform: scale(.94); }
   .tabbar .bell-n { position: absolute; top: 6px; left: 50%; margin-left: 4px; }
   body:has(.tabbar) { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
-  body:has(.tabbar) .header-nav a[href$="/search/"], body:has(.tabbar) .header-nav [data-open-bell], body:has(.tabbar) .header-nav [data-open-account] { display: none !important; }
+  body:has(.tabbar) .header-nav a[href$="/search/"], body:has(.tabbar) .header-nav [data-open-bell], body:has(.tabbar) .header-nav [data-open-account], body:has(.tabbar) .header-nav .hdr-settings { display: none !important; }
   body:has(.tabbar) .to-top { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   body:has(.tabbar) .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
@@ -1316,3 +1316,47 @@ a.kft-in:hover { border-top-color: var(--muted); }
 body:has(.rdock) .to-top { display: none !important; }
 @media (min-width: 760px) { body:has(.rdock) { padding-bottom: 76px; } }
 @media print { .rdock { display: none !important; } }
+
+/* ---------- 설정 화면(templates/settings.html): 묶음 카드 + 줄마다 켬·끔 스위치, 3단 선택(끔 / 팔로우한 사람 / 모든 사람) ---------- */
+.set-wrap { max-width: 640px; padding-top: 12px; padding-bottom: 32px; }
+.set-h1 { font-size: 1.5rem; margin: 6px 0 14px; }
+.set-sec { margin: 0 0 26px; }
+.set-sec[hidden] { display: none; }
+.set-sec h2 { font-size: .82rem; font-weight: 800; color: var(--muted); margin: 0 4px 8px; letter-spacing: .02em; }
+.set-h3 { font-size: .8rem; font-weight: 700; color: var(--muted); margin: 18px 4px 8px; }
+.set-card { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 14px; border-top: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.set-row:first-child { border-top: 0; }
+.set-row[hidden] { display: none; }
+.set-row-col { flex-direction: column; align-items: stretch; }
+.set-row-btn { justify-content: flex-start; }
+.set-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-txt strong { font-size: .95rem; font-weight: 650; }
+.set-sub { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+.set-help { padding: 12px 14px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); font-size: .85rem; line-height: 1.55; }
+.set-help p { margin: 0 0 8px; } .set-help p:last-child { margin-bottom: 0; } .set-help .btn { margin-top: 2px; }
+.set-note { font-size: .78rem; margin: 10px 4px 0; }
+.set-links .set-row::after { content: "›"; color: var(--muted); font-size: 1.2rem; }
+.set-sel { min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: .85rem; }
+.set-quiet { gap: 16px; justify-content: flex-start; }
+.set-quiet label { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
+.set-quiet input { min-height: 38px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; color-scheme: dark; }
+/* 켬·끔 스위치 */
+.sw { position: relative; flex: none; width: 50px; height: 30px; cursor: pointer; }
+.sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.sw span { position: absolute; inset: 0; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); transition: background .15s; }
+.sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #d4d4d4; transition: transform .15s; }
+.sw input:checked + span { background: var(--accent); border-color: var(--accent); }
+.sw input:checked + span::after { transform: translateX(20px); background: #fff; }
+.sw input:disabled + span { opacity: .45; }
+.sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 3단 선택 */
+.seg3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+.seg3 label { position: relative; }
+.seg3 input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg3 span { display: flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 6px; border-radius: 9px; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.2; }
+.seg3 input:checked + span { background: var(--surface); color: var(--text); font-weight: 750; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.seg3 input:focus-visible + span { outline: 2px solid var(--accent); }
+.kw-push-promo { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--text); font-size: .85rem; font-weight: 650; text-decoration: none; line-height: 1.45; }
+@media (max-width: 759px) { .tabbar > a, .tabbar > button { font-size: 10px; } }
+.set-row .btn { flex: none; white-space: nowrap; }

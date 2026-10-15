@@ -433,6 +433,16 @@ if (D / "index.html").exists():
     check(dm.exists() and "noindex" in dm.read_text(encoding="utf-8") and "dm.js" in dm.read_text(encoding="utf-8"), "쪽지함 페이지(검색 노출 안 함)")
     check("Disallow: /dm/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 쪽지함 차단")
     check("data-open-dm" in (D / "index.html").read_text(encoding="utf-8"), "머리줄 쪽지 버튼")
+    st = (D / "settings/index.html")
+    st_html = st.read_text(encoding="utf-8") if st.exists() else ""
+    check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))
+          and all(f'data-pref-on="{k}"' in st_html for k in ("report", "like", "follow", "dm", "dmreq")), "설정 페이지: 푸시 켜기·종류별(끔/팔로우한 사람/모든 사람)·켬끔")
+    check("Disallow: /settings/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 설정 차단")
+    _hm = (D / "index.html").read_text(encoding="utf-8")
+    _tb = re.search(r'<nav class="tabbar".*?</nav>', _hm, re.S)
+    check(_tb and '/settings/' in _tb.group(0) and _tb.group(0).count('<a ') + _tb.group(0).count('<button') == 6, "아래 탭 줄에 '설정'(6칸)")
+    _sw = (D / "sw.js").read_text(encoding="utf-8")
+    check("addEventListener('push'" in _sw and "notificationclick" in _sw and "__API__" not in _sw, "서비스 워커: 푸시 받기·누르면 열기")
     check("/dm/" not in (D / "sitemap.xml").read_text(encoding="utf-8"), "사이트맵에 쪽지함 없음")
 
 print("16) 공유 미리보기")
