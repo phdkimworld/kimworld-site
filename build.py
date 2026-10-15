@@ -1067,6 +1067,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             {"src": f"{base_path}/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": f"{base_path}/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
             {"src": f"{base_path}/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            {"src": f"{base_path}/static/badge-96.png", "sizes": "96x96", "type": "image/png", "purpose": "monochrome"},  # 알림·테마 아이콘용 단색
             {"src": f"{base_path}/static/icon.svg", "sizes": "any", "type": "image/svg+xml"},
         ],
         "shortcuts": [
