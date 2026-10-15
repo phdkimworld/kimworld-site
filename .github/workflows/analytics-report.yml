@@ -22,7 +22,7 @@ jobs:
           echo "::add-mask::$ADMIN"
           mkdir -p .cache
           CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "https://api.drkimworld.com/v1/admin/analytics?days=7")
-          echo "HTTP $CODE, $(wc -c < .cache/an.json) bytes"
-          if [ "$CODE" != "200" ]; then head -c 300 .cache/an.json | tr -d '\r' | sed 's/^/body: /'; echo; fi
+          echo "::notice title=AN HTTP::$CODE $(wc -c < .cache/an.json) bytes"
+          if [ "$CODE" != "200" ]; then echo "::notice title=AN BODY::$(head -c 300 .cache/an.json | tr -d '\r\n%')"; fi
       - name: Report
         run: python3 scripts/analytics_report.py
