@@ -91,17 +91,21 @@ def main() -> None:
         print(f"::error title=AN::analytics 오류 {a.get('error')}")
         raise SystemExit(1)
     out = summarize(a)
-    # 섹션 단위로 6000자 안쪽 덩어리로 나눈다(주석 하나의 길이 제한)
+    for k, v in out.items():
+        while isinstance(v, list) and len(v) > 3 and len(json.dumps({k: v}, ensure_ascii=False)) > 3200:
+            v = v[: max(3, len(v) * 3 // 4)]
+        out[k] = v
+    # 섹션 단위로 3300자 안쪽(주석 한 개는 4096자에서 잘리고, 한 단계에 10개까지만 보인다) 덩어리로 나눈다(주석 하나의 길이 제한)
     chunks, cur = [], {}
     for k, v in out.items():
         cur[k] = v
-        if len(json.dumps(cur, ensure_ascii=False)) > 6000 and len(cur) > 1:
+        if len(json.dumps(cur, ensure_ascii=False)) > 3300 and len(cur) > 1:
             del cur[k]
             chunks.append(cur)
             cur = {k: v}
     if cur:
         chunks.append(cur)
-    for i, ch in enumerate(chunks[:20]):
+    for i, ch in enumerate(chunks[:9]):
         msg = json.dumps(ch, ensure_ascii=False, separators=(",", ":")).replace("%", "%25").replace("\r", "").replace("\n", "%0A")
         print(f"::notice title=AN {i + 1}/{len(chunks)}::{msg}")
 
