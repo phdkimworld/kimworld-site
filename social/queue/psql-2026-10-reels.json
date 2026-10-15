@@ -8,5 +8,10 @@
     "path": "static/social/psql-2026-10/PSQL_shorts.mp4",
     "cover": "static/social/psql-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-15T04:54:58-04:00"
+  "publish_at": "2026-10-15T04:54:58-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    }
+  }
 }
