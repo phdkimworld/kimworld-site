@@ -408,3 +408,9 @@ KOD:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["코디악 사이언스", "코디악", "Kodiak Sciences", "Kodiak", "KOD"]
+STRK:
+  name: "스타크넷"
+  name_en: "Starknet"
+  exchange: "Bithumb"
+  theme: "코인·블록체인"
+  aliases: ["스타크넷", "Starknet", "스타크웨어", "STRK"]
