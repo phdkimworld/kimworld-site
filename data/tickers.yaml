@@ -396,3 +396,9 @@ PSQL:
   exchange: "NASDAQ"
   theme: "양자컴퓨팅"
   aliases: ["파스칼", "Pasqal", "PSQL"]
+CRWV:
+  name: "코어위브"
+  name_en: "CoreWeave"
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["코어위브", "CoreWeave", "코어 위브", "CRWV"]

@@ -20,7 +20,7 @@
 
 - `publish_at`: 시간대를 빼면 미국 동부시간. 예약 실행은 몇 분 늦을 수 있다.
 - `channels`: `threads`, `instagram` 가운데 하나 이상.
-- **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드. `poll`(보기 2~4개, 각 25자 이하)은 본문에 투표로 붙고(24시간), 본문의 `link_attachment`와 함께 쓸 수 없다.
+- **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드. `poll`(보기 2~4개, 각 25바이트 이하 = 한글 약 8자)은 본문에 투표로 붙고(24시간), 본문의 `link_attachment`와 함께 쓸 수 없다.
 - **Instagram**: 미디어가 있어야 게시한다(없으면 건너뜀). `media.type`
   - `image`: `path` 1장(JPEG 권장)
   - `carousel`: `paths` 2~10장

@@ -12,7 +12,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     "channel_text": {"instagram": "인스타 전용 캡션"},  # 선택: 채널별 본문
     "replies": [{"text": "...", "link_attachment": "https://..."}],  # 선택: Threads 이어지는 댓글
     "link_attachment": "https://...",                   # 선택: Threads 링크 카드
-    "poll": ["보기 1", "보기 2", "보기 3"]               # 선택: Threads 본문 투표(보기 2~4개, 각 25자 이하, 24시간)
+    "poll": ["보기 1", "보기 2", "보기 3"]               # 선택: Threads 본문 투표(보기 2~4개, 각 25바이트 이하 = 한글 약 8자, 24시간)
   }
   poll 은 Threads 본문에만 붙고(인스타에는 없음) link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
   media.type: image | carousel | reels
@@ -53,7 +53,7 @@ SITE = "https://drkimworld.com"
 TH_API = "https://graph.threads.net/v1.0"
 IG_API = "https://graph.instagram.com/v23.0"
 TH_LIMIT = 500
-POLL_OPTION_LIMIT = 25
+POLL_OPTION_LIMIT = 25  # Threads 는 UTF-8 바이트로 센다(한글 약 8자). 2026-10-15 실제 게시에서 확인
 POLL_KEYS = ("option_a", "option_b", "option_c", "option_d")
 IG_LIMIT = 2200
 CHANNELS = ("threads", "instagram")
@@ -126,8 +126,8 @@ def load(path):
                 for i, o in enumerate(poll, 1):
                     if not isinstance(o, str) or not o.strip():
                         errs.append(f"poll[{i}] 보기가 비어 있음")
-                    elif len(o) > POLL_OPTION_LIMIT:
-                        errs.append(f"poll[{i}] {len(o)}자 > {POLL_OPTION_LIMIT}자 제한")
+                    elif len(o.encode("utf-8")) > POLL_OPTION_LIMIT:
+                        errs.append(f"poll[{i}] {len(o.encode('utf-8'))}바이트 > {POLL_OPTION_LIMIT}바이트 제한(한글 1자 = 3바이트)")
             if post.get("link_attachment"):
                 errs.append("poll 과 link_attachment 는 함께 쓸 수 없음(링크는 replies 에)")
     m = post.get("media")
