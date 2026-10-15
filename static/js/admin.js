@@ -233,14 +233,7 @@
     wrap.appendChild(srcCard);
     // 유튜브 영상별(리포트 = 영상)
     var name = function (path) { return titles[path] || ({ '/': '홈 피드', '/p/': '글 상세', '/u/': '프로필', '/search/': '검색', '/(기타)': '기타 페이지' })[path] || path; };
-    var yt = A.landings.filter(function (x) { return x.src === 'youtube'; });
     var g2 = el('div', 'an-grid2');
-    g2.appendChild(table('유튜브 영상별 유입 (영상 = 그 리포트)', ['리포트', '방문', '다른 페이지도 본 비율', '방문당 체류'], yt.map(function (x) {
-      return [link(name(x.path), base + x.path), nf(x.sess), pct(x.multi, x.sess), dur(x.sess ? x.secs / x.sess : 0)];
-    }), { note: '영상 설명란·고정 댓글 링크로 들어온 방문. 체류가 길고 다른 페이지도 많이 본 영상의 주제가 사이트 독자에게 잘 맞습니다.' }));
-    g2.appendChild(table('랜딩 페이지 × 세부 출처', ['첫 페이지', '출처', '방문', '계속 읽은 비율', '방문당 체류'], A.landings.slice(0, 60).map(function (x) {
-      return [link(name(x.path), x.path === '/(기타)' ? '#' : base + x.path), srcName(x.src), nf(x.sess), pct(x.multi, x.sess), dur(x.sess ? x.secs / x.sess : 0)];
-    }), { note: '계속 읽은 비율 = 첫 페이지 뒤 다른 페이지로 넘어간 방문.' }));
     g2.appendChild(table('들어온 사이트(도메인)', ['도메인', '방문', '비율'], A.refs.map(function (x) { return [x.host, nf(x.sess), share(x.sess, total)]; }),
       { note: '주소의 도메인만 기록합니다(검색어·전체 주소는 브라우저가 보내지 않음). 처음 보는 사이트가 보이면 어디서 링크됐는지 확인해 보세요.' }));
     // 링크 위치별(설명란·고정 댓글·영상 속 안내…) 성과. 종목·영상(캠페인)은 합쳐서 본다
@@ -439,10 +432,6 @@
       return [link(titles[x.path] || x.path, base + x.path), nf(x.pv), dur(x.pv ? x.secs / x.pv : 0), x.scroll_n ? Math.round(x.scroll / x.scroll_n) + '%' : '–', nf(x.entries), nf(x.likes), nf(x.comments), nf(x.reposts), pct(r, x.pv)];
     }), { note: '반응률 = (좋아요+댓글+리포스트) ÷ 페이지뷰. 좋아요·댓글·리포스트는 전체 누적.' }));
     var g5 = el('div', 'an-grid2');
-    g5.appendChild(table('첫 페이지 × 유입 경로', ['첫 페이지', '경로', '방문'], (d.entries || []).map(function (x) {
-      var nm = titles[x.path] || (x.path === '/' ? '홈 피드' : x.path);
-      return [link(nm, base + x.path), x.src === 'direct' ? '직접·북마크' : x.src, nf(x.n)];
-    }), { note: '유튜브 영상 설명란·고정 댓글 링크가 어느 리포트로 사람을 데려왔는지 보입니다.' }));
     var thName = {}; document.querySelectorAll('.theme-nav a').forEach(function (a) { var m = /\/theme\/([^/]+)\//.exec(a.getAttribute('href')); if (m) thName[m[1]] = a.textContent.trim(); });
     g5.appendChild(table('팔로워 많은 종목·테마', ['종목·테마', '팔로워'], (d.topics || []).map(function (x) {
       return [x.kind === 't' ? link('$' + x.key, base + '/t/' + x.key.toLowerCase() + '/') : link('# ' + (thName[x.key] || x.key), base + '/theme/' + x.key + '/'), nf(x.n)];
@@ -456,10 +445,10 @@
     body.appendChild(heading('기기와 광고'));
     var g6 = el('div', 'an-grid2');
     var OSN = { ios: '아이폰·아이패드', android: '안드로이드', windows: '윈도우', mac: '맥', linux: '리눅스', other: '기타' };
-    var BRN = { chrome: '크롬', safari: '사파리', samsung: '삼성 인터넷', edge: '엣지', firefox: '파이어폭스', kakaotalk: '카카오톡 안 브라우저', naver: '네이버 앱', youtube: '유튜브 앱', instagram: '인스타그램 앱', facebook: '페이스북 앱', whale: '웨일', other: '기타' };
-    g6.appendChild(table('운영체제 × 브라우저', ['기기·브라우저', '페이지뷰', '비율', '방문'], (d.tech || []).map(function (x) {
-      return [(OSN[x.os] || x.os) + ' · ' + (BRN[x.br] || x.br), nf(x.pv), share(x.pv, T.pv), nf(x.sess)];
-    }), { note: '카카오톡·네이버 앱 안 브라우저 비율이 높으면 "외부 브라우저로 열기" 안내를 고려하세요.' }));
+    var osAgg = {}; (d.tech || []).forEach(function (x) { var o = osAgg[x.os] || (osAgg[x.os] = { pv: 0, sess: 0 }); o.pv += x.pv || 0; o.sess += x.sess || 0; });
+    g6.appendChild(table('운영체제', ['운영체제', '페이지뷰', '비율', '방문'], Object.keys(osAgg).sort(function (a, b) { return osAgg[b].pv - osAgg[a].pv; }).map(function (k) {
+      return [OSN[k] || k, nf(osAgg[k].pv), share(osAgg[k].pv, T.pv), nf(osAgg[k].sess)];
+    })));
     var ad = {}; (d.adDaily || []).forEach(function (x) { ad[x.day] = x; });
     var sAd = d.series.map(function (r) { var x = ad[r.day] || {}; return { day: r.day, clicks: x.clicks || 0, imps: x.imps || 0 }; });
     g6.appendChild(bars('일별 쿠팡 상자 클릭', sAd, 'clicks', nf, { label: dayLabel, sub: function (t) { var im = sAd.reduce(function (a, x) { return a + x.imps; }, 0); return '클릭 ' + nf(t) + ' · 노출 ' + nf(im) + ' · 클릭률 ' + pct(t, im); } }));
