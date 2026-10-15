@@ -1,5 +1,6 @@
 """빌드 검사: python3 tests/test_build.py
 실제 사이트 파일은 건드리지 않고, 임시 폴더에 복사해 가짜 광고 번호·테스트 글로 빌드해 본다."""
+import atexit
 import json
 import re
 import shutil
@@ -26,6 +27,7 @@ def check(cond, msg):
 
 def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None) -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="kws-"))
+    atexit.register(shutil.rmtree, tmp, True)  # 임시 빌드 폴더(약 90MB씩)가 쌓여 디스크를 채우지 않게 끝나면 지운다
     for name in ["build.py", "report_figures.py", "chart_dark.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
         p = SRC / name
         (shutil.copytree if p.is_dir() else shutil.copy)(p, tmp / name)
