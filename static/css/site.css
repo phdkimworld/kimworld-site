@@ -1360,3 +1360,55 @@ body:has(.rdock) .to-top { display: none !important; }
 .kw-push-promo { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--text); font-size: .85rem; font-weight: 650; text-decoration: none; line-height: 1.45; }
 @media (max-width: 759px) { .tabbar > a, .tabbar > button { font-size: 10px; } }
 .set-row .btn { flex: none; white-space: nowrap; }
+
+/* ---------- 종목 투자 심리 투표(templates/ticker.html .sent, static/js/sentiment.js): 상승 빨강 ▲ · 하락 파랑 ▼ ---------- */
+.sent { --s-up: #f2555a; --s-down: #3b82f6; margin: 4px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.sent-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.sent-q { margin: 0; font-size: 1rem; font-weight: 800; }
+.sent-meta { font-size: .76rem; color: var(--muted); }
+.sent-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sent-b { position: relative; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.sent-b:active { transform: scale(.98); }
+.sent-b > span:nth-child(2) { display: flex; flex-direction: column; line-height: 1.2; }
+.sent-b strong { font-size: .9rem; white-space: nowrap; } .sent-b small { font-size: .72rem; color: var(--muted); }
+.sent-b > span:nth-child(2) { min-width: 0; }
+.sent-ico { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: .85rem; flex: none; }
+.sent-bull .sent-ico { background: color-mix(in srgb, var(--s-up) 18%, transparent); color: var(--s-up); }
+.sent-bear .sent-ico { background: color-mix(in srgb, var(--s-down) 18%, transparent); color: var(--s-down); }
+.sent-b em { font-style: normal; font-weight: 800; font-size: .95rem; margin-left: 4px; }
+@media (max-width: 400px) { .sent-b { gap: 8px; padding: 10px; } .sent-ico { width: 26px; height: 26px; } }
+.sent-today .t-up { color: var(--s-up); } .sent-today .t-down { color: var(--s-down); }
+.sent-bull em { color: var(--s-up); } .sent-bear em { color: var(--s-down); }
+.sent-bull[aria-pressed="true"] { border-color: var(--s-up); background: color-mix(in srgb, var(--s-up) 10%, var(--surface-2)); }
+.sent-bear[aria-pressed="true"] { border-color: var(--s-down); background: color-mix(in srgb, var(--s-down) 10%, var(--surface-2)); }
+.sent.is-busy .sent-b { opacity: .6; pointer-events: none; }
+.sent-tease { margin: 10px 2px 0; font-size: .8rem; color: var(--muted); }
+.sent-tease::before { content: "🔒 "; }
+.sent-res[hidden], .sent-tease[hidden] { display: none; }
+.sent-res { margin-top: 14px; }
+.sent-idx { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.sent-idx > div:first-child { display: flex; flex-direction: column; }
+.sent-k { font-size: .74rem; color: var(--muted); font-weight: 700; }
+.sent-n { font-size: 2.1rem; font-weight: 850; line-height: 1.1; letter-spacing: -.02em; }
+.sent-n.up { color: var(--s-up); } .sent-n.down { color: var(--s-down); }
+.sent-lab { font-size: .8rem; color: var(--muted); }
+.sent-today { text-align: right; font-size: .82rem; display: flex; flex-direction: column; gap: 2px; }
+.sent-bar { display: flex; height: 8px; margin: 10px 0 14px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.sent-bar i { display: block; height: 100%; transition: width .4s; }
+.sb-bull { background: var(--s-up); } .sb-bear { background: var(--s-down); }
+.sent-chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.sent-range { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--surface-2); }
+.sent-range button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: .74rem; cursor: pointer; }
+.sent-range button[aria-pressed="true"] { background: var(--surface); color: var(--text); font-weight: 750; }
+.sent-chart svg { display: block; width: 100%; height: auto; }
+.sent-chart .sc-up { fill: color-mix(in srgb, var(--s-up) 6%, transparent); } .sent-chart .sc-down { fill: color-mix(in srgb, var(--s-down) 6%, transparent); }
+.sent-chart .sc-grid { stroke: var(--line); stroke-width: 1; } .sent-chart .sc-mid { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.sent-chart .sc-ax { fill: var(--muted); font-size: 9.5px; }
+.sent-chart .sc-dot { fill: var(--text); }
+.sent-chart .sc-line { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.sent-chart .sc-last { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.sent-few { margin: 6px 2px 0; font-size: .76rem; color: var(--muted); }
+.sent-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 2px 0; font-size: .72rem; color: var(--muted); }
+.sent-legend .lg-line { display: inline-block; width: 16px; height: 3px; border-radius: 2px; background: var(--accent); }
+.sent-legend .lg-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text); opacity: .6; margin-left: 6px; }
+.sent-note { margin: 8px 2px 0; font-size: .72rem; color: var(--muted); line-height: 1.5; }

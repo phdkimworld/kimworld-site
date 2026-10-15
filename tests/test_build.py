@@ -433,6 +433,9 @@ if (D / "index.html").exists():
     check(dm.exists() and "noindex" in dm.read_text(encoding="utf-8") and "dm.js" in dm.read_text(encoding="utf-8"), "쪽지함 페이지(검색 노출 안 함)")
     check("Disallow: /dm/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 쪽지함 차단")
     check("data-open-dm" in (D / "index.html").read_text(encoding="utf-8"), "머리줄 쪽지 버튼")
+    _tk = next((D / "t").glob("*/index.html")).read_text(encoding="utf-8")
+    check('data-sent ' in _tk and 'data-sent-v="bull"' in _tk and 'data-sent-v="bear"' in _tk and "sentiment.js" in _tk and _tk.index("data-sent ") < _tk.index('id="reports"' if 'id="reports"' in _tk else "seg-tabs"),
+          "종목 화면 위: 투자 심리 투표(불리시·베어리시)")
     st = (D / "settings/index.html")
     st_html = st.read_text(encoding="utf-8") if st.exists() else ""
     check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))

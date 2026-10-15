@@ -750,6 +750,31 @@ console.log("푸시 알림");
   check(!(await env.DB.prepare("SELECT 1 AS y FROM push_subs WHERE endpoint = ?").bind(sub.endpoint).first()), "푸시: 로그아웃하면 이 기기로는 보내지 않는다");
 }
 
+console.log("투자 심리 투표");
+{
+  let r = await call("GET", "/v1/sentiment/rgti", { ip: "72.0.0.1" });
+  check(r.data.voted === null && r.data.n30 === 0 && r.data.series === undefined, "심리: 투표 전에는 숫자(비율·추이)를 주지 않는다");
+  r = await call("POST", "/v1/sentiment/RGTI", { body: { v: "bull" }, ip: "72.0.0.1" });
+  check(r.data.voted === "bull" && r.data.today.bull === 1 && r.data.d30.bull === 1 && r.data.streak === 1 && r.data.series.length === 1, "심리: 투표하면 오늘·30일 누적·추이·연속 참여일");
+  r = await call("POST", "/v1/sentiment/RGTI", { body: { v: "bear" }, ip: "72.0.0.1" });
+  check(r.data.voted === "bear" && r.data.today.bull === 0 && r.data.today.bear === 1, "심리: 그날 안에는 바꿀 수 있고 한 표로만 센다");
+  await call("POST", "/v1/sentiment/RGTI", { body: { v: "bull" }, ip: "72.0.0.2" });
+  r = await call("GET", "/v1/sentiment/RGTI", { ip: "72.0.0.2" });
+  check(r.data.today.bull === 1 && r.data.today.bear === 1 && r.data.d30.bull + r.data.d30.bear === 2, "심리: 여러 사람 합계");
+  // 지난날 기록 → 30일 누적에 들어가고, 31일 전은 빠진다. 연속 참여일
+  const d = (k) => new Date(Date.now() + 9 * 3600e3 - k * 864e5).toISOString().slice(0, 10);
+  await env.DB.prepare("INSERT INTO sent_daily (ticker, day, bull, bear) VALUES ('RGTI', ?, 10, 0), ('RGTI', ?, 0, 7)").bind(d(5), d(40)).run();
+  await env.DB.prepare("INSERT INTO sent_votes (day, ticker, actor, v, ih, created) VALUES (?, 'RGTI', ?, 1, 'x', 1)").bind(d(1), "dev-tester").run();
+  r = await call("GET", "/v1/sentiment/RGTI", { ip: "72.0.0.2" });
+  check(r.data.d30.bull === 11 && r.data.d30.bear === 1 && r.data.series.length === 3, "심리: 30일 누적은 30일 안만, 추이는 120일");
+  for (let i = 0; i < 5; i++) await call("POST", "/v1/sentiment/IONQ", { body: { v: "bull" }, ip: "72.0.0.9", dev: "dev_same_ip_" + i + "_".repeat(20) });
+  r = await call("POST", "/v1/sentiment/IONQ", { body: { v: "bull" }, ip: "72.0.0.9", dev: "dev_same_ip_9" + "_".repeat(20) });
+  check(r.status === 429, "심리: 한 네트워크에서 한 종목 하루 5표까지");
+  r = await call("POST", "/v1/sentiment/IONQ", { body: { v: "bull" }, ip: "72.0.0.10", ua: "facebookexternalhit/1.1" });
+  check(r.status === 403, "심리: 봇은 투표하지 못한다");
+  check((await call("POST", "/v1/sentiment/IONQ", { body: { v: "moon" }, ip: "72.0.0.11" })).status === 400, "심리: 잘못된 값은 거절");
+}
+
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

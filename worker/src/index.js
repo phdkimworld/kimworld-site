@@ -557,7 +557,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -1136,6 +1136,42 @@ export default {
             GROUP BY u.id ORDER BY likes DESC, posts DESC, u.id DESC LIMIT 5`).bind(now - 30 * 864e5, mid, mid).all();
         return json(req, { items: r.results || [] }, 200, { "Cache-Control": "no-store" });
       }
+      // ---------- 종목 투자 심리 투표(불리시·베어리시) ----------
+      // 하루 한 표(그날 안에는 바꿀 수 있음). 투표한 사람만 숫자(오늘·30일 누적 지수·추이)를 본다
+      const sm = p.match(/^\/v1\/sentiment\/([A-Za-z0-9.]{1,10})$/);
+      if (sm && (req.method === "GET" || req.method === "POST")) {
+        const tk = sm[1].toUpperCase(), day = kstDay(now);
+        if (req.method === "POST") {
+          const b = await readJson(req);
+          const v = b.v === "bull" ? 1 : b.v === "bear" ? -1 : 0;
+          if (!v) return json(req, { error: "v" }, 400);
+          if (botWhy(req)) return json(req, { error: "bot" }, 403);
+          const prev = await db.prepare("SELECT v FROM sent_votes WHERE day = ? AND ticker = ? AND actor = ?").bind(day, tk, actor).first();
+          if (!prev) {
+            const n = await db.prepare("SELECT COUNT(*) AS n FROM sent_votes WHERE day = ? AND ticker = ? AND ih = ?").bind(day, tk, ih).first();
+            if ((n?.n || 0) >= 5 || !(await allow(db, `sent|${ih}`, 200, 864e5, now))) return json(req, { error: "rate", message: "오늘은 이 네트워크에서 더 투표할 수 없습니다." }, 429);
+          }
+          if (!prev || prev.v !== v) {
+            const col = v > 0 ? "bull" : "bear", old = prev ? (prev.v > 0 ? "bull" : "bear") : null;
+            await db.batch([
+              db.prepare("INSERT INTO sent_votes (day, ticker, actor, v, ih, created) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(day, ticker, actor) DO UPDATE SET v = excluded.v, created = excluded.created").bind(day, tk, actor, v, ih, now),
+              db.prepare(`INSERT INTO sent_daily (ticker, day, ${col}) VALUES (?, ?, 1) ON CONFLICT(ticker, day) DO UPDATE SET ${col} = ${col} + 1${old ? `, ${old} = MAX(0, ${old} - 1)` : ""}`).bind(tk, day),
+            ]);
+          }
+          if (Math.random() < 0.01) await db.prepare("DELETE FROM sent_votes WHERE day < ?").bind(kstDay(now - 120 * 864e5)).run();
+        }
+        const mine = await db.prepare("SELECT v FROM sent_votes WHERE day = ? AND ticker = ? AND actor = ?").bind(day, tk, actor).first();
+        const since30 = kstDay(now - 29 * 864e5);
+        const tot = await db.prepare("SELECT COALESCE(SUM(bull), 0) AS bull, COALESCE(SUM(bear), 0) AS bear FROM sent_daily WHERE ticker = ? AND day >= ?").bind(tk, since30).first();
+        if (!mine) return json(req, { voted: null, day, n30: (tot.bull || 0) + (tot.bear || 0) }, 200, { "Cache-Control": "no-store" });
+        // 연속 참여일(오늘부터 거꾸로 하루도 빠지지 않은 날 수, 최대 60)
+        const days = (await db.prepare("SELECT day FROM sent_votes WHERE actor = ? AND ticker = ? AND day >= ? ORDER BY day DESC").bind(actor, tk, kstDay(now - 59 * 864e5)).all()).results || [];
+        let streak = 0; for (const d of days) { if (d.day === kstDay(now - streak * 864e5)) streak++; else break; }
+        const series = (await db.prepare("SELECT day, bull, bear FROM sent_daily WHERE ticker = ? AND day >= ? ORDER BY day").bind(tk, kstDay(now - 119 * 864e5)).all()).results || [];
+        const today = series.find((x) => x.day === day) || { bull: 0, bear: 0 };
+        return json(req, { voted: mine.v > 0 ? "bull" : "bear", day, streak, today: { bull: today.bull, bear: today.bear }, d30: { bull: tot.bull || 0, bear: tot.bear || 0 }, series }, 200, { "Cache-Control": "no-store" });
+      }
+
       // ---------- 푸시 알림(웹앱·브라우저) ----------
       if (p === "/v1/push/key" && req.method === "GET") {
         return json(req, { key: (await vapidKeys(db)).pub }, 200, { "Cache-Control": "public, max-age=3600" });
