@@ -776,6 +776,8 @@ console.log("투자 심리 투표");
   r = await call("GET", "/v1/sentiment?t=rgti,IONQ,bad!!", { ip: "72.0.0.2" });
   check(r.data.items.RGTI.voted === "bull" && r.data.items.RGTI.d30.bull === 11 && r.data.items.IONQ.voted === null && r.data.items.IONQ.d30 === undefined && r.data.items.IONQ.n30 === 5 && !r.data.items["BAD!!"],
     "심리: 피드용 묶음 조회(투표한 종목만 비율)");
+  const sv = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.sentiment;
+  check(sv && sv.votes >= 7 && sv.voters >= 7 && sv.repeat >= 0 && sv.daily.length === 7 && sv.top.some((x) => x.ticker === "IONQ" && x.bull === 5), "운영 통계: 투자 심리 투표 참여(표·참여자·일별·종목별)");
 }
 
 { // 검색 색인: API 응답은 noindex, api 주소 robots.txt는 공유 미리보기·프로필 사진만 허용

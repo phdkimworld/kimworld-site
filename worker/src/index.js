@@ -385,6 +385,20 @@ async function analytics(db, now, daysIn) {
     actions: { reposts: rpN?.n || 0, quotes: qN?.n || 0 },
     acq,
   };
+  // 투자 심리 투표 참여(종목 화면·리포트·피드). 표 기록(sent_votes)은 120일 보관
+  const [svT, svD, svTop, svRep, svPrevT] = await Promise.all([
+    one("SELECT COUNT(*) AS votes, COUNT(DISTINCT actor) AS voters, COUNT(DISTINCT ticker) AS tickers FROM sent_votes WHERE day >= ?", since).catch(() => null),
+    all("SELECT day, COUNT(*) AS votes, COUNT(DISTINCT actor) AS voters FROM sent_votes WHERE day >= ? GROUP BY day", since).catch(() => []),
+    all("SELECT ticker, SUM(bull) AS bull, SUM(bear) AS bear FROM sent_daily WHERE day >= ? GROUP BY ticker ORDER BY SUM(bull) + SUM(bear) DESC LIMIT 20", since).catch(() => []),
+    one("SELECT COUNT(*) AS n FROM (SELECT actor FROM sent_votes WHERE day >= ? GROUP BY actor HAVING COUNT(DISTINCT day) >= 2)", since).catch(() => null),
+    one("SELECT COUNT(*) AS votes, COUNT(DISTINCT actor) AS voters FROM sent_votes WHERE day >= ? AND day < ?", prevSince, since).catch(() => null),
+  ]);
+  const svDay = Object.fromEntries(svD.map((x) => [x.day, x]));
+  ext.sentiment = {
+    votes: svT?.votes || 0, voters: svT?.voters || 0, tickers: svT?.tickers || 0, repeat: svRep?.n || 0,
+    prevVotes: svPrevT?.votes || 0, prevVoters: svPrevT?.voters || 0, top: svTop,
+    daily: Array.from({ length: days }, (_, i) => { const day = D(days - 1 - i); return { day, votes: svDay[day]?.votes || 0, voters: svDay[day]?.voters || 0 }; }),
+  };
   const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
   ext.bots = Object.fromEntries(botRows.map((x) => [x.why, x.n]));
   // 날짜 축을 빈 날 없이 채운다

@@ -114,7 +114,7 @@
   }
   var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
     compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
-    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '홈 대표 글(조회수 상위) 누름', home_report: '홈에서 리포트 누름', home_post: '홈에서 커뮤니티 글 누름', fig_click: '리포트 그림 누름',
+    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '홈 대표 글(조회수 상위) 누름', home_report: '홈에서 리포트 누름', home_post: '홈에서 커뮤니티 글 누름', fig_click: '리포트 그림 누름', sent_vote: '투자 심리 투표', sent_vote_feed: '피드 카드에서 투표', push_on: '푸시 알림 켬',
     install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내', signup: '가입 완료', dm_send: '쪽지 보냄', dm_open: '쪽지함 열기', avatar_set: '프로필 사진 바꿈', block: '차단', quote_share: '문장 인용 공유', quote_card: '인용 카드 만들기',
     install_bar: '설치 안내 줄 노출', install_inapp: '앱 안 브라우저→크롬 열기', ic_header: '설치 누름: 머리줄', ic_footer: '설치 누름: 바닥글', ic_bar: '설치 누름: 안내 줄', ic_report: '설치 누름: 리포트 끝', ic_feed: '설치 누름: 홈 피드' };
 
@@ -404,6 +404,27 @@
       return [EVN[k2], nf(E[k2] || 0), delta(E[k2] || 0, EP[k2] || 0)];
     }).sort(function (a, b) { return 0; }), { note: '한 페이지에서 같은 행동은 한 번으로 셉니다.' }));
     body.appendChild(g4);
+
+    // ---------- 투자 심리 투표 ----------
+    var SV = d.sentiment;
+    if (SV) {
+      body.appendChild(heading('투자 심리 투표', '종목 화면·리포트·피드 카드의 불리시/베어리시'));
+      var kv = el('div', 'an-tiles');
+      kv.appendChild(tile('투표 수', nf(SV.votes), '한 사람·한 종목 하루 한 표', delta(SV.votes, SV.prevVotes)));
+      kv.appendChild(tile('참여자', nf(SV.voters), '기기·계정 기준(중복 제외)', delta(SV.voters, SV.prevVoters)));
+      kv.appendChild(tile('2일 이상 참여', SV.voters ? pct(SV.repeat, SV.voters) : '–', nf(SV.repeat) + '명이 다른 날 다시 투표'));
+      kv.appendChild(tile('방문 대비 참여', T.uv ? pct(SV.voters, T.uv) : '–', '기간 방문자 중 한 번이라도 투표'));
+      kv.appendChild(tile('피드에서 투표', E.sent_vote ? pct(E.sent_vote_feed || 0, E.sent_vote) : '–', '투표한 페이지 중 피드 카드에서 누른 비율'));
+      kv.appendChild(tile('투표 받은 종목', nf(SV.tickers), ''));
+      body.appendChild(kv);
+      var gs = el('div', 'an-grid2');
+      gs.appendChild(bars('일별 참여자', SV.daily, 'voters', nf, { label: dayLabel, sub: function () { return '기간 합계(중복 제외) ' + nf(SV.voters) + '명'; } }));
+      gs.appendChild(table('종목별 투표', ['종목', '투표', '강세(불리시) 표', '강세 : 약세'], (SV.top || []).map(function (x) {
+        var n = (x.bull || 0) + (x.bear || 0);
+        return [link(x.ticker, base + '/t/' + String(x.ticker).toLowerCase() + '/'), nf(n), nf(x.bull), n ? Math.round(x.bull / n * 100) + ' : ' + Math.round(x.bear / n * 100) : '–'];
+      }), { note: '기간 안의 강세:약세 표 비율입니다. 종목 화면에 보이는 지수는 최근 30일 기준입니다.' }));
+      body.appendChild(gs);
+    }
 
     // ---------- 리텐션 ----------
     body.appendChild(heading('재방문(리텐션)', '처음 온 날 기준, 최근 4주'));

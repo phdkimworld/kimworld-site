@@ -86,6 +86,7 @@
       var fb = el('div', 'fp-btns');
       [['bull', '▲ 오를 것'], ['bear', '▼ 내릴 것']].forEach(function (x) { var b = el('button', 'fp-b fp-' + x[0], x[1]); b.type = 'button'; b.setAttribute('data-fp-v', x[0]); b.setAttribute('aria-pressed', 'false'); fb.appendChild(b); });
       fp.appendChild(fb);
+      var tz = el('p', 'fp-tease', '🔒 투표하면 다른 투자자들의 결과가 보여요'); tz.setAttribute('data-fp-tease', ''); fp.appendChild(tz);
       var res = el('div', 'fp-res'); res.setAttribute('data-fp-res', ''); res.hidden = true;
       var bar = el('div', 'fp-bar'); var bb = el('i', 'fp-bb'); bb.setAttribute('data-fp-bb', ''); var br = el('i', 'fp-br'); br.setAttribute('data-fp-br', ''); bar.appendChild(bb); bar.appendChild(br); res.appendChild(bar);
       var ln = el('div', 'fp-line'); [['fp-up', 'data-fp-up'], ['fp-meta', 'data-fp-meta'], ['fp-down', 'data-fp-down']].forEach(function (x) { var sp = el('span', x[0]); sp.setAttribute(x[1], ''); ln.appendChild(sp); }); res.appendChild(ln);

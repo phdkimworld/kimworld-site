@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var meta = q('[data-sent-meta]'), tease = q('[data-sent-tease]');
     if (!voted) {
       meta.textContent = d.n30 ? '지난 30일 ' + C.num(d.n30) + '표' : '';
-      tease.textContent = d.n30 ? '투표하면 30일 투자 심리 지수와 추이 그래프가 열립니다' : '첫 표를 던지고 30일 투자 심리 지수를 시작해 보세요';
+      tease.textContent = d.n30 ? '투표하면 다른 투자자 ' + C.num(d.n30) + '표의 결과(강세·약세 비율)와 30일 추이 그래프가 열려요' : '투표하면 결과가 열려요. 첫 표의 주인공이 되어 보세요';
       tease.hidden = false; q('[data-sent-res]').hidden = true;
       qa('[data-sent-pct]').forEach(function (e) { e.textContent = ''; });
       return;
@@ -116,7 +116,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var v = st && st.voted;
     fp.classList.toggle('is-voted', !!v);
     Array.prototype.forEach.call(fp.querySelectorAll('[data-fp-v]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-fp-v') === v ? 'true' : 'false'); });
-    var res = fp.querySelector('[data-fp-res]');
+    var res = fp.querySelector('[data-fp-res]'), tz = fp.querySelector('[data-fp-tease]');
+    if (tz) {
+      tz.hidden = !!v;
+      if (!v) tz.textContent = st && st.n30 ? '🔒 투표하면 결과가 보여요 · 지난 30일 ' + C.num(st.n30) + '표' : '🔒 투표하면 다른 투자자들의 결과가 보여요';
+    }
     if (!v) { res.hidden = true; return; }
     var p = pct(st.d30.bull, st.d30.bear); if (p == null) p = 50;
     res.hidden = false;

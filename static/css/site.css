@@ -1384,6 +1384,7 @@ body:has(.rdock) .to-top { display: none !important; }
 .sent.is-busy .sent-b { opacity: .6; pointer-events: none; }
 .sent-tease { margin: 10px 2px 0; font-size: .8rem; color: var(--muted); }
 .sent-tease::before { content: "🔒 "; }
+.sent-tease { font-weight: 600; color: var(--text); opacity: .85; }
 .sent-res[hidden], .sent-tease[hidden] { display: none; }
 .sent-res { margin-top: 14px; }
 .sent-idx { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
@@ -1449,3 +1450,5 @@ article.report .sent { margin-top: 14px; }
 .post-head:has(.post-follow) .post-group { white-space: nowrap; overflow: visible; text-overflow: clip; max-width: none; flex: none; }
 .post-head:has(.post-follow) .post-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .post-head:has(.post-follow) .post-time { white-space: nowrap; flex: none; }
+.fp-tease { margin: 7px 2px 0; font-size: .74rem; color: var(--muted); }
+.fp-tease[hidden] { display: none; }
