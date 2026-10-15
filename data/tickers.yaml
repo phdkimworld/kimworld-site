@@ -360,3 +360,9 @@ BEAM:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["빔", "Beam", "Beam Therapeutics", "빔 테라퓨틱스"]
+QNT:
+  name: "퀀트"
+  name_en: "Quant"
+  exchange: "Coinbase"
+  theme: "코인·블록체인"
+  aliases: ["퀀트", "퀀트 네트워크", "Quant", "Quant Network", "QNT", "오버레저", "Overledger"]
