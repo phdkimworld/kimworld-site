@@ -60,6 +60,59 @@
     (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('주소를 복사했습니다'); }, function () { prompt('주소를 복사하세요', u); });
   }
 
+  // 화면에 없는 리포트의 피드 카드를 색인(search.json)으로 만든다(서버 카드 card()와 같은 모양: 머리·본문·차트·투표·반응 줄)
+  function fullReportCard(slug, done) {
+    var card = el('article', 'card post'); card.setAttribute('data-slug', slug);
+    var a0 = el('a', 'post-body card-link'); a0.href = C.reportUrl(slug); var h0 = el('h3', 'card-title', '리포트'); a0.appendChild(h0); card.appendChild(a0);
+    C.loadIndex().then(function (I) {
+      var r = I.bySlug[slug]; if (!r) return;
+      a0.remove(); card.setAttribute('data-ticker', r.k); // 앞에 붙은 표시(조회수 상위·리포스트 줄)는 그대로 둔다
+      var head = el('header', 'post-head');
+      var av = el('img', 'post-av'); av.src = base + '/static/icon.svg'; av.alt = ''; av.width = 38; av.height = 38; head.appendChild(av);
+      var who = el('div', 'post-who'); who.appendChild(el('span', 'post-name', '김박사 월드'));
+      who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
+      var g = el('a', 'post-group', r.c || r.k); g.href = base + '/t/' + String(r.k).toLowerCase() + '/'; who.appendChild(g);
+      who.appendChild(el('span', 'post-time muted', '· ' + ago(new Date(r.d + 'T09:00:00+09:00').getTime())));
+      head.appendChild(who); head.appendChild(followMini(r.k)); card.appendChild(head);
+      var a = el('a', 'post-body card-link'); a.href = C.reportUrl(slug);
+      a.appendChild(el('span', 'card-company', r.c || ''));
+      a.appendChild(el('h3', 'card-title', r.st || r.t));
+      a.appendChild(el('p', 'card-summary', r.s || ''));
+      if (r.ch) { var m = el('span', 'post-media'), im = el('img'); im.src = r.ch; im.alt = (r.c || '') + ' 대표 가격 흐름'; im.loading = 'lazy'; m.appendChild(im); a.appendChild(m); }
+      card.appendChild(a);
+      // 투자 심리 투표(서버 카드와 같은 마크업)
+      var fp = el('div', 'fpoll'); fp.setAttribute('data-fpoll', ''); fp.setAttribute('data-ticker', r.k); fp.hidden = true;
+      fp.appendChild(el('span', 'fp-q', (r.c || r.k) + ', 앞으로?'));
+      var fb = el('div', 'fp-btns');
+      [['bull', '▲ 오를 것'], ['bear', '▼ 내릴 것']].forEach(function (x) { var b = el('button', 'fp-b fp-' + x[0], x[1]); b.type = 'button'; b.setAttribute('data-fp-v', x[0]); b.setAttribute('aria-pressed', 'false'); fb.appendChild(b); });
+      fp.appendChild(fb);
+      var res = el('div', 'fp-res'); res.setAttribute('data-fp-res', ''); res.hidden = true;
+      var bar = el('div', 'fp-bar'); var bb = el('i', 'fp-bb'); bb.setAttribute('data-fp-bb', ''); var br = el('i', 'fp-br'); br.setAttribute('data-fp-br', ''); bar.appendChild(bb); bar.appendChild(br); res.appendChild(bar);
+      var ln = el('div', 'fp-line'); [['fp-up', 'data-fp-up'], ['fp-meta', 'data-fp-meta'], ['fp-down', 'data-fp-down']].forEach(function (x) { var sp = el('span', x[0]); sp.setAttribute(x[1], ''); ln.appendChild(sp); }); res.appendChild(ln);
+      var mo = el('a', 'fp-more', '심리 추이 보기 →'); mo.href = base + '/t/' + String(r.k).toLowerCase() + '/#sent-h'; res.appendChild(mo);
+      fp.appendChild(res); card.appendChild(fp);
+      // 반응 줄
+      var act = el('footer', 'post-actions');
+      var lk = el('button', 'pa pa-like'); lk.type = 'button'; lk.setAttribute('data-post-like', ''); lk.setAttribute('aria-label', '좋아요'); lk.setAttribute('aria-pressed', 'false');
+      lk.appendChild(icon('heart')); var lkn = el('span'); lkn.setAttribute('data-n', ''); lk.appendChild(lkn); act.appendChild(lk);
+      var cm = el('a', 'pa'); cm.href = base + '/p/?r=' + slug; cm.setAttribute('aria-label', '답글·이야기 쓰레드'); cm.appendChild(icon('comment')); var cmn = el('span'); cm.appendChild(cmn); act.appendChild(cm);
+      var rb = el('button', 'pa pa-repost'); rb.type = 'button'; rb.setAttribute('data-repost', ''); rb.setAttribute('data-kind', 'r'); rb.setAttribute('data-ref', slug); rb.setAttribute('data-quote-src', r.s || ''); rb.setAttribute('aria-pressed', 'false'); rb.setAttribute('aria-label', '리포스트·인용');
+      rb.appendChild(icon('repost')); var rbn = el('span'); rbn.setAttribute('data-n', ''); rb.appendChild(rbn); act.appendChild(rb);
+      var sh = el('button', 'pa pa-share'); sh.type = 'button'; sh.setAttribute('data-action', 'share'); sh.setAttribute('data-share-url', '/r/' + slug + '/'); sh.setAttribute('aria-label', '공유'); sh.appendChild(icon('share')); act.appendChild(sh);
+      var vw = el('span', 'pa pa-static pa-views'); vw.hidden = true; vw.appendChild(icon('eye')); var vwn = el('span'); vw.appendChild(vwn); act.appendChild(vw);
+      card.appendChild(act);
+      api('/v1/stats?slugs=' + slug).then(function (d) {
+        var x = ((d || {}).stats || {})[slug]; if (!x) return;
+        lk.setAttribute('aria-pressed', x.liked ? 'true' : 'false'); lkn.textContent = x.likes ? num(x.likes) : '';
+        cmn.textContent = x.comments ? num(x.comments) : '';
+        rb.setAttribute('aria-pressed', x.reposted ? 'true' : 'false'); rbn.textContent = x.reposts ? num(x.reposts) : '';
+        if (x.views) { vwn.textContent = num(x.views); vw.hidden = false; }
+      }).catch(function () {});
+      if (window.kwPolls) window.kwPolls(document);
+      if (done) done(r);
+    }).catch(function () {});
+    return card;
+  }
   // 피드 카드 머리의 작은 '팔로우'(종목). 칠하기는 community.js가 한꺼번에(KWC.topics)
   var topicT = 0;
   function followMini(tk) {
@@ -269,14 +322,10 @@
     function render(c) {
       if (c.type !== 'report') return postCard(c);
       var orig = list.querySelector('article.post:not(.upost)[data-slug="' + c.slug + '"]'), card;
-      if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
-      else {
-        card = el('article', 'card post'); card.setAttribute('data-slug', c.slug);
-        var a = el('a', 'post-body card-link'); a.href = C.reportUrl(c.slug); var h = el('h3', 'card-title', '리포트'); a.appendChild(h); card.appendChild(a);
-        C.reportTitle(c.slug).then(function (r) { h.textContent = (r.k ? r.k + ' · ' : '') + C.shortTitle(r.t); });
-      }
-      card.classList.add('upost', 'rp-report');
       var line = el('a', 'rp-line'); line.href = C.profileUrl(c.rp.uid); line.textContent = '↻ ' + c.rp.nick + '님이 리포스트함';
+      if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
+      else card = fullReportCard(c.slug);
+      card.classList.add('upost', 'rp-report');
       card.insertBefore(line, card.firstChild);
       return card;
     }
@@ -337,11 +386,7 @@
       var top = (d.items || [])[0]; if (!top || list.querySelector('.featured')) return;
       var orig = list.querySelector('article.post:not(.upost)[data-slug="' + top.slug + '"]'), card;
       if (orig) { card = orig.cloneNode(true); card.querySelectorAll('[data-post-top]').forEach(function (x) { x.remove(); }); }
-      else {
-        card = el('article', 'card post'); card.setAttribute('data-slug', top.slug);
-        var a = el('a', 'post-body card-link'); a.href = C.reportUrl(top.slug); var h = el('h3', 'card-title', '리포트'); a.appendChild(h); card.appendChild(a);
-        C.reportTitle(top.slug).then(function (r) { h.textContent = (r.k ? r.k + ' · ' : '') + C.shortTitle(r.t); });
-      }
+      else card = fullReportCard(top.slug); // 첫 화면 카드에 없으면 색인으로 온전한 카드를
       card.classList.add('featured');
       var badge = el('p', 'featured-badge', '★ 조회수 상위');
       card.insertBefore(badge, card.firstChild);

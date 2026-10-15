@@ -1416,7 +1416,7 @@ body:has(.rdock) .to-top { display: none !important; }
 article.report .sent { margin-top: 14px; }
 
 /* ---------- 피드 카드: 종목 팔로우(작게) · 투자 심리 투표(작게) ---------- */
-.post-follow { flex: none; align-self: center; margin-left: auto; min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.post-follow { flex: none; align-self: center; margin-left: auto; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .post-follow[hidden] { display: none; }
 .post-follow[aria-pressed="true"] { border-color: var(--line); color: var(--muted); font-weight: 600; }
 .post-head:has(.post-follow:not([hidden])) .post-theme { display: none; }
@@ -1443,3 +1443,9 @@ article.report .sent { margin-top: 14px; }
 .home-grid .fpoll { margin-left: 48px; }
 .ticker-cards .fpoll, .cards .fpoll { margin-left: 0; }
 .home-grid .cards .fpoll { margin-left: 48px; }
+
+/* 카드 머리 줄(팔로우 버튼이 있을 때): '작성자 › 종목 · 시간' 형식은 그대로, 줄이 모자라면 다음 줄로 넘긴다. 종목 이름은 자르지 않는다(운영자 요청) */
+.post-head:has(.post-follow) .post-who { flex: 1 1 auto; flex-wrap: wrap; white-space: normal; overflow: visible; row-gap: 0; }
+.post-head:has(.post-follow) .post-group { white-space: nowrap; overflow: visible; text-overflow: clip; max-width: none; flex: none; }
+.post-head:has(.post-follow) .post-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.post-head:has(.post-follow) .post-time { white-space: nowrap; flex: none; }

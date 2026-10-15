@@ -1179,6 +1179,7 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-topic]'); if (!b || b.disabled) return;
     e.preventDefault();
+    if (b.hasAttribute('data-topic-mini')) document.querySelectorAll('[data-topic-mini][data-key="' + b.getAttribute('data-key') + '"]').forEach(function (x) { x.classList.add('just'); });
     meReady.then(function () {
       if (!ME) { openAccount(); return; }
       var kind = b.getAttribute('data-kind'), key = b.getAttribute('data-key');
