@@ -414,3 +414,9 @@ STRK:
   exchange: "Bithumb"
   theme: "코인·블록체인"
   aliases: ["스타크넷", "Starknet", "스타크웨어", "STRK"]
+AAVE:
+  name: "에이브"
+  name_en: "Aave"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["에이브", "Aave", "아베", "AAVE"]
