@@ -432,3 +432,9 @@ IOVA:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["이오반스", "아이오반스", "Iovance", "Iovance Biotherapeutics", "암타그비", "Amtagvi"]
+FATE:
+  name: "페이트 테라퓨틱스"
+  name_en: "Fate Therapeutics, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["페이트", "Fate", "Fate Therapeutics"]
