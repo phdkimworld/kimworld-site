@@ -96,8 +96,8 @@ with tempfile.TemporaryDirectory() as d:
 
     # ---------- Facebook ----------
     fblog = []
-    def fbfake(method, path, params, token, base=sp.FB_API, headers=None):
-        fblog.append((method, path, dict(params), base, dict(headers or {})))
+    def fbfake(method, path, params, token, base=sp.FB_API, headers=None, body=None):
+        fblog.append((method, path, dict(params), base, dict(headers or {}), body))
         if method == "GET": return {"permalink_url": "https://fb/" + path}
         if params.get("upload_phase") == "start": return {"video_id": "777"}
         if base == sp.FB_RUPLOAD: return {"success": True}
@@ -120,9 +120,15 @@ with tempfile.TemporaryDirectory() as d:
     ph = [l[2].get("upload_phase") for l in fblog if l[1] == "55/video_reels"]
     up = [l for l in fblog if l[3] == sp.FB_RUPLOAD]
     fin = [l for l in fblog if l[2].get("upload_phase") == "finish"]
-    check("릴스 3단계(start→업로드→finish), 공개 주소·인스타 캡션",
-          ph == ["start", "finish"] and up and up[0][4]["file_url"] == "https://drkimworld.com/static/social/a.mp4"
-          and fin[0][2]["description"] == "릴스 캡션")
+    check("릴스 3단계(start→파일 직접 업로드→finish), 인스타 캡션(사이트 주소 403 회피)",
+          ph == ["start", "finish"] and up and up[0][5] == b"x" and up[0][4]["file_size"] == "1" and up[0][4]["offset"] == "0"
+          and "file_url" not in up[0][4] and fin[0][2]["description"] == "릴스 캡션")
+    fblog.clear()
+    W("p.json", {"text": "사진 글", "publish_at": past, "channels": ["facebook"], "media": {"type": "image", "path": "static/social/a.jpg"}})
+    check("페이스북 사진 게시 성공", sp.main([]) == 0)
+    pho = [l for l in fblog if l[1] == "55/photos"]
+    check("사진도 파일을 직접 올림(multipart source)", pho and b'name="source"' in pho[0][5] and b'name="message"' in pho[0][5]
+          and "multipart/form-data" in pho[0][4]["Content-Type"])
     sp.FB_LIVE.unlink(); fblog.clear()
     for q in sp.POSTED.glob("*.json"): q.unlink()
     W("h1.json", {"text": "첫 글", "publish_at": past, "channels": ["facebook"]})

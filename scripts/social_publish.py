@@ -25,7 +25,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   Facebook 페이지(운영자 지시 2026-10-15, Graph API v26.0):
     미디어 없음 → /{page}/feed 에 본문(text 또는 channel_text.facebook), replies[0] 은 첫 댓글로 단다
                   (링크의 utm_source=threads 는 facebook 으로 바꾼다). poll 은 페이스북에 없으므로 쓰지 않는다
-    reels      → /{page}/video_reels 3단계(start → rupload file_url → finish), 캡션은 channel_text.facebook 또는 인스타 캡션
+    reels      → /{page}/video_reels 3단계(start → rupload 파일 직접 업로드(없으면 file_url) → finish), 캡션은 channel_text.facebook 또는 인스타 캡션
     image      → /{page}/photos (url, message),  carousel → photos(published=false) 뒤 feed(attached_media)
     190(토큰)·200(권한) 오류는 재시도하지 않는다. 일시 오류(5xx·속도 제한)는 간격을 두고 최대 3회 재시도한다.
     앱이 개발 모드라 공개 노출을 사람이 확인해야 한다: social/FACEBOOK_LIVE 파일이 없으면 페이스북 게시는
@@ -312,14 +312,14 @@ class FbFatal(RuntimeError):
     """재시도하면 안 되는 오류(190 토큰, 200 권한)."""
 
 
-def fb_call(method, path, params, token, base=FB_API, headers=None):
-    """Graph API 호출. 190·200은 바로 실패, 일시 오류는 20·60·120초 간격으로 최대 3회 재시도."""
+def fb_call(method, path, params, token, base=FB_API, headers=None, body=None):
+    """Graph API 호출(body를 주면 그 바이트를 그대로 보낸다). 190·200은 바로 실패, 일시 오류는 20·60·120초 간격으로 최대 3회 재시도."""
     last = None
     for wait in (0, 20, 60, 120):
         if wait:
             time.sleep(wait)
         q = {**params}
-        data = urllib.parse.urlencode(q).encode()
+        data = body if body is not None else urllib.parse.urlencode(q).encode()
         url = f"{base}/{path}"
         if method == "GET":
             url, data = f"{url}?{data.decode()}", None
@@ -343,6 +343,25 @@ def fb_call(method, path, params, token, base=FB_API, headers=None):
     raise last
 
 
+def local_file(rel):
+    """저장소 안의 미디어 파일(있으면 Path). 페이스북은 사이트 주소를 못 가져오는 경우가 있어(403) 파일을 직접 올린다."""
+    f = ROOT / rel.lstrip("/")
+    return f if f.is_file() else None
+
+
+def fb_photo(page, rel, params, token):
+    f = local_file(rel)
+    if not f:
+        return fb_call("POST", f"{page}/photos", {"url": public_url(rel), **params}, token)
+    b = "----kimworld" + os.urandom(8).hex()
+    parts = [f'--{b}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode() for k, v in params.items()]
+    ctype = "image/png" if f.suffix.lower() == ".png" else "image/jpeg"
+    parts.append(f'--{b}\r\nContent-Disposition: form-data; name="source"; filename="{f.name}"\r\nContent-Type: {ctype}\r\n\r\n'.encode()
+                 + f.read_bytes() + f"\r\n--{b}--\r\n".encode())
+    return fb_call("POST", f"{page}/photos", params, token, headers={"Content-Type": f"multipart/form-data; boundary={b}"},
+                   body=b"".join(parts))
+
+
 def fb_comment_text(text):
     return text.replace("utm_source=threads", "utm_source=facebook")
 
@@ -359,7 +378,7 @@ def do_facebook(post, res, save, now, live_used):
     msg = fb_text(post)
     if not res.get("post_id"):
         if m:
-            urls = [public_url(p) for p in media_paths(m)]
+            urls = [public_url(p) for p in media_paths(m) if not local_file(p)]
             if not all(url_ready(u) for u in urls):
                 if now - post["_at"] > timedelta(hours=STALE_HOURS):
                     raise RuntimeError(f"미디어 주소가 {STALE_HOURS}시간 넘게 열리지 않음: {urls}")
@@ -375,17 +394,28 @@ def do_facebook(post, res, save, now, live_used):
                 st = fb_call("POST", f"{page}/video_reels", {"upload_phase": "start"}, token)
                 res["video_id"] = st["video_id"]
                 save()
-            fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD, headers={"file_url": public_url(m["path"])})
+            f = local_file(m["path"])
+            try:
+                if f:
+                    data = f.read_bytes()
+                    fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD,
+                            headers={"offset": "0", "file_size": str(len(data)), "Content-Type": "application/octet-stream"}, body=data)
+                else:
+                    fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD, headers={"file_url": public_url(m["path"])})
+            except FbFatal:
+                res.pop("video_id", None)  # 실패한 업로드 세션은 버리고 다음 실행에서 새로 시작
+                save()
+                raise
             fb_call("POST", f"{page}/video_reels", {"upload_phase": "finish", "video_id": res["video_id"],
                                                     "video_state": "PUBLISHED", "description": msg}, token)
             res["post_id"] = res["video_id"]
         elif m["type"] == "image":
-            r = fb_call("POST", f"{page}/photos", {"url": public_url(m["path"]), "message": msg}, token)
+            r = fb_photo(page, m["path"], {"message": msg}, token)
             res["post_id"] = r.get("post_id") or r["id"]
         else:
             ids = []
             for p in m["paths"]:
-                ids.append(fb_call("POST", f"{page}/photos", {"url": public_url(p), "published": "false"}, token)["id"])
+                ids.append(fb_photo(page, p, {"published": "false"}, token)["id"])
             r = fb_call("POST", f"{page}/feed", {"message": msg,
                         "attached_media": json.dumps([{"media_fbid": i} for i in ids])}, token)
             res["post_id"] = r["id"]

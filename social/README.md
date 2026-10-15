@@ -22,7 +22,7 @@
 - `channels`: `threads`, `instagram`, `facebook` 가운데 하나 이상.
 - **Facebook 페이지**(김박사 월드, Graph API v26.0, 운영자 지시 2026-10-15): Threads와 같은 요령으로 쓴다.
   - 미디어 없는 글은 `/{page}/feed`에 본문을 올리고, `replies[0]`을 첫 댓글로 단다(링크의 `utm_source=threads`는 `facebook`으로 바뀐다). 투표(`poll`)는 페이스북에 없어 쓰지 않는다.
-  - `reels`는 `/{page}/video_reels` 3단계(start → `rupload.facebook.com`에 `file_url` → finish)로 올리고, 캡션은 `channel_text.facebook`이 없으면 인스타 캡션을 쓴다. `image`는 `/photos`, `carousel`은 사진을 `published=false`로 올린 뒤 `feed`의 `attached_media`로 묶는다.
+  - `reels`는 `/{page}/video_reels` 3단계(start → `rupload.facebook.com`에 저장소의 영상 파일을 직접 업로드 → finish)로 올리고, 캡션은 `channel_text.facebook`이 없으면 인스타 캡션을 쓴다. `image`는 `/photos`(사진도 파일을 직접 올림), `carousel`은 사진을 `published=false`로 올린 뒤 `feed`의 `attached_media`로 묶는다. 페이스북은 사이트 주소에서 미디어를 가져가다 403으로 막힌 적이 있어(2026-10-15) 주소 대신 파일을 보낸다.
   - 오류 190(토큰)·200(권한)은 재시도하지 않고 실패로 표시한다. 일시 오류(5xx·속도 제한)는 20·60·120초 간격으로 최대 3회 다시 시도한다.
   - 앱이 개발 모드라 공개 노출을 확인해야 한다. `social/FACEBOOK_LIVE` 파일이 없으면 페이스북 글은 한 건만 올리고 나머지는 '공개 확인 대기'로 둔다. 로그아웃 상태에서 첫 글이 보이면 이 파일을 커밋한다. 안 보이면 앱을 라이브로 바꿔야 한다.
   - 비밀값 `FB_PAGE_ID`, `FB_PAGE_TOKEN`. 페이지 토큰은 비즈니스 포트폴리오 '김박사 월드'의 시스템 사용자 `kimworld-bot`에서 받은 것으로, 토큰 만료·데이터 접근 만료가 모두 없다(재발급: Business Suite → 설정 → 시스템 사용자 → 토큰 생성 → `/{page-id}?fields=access_token`).

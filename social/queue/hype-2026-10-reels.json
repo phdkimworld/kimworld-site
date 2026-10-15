@@ -17,9 +17,6 @@
       "done": true,
       "permalink": "https://www.instagram.com/reel/DehaOriEh3m/"
     },
-    "facebook": {
-      "video_id": "28655937380737224",
-      "last_error": "HTTP 422 code=None: {\"debug_info\":{\"retriable\":false,\"type\":\"FileUrlProcessingError\",\"message\":\"Unable to fetch media from URL, got status code: 403 Forbidden\"}}"
-    }
+    "facebook": {}
   }
 }
