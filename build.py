@@ -440,6 +440,27 @@ class Ads:
             if v and not ADFIT_RE.match(v):
                 log.err(f"ads.yaml adfit.units.{k} 형식 오류(DAN-로 시작)")
                 self.adfit_units[k] = ""
+        # 데이블(추천 콘텐츠 광고): 승인 뒤 받은 서비스 이름·위젯 번호를 넣으면 켜진다. 비어 있으면 아무것도 출력하지 않는다
+        dbl = self.cfg.get("dable") or {}
+        self.dable_service = str(dbl.get("service") or "").strip()
+        if self.dable_service and not re.fullmatch(r"[A-Za-z0-9.-]{3,80}", self.dable_service):
+            log.err("ads.yaml dable.service 형식 오류(예: drkimworld.com)")
+            self.dable_service = ""
+        self.dable_widgets = {}
+        for k, v in (dbl.get("widgets") or {}).items():
+            v = str(v or "").strip()
+            if v and not re.fullmatch(r"[A-Za-z0-9]{4,24}", v):
+                log.err(f"ads.yaml dable.widgets.{k} 형식 오류(영문·숫자 위젯 번호)")
+                v = ""
+            self.dable_widgets[str(k)] = v
+        # ads.txt 에 덧붙일 줄(새 광고 네트워크가 요구할 때): "도메인, 계정번호, DIRECT|RESELLER[, 인증ID]"
+        self.ads_txt_extra = []
+        for ln in self.cfg.get("ads_txt_extra") or []:
+            ln = str(ln).strip()
+            if re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}\s*,\s*[A-Za-z0-9_.-]+\s*,\s*(DIRECT|RESELLER)(\s*,\s*[A-Za-z0-9]+)?", ln):
+                self.ads_txt_extra.append(ln)
+            elif ln:
+                log.err(f"ads.yaml ads_txt_extra 형식 오류: {ln}")
         c = self.cfg.get("coupang") or {}
         self.c_allowed = [d.lower() for d in (c.get("allowed_domains") or ["coupang.com", "coupangcdn.com"])]
         self.c_banner = str(c.get("banner_html") or "").strip()
@@ -486,7 +507,7 @@ class Ads:
                        "home_feed": _r("home_feed", (4, 6, 5))}
         if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
             log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom", "coupang_banner", "coupang_products", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom", "coupang_banner", "coupang_products", "dable_report", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
@@ -545,6 +566,8 @@ class Ads:
             return bool(self.adfit_units.get("list") or self.adfit_units.get("report_end"))
         if kind in ("adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom"):
             return bool(self.adfit_units.get(self.ADFIT_KEY[kind]))
+        if kind == "dable_report":
+            return bool(self.dable_service and self.dable_widgets.get("report"))
         if kind == "coupang_banner":
             return bool(self.c_banner)
         if kind == "coupang_products":
@@ -616,6 +639,12 @@ class Ads:
                 f'data-ad-client="{self.adsense_client}" data-ad-slot="{slot_id}"></ins>'
                 f'<script>(adsbygoogle=window.adsbygoogle||[]).push({{}});</script></aside>'
             )
+        if kind == "dable_report":
+            wid = self.dable_widgets["report"]
+            # 데이블 위젯(같이 볼 만한 글 + 광고). 로그·로더 스크립트는 head_tags 에 있다
+            return (f'<aside class="ad ad-dable" data-slot="{slot}" aria-label="추천 콘텐츠와 광고">'
+                    f'<div id="dablewidget_{wid}" data-widget_id="{wid}"></div>'
+                    f'<script>window.dable&&dable("renderWidget","dablewidget_{wid}")</script></aside>')
         if str(kind).startswith("adfit_"):
             key = self.adfit_key(kind)
             self._page_adfit.add(key)
@@ -705,17 +734,25 @@ class Ads:
         return ""
 
     def head_tags(self) -> str:
+        out = ""
         if self.on and self.adsense_client:
-            return (
+            out += (
                 '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='
                 f'{self.adsense_client}" crossorigin="anonymous"></script>'
             )
-        return ""
+        if self.on and self.dable_service:
+            # 데이블 기본 설치 코드: 모든 페이지에서 방문 로그를 한 번 보내 추천 학습에 쓰고, 위젯은 자리에서 그린다
+            out += ("<script>(function(d,a,b,l,e,_){d[b]=d[b]||function(){(d[b].q=d[b].q||[]).push(arguments)};"
+                    "e=a.createElement(l);e.async=1;e.charset='utf-8';e.src='//static.dable.io/dist/plugin.min.js';"
+                    "_=a.getElementsByTagName(l)[0];_.parentNode.insertBefore(e,_);})(window,document,'dable','script');"
+                    f"dable('setService','{self.dable_service}');dable('sendLogOnce');</script>")
+        return out
 
     def ads_txt(self) -> str:
         lines = ["# KimWorld ads.txt"]
         if self.adsense_client:
             lines.append(f"google.com, {self.adsense_client.replace('ca-', '')}, DIRECT, f08c47fec0942fa0")
+        lines += self.ads_txt_extra
         return "\n".join(lines) + "\n"
 
 
@@ -935,7 +972,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
                 pieces.append(slot_html[val])
         # 넓은 화면 오른쪽 목차 아래에 따라 내려오는 상자(휴대폰에서는 안 보임)
         rail_html = ads.render("rail", far_ctx)
-        end_html = ads.render("report_end", ad_ctx)
+        end_html = ads.render("report_recommend", ad_ctx) + ads.render("report_end", ad_ctx)
         bottom_html = "" if r["sponsor"] else ads.render("report_bottom", ad_ctx)
         page_bottom = "" if r["sponsor"] else ads.render("page_bottom", {**ad_ctx, "no_adfit": True})  # 바로 위가 애드핏 하단 상자라 애드핏을 붙여 두지 않는다
         used_ads = [x for x in pieces if x.startswith('<aside class="ad')] + [x for x in (end_html, bottom_html) if x]
@@ -1000,6 +1037,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     }
     page_flags = {
         "ga4": bool((site.get("analytics") or {}).get("ga4_id")),
+        "dable": bool(ads.on and ads.dable_service),
         "newsletter": bool((site.get("newsletter") or {}).get("url")),
         "api": bool(site.get("api_url")),
     }

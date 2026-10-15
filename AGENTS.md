@@ -77,6 +77,10 @@
 - 쿠팡 자동 상품(API): 검색어는 `data/coupang.yaml`(테마마다 3개 + 공통)에서만 바꾼다. **`data/themes.yaml`에 테마를 새로 넣으면 같은 커밋에서 `data/coupang.yaml`에도 검색어 2개를 넣는다**(없으면 그 테마 리포트에 쿠팡 상품이 안 나온다). 빌드 때 `scripts/coupang_sync.py`가 GitHub 비밀값 `COUPANG_ACCESS_KEY`/`COUPANG_SECRET_KEY`로 검색해 `.cache/`(Actions 캐시, 저장소에 안 올림)에 쌓는다. 검색 API는 시간당 10회 제한이라 한 번에 8회까지, 오래된 검색어부터 받는다. 같은 테마의 검색어 묶음은 방문마다 무작위로 하나만 보인다(검색어별 하위 ID로 쿠팡 실적에서 클릭을 비교). 키가 없거나 실패하면 `ads.yaml` 수동 상품을 쓴다. 지금 배치는 리포트마다 쿠팡 상자 3개(세 번째 소제목 앞 · 본문 한가운데 소제목 앞 · 출처 아래)와 목록 페이지 1개이며, 한 페이지의 상자는 서로 다른 검색어 묶음을 보인다(묶음이 모자라면 상자를 뺀다). 애드센스·애드핏 승인 뒤에는 `placements`에서 자리별로 바꿔 성과를 비교한다. 키는 어디에도 출력·저장하지 않는다.
 - 협찬 글은 리포트 머리말 `sponsor`를 쓴다. 그러면 페이지 맨 위에 [광고] 표시가 붙고 맨 아래 쿠팡 배너는 꺼진다.
 
+- **데이블(추천 콘텐츠 광고)**: 미리 설치해 둠. `ads.yaml`의 `dable.service`(승인 때 받은 서비스 이름)와 `dable.widgets.report`(위젯 번호)를 넣으면 모든 페이지에 로그 스크립트, 리포트 출처 아래(`placements.report_recommend`)에 위젯, 개인정보처리방침에 데이블 줄이 자동으로 켜진다. 리포트에는 `dable:item_id`·`dable:author`·`dable:published_time` 메타가 늘 들어간다. 승인 조건: 최근 7일 하루 평균 페이지뷰 3,000 또는 방문자 1,500, 글 100개 이상.
+- **ads.txt 추가 줄**: 새 네트워크가 요구하면 `ads.yaml`의 `ads_txt_extra`에 넣는다(형식 검사). 애드센스 줄은 자동.
+- **GA4**: `site.yaml`의 `analytics.ga4_id`(G-…)만 넣으면 모든 페이지에 태그, 개인정보처리방침에 Google Analytics 줄이 켜진다.
+
 ## 5. 도메인 연결
 
 `site.yaml site_url`을 `https://도메인`으로 바꾸면 빌드가 `CNAME` 파일을 만든다. 운영자는 도메인 업체 DNS에 GitHub Pages 주소를 한 번 등록한다(README 참고). 저장소 Settings → Pages의 Custom domain도 같은 값이어야 한다.
