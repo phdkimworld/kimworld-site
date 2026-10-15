@@ -9,5 +9,13 @@
     "path": "static/social/hype-2026-10/HYPE_shorts.mp4",
     "cover": "static/social/hype-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-15T11:51:28-04:00"
+  "publish_at": "2026-10-15T11:51:28-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    },
+    "facebook": {
+      "waiting": "공개 확인 대기(social/FACEBOOK_LIVE 없음)"
+    }
+  }
 }
