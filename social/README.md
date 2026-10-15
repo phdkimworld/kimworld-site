@@ -76,3 +76,15 @@ gh secret set IG_ACCESS_TOKEN -R phdkimworld/kimworld-site
 - 페이스북 페이지 토큰은 만료가 없어 자동 갱신 대상이 아니다(2027-01-13 전 데이터 접근 재승인만 필요).
 
 이미 만료됐다면 갱신이 안 되므로 Meta 개발자 앱에서 단기 토큰을 다시 받아 장기 토큰으로 교환한 뒤 같은 방법으로 넣는다.
+
+## 댓글 모니터링 (Threads · Instagram · Facebook, 운영자 지시 2026-10-15)
+
+유튜브 댓글 자동 답글과 같은 요령으로, 우리 게시물에 달린 시청자 댓글과 우리 답글 뒤의 대댓글에 답한다. 3시간마다 도는 세션 예약 작업 '유튜브 댓글 자동 답글'이 함께 처리한다.
+
+1. 세션이 `.github/workflows/social-comments.yml`을 `mode=list`로 수동 실행한다. 작업 로그의 `OPEN_JSON:` 한 줄에 채널별 '답할 차례' 목록이 나온다(`kind` top/followup, `replyTo`, `context`, `slug`).
+2. 세션이 리포트 숫자로 답글을 써서 `social/replies/<날짜-시각>.json`(`{"replies":[{"platform","to","text"}]}`)으로 main에 푸시한다.
+3. 같은 워크플로가 푸시를 받아 답글을 달고, 결과를 파일의 `results`에 적어 `social/replies/done/`으로 옮겨 커밋한다. 결과가 있는 항목은 다시 달지 않는다.
+
+- Threads는 답글이 나무 구조라, 우리 글(본문·우리 답글)에 직접 단 시청자 댓글만 고르고 시청자끼리 대화는 뺀다. 인스타·페이스북은 '댓글 + 한 단계 답글'이라 유튜브와 같이 판정한다.
+- 필요한 권한: Threads `threads_read_replies`·`threads_manage_replies`, Instagram `instagram_business_manage_comments`, Facebook `pages_read_engagement`·`pages_read_user_content`·`pages_manage_engagement`. `mode=probe`로 읽기 권한을 확인한다. 없는 채널은 목록에 `ok:false`와 오류가 나오고 그 채널만 건너뛴다.
+- 검사: `python3 tests/test_comments.py`.
