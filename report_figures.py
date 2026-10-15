@@ -144,7 +144,8 @@ def fig_hook(body: str):
             parts.append('<span class="kfh-vs" aria-hidden="true">vs</span>')
         parts.append(f'<div class="kfh-tile {_sign_cls(v)}"><span class="kfh-d">{html.escape(d)}</span>'
                      f'<strong class="kfh-v">{"▲" if v > 0 else "▼"} {_fmt(v)}</strong><span class="kfh-w">{html.escape(what)}</span></div>')
-    parts.append('</div><figcaption class="kfig-note">같은 소식인데 주가는 반대로 움직였다. 무엇이 갈랐는지는 3부·4부에서.</figcaption></figure>')
+    noun = "주가" if "주가" in body[st:en] else "가격"   # 코인 리포트는 '가격'
+    parts.append(f'</div><figcaption class="kfig-note">같은 소식인데 {noun}는 반대로 움직였다. 무엇이 갈랐는지는 3부·4부에서.</figcaption></figure>')
     # 두 번째 문단 뒤에 넣는다
     ps = list(re.finditer(r"</p>", body[st:en]))
     at = st + (ps[1].end() if len(ps) >= 2 else 0)

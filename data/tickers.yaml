@@ -438,3 +438,9 @@ FATE:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["페이트", "Fate", "Fate Therapeutics"]
+TAO:
+  name: "비트텐서"
+  name_en: "Bittensor"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["비트텐서", "Bittensor", "TAO", "타오", "비트텐서 코인"]
