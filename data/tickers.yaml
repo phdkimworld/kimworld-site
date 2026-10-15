@@ -402,3 +402,9 @@ CRWV:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["코어위브", "CoreWeave", "코어 위브", "CRWV"]
+KOD:
+  name: "코디악 사이언스"
+  name_en: "Kodiak Sciences"
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["코디악 사이언스", "코디악", "Kodiak Sciences", "Kodiak", "KOD"]
