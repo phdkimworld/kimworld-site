@@ -420,3 +420,9 @@ AAVE:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["에이브", "Aave", "아베", "AAVE"]
+HYPE:
+  name: "하이퍼리퀴드"
+  name_en: "Hyperliquid"
+  exchange: "Coinbase"
+  theme: "코인·블록체인"
+  aliases: ["하이퍼리퀴드", "Hyperliquid", "HYPE", "하이퍼리퀴드 코인"]
