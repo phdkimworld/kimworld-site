@@ -78,7 +78,40 @@
       tb.appendChild(row);
     });
     t.appendChild(tb); wrap.appendChild(t); card.appendChild(wrap);
+    sortable(t);
     return card;
+  }
+  // 표 정렬: 머리 칸을 누르면 그 열로 정렬(숫자 열은 큰 것부터, 글자 열은 가나다순부터), 다시 누르면 반대로
+  function cellKey(td) {
+    var t = (td.textContent || '').replace(/\s+/g, ' ').trim(), m;
+    if (!t || t === '–' || t === '-' || /집계 중|자료 없음/.test(t)) return null;
+    if ((m = /^(?:(\d+)시간 ?)?(?:(\d+)분 ?)?(?:(\d+)초)?$/.exec(t)) && (m[1] || m[2] || m[3])) return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+    if ((m = /^([▲▼+-])?\s*\$?(\d[\d,]*(?:\.\d+)?)/.exec(t))) { var v = parseFloat(m[2].replace(/,/g, '')); return m[1] === '▼' || m[1] === '-' ? -v : v; }
+    return t;
+  }
+  function sortable(t) {
+    var ths = Array.prototype.slice.call(t.querySelectorAll('thead th')), tb = t.querySelector('tbody');
+    Array.prototype.forEach.call(tb.rows, function (r, i) { r._i = i; });
+    var cur = -1, dir = 0;
+    ths.forEach(function (th, col) {
+      th.classList.add('an-sort'); th.tabIndex = 0; th.setAttribute('role', 'button'); th.title = '눌러서 정렬';
+      var go = function () {
+        var rows = Array.prototype.slice.call(tb.rows);
+        var keys = rows.map(function (r) { return r.cells[col] ? cellKey(r.cells[col]) : null; });
+        var numeric = keys.filter(function (k) { return typeof k === 'number'; }).length >= keys.filter(function (k) { return typeof k === 'string'; }).length;
+        dir = cur === col ? -dir : (numeric ? -1 : 1); cur = col; // 처음 누르면 숫자는 내림차순, 글자는 오름차순
+        rows.map(function (r, i) { return { r: r, k: keys[i] }; }).sort(function (a, b) {
+          var x = a.k, y = b.k;
+          if (x === null && y === null) return a.r._i - b.r._i;
+          if (x === null) return 1; if (y === null) return -1; // 빈 칸은 늘 아래
+          var c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko');
+          return (c || (a.r._i - b.r._i) * dir) * dir;
+        }).forEach(function (o) { tb.appendChild(o.r); });
+        ths.forEach(function (h, j) { h.setAttribute('aria-sort', j === col ? (dir > 0 ? 'ascending' : 'descending') : 'none'); });
+      };
+      th.addEventListener('click', go);
+      th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    });
   }
   function share(v, total) { // 표 안 비율 막대(값은 글자로, 막대는 보조)
     var w = el('span', 'an-share'), f = el('span', 'an-share-f'); f.style.width = (total ? Math.max(2, v / total * 100) : 0) + '%';

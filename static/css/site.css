@@ -1452,3 +1452,10 @@ article.report .sent { margin-top: 14px; }
 .post-head:has(.post-follow) .post-time { white-space: nowrap; flex: none; }
 .fp-tease { margin: 7px 2px 0; font-size: .74rem; color: var(--muted); }
 .fp-tease[hidden] { display: none; }
+
+/* 운영 통계 표 정렬(머리 칸 누름) */
+.an-table th.an-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.an-table th.an-sort:hover { color: var(--text); }
+.an-table th.an-sort::after { content: " ↕"; opacity: .35; font-size: .8em; }
+.an-table th[aria-sort="descending"]::after { content: " ▼"; opacity: .9; color: var(--accent); }
+.an-table th[aria-sort="ascending"]::after { content: " ▲"; opacity: .9; color: var(--accent); }
