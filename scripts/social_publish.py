@@ -1,4 +1,4 @@
-"""SNS 예약 게시 (Threads + Instagram).
+"""SNS 예약 게시 (Threads + Instagram + Facebook 페이지).
 
 social/queue/*.json 의 게시물 가운데 publish_at 이 지난 것을 채널별로 게시하고, 모든 채널이 끝나면
 social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
@@ -7,7 +7,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   {
     "text": "공통 본문",
     "publish_at": "2026-10-14T19:30:00-04:00",        # 시간대가 없으면 America/New_York
-    "channels": ["threads", "instagram"],
+    "channels": ["threads", "instagram", "facebook"],
     "media": {"type": "reels", "path": "static/social/lhx/LHX_shorts.mp4"},   # 선택
     "channel_text": {"instagram": "인스타 전용 캡션"},  # 선택: 채널별 본문
     "replies": [{"text": "...", "link_attachment": "https://..."}],  # 선택: Threads 이어지는 댓글
@@ -22,6 +22,14 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   path 는 저장소 기준 경로이며 static/social/ 아래에 둔다 → https://drkimworld.com/static/social/... 로 공개된다
   (사이트 배포가 끝나 주소가 200을 돌려줄 때까지 인스타 게시는 다음 실행으로 미룬다).
   Threads 는 TEXT 게시만 한다(미디어는 쓰지 않음). 미디어가 없는 글은 인스타를 건너뛴다.
+  Facebook 페이지(운영자 지시 2026-10-15, Graph API v26.0):
+    미디어 없음 → /{page}/feed 에 본문(text 또는 channel_text.facebook), replies[0] 은 첫 댓글로 단다
+                  (링크의 utm_source=threads 는 facebook 으로 바꾼다). poll 은 페이스북에 없으므로 쓰지 않는다
+    reels      → /{page}/video_reels 3단계(start → rupload file_url → finish), 캡션은 channel_text.facebook 또는 인스타 캡션
+    image      → /{page}/photos (url, message),  carousel → photos(published=false) 뒤 feed(attached_media)
+    190(토큰)·200(권한) 오류는 재시도하지 않는다. 일시 오류(5xx·속도 제한)는 간격을 두고 최대 3회 재시도한다.
+    앱이 개발 모드라 공개 노출을 사람이 확인해야 한다: social/FACEBOOK_LIVE 파일이 없으면 페이스북 게시는
+    한 건(첫 확인용)만 하고 나머지는 '공개 확인 대기'로 미룬다. 로그아웃 상태에서 보이는 것을 확인한 뒤 파일을 만든다.
 
 사용:
   python scripts/social_publish.py              # 검사 + 시간이 된 글 게시
@@ -29,7 +37,8 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   python scripts/social_publish.py --ping       # 두 채널 토큰 확인
   python scripts/social_publish.py --delete threads <글 ID>   # Threads 글 삭제(threads_delete 권한 필요)
 
-비밀값(환경변수): THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID. 값은 출력하지 않는다.
+비밀값(환경변수): THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID, FB_PAGE_ID, FB_PAGE_TOKEN.
+값은 출력하지 않는다. 페이지 토큰은 만료가 없지만 2027-01-13 전에 앱 데이터 접근을 다시 승인해야 한다.
 검사·게시 실패가 하나라도 있으면 종료 코드 1. 중간에 실패하면 이미 게시한 채널·댓글은 파일의 "results" 에
 남겨 다음 실행에서 건너뛴다(중복 게시 방지).
 """
@@ -52,11 +61,14 @@ NY = ZoneInfo("America/New_York")
 SITE = "https://drkimworld.com"
 TH_API = "https://graph.threads.net/v1.0"
 IG_API = "https://graph.instagram.com/v23.0"
+FB_API = "https://graph.facebook.com/v26.0"
+FB_RUPLOAD = "https://rupload.facebook.com/video-upload/v26.0"
+FB_LIVE = ROOT / "social" / "FACEBOOK_LIVE"
 TH_LIMIT = 500
 POLL_OPTION_LIMIT = 25  # Threads 는 UTF-8 바이트로 센다(한글 약 8자). 2026-10-15 실제 게시에서 확인
 POLL_KEYS = ("option_a", "option_b", "option_c", "option_d")
 IG_LIMIT = 2200
-CHANNELS = ("threads", "instagram")
+CHANNELS = ("threads", "instagram", "facebook")
 MEDIA_EXT = {"image": (".jpg", ".jpeg", ".png"), "reels": (".mp4", ".mov")}
 STALE_HOURS = 6  # 미디어 주소가 이 시간 넘게 열리지 않으면 실패로 표시
 
@@ -79,6 +91,16 @@ def parse_time(s):
 
 def text_for(post, ch):
     return (post.get("channel_text") or {}).get(ch) or post.get("text", "")
+
+
+def fb_text(post):
+    """페이스북 본문. 릴스·사진 글은 인스타 캡션을 함께 쓴다."""
+    ct = post.get("channel_text") or {}
+    if ct.get("facebook"):
+        return ct["facebook"]
+    if post.get("media") and ct.get("instagram"):
+        return ct["instagram"]
+    return post.get("text", "")
 
 
 def media_paths(m):
@@ -151,6 +173,8 @@ def load(path):
             for p in main:
                 if not str(p).lower().endswith(MEDIA_EXT[kind]):
                     errs.append(f"{typ} 파일 형식이 맞지 않음: {p}")
+    if "facebook" in chans and not fb_text(post).strip():
+        errs.append("페이스북 본문이 비어 있음")
     if "instagram" in chans and m is not None and len(text_for(post, "instagram")) > IG_LIMIT:
         errs.append(f"인스타 캡션 {len(text_for(post, 'instagram'))}자 > {IG_LIMIT}자 제한")
     return post, errs
@@ -283,6 +307,102 @@ def do_instagram(post, res, save, now):
     save()
 
 
+# ---------- Facebook 페이지 ----------
+class FbFatal(RuntimeError):
+    """재시도하면 안 되는 오류(190 토큰, 200 권한)."""
+
+
+def fb_call(method, path, params, token, base=FB_API, headers=None):
+    """Graph API 호출. 190·200은 바로 실패, 일시 오류는 20·60·120초 간격으로 최대 3회 재시도."""
+    last = None
+    for wait in (0, 20, 60, 120):
+        if wait:
+            time.sleep(wait)
+        q = {**params}
+        data = urllib.parse.urlencode(q).encode()
+        url = f"{base}/{path}"
+        if method == "GET":
+            url, data = f"{url}?{data.decode()}", None
+        req = urllib.request.Request(url, data=data, method=method, headers={"Authorization": f"OAuth {token}", **(headers or {})})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode() or "{}")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode(errors="replace").replace(token, "***")
+            try:
+                err = json.loads(body).get("error", {})
+            except ValueError:
+                err = {}
+            code = err.get("code")
+            msg = f"HTTP {e.code} code={code}: {err.get('message', body)[:240]}"
+            if code in (190, 200) or (isinstance(code, int) and 200 <= code < 300) or e.code in (400, 401, 403) and code not in (1, 2, 4, 17, 32, 341, 613):
+                raise FbFatal(msg) from None
+            last = RuntimeError(msg)
+        except urllib.error.URLError as e:
+            last = RuntimeError(f"연결 실패: {e.reason}")
+    raise last
+
+
+def fb_comment_text(text):
+    return text.replace("utm_source=threads", "utm_source=facebook")
+
+
+def do_facebook(post, res, save, now, live_used):
+    token = os.environ.get("FB_PAGE_TOKEN", "")
+    page = os.environ.get("FB_PAGE_ID", "")
+    if not token or not page:
+        raise RuntimeError("FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음")
+    if not FB_LIVE.exists() and not res.get("post_id") and live_used[0] >= 1:
+        res["waiting"] = "공개 확인 대기(social/FACEBOOK_LIVE 없음)"
+        return
+    m = post.get("media")
+    msg = fb_text(post)
+    if not res.get("post_id"):
+        if m:
+            urls = [public_url(p) for p in media_paths(m)]
+            if not all(url_ready(u) for u in urls):
+                if now - post["_at"] > timedelta(hours=STALE_HOURS):
+                    raise RuntimeError(f"미디어 주소가 {STALE_HOURS}시간 넘게 열리지 않음: {urls}")
+                res["waiting"] = "미디어 주소 배포 대기"
+                return
+        res.pop("waiting", None)
+        live_used[0] += 1
+        if not m:
+            r = fb_call("POST", f"{page}/feed", {"message": msg}, token)
+            res["post_id"] = r["id"]
+        elif m["type"] == "reels":
+            if not res.get("video_id"):
+                st = fb_call("POST", f"{page}/video_reels", {"upload_phase": "start"}, token)
+                res["video_id"] = st["video_id"]
+                save()
+            fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD, headers={"file_url": public_url(m["path"])})
+            fb_call("POST", f"{page}/video_reels", {"upload_phase": "finish", "video_id": res["video_id"],
+                                                    "video_state": "PUBLISHED", "description": msg}, token)
+            res["post_id"] = res["video_id"]
+        elif m["type"] == "image":
+            r = fb_call("POST", f"{page}/photos", {"url": public_url(m["path"]), "message": msg}, token)
+            res["post_id"] = r.get("post_id") or r["id"]
+        else:
+            ids = []
+            for p in m["paths"]:
+                ids.append(fb_call("POST", f"{page}/photos", {"url": public_url(p), "published": "false"}, token)["id"])
+            r = fb_call("POST", f"{page}/feed", {"message": msg,
+                        "attached_media": json.dumps([{"media_fbid": i} for i in ids])}, token)
+            res["post_id"] = r["id"]
+        save()
+    reps = post.get("replies") or []
+    if not m and reps and not res.get("comment_id"):
+        res["comment_id"] = fb_call("POST", f"{res['post_id']}/comments", {"message": fb_comment_text(reps[0]["text"])}, token)["id"]
+        save()
+    try:
+        field = "permalink_url"
+        res["permalink"] = fb_call("GET", res["post_id"], {"fields": field}, token).get(field, "")
+    except RuntimeError:
+        pass
+    res["done"] = True
+    save()
+
+
 def ping():
     bad = 0
     th = os.environ.get("THREADS_ACCESS_TOKEN", "")
@@ -297,6 +417,17 @@ def ping():
             print(f"{name} 토큰 정상: @{me.get('username')}")
         except RuntimeError as e:
             print(f"::error::{name} 토큰 확인 실패(만료됐으면 social/README.md 의 갱신 방법 참고): {e}")
+            bad += 1
+    fb_tok, fb_page = os.environ.get("FB_PAGE_TOKEN", ""), os.environ.get("FB_PAGE_ID", "")
+    if not fb_tok or not fb_page:
+        print("::error::Facebook 페이지 비밀값(FB_PAGE_ID, FB_PAGE_TOKEN)이 없음")
+        bad += 1
+    else:
+        try:
+            me = fb_call("GET", fb_page, {"fields": "name"}, fb_tok)
+            print(f"Facebook 페이지 토큰 정상: {me.get('name')}")
+        except RuntimeError as e:
+            print(f"::error::Facebook 페이지 토큰 확인 실패: {e}")
             bad += 1
     return 1 if bad else 0
 
@@ -341,6 +472,9 @@ def main(argv):
         return 1 if bad else 0
 
     failed = 0
+    live_used = [0]  # FACEBOOK_LIVE 가 없을 때 이번 실행에서 새로 올린 페이스북 글 수
+    if not FB_LIVE.exists():
+        live_used[0] = sum(1 for q in POSTED.glob("*.json") if (json.loads(q.read_text(encoding="utf-8")).get("results", {}).get("facebook", {}).get("post_id")))
     for p, post in sorted(due, key=lambda x: x[1]["_at"]):
         raw = json.loads(p.read_text(encoding="utf-8"))
         results = raw.setdefault("results", {})
@@ -355,6 +489,8 @@ def main(argv):
             try:
                 if ch == "threads":
                     do_threads(post, res, save)
+                elif ch == "facebook":
+                    do_facebook(post, res, save, now, live_used)
                 else:
                     do_instagram(post, res, save, now)
             except RuntimeError as e:
@@ -372,7 +508,7 @@ def main(argv):
             links = ", ".join(f"{c}: {results[c].get('permalink') or results[c].get('skipped') or 'ok'}" for c in post["channels"])
             print(f"::notice::게시함 {p.name} → {links}")
         elif any(r.get("waiting") for r in results.values()):
-            print(f"{p.name}: 미디어 배포 대기 — 다음 실행에서 이어서 게시")
+            print(f"{p.name}: " + ", ".join(f"{c} {r['waiting']}" for c, r in results.items() if r.get("waiting")) + " — 다음 실행에서 이어서 게시")
     return 1 if (bad or failed) else 0
 
 

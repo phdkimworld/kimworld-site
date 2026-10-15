@@ -1,4 +1,4 @@
-# SNS 예약 게시 (Threads · Instagram)
+# SNS 예약 게시 (Threads · Instagram · Facebook 페이지)
 
 `social/queue/`에 게시물 파일(JSON)을 넣고 `main`에 올리면, GitHub Actions `Social` 워크플로가 15분마다 확인해 `publish_at`이 지난 글을 채널별로 게시하고 `social/posted/`로 옮겨 커밋한다. 대기열·기록만 바뀐 커밋은 사이트를 다시 배포하지 않는다.
 
@@ -10,7 +10,7 @@
 {
   "text": "공통 본문",
   "publish_at": "2026-10-14T19:30:00-04:00",
-  "channels": ["threads", "instagram"],
+  "channels": ["threads", "instagram", "facebook"],
   "media": {"type": "reels", "path": "static/social/lhx-2026-10/LHX_shorts.mp4", "cover": "static/social/lhx-2026-10/cover.jpg"},
   "channel_text": {"instagram": "인스타 캡션(링크가 눌리지 않으므로 'drkimworld.com 에서 검색' 안내)"},
   "poll": ["11월 3일 해제 뒤 오른다", "내린다", "보합"],
@@ -19,7 +19,13 @@
 ```
 
 - `publish_at`: 시간대를 빼면 미국 동부시간. 예약 실행은 몇 분 늦을 수 있다.
-- `channels`: `threads`, `instagram` 가운데 하나 이상.
+- `channels`: `threads`, `instagram`, `facebook` 가운데 하나 이상.
+- **Facebook 페이지**(김박사 월드, Graph API v26.0, 운영자 지시 2026-10-15): Threads와 같은 요령으로 쓴다.
+  - 미디어 없는 글은 `/{page}/feed`에 본문을 올리고, `replies[0]`을 첫 댓글로 단다(링크의 `utm_source=threads`는 `facebook`으로 바뀐다). 투표(`poll`)는 페이스북에 없어 쓰지 않는다.
+  - `reels`는 `/{page}/video_reels` 3단계(start → `rupload.facebook.com`에 `file_url` → finish)로 올리고, 캡션은 `channel_text.facebook`이 없으면 인스타 캡션을 쓴다. `image`는 `/photos`, `carousel`은 사진을 `published=false`로 올린 뒤 `feed`의 `attached_media`로 묶는다.
+  - 오류 190(토큰)·200(권한)은 재시도하지 않고 실패로 표시한다. 일시 오류(5xx·속도 제한)는 20·60·120초 간격으로 최대 3회 다시 시도한다.
+  - 앱이 개발 모드라 공개 노출을 확인해야 한다. `social/FACEBOOK_LIVE` 파일이 없으면 페이스북 글은 한 건만 올리고 나머지는 '공개 확인 대기'로 둔다. 로그아웃 상태에서 첫 글이 보이면 이 파일을 커밋한다. 안 보이면 앱을 라이브로 바꿔야 한다.
+  - 비밀값 `FB_PAGE_ID`, `FB_PAGE_TOKEN`. 페이지 토큰은 만료가 없지만 **2027-01-13 전에 앱 데이터 접근을 다시 승인**해야 한다.
 - **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드. `poll`(보기 2~4개, 각 25바이트 이하 = 한글 약 8자)은 본문에 투표로 붙고(24시간), 본문의 `link_attachment`와 함께 쓸 수 없다.
 - **Instagram**: 미디어가 있어야 게시한다(없으면 건너뜀). `media.type`
   - `image`: `path` 1장(JPEG 권장)

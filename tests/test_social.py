@@ -21,7 +21,8 @@ with tempfile.TemporaryDirectory() as d:
     future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
     W = lambda n, o: (sp.QUEUE / n).write_text(json.dumps(o, ensure_ascii=False), encoding="utf-8")
     sp.time.sleep = lambda s: None
-    os.environ.update(THREADS_ACCESS_TOKEN="t", THREADS_USER_ID="9", IG_ACCESS_TOKEN="g", IG_USER_ID="7")
+    os.environ.update(THREADS_ACCESS_TOKEN="t", THREADS_USER_ID="9", IG_ACCESS_TOKEN="g", IG_USER_ID="7", FB_PAGE_ID="55", FB_PAGE_TOKEN="f")
+    sp.FB_LIVE = d / "social/FACEBOOK_LIVE"
 
     check("시간대 없는 시각은 동부시간", sp.parse_time("2026-10-14T19:30").utcoffset() == timedelta(hours=-4))
     check("이모지는 바이트로 셈", sp.threads_len("👉") == 4)
@@ -31,7 +32,7 @@ with tempfile.TemporaryDirectory() as d:
     W("bad2.json", {"text": "x", "publish_at": past, "channels": ["instagram"], "media": {"type": "reels", "path": "media/a.mp4"}})
     check("static/social 밖 미디어는 검사 실패", sp.main(["--check"]) == 1)
     (sp.QUEUE / "bad2.json").unlink()
-    W("bad3.json", {"text": "x", "publish_at": past, "channels": ["facebook"]})
+    W("bad3.json", {"text": "x", "publish_at": past, "channels": ["twitter"]})
     check("모르는 채널은 검사 실패", sp.main(["--check"]) == 1)
     (sp.QUEUE / "bad3.json").unlink()
     W("bad4.json", {"text": "x", "publish_at": past, "channels": ["threads"], "poll": ["하나"]})
@@ -92,6 +93,66 @@ with tempfile.TemporaryDirectory() as d:
     check("인스타 실패 시 Threads 결과 저장, 종료 코드 1", first == 1 and saved["results"]["threads"]["done"])
     log.clear()
     check("다시 돌면 인스타만 게시", sp.main([]) == 0 and not any(l[0] == sp.TH_API and l[2].endswith("/threads") for l in log))
+
+    # ---------- Facebook ----------
+    fblog = []
+    def fbfake(method, path, params, token, base=sp.FB_API, headers=None):
+        fblog.append((method, path, dict(params), base, dict(headers or {})))
+        if method == "GET": return {"permalink_url": "https://fb/" + path}
+        if params.get("upload_phase") == "start": return {"video_id": "777"}
+        if base == sp.FB_RUPLOAD: return {"success": True}
+        if path.endswith("/comments"): return {"id": "c1"}
+        return {"id": "55_" + str(len(fblog))}
+    sp.fb_call = fbfake; sp.call = fake; sp.url_ready = lambda u: True
+    sp.FB_LIVE.write_text("ok")
+    W("f.json", {"text": "페북 본문", "publish_at": past, "channels": ["threads", "facebook"], "poll": ["가", "나"],
+                 "replies": [{"text": "리포트 https://drkimworld.com/r/x/?utm_source=threads&utm_medium=social"}]})
+    check("페이스북 글 게시 성공", sp.main([]) == 0)
+    feed = [l for l in fblog if l[1] == "55/feed"]
+    com = [l for l in fblog if l[1].endswith("/comments")]
+    check("페이스북: 본문은 feed, 링크는 첫 댓글(utm_source=facebook)",
+          feed and feed[0][2]["message"] == "페북 본문" and com and "utm_source=facebook" in com[0][2]["message"])
+    check("페이스북 결과 저장", json.loads((sp.POSTED / "f.json").read_text())["results"]["facebook"]["permalink"])
+    fblog.clear()
+    W("g.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "channel_text": {"instagram": "릴스 캡션"},
+                 "media": {"type": "reels", "path": "static/social/a.mp4"}})
+    check("페이스북 릴스 게시 성공", sp.main([]) == 0)
+    ph = [l[2].get("upload_phase") for l in fblog if l[1] == "55/video_reels"]
+    up = [l for l in fblog if l[3] == sp.FB_RUPLOAD]
+    fin = [l for l in fblog if l[2].get("upload_phase") == "finish"]
+    check("릴스 3단계(start→업로드→finish), 공개 주소·인스타 캡션",
+          ph == ["start", "finish"] and up and up[0][4]["file_url"] == "https://drkimworld.com/static/social/a.mp4"
+          and fin[0][2]["description"] == "릴스 캡션")
+    sp.FB_LIVE.unlink(); fblog.clear()
+    for q in sp.POSTED.glob("*.json"): q.unlink()
+    W("h1.json", {"text": "첫 글", "publish_at": past, "channels": ["facebook"]})
+    W("h2.json", {"text": "둘째 글", "publish_at": past, "channels": ["facebook"]})
+    check("공개 확인 전(FACEBOOK_LIVE 없음)에는 한 건만 게시", sp.main([]) == 0 and len([l for l in fblog if l[1] == "55/feed"]) == 1
+          and json.loads((sp.QUEUE / "h2.json").read_text())["results"]["facebook"]["waiting"].startswith("공개 확인"))
+    (sp.QUEUE / "h2.json").unlink()
+
+import io, urllib.error
+attempts = {"n": 0}
+def boom(code):
+    def f(req, timeout=0):
+        attempts["n"] += 1
+        raise urllib.error.HTTPError("u", 400, "x", {}, io.BytesIO(json.dumps({"error": {"code": code, "message": "m"}}).encode()))
+    return f
+import importlib; spf = importlib.reload(sp); spf.time.sleep = lambda s: None
+spf.urllib.request.urlopen = boom(190)
+try:
+    spf.fb_call("POST", "1/feed", {}, "tok"); r = False
+except spf.FbFatal:
+    r = True
+check("페이스북 190 오류는 재시도 없이 실패", r and attempts["n"] == 1)
+attempts["n"] = 0; spf.urllib.request.urlopen = boom(4)
+try:
+    spf.fb_call("POST", "1/feed", {}, "tok")
+except spf.FbFatal:
+    pass
+except RuntimeError:
+    pass
+check("속도 제한(4)은 최대 3회 재시도", attempts["n"] == 4)
 wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").read_text(encoding="utf-8")
 step = wf[wf.index("Commit results"):]
 check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로 둠(중복 게시 방지)",

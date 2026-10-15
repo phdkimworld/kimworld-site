@@ -2,7 +2,7 @@ name: Social (Threads·Instagram 예약 게시)
 
 # social/queue/*.json 가운데 publish_at(미국 동부시간)이 지난 글을 채널별로 게시하고 social/posted/ 로 옮긴다.
 # 15분마다 실행(GitHub 예약 실행은 몇 분 늦을 수 있다). 대기열 파일이 올라와도 바로 검사·게시한다.
-# 필요한 GitHub 비밀값: THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID
+# 필요한 GitHub 비밀값: THREADS_ACCESS_TOKEN, THREADS_USER_ID, IG_ACCESS_TOKEN, IG_USER_ID, FB_PAGE_ID, FB_PAGE_TOKEN
 # 인스타 미디어는 static/social/ 에 두면 사이트 배포 뒤 https://drkimworld.com/static/social/... 로 공개된다.
 # 형식 오류·500자 초과·게시 실패가 있으면 실패로 표시된다. 매주 월요일 두 토큰이 살아 있는지 확인한다.
 on:
@@ -39,6 +39,8 @@ jobs:
       THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+      FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
       MODE: ${{ github.event.inputs.mode }}
       TARGET: ${{ github.event.inputs.target }}
       WEEKLY: ${{ github.event.schedule == '17 13 * * 1' }}
