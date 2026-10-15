@@ -37,7 +37,7 @@ function cors(req) {
 }
 
 const json = (req, data, status = 200, extra = {}) =>
-  new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", ...cors(req), ...extra } });
+  new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "X-Robots-Tag": "noindex", ...cors(req), ...extra } }); // API 응답은 검색 색인에 넣지 않는다(서치 콘솔 '중복' 경고 방지)
 
 function cleanText(s, max) {
   return String(s ?? "")
@@ -439,6 +439,8 @@ export default {
     }
     const p = url.pathname.replace(/\/+$/, "");
     try {
+      // API 주소(api.drkimworld.com)는 검색엔진이 긁지 않게: 공유 미리보기(/s/)와 프로필 사진만 허용
+      if (url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /s/\nAllow: /v1/avatar/\nDisallow: /\n", { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
       const bot = req.method === "POST" && /^\/v1\/(hit|view|post-views|ad\/events)$/.test(p) ? botWhy(req) : "";
       // ---------- 조회수 ----------
       if (p === "/v1/view" && req.method === "POST") {
@@ -1293,7 +1295,7 @@ export default {
 <link rel="canonical" href="${esc(to.split("?")[0] + (to.includes("?id=") ? "?id=" + to.split("?id=")[1].split("&")[0] : ""))}">
 <style>body{font-family:system-ui,sans-serif;background:#0b1220;color:#e2e8f0;display:grid;place-items:center;min-height:100vh;margin:0}a{color:#f59e0b}</style>
 </head><body><p><a href="${esc(to)}">김박사 월드에서 보기 →</a></p><script>location.replace(${JSON.stringify(to)})</script></body></html>`;
-        return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" } });
+        return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300", "X-Robots-Tag": "noindex" } });
       }
 
       // ---------- 프로필 사진 ----------

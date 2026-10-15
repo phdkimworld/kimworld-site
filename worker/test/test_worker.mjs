@@ -778,6 +778,11 @@ console.log("투자 심리 투표");
     "심리: 피드용 묶음 조회(투표한 종목만 비율)");
 }
 
+{ // 검색 색인: API 응답은 noindex, api 주소 robots.txt는 공유 미리보기·프로필 사진만 허용
+  const r1 = await worker.fetch(new Request("https://api.drkimworld.com/v1/health"), env);
+  const r2 = await worker.fetch(new Request("https://api.drkimworld.com/robots.txt"), env); const t2 = await r2.text();
+  check(r1.headers.get("X-Robots-Tag") === "noindex" && /Disallow: \//.test(t2) && t2.includes("Allow: /s/"), "검색 색인: API는 noindex, robots.txt는 /s/만 허용");
+}
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);
