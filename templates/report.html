@@ -82,6 +82,9 @@
     <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>
     {% endif %}
 
+    {# 투자 심리 투표: 리포트 맨 위(머리 아래, 핵심 요약 위). 종목 화면과 같은 표(운영자 결정 2026-10-14) #}
+    {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
+
     <section class="summary-box" aria-label="핵심 요약">
       <h2 class="summary-title">핵심 요약</h2>
       {% if r.key_points %}
@@ -124,8 +127,6 @@
     <div class="prose">
       {% for piece in body_pieces %}{{ piece|safe }}{% endfor %}
     </div>
-
-    {% if site.api_url %}{{ sentiment(r.ticker, r.company, '다 읽고 나니, ' ~ r.company ~ ' 앞으로 어떻게 보세요?', 'report') }}{% endif %}
 
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">
