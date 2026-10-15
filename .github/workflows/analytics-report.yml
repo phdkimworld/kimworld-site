@@ -1,0 +1,26 @@
+name: Analytics report (운영 통계 요약)
+
+# 매일 클로드 예약 작업이 실행해 지난 7일 운영 통계 요약을 주석으로 받아 보고 개선점을 찾는다.
+# 저장소가 공개라 주석도 공개된다: 스크립트는 집계 숫자만 내보낸다(닉네임·검색어 원문 없음).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ADMIN_IN: ${{ secrets.KIMWORLD_ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Fetch analytics
+        run: |
+          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
+          echo "::add-mask::$ADMIN"
+          mkdir -p .cache
+          curl -sS --max-time 60 -H "Authorization: Bearer $ADMIN" "https://api.drkimworld.com/v1/admin/analytics?days=7" > .cache/an.json
+      - name: Report
+        run: python3 scripts/analytics_report.py

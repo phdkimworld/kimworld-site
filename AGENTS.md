@@ -145,3 +145,11 @@
 - 검사: `node worker/test/test_worker.mjs`(사이트 검사에도 포함).
 - SNS 예약 게시(Threads·Instagram·Facebook 페이지): `social/queue/*.json`(`text`, `publish_at` ISO·시간대 없으면 미국 동부시간, `channels` ["threads","instagram","facebook"], 선택 `media` {type image|carousel|reels, path(s)}, `channel_text`, Threads `replies`·`link_attachment`·`poll`(본문 투표, 보기 2~4개·각 25바이트 이하 = 한글 약 8자, link_attachment와 함께 쓸 수 없음. 인스타·페이스북은 API에 투표가 없어 보기를 본문 끝에 '① …' 글로 붙임))을 `.github/workflows/social.yml`이 15분마다 `scripts/social_publish.py`로 게시하고 `social/posted/`로 옮겨 커밋한다. 인스타 미디어는 `static/social/`에 두면 사이트 배포 뒤 `https://drkimworld.com/static/social/...`로 공개된다(주소가 열릴 때까지 인스타는 다음 실행으로 미룸). 비밀값 `THREADS_ACCESS_TOKEN`·`THREADS_USER_ID`·`IG_ACCESS_TOKEN`·`IG_USER_ID`·`FB_PAGE_ID`·`FB_PAGE_TOKEN`(값 출력 금지). 페이스북은 Threads와 같은 요령(본문 feed + 링크는 첫 댓글, 릴스는 video_reels)이고, `social/FACEBOOK_LIVE`가 생기기 전에는 한 건만 게시한다. 대기열·기록만 바뀐 커밋은 사이트 배포(deploy.yml)가 돌지 않는다. 형식·토큰 갱신은 `social/README.md`. Threads·Instagram 토큰은 `.github/workflows/token-refresh.yml`이 매달 1·15일 자동 갱신한다(비밀값 `GH_SECRETS_PAT` 필요, 값 출력 금지). 검사: `python3 tests/test_social.py`, `python3 scripts/social_publish.py --check`.
 - SNS 댓글 모니터링(Threads·Instagram·Facebook, 운영자 지시 2026-10-15): `.github/workflows/social-comments.yml` `mode=list`가 답할 차례인 댓글·대댓글을 작업 로그 `OPEN_JSON:` 줄로 내고, `social/replies/*.json`(`{"replies":[{platform,to,text}]}`)을 푸시하면 `scripts/social_comments.py --post`가 답글을 달아 `social/replies/done/`에 결과를 커밋한다(결과가 있는 항목은 다시 달지 않음). 형식은 `social/README.md`, 검사 `python3 tests/test_comments.py`.
+
+## 8. 매일 운영 통계 점검과 즉시 개선 (예약 작업)
+
+- 클로드 예약 작업이 매일 한 번 `Analytics report` 워크플로(`.github/workflows/analytics-report.yml`)를 실행하고, 그 실행의 주석(`AN i/n`, `scripts/analytics_report.py`가 만든 지난 7일 vs 그 전 7일 요약)을 읽는다.
+- 저장소가 공개라 주석도 공개다. 요약에는 집계 숫자만 넣는다(닉네임·상위 사용자·검색어 원문·DM 금지).
+- 한 번에 작고 되돌리기 쉬운 개선 1~3개만: 문구·배치·내부 링크·리포트 요약/제목 다듬기, 광고 위치(애드핏 한 페이지 4개 한도·정책 준수), 느린·이탈 큰 페이지 손보기. 근거(어떤 숫자가 무엇을 가리키는지)를 커밋 메시지와 `docs/ops-log.md`에 남긴다.
+- 하지 않는 것: 리포트 삭제·slug 변경, 6장의 금지 사항, 매수·매도 지시 문구, 비밀값 출력, 권한·안전 검사 우회, 개인정보 수집 추가, 표본이 너무 작은(세션 30 미만) 지표만 보고 큰 구조 변경.
+- 변경 후 `python3 build.py --strict`·`python3 tests/test_build.py`(워커를 고쳤으면 `cd worker && node test/test_worker.mjs`)를 통과시키고, `git pull --rebase` 뒤 올려 배포 성공을 확인한다. 개선할 게 없으면 로그에 "변경 없음"과 관찰만 적는다.
