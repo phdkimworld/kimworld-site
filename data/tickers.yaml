@@ -378,3 +378,9 @@ ERAS:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["에라스카", "Erasca", "ERAS-0015"]
+ZRO:
+  name: "레이어제로"
+  name_en: "LayerZero"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["레이어제로", "LayerZero", "레이어 제로", "ZRO"]
