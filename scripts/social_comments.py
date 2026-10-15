@@ -159,7 +159,8 @@ def list_threads(since, now, pmap):
         cs = [{"id": c["id"], "parent": (c.get("replied_to") or {}).get("id", post["id"]), "author": c.get("username", ""),
                "isMe": bool(c.get("is_reply_owned_by_me")) or c.get("username") == me.get("username"), "text": c.get("text", ""),
                "publishedAt": c["timestamp"]} for c in conv if c.get("hide_status") not in ("HIDDEN", "COVERED", "BLOCKED", "RESTRICTED")]
-        mine24 += sum(1 for c in cs if c["isMe"] and ts(c["publishedAt"]) >= now - timedelta(hours=24))
+        own = {post["id"]} | {c["id"] for c in cs if c["isMe"]}
+        mine24 += sum(1 for c in cs if c["isMe"] and c["parent"] not in own and ts(c["publishedAt"]) >= now - timedelta(hours=24))  # 링크 답글 등 우리 글에 단 답글은 빼고 시청자에게 단 답글만 센다
         slug = find_slug(post["id"], [post.get("text")] + [c["text"] for c in cs if c["isMe"]], pmap)
         for o in open_tree(post["id"], cs, since, now):
             out.append(item("threads", post, slug, o, o["target"]["id"]))
