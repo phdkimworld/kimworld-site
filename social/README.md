@@ -67,4 +67,12 @@ curl -s "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_
 gh secret set IG_ACCESS_TOKEN -R phdkimworld/kimworld-site
 ```
 
+## 토큰 자동 갱신
+
+`.github/workflows/token-refresh.yml`이 매달 1일·15일에 위 두 갱신을 자동으로 하고 비밀값을 바꾼다(`scripts/token_refresh.py`). 손으로 하려면 Actions에서 'Token refresh'를 실행한다.
+
+- 필요한 비밀값 `GH_SECRETS_PAT`: GitHub → Settings → Developer settings → Fine-grained tokens → 저장소 `phdkimworld/kimworld-site`만 선택, 권한 **Secrets: Read and write** 하나만. 만료는 최대(또는 없음)로 두고, 이 토큰이 만료되면 새로 만들어 넣는다.
+- 실패하면 워크플로가 실패로 표시된다. 60일 넘게 실패가 이어지면 토큰이 만료되어 새로 발급해야 한다.
+- 페이스북 페이지 토큰은 만료가 없어 자동 갱신 대상이 아니다(2027-01-13 전 데이터 접근 재승인만 필요).
+
 이미 만료됐다면 갱신이 안 되므로 Meta 개발자 앱에서 단기 토큰을 다시 받아 장기 토큰으로 교환한 뒤 같은 방법으로 넣는다.

@@ -1,0 +1,35 @@
+name: Token refresh (Threads·Instagram)
+
+# Threads·Instagram 장기 토큰은 60일 뒤 만료된다. 매달 1일·15일에 갱신 API를 불러
+# 새 토큰으로 GitHub 비밀값 THREADS_ACCESS_TOKEN·IG_ACCESS_TOKEN 을 바꾼다(만료일이 다시 60일 뒤로).
+# 필요한 비밀값: GH_SECRETS_PAT (이 저장소 'Secrets: Read and write'만 준 fine-grained 토큰)
+# 실패하면 워크플로가 실패로 표시된다. 60일 넘게 실패가 이어지면 토큰을 새로 발급해야 한다.
+on:
+  schedule:
+    - cron: "23 14 1,15 * *"   # 매달 1일·15일 14:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: token-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install --quiet "pynacl==1.5.0"
+      - name: Refresh
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
+        run: python scripts/token_refresh.py
