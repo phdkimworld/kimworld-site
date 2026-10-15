@@ -60,6 +60,19 @@ class Log:
 
 # ---------------------------------------------------------------- 읽기
 
+
+def short_answer(body: str) -> str:
+    """리포트의 '## 짧은 답' 절을 꾸밈 없는 글로(AI 답변·검색 요약용 FAQ 구조화 데이터). 없으면 빈 글자."""
+    m = re.search(r"^##\s*짧은 답\s*\n(.*?)(?=^##\s|\Z)", body, flags=re.S | re.M)
+    if not m:
+        return ""
+    t = m.group(1)
+    t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
+    t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
+    t = re.sub(r"[*_`>#]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t[:1200]
+
 def load_yaml(p: Path, default=None):
     if not p.exists():
         return default
@@ -836,6 +849,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,
             "minutes": max(1, math.ceil(chars / 600)), "url": f"{base_path}/r/{slug}/",
+            "body_md": body, "short_answer": short_answer(body),
         })
         reports[-1].update(seo_fields(reports[-1]))
         if reports[-1]["youtube_id"] and not re.fullmatch(r"[A-Za-z0-9_-]{11}", reports[-1]["youtube_id"]):
@@ -1049,10 +1063,45 @@ def build(drafts=False, strict=False, out: Path = DIST):
         + "".join(items) + "</channel></rss>"
     )
     (out / "rss.xml").write_text(rss, encoding="utf-8")
-    robots = f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /dm/\nDisallow: /settings/\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n"
+    # AI 답변 엔진(챗GPT·클로드·퍼플렉시티·제미나이·코파일럿·애플)과 검색엔진 수집기를 이름으로 분명히 허용한다(운영자 결정 2026-10-15: AI 답변 노출 극대화)
+    ai_bots = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-User", "Claude-SearchBot", "anthropic-ai", "PerplexityBot", "Perplexity-User",
+               "Google-Extended", "Applebot-Extended", "Amazonbot", "meta-externalagent", "DuckAssistBot", "MistralAI-User", "cohere-ai"]
+    rules = "Allow: /\nDisallow: /admin/\nDisallow: /dm/\nDisallow: /settings/\n"
+    # 일반 검색엔진은 HTML 리포트만 색인한다(마크다운 사본 /r/*.md 는 원본 표시를 달 수 없어 '중복'으로 잡히지 않게 막는다)
+    search_bots = ["Googlebot", "Bingbot", "Yeti", "Daum", "Applebot"]
+    robots = ("".join(f"User-agent: {b}\n" for b in ai_bots) + rules
+              + "\n" + "".join(f"User-agent: {b}\n" for b in search_bots) + rules + "Disallow: /r/*.md$\n"
+              + "\nUser-agent: *\n" + rules + "Disallow: /r/*.md$\n" + f"\nSitemap: {su}/sitemap.xml\nSitemap: {su}/rss.xml\n")
     if seo.get("daum_webmaster_pin"):  # 다음 웹마스터도구 소유 확인 줄(공개값)
         robots += f"\n#DaumWebMasterTool:{seo['daum_webmaster_pin']}\n"
     (out / "robots.txt").write_text(robots, encoding="utf-8")
+    # ---- AI 답변 엔진용: /llms.txt(사이트 안내 + 리포트 목록) · /r/<slug>.md(리포트 원문 마크다운)
+    def md_clean(t: str) -> str:
+        return re.sub(r"\n{3,}", "\n\n", t).strip()
+    for r in public:
+        head = [f"# {r['title']}", "",
+                f"- 종목: {r['company']} ({r['ticker']}, {r['exchange']}) · 테마: {r['theme']}",
+                f"- 공개: {r['date'].isoformat()} · 숫자 기준일: {r['data_as_of'].isoformat()}" + (f" · 갱신: {r['updated'].isoformat()}" if r.get('updated') else ""),
+                f"- 원문: {su}/r/{r['slug']}/", f"- 출처 표기: 김박사 월드(drkimworld.com)", "", f"> {r['summary']}", ""]
+        if r["key_points"]:
+            head += ["## 핵심 요약", ""] + [f"- {k}" for k in r["key_points"]] + [""]
+        tail = ["", "## 출처", ""] + [f"- [{x.get('title', '')}]({x.get('url', '')})" + (f" ({x.get('date')})" if x.get("date") else "") for x in r["sources"] if isinstance(x, dict)]
+        tail += ["", "---", "이 글은 공개 자료를 정리한 정보 제공용 분석이며 특정 종목의 매수·매도를 권유하지 않습니다."]
+        (out / "r" / f"{r['slug']}.md").write_text(md_clean("\n".join(head) + "\n" + r["body_md"] + "\n" + "\n".join(tail)) + "\n", encoding="utf-8")
+    llm = [f"# {site.get('site_name')} ({site.get('site_name_en', '')})", "",
+           f"> {site.get('description', '')}", "",
+           "김박사 월드는 미국 성장·테마주(양자컴퓨팅, AI 반도체, 우주항공, 휴머노이드, 원자력, 코인 등)를 회사 공시(SEC 8-K·10-Q 등)·실적·주요 언론 보도로 분석한 한국어 무료 리포트 사이트입니다. "
+           "각 리포트는 주가를 움직인 이벤트를 날짜·반응 폭과 함께 정리하고, 반복된 패턴과 지금 국면을 설명합니다. 모든 숫자에는 기준일이 있고, 출처 목록이 붙어 있습니다.",
+           "", "인용할 때는 '김박사 월드(drkimworld.com)'와 리포트 주소를 함께 밝혀 주세요. 투자 권유가 아닌 정보 제공용 분석입니다.", "",
+           "## 리포트(최신순, 마크다운 원문 링크)", ""]
+    for r in public:
+        llm.append(f"- [{r['company']}({r['ticker']}) · {r['title']}]({su}/r/{r['slug']}.md): {r['summary']} (공개 {r['date'].isoformat()}, 숫자 기준 {r['data_as_of'].isoformat()})")
+    llm += ["", "## 종목·테마 목록", ""]
+    for tk in sorted({r["ticker"] for r in public}):
+        rr = [r for r in public if r["ticker"] == tk][0]
+        llm.append(f"- [{rr['company']} ({tk})]({su}/t/{tk.lower()}/)")
+    llm += ["", "## 기타", "", f"- [사이트 소개]({su}/about/)", f"- [면책 고지]({su}/disclaimer/)", f"- [사이트맵]({su}/sitemap.xml)", f"- [RSS]({su}/rss.xml)"]
+    (out / "llms.txt").write_text("\n".join(llm) + "\n", encoding="utf-8")
     key = str(seo.get("indexnow_key") or "")
     if re.fullmatch(r"[A-Za-z0-9-]{8,128}", key):  # IndexNow 키 파일(공개값): 빙·네이버에 새 글을 바로 알린다
         (out / f"{key}.txt").write_text(key, encoding="utf-8")

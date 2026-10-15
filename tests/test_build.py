@@ -446,6 +446,15 @@ if (D / "index.html").exists():
     check(_c1 and 'data-fpoll data-ticker="' + _c1.group(1) + '"' in _c1.group(0) and 'data-fp-v="bull"' in _c1.group(0)
           and 'class="post-follow" data-topic data-topic-mini data-kind="t" data-key="' + _c1.group(1) + '"' in _c1.group(0) and "sentiment.js" in _home,
           "피드 리포트 카드: 바로 투표(불리시·베어리시)·종목 팔로우")
+    _llm = (D / "llms.txt").read_text(encoding="utf-8") if (D / "llms.txt").exists() else ""
+    _rb = (D / "robots.txt").read_text(encoding="utf-8")
+    _mds = list((D / "r").glob("*.md"))
+    check(_llm.startswith("# ") and "/r/" in _llm and ".md)" in _llm and _mds and "## 출처" in _mds[0].read_text(encoding="utf-8"),
+          "AI 답변 엔진: llms.txt(리포트 목록) + 리포트 마크다운 원문(/r/<slug>.md)")
+    check("User-agent: GPTBot" in _rb and "User-agent: ClaudeBot" in _rb and "User-agent: PerplexityBot" in _rb and "Disallow: /r/*.md$" in _rb,
+          "robots: AI 수집기 명시 허용, 일반 검색엔진은 마크다운 사본 제외")
+    _rp2 = next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
+    check('"isAccessibleForFree": true' in _rp2 and 'type="text/markdown"' in _rp2, "리포트: 무료 표시·인용 출처·마크다운 원문 연결(구조화 데이터)")
     st = (D / "settings/index.html")
     st_html = st.read_text(encoding="utf-8") if st.exists() else ""
     check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))
