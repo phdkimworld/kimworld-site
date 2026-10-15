@@ -390,3 +390,9 @@ KITE:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["카이트", "Kite AI", "카이트 AI", "KITE"]
+PSQL:
+  name: "파스칼"
+  name_en: "Pasqal"
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["파스칼", "Pasqal", "PSQL"]
