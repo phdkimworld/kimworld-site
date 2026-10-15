@@ -1,0 +1,33 @@
+name: Anthropic API check
+
+# 챗봇용 ANTHROPIC_API_KEY 가 쓸 수 있는 상태인지(키 있음·크레딧 있음) 1토큰 호출로 확인한다.
+# 크레딧이 0이면 API가 거절하므로 비용이 들지 않는다. 결과는 요약(STATUS 줄)에 남는다. 손으로만 실행.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "STATUS=no_key"; echo "### STATUS=no_key (ANTHROPIC_API_KEY 비밀값 없음)" >> "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          code=$(curl -s -o resp.json -w '%{http_code}' https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
+            -d '{"model":"claude-haiku-5-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}')
+          msg=$(python3 -c "import json;d=json.load(open('resp.json'));print((d.get('error') or {}).get('message','')[:200])" 2>/dev/null)
+          if [ "$code" = "200" ]; then s=ok
+          elif echo "$msg" | grep -qi "credit"; then s=no_credit
+          elif [ "$code" = "401" ]; then s=bad_key
+          else s="error_$code"; fi
+          echo "STATUS=$s $msg"
+          echo "### STATUS=$s" >> "$GITHUB_STEP_SUMMARY"; [ -n "$msg" ] && echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          [ "$s" = "ok" ] || [ "$s" = "no_credit" ] || [ "$s" = "no_key" ] || exit 1
