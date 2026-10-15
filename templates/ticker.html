@@ -46,5 +46,4 @@
   {{ page_bottom|safe }}
   {% if site.api_url %}{{ community('', 'b-' ~ code|lower, code ~ ' 커뮤니티', nm ~ '에 대한 생각을 나눠 보세요', thread_ad, ads.rhythm.board) }}{% endif %}
 </div>
-{% if site.api_url %}<script src="{{ base }}/static/js/sentiment.js?v={{ asset_ver }}" defer></script>{% endif %}
 {% endblock %}

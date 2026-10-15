@@ -1414,3 +1414,32 @@ body:has(.rdock) .to-top { display: none !important; }
 .sent-note { margin: 8px 2px 0; font-size: .72rem; color: var(--muted); line-height: 1.5; }
 @media print { .sent { display: none !important; } }
 article.report .sent { margin-top: 14px; }
+
+/* ---------- 피드 카드: 종목 팔로우(작게) · 투자 심리 투표(작게) ---------- */
+.post-follow { flex: none; align-self: center; margin-left: auto; min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.post-follow[hidden] { display: none; }
+.post-follow[aria-pressed="true"] { border-color: var(--line); color: var(--muted); font-weight: 600; }
+.post-head:has(.post-follow:not([hidden])) .post-theme { display: none; }
+.fpoll { --s-up: #f2555a; --s-down: #3b82f6; margin: 10px 0 2px 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.fpoll[hidden] { display: none; }
+@media (max-width: 599px) { .fpoll { margin-left: 0; } }
+.fp-q { display: block; font-size: .8rem; font-weight: 750; color: var(--muted); margin-bottom: 8px; }
+.fp-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.fp-b { min-height: 40px; border-radius: 11px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fp-b:active { transform: scale(.97); }
+.fp-bull { color: var(--s-up); } .fp-bear { color: var(--s-down); }
+.fp-bull[aria-pressed="true"] { border-color: var(--s-up); background: color-mix(in srgb, var(--s-up) 12%, var(--surface-2)); }
+.fp-bear[aria-pressed="true"] { border-color: var(--s-down); background: color-mix(in srgb, var(--s-down) 12%, var(--surface-2)); }
+.fpoll.is-busy .fp-b { opacity: .6; pointer-events: none; }
+.fpoll.is-voted .fp-b { min-height: 34px; font-size: .78rem; }
+.fp-res[hidden] { display: none; }
+.fp-res { margin-top: 10px; }
+.fp-bar { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.fp-bar i { display: block; height: 100%; transition: width .4s; }
+.fp-bb { background: var(--s-up); } .fp-br { background: var(--s-down); }
+.fp-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; font-size: .78rem; font-weight: 750; }
+.fp-up { color: var(--s-up); } .fp-down { color: var(--s-down); } .fp-meta { color: var(--muted); font-weight: 500; font-size: .72rem; }
+.fp-more { display: inline-block; margin-top: 6px; font-size: .76rem; color: var(--accent); text-decoration: none; font-weight: 700; }
+.home-grid .fpoll { margin-left: 48px; }
+.ticker-cards .fpoll, .cards .fpoll { margin-left: 0; }
+.home-grid .cards .fpoll { margin-left: 48px; }

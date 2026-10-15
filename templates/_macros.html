@@ -33,6 +33,8 @@
       <a class="post-group" href="{{ base }}/t/{{ r.ticker|lower }}/" title="{{ r.ticker }} 종목 페이지">{{ r.seo_name or r.company }}</a>
       <span class="post-time muted">· <time datetime="{{ r.date|iso }}" data-ago>{{ r.date|kdate }}</time></span>
     </div>
+    {#- 피드에서 바로 종목 팔로우(2026-10-14). 칠하기·누르기는 community.js [data-topic] #}
+    <button type="button" class="post-follow" data-topic data-topic-mini data-kind="t" data-key="{{ r.ticker }}" aria-pressed="false" aria-label="{{ r.ticker }} 팔로우" hidden><span data-topic-label>팔로우</span></button>
     {% if show_theme %}<a class="post-theme" href="{{ base }}/theme/{{ r.theme_slug }}/">{{ r.theme }}</a>{% endif %}
   </header>
   <a class="post-body card-link" href="{{ r.url }}">
@@ -41,6 +43,19 @@
     <p class="card-summary">{{ r.summary }}</p>
     {% if media and r.chart %}<span class="post-media"><img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}"></span>{% endif %}
   </a>
+  {#- 피드 투자 심리 투표(2026-10-14): 종목 화면·리포트와 같은 표. 바로 누르고, 누르면 30일 비율이 열린다(static/js/sentiment.js) #}
+  <div class="fpoll" data-fpoll data-ticker="{{ r.ticker }}" hidden>
+    <span class="fp-q">{{ r.seo_name or r.company }}, 앞으로?</span>
+    <div class="fp-btns">
+      <button type="button" class="fp-b fp-bull" data-fp-v="bull" aria-pressed="false">▲ 오를 것</button>
+      <button type="button" class="fp-b fp-bear" data-fp-v="bear" aria-pressed="false">▼ 내릴 것</button>
+    </div>
+    <div class="fp-res" data-fp-res hidden>
+      <div class="fp-bar" aria-hidden="true"><i class="fp-bb" data-fp-bb></i><i class="fp-br" data-fp-br></i></div>
+      <div class="fp-line"><span class="fp-up" data-fp-up></span><span class="fp-meta" data-fp-meta></span><span class="fp-down" data-fp-down></span></div>
+      <a class="fp-more" href="{{ base }}/t/{{ r.ticker|lower }}/#sent-h">심리 추이 보기 →</a>
+    </div>
+  </div>
   <a class="post-top" href="{{ base }}/p/?r={{ r.slug }}" data-post-top hidden></a>
   <footer class="post-actions">
     <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span></button>

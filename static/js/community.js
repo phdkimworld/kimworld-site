@@ -1162,17 +1162,20 @@
   function paintTopic(kind, key, st) {
     document.querySelectorAll('[data-topic][data-kind="' + kind + '"][data-key="' + key + '"]').forEach(function (b) {
       b.hidden = false; b.setAttribute('aria-pressed', st.following ? 'true' : 'false');
-      b.querySelector('[data-topic-label]').textContent = st.following ? '✓ 팔로잉' : '+ 팔로우';
+      b.querySelector('[data-topic-label]').textContent = b.hasAttribute('data-topic-mini') ? (st.following ? '팔로잉' : '팔로우') : st.following ? '✓ 팔로잉' : '+ 팔로우';
       var n = b.querySelector('[data-topic-n]'); if (n) n.textContent = st.followers ? num(st.followers) : '';
     });
   }
-  (function () {
-    var bs = Array.prototype.slice.call(document.querySelectorAll('[data-topic]')); if (!bs.length) return;
-    var keys = bs.map(function (b) { return b.getAttribute('data-kind') + ':' + b.getAttribute('data-key'); }).filter(function (x, i, a) { return a.indexOf(x) === i; });
+  // 팔로우 버튼 칠하기: 처음 화면 + 나중에 붙은 카드(피드 더 보기 등)는 KWC.topics(묶음)로 다시 부른다
+  function topicsIn(root) {
+    var bs = Array.prototype.slice.call((root || document).querySelectorAll('[data-topic]:not([data-tp])')); if (!bs.length) return;
+    bs.forEach(function (b) { b.setAttribute('data-tp', '1'); });
+    var keys = bs.map(function (b) { return b.getAttribute('data-kind') + ':' + b.getAttribute('data-key'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).slice(0, 60);
     meReady.then(function () { return api('/v1/topics/stats?keys=' + encodeURIComponent(keys.join(','))); }).then(function (d) {
       Object.keys(d.stats || {}).forEach(function (k) { var i = k.indexOf(':'); paintTopic(k.slice(0, i), k.slice(i + 1), d.stats[k]); });
     }).catch(function () {});
-  })();
+  }
+  topicsIn(document);
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-topic]'); if (!b || b.disabled) return;
     e.preventDefault();
@@ -1191,7 +1194,7 @@
 
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
-    myTopics: myTopics, topicBoards: topicBoards,
+    myTopics: myTopics, topicBoards: topicBoards, topics: topicsIn,
     openCompose: openQuote, loadIndex: loadIndex, quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, seedAv: seedAv, isBlocked: isBlocked, hideBlocked: hideBlocked, richText: richText, nickEl: nickEl, dialog: dialog, btn: btn, apiBase: API, openFollows: openFollows, dev: DEV, flash: function (t) { flash(t); },
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,

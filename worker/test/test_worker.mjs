@@ -773,6 +773,9 @@ console.log("투자 심리 투표");
   r = await call("POST", "/v1/sentiment/IONQ", { body: { v: "bull" }, ip: "72.0.0.10", ua: "facebookexternalhit/1.1" });
   check(r.status === 403, "심리: 봇은 투표하지 못한다");
   check((await call("POST", "/v1/sentiment/IONQ", { body: { v: "moon" }, ip: "72.0.0.11" })).status === 400, "심리: 잘못된 값은 거절");
+  r = await call("GET", "/v1/sentiment?t=rgti,IONQ,bad!!", { ip: "72.0.0.2" });
+  check(r.data.items.RGTI.voted === "bull" && r.data.items.RGTI.d30.bull === 11 && r.data.items.IONQ.voted === null && r.data.items.IONQ.d30 === undefined && r.data.items.IONQ.n30 === 5 && !r.data.items["BAD!!"],
+    "심리: 피드용 묶음 조회(투표한 종목만 비율)");
 }
 
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");

@@ -441,6 +441,11 @@ if (D / "index.html").exists():
     _rp = (D / "r/rgti-2026-10/index.html").read_text(encoding="utf-8") if (D / "r/rgti-2026-10/index.html").exists() else next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
     check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index("data-report-bar") < _rp.index("data-sent ") < _rp.index('class="summary-box"') < _rp.index('class="prose"'),
           "리포트 맨 위(핵심 요약 위): 같은 종목 투자 심리 투표")
+    _home = (D / "index.html").read_text(encoding="utf-8")
+    _c1 = re.search(r'<article class="card post"[^>]*data-ticker="([A-Z0-9.]+)".*?</article>', _home, re.S)
+    check(_c1 and 'data-fpoll data-ticker="' + _c1.group(1) + '"' in _c1.group(0) and 'data-fp-v="bull"' in _c1.group(0)
+          and 'class="post-follow" data-topic data-topic-mini data-kind="t" data-key="' + _c1.group(1) + '"' in _c1.group(0) and "sentiment.js" in _home,
+          "피드 리포트 카드: 바로 투표(불리시·베어리시)·종목 팔로우")
     st = (D / "settings/index.html")
     st_html = st.read_text(encoding="utf-8") if st.exists() else ""
     check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))

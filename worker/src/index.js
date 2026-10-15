@@ -557,7 +557,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -1138,6 +1138,25 @@ export default {
       }
       // ---------- 종목 투자 심리 투표(불리시·베어리시) ----------
       // 하루 한 표(그날 안에는 바꿀 수 있음). 투표한 사람만 숫자(오늘·30일 누적 지수·추이)를 본다
+      // 피드 카드용 묶음 조회: ?t=RGTI,IONQ → 종목마다 내 표·30일 표 수(투표한 종목만 30일 비율)
+      if (p === "/v1/sentiment" && req.method === "GET") {
+        const tks = [...new Set(String(url.searchParams.get("t") || "").toUpperCase().split(",").filter((x) => /^[A-Z0-9.]{1,10}$/.test(x)))].slice(0, 40);
+        const items = {};
+        if (tks.length) {
+          const day = kstDay(now), qm = tks.map(() => "?").join(",");
+          const [mine, tot] = await Promise.all([
+            db.prepare(`SELECT ticker, v FROM sent_votes WHERE day = ? AND actor = ? AND ticker IN (${qm})`).bind(day, actor, ...tks).all(),
+            db.prepare(`SELECT ticker, SUM(bull) AS bull, SUM(bear) AS bear FROM sent_daily WHERE day >= ? AND ticker IN (${qm}) GROUP BY ticker`).bind(kstDay(now - 29 * 864e5), ...tks).all(),
+          ]);
+          const my = Object.fromEntries((mine.results || []).map((x) => [x.ticker, x.v > 0 ? "bull" : "bear"]));
+          const tt = Object.fromEntries((tot.results || []).map((x) => [x.ticker, x]));
+          for (const t of tks) {
+            const x = tt[t] || { bull: 0, bear: 0 };
+            items[t] = my[t] ? { voted: my[t], n30: x.bull + x.bear, d30: { bull: x.bull, bear: x.bear } } : { voted: null, n30: x.bull + x.bear };
+          }
+        }
+        return json(req, { items }, 200, { "Cache-Control": "no-store" });
+      }
       const sm = p.match(/^\/v1\/sentiment\/([A-Za-z0-9.]{1,10})$/);
       if (sm && (req.method === "GET" || req.method === "POST")) {
         const tk = sm[1].toUpperCase(), day = kstDay(now);

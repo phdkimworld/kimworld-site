@@ -2,13 +2,15 @@
 // 30일 누적 지수 = 최근 30일 '오를 것 같다' 표 ÷ 전체 표 × 100 (50 위 강세, 아래 약세). 색은 한국 시장 관례(상승 빨강·하락 파랑)
 document.addEventListener('DOMContentLoaded', function () {
   'use strict';
-  var box = document.querySelector('[data-sent]'); if (!box || !window.KWC) return;
-  var C = window.KWC, tk = box.getAttribute('data-ticker');
+  var C = window.KWC; if (!C) return;
+  var box = document.querySelector('[data-sent]'), tk = box ? box.getAttribute('data-ticker') : '';
+  var bigLoad = null;
+  function pct(b, r) { return b + r ? Math.round(b / (b + r) * 100) : null; }
+  if (box) (function () {
   var q = function (s) { return box.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(box.querySelectorAll(s)); };
   var DATA = null, DAYS = 30, busy = false;
   var NS = 'http://www.w3.org/2000/svg';
   function svg(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
-  function pct(b, r) { return b + r ? Math.round(b / (b + r) * 100) : null; }
   function kday(off) { return new Date(Date.now() + 9 * 3600e3 - off * 864e5).toISOString().slice(0, 10); }
   function label(p) { return p == null ? '' : p >= 60 ? '강세 우위' : p > 52 ? '조금 강세' : p >= 48 ? '팽팽' : p > 40 ? '조금 약세' : '약세 우위'; }
 
@@ -86,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var first = !(DATA && DATA.voted);
       C.api('/v1/sentiment/' + encodeURIComponent(tk), { method: 'POST', body: { v: v } }).then(function (d) {
         busy = false; box.classList.remove('is-busy');
-        if (d && d.voted) { paint(d); if (window.kwEv) kwEv('sent_vote'); C.flash(first ? '투표했어요. 내일 또 참여해 주세요' : '오늘 표를 바꿨어요'); }
+        if (d && d.voted) { paint(d); syncPolls(tk, { voted: d.voted, n30: d.d30.bull + d.d30.bear, d30: d.d30 }); if (window.kwEv) kwEv('sent_vote'); C.flash(first ? '투표했어요. 내일 또 참여해 주세요' : '오늘 표를 바꿨어요'); }
         else C.flash((d && d.message) || '투표하지 못했습니다');
       }).catch(function () { busy = false; box.classList.remove('is-busy'); C.flash('투표하지 못했습니다'); });
     });
@@ -98,5 +100,69 @@ document.addEventListener('DOMContentLoaded', function () {
       if (DATA && DATA.voted) chart();
     });
   });
-  load();
+  load(); bigLoad = load;
+  })();
+
+  // ---------- 피드 카드의 작은 투표(리포트 카드 [data-fpoll]) ----------
+  // 같은 종목 카드가 여러 장이면 함께 바뀐다. 종목 화면·리포트처럼 큰 투표 상자가 있는 종목은 카드 투표를 숨긴다(중복)
+  var ST = {}, fpBusy = {};
+  function syncPolls(t, st) {
+    ST[t] = st;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-fpoll][data-ticker="' + t + '"]'), function (fp) { paintPoll(fp, st); });
+  }
+  function paintPoll(fp, st) {
+    if (tk && fp.getAttribute('data-ticker') === tk) { fp.hidden = true; return; }
+    fp.hidden = false;
+    var v = st && st.voted;
+    fp.classList.toggle('is-voted', !!v);
+    Array.prototype.forEach.call(fp.querySelectorAll('[data-fp-v]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-fp-v') === v ? 'true' : 'false'); });
+    var res = fp.querySelector('[data-fp-res]');
+    if (!v) { res.hidden = true; return; }
+    var p = pct(st.d30.bull, st.d30.bear); if (p == null) p = 50;
+    res.hidden = false;
+    fp.querySelector('[data-fp-bb]').style.width = p + '%'; fp.querySelector('[data-fp-br]').style.width = (100 - p) + '%';
+    fp.querySelector('[data-fp-up]').textContent = '▲ 강세 ' + p + '%';
+    fp.querySelector('[data-fp-down]').textContent = '약세 ' + (100 - p) + '% ▼';
+    fp.querySelector('[data-fp-meta]').textContent = '30일 ' + C.num(st.n30) + '표';
+  }
+  var pollT = 0;
+  function polls(root) {
+    var fps = Array.prototype.slice.call((root || document).querySelectorAll('[data-fpoll]'));
+    var need = [];
+    fps.forEach(function (fp) {
+      var t = fp.getAttribute('data-ticker');
+      if (ST[t]) paintPoll(fp, ST[t]); else if (need.indexOf(t) < 0) need.push(t);
+    });
+    for (var i = 0; i < need.length; i += 40) (function (part) {
+      C.api('/v1/sentiment?t=' + encodeURIComponent(part.join(','))).then(function (d) {
+        part.forEach(function (t) { if (d.items && d.items[t]) syncPolls(t, d.items[t]); });
+      }).catch(function () {});
+    })(need.slice(i, i + 40));
+  }
+  window.kwPolls = function (root) { clearTimeout(pollT); pollT = setTimeout(function () { polls(root); }, 30); };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-fp-v]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var fp = b.closest('[data-fpoll]'), t = fp.getAttribute('data-ticker'), v = b.getAttribute('data-fp-v');
+    if (fpBusy[t] || (ST[t] && ST[t].voted === v)) return;
+    fpBusy[t] = 1; fp.classList.add('is-busy');
+    var first = !(ST[t] && ST[t].voted);
+    C.api('/v1/sentiment/' + encodeURIComponent(t), { method: 'POST', body: { v: v } }).then(function (d) {
+      fpBusy[t] = 0; fp.classList.remove('is-busy');
+      if (d && d.voted) {
+        syncPolls(t, { voted: d.voted, n30: d.d30.bull + d.d30.bear, d30: d.d30 });
+        if (window.kwEv) { kwEv('sent_vote'); kwEv('sent_vote_feed'); }
+        C.flash(first ? '투표했어요. 내일 또 참여해 주세요' : '오늘 표를 바꿨어요');
+      } else C.flash((d && d.message) || '투표하지 못했습니다');
+    }).catch(function () { fpBusy[t] = 0; fp.classList.remove('is-busy'); C.flash('투표하지 못했습니다'); });
+  }, true);
+  polls(document);
+  // 피드에 카드가 새로 붙으면(더 보기·대표 글 복제) 그 카드의 투표도 칠한다
+  var feed = document.querySelector('[data-feed]') || document.querySelector('main');
+  if (feed && window.MutationObserver) new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) {
+      var n = ms[i].addedNodes[j];
+      if (n.nodeType === 1 && (n.matches('[data-fpoll]') || n.querySelector('[data-fpoll]'))) { window.kwPolls(document); if (C.topics) C.topics(document); return; }
+    }
+  }).observe(feed, { childList: true, subtree: true });
 });

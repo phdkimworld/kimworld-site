@@ -60,6 +60,16 @@
     (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('주소를 복사했습니다'); }, function () { prompt('주소를 복사하세요', u); });
   }
 
+  // 피드 카드 머리의 작은 '팔로우'(종목). 칠하기는 community.js가 한꺼번에(KWC.topics)
+  var topicT = 0;
+  function followMini(tk) {
+    var b = el('button', 'post-follow'); b.type = 'button'; b.hidden = true;
+    b.setAttribute('data-topic', ''); b.setAttribute('data-topic-mini', ''); b.setAttribute('data-kind', 't'); b.setAttribute('data-key', tk);
+    b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', tk + ' 팔로우');
+    var l = el('span', null, '팔로우'); l.setAttribute('data-topic-label', ''); b.appendChild(l);
+    clearTimeout(topicT); topicT = setTimeout(function () { if (C.topics) C.topics(document); if (window.kwPolls) window.kwPolls(document); }, 50);
+    return b;
+  }
   // ---------- 글 카드(피드·글 상세 공통) ----------
   function postCard(c, opt) {
     opt = opt || {};
@@ -88,6 +98,7 @@
     tm.title = new Date(c.created).toLocaleString('ko-KR');
     who.appendChild(tm);
     head.appendChild(who);
+    if (tk && !opt.noGroup && !opt.detail) head.appendChild(followMini(tk));
     art.appendChild(head);
     var body = C.richText(el('p', 'upost-body'), c.body);
     art.appendChild(body);
@@ -604,7 +615,7 @@
       who.appendChild(el('span', 'post-chev', '›')).setAttribute('aria-hidden', 'true');
       var g = el('a', 'post-group', r.c || r.k); g.href = base + '/t/' + String(r.k).toLowerCase() + '/'; who.appendChild(g);
       who.appendChild(el('span', 'post-time muted', '· ' + String(r.d || '').replace(/-/g, '.')));
-      head.appendChild(who); art.appendChild(head);
+      head.appendChild(who); head.appendChild(followMini(String(r.k).toUpperCase())); art.appendChild(head);
       var a = el('a', 'post-body card-link'); a.href = C.reportUrl(rep);
       a.appendChild(el('h1', 'card-title pp-report-title', r.st || r.t));
       a.appendChild(el('p', 'card-summary', r.s || ''));
