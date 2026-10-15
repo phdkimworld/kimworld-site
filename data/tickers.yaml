@@ -366,3 +366,9 @@ QNT:
   exchange: "Coinbase"
   theme: "코인·블록체인"
   aliases: ["퀀트", "퀀트 네트워크", "Quant", "Quant Network", "QNT", "오버레저", "Overledger"]
+AXTI:
+  name: "AXT"
+  name_en: "AXT, Inc."
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["AXT", "에이엑스티", "AXT Inc", "퉁메이", "Tongmei"]
