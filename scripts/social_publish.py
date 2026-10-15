@@ -14,7 +14,8 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     "link_attachment": "https://...",                   # 선택: Threads 링크 카드
     "poll": ["보기 1", "보기 2", "보기 3"]               # 선택: Threads 본문 투표(보기 2~4개, 각 25바이트 이하 = 한글 약 8자, 24시간)
   }
-  poll 은 Threads 본문에만 붙고(인스타에는 없음) link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
+  poll 은 Threads 본문에 투표로 붙고 link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
+  인스타·페이스북은 API로 투표를 넣을 수 없어 본문 끝에 '① 보기 …'로 글로 붙인다(릴스 파일에도 poll 을 넣으면 같다).
   media.type: image | carousel | reels
     image  → "path": 이미지 1장 (JPEG 권장)
     carousel → "paths": [이미지 2~10장]
@@ -24,7 +25,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
   Threads 는 TEXT 게시만 한다(미디어는 쓰지 않음). 미디어가 없는 글은 인스타를 건너뛴다.
   Facebook 페이지(운영자 지시 2026-10-15, Graph API v26.0):
     미디어 없음 → /{page}/feed 에 본문(text 또는 channel_text.facebook), replies[0] 은 첫 댓글로 단다
-                  (링크의 utm_source=threads 는 facebook 으로 바꾼다). poll 은 페이스북에 없으므로 쓰지 않는다
+                  (링크의 utm_source=threads 는 facebook 으로 바꾼다). poll 은 본문 끝에 글로 붙인다
     reels      → /{page}/video_reels 3단계(start → rupload 파일 직접 업로드(없으면 file_url) → finish), 캡션은 channel_text.facebook 또는 인스타 캡션
     image      → /{page}/photos (url, message),  carousel → photos(published=false) 뒤 feed(attached_media)
     190(토큰)·200(권한) 오류는 재시도하지 않는다. 일시 오류(5xx·속도 제한)는 간격을 두고 최대 3회 재시도한다.
@@ -93,14 +94,32 @@ def text_for(post, ch):
     return (post.get("channel_text") or {}).get(ch) or post.get("text", "")
 
 
+NUMS = "①②③④"
+
+
+def with_poll_text(text, post):
+    """투표를 API로 넣을 수 없는 채널(인스타·페이스북)은 poll 보기를 본문 끝에 글로 붙인다(운영자 지시 2026-10-15)."""
+    poll = post.get("poll")
+    if not isinstance(poll, list) or not 2 <= len(poll) <= 4 or "①" in text:
+        return text
+    lines = "\n".join(f"{NUMS[i]} {o}" for i, o in enumerate(poll))
+    return f"{text.rstrip()}\n\n여러분의 생각은? 댓글에 번호로 남겨 주세요.\n{lines}"
+
+
+def ig_caption(post):
+    return with_poll_text(text_for(post, "instagram"), post)
+
+
 def fb_text(post):
-    """페이스북 본문. 릴스·사진 글은 인스타 캡션을 함께 쓴다."""
+    """페이스북 본문. 릴스·사진 글은 인스타 캡션을 함께 쓴다. poll 이 있으면 보기를 끝에 글로 붙인다."""
     ct = post.get("channel_text") or {}
     if ct.get("facebook"):
-        return ct["facebook"]
-    if post.get("media") and ct.get("instagram"):
-        return ct["instagram"]
-    return post.get("text", "")
+        t = ct["facebook"]
+    elif post.get("media") and ct.get("instagram"):
+        t = ct["instagram"]
+    else:
+        t = post.get("text", "")
+    return with_poll_text(t, post)
 
 
 def media_paths(m):
@@ -175,8 +194,8 @@ def load(path):
                     errs.append(f"{typ} 파일 형식이 맞지 않음: {p}")
     if "facebook" in chans and not fb_text(post).strip():
         errs.append("페이스북 본문이 비어 있음")
-    if "instagram" in chans and m is not None and len(text_for(post, "instagram")) > IG_LIMIT:
-        errs.append(f"인스타 캡션 {len(text_for(post, 'instagram'))}자 > {IG_LIMIT}자 제한")
+    if "instagram" in chans and m is not None and len(ig_caption(post)) > IG_LIMIT:
+        errs.append(f"인스타 캡션 {len(ig_caption(post))}자 > {IG_LIMIT}자 제한")
     return post, errs
 
 
@@ -277,7 +296,7 @@ def do_instagram(post, res, save, now):
         res["waiting"] = "미디어 주소 배포 대기"
         return  # 다음 실행에서 다시 시도
     res.pop("waiting", None)
-    cap = text_for(post, "instagram")
+    cap = ig_caption(post)
     typ = m["type"]
     if not res.get("container"):
         if typ == "image":

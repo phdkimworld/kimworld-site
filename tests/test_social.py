@@ -65,9 +65,9 @@ with tempfile.TemporaryDirectory() as d:
           json.loads(th[0][3].get("poll_attachment", "{}")) == {"option_a": "오른다", "option_b": "내린다", "option_c": "그대로"}
           and "poll_attachment" not in th[1][3])
     ig = [l for l in log if l[0] == sp.IG_API and l[2] == "7/media"]
-    check("릴스 컨테이너: REELS·공개 주소·인스타 전용 캡션",
+    check("릴스 컨테이너: REELS·공개 주소·인스타 전용 캡션 + 투표 보기 글",
           ig and ig[0][3]["media_type"] == "REELS" and ig[0][3]["video_url"] == "https://drkimworld.com/static/social/a.mp4"
-          and ig[0][3]["caption"] == "인스타 캡션" and ig[0][3]["cover_url"].endswith("a.jpg"))
+          and ig[0][3]["caption"].startswith("인스타 캡션\n\n여러분의 생각은?") and ig[0][3]["caption"].endswith("③ 그대로") and ig[0][3]["cover_url"].endswith("a.jpg"))
     check("media_publish 호출", any(l[2] == "7/media_publish" for l in log))
     check("미디어 없는 글은 인스타 건너뜀", json.loads((sp.POSTED / "c.json").read_text())["results"]["instagram"]["skipped"])
     check("미래 글은 대기열에 남음", (sp.QUEUE / "b.json").exists())
@@ -110,8 +110,8 @@ with tempfile.TemporaryDirectory() as d:
     check("페이스북 글 게시 성공", sp.main([]) == 0)
     feed = [l for l in fblog if l[1] == "55/feed"]
     com = [l for l in fblog if l[1].endswith("/comments")]
-    check("페이스북: 본문은 feed, 링크는 첫 댓글(utm_source=facebook)",
-          feed and feed[0][2]["message"] == "페북 본문" and com and "utm_source=facebook" in com[0][2]["message"])
+    check("페이스북: 본문은 feed(끝에 투표 보기 글), 링크는 첫 댓글(utm_source=facebook)",
+          feed and feed[0][2]["message"].startswith("페북 본문\n\n여러분의 생각은?") and feed[0][2]["message"].endswith("② 나") and com and "utm_source=facebook" in com[0][2]["message"])
     check("페이스북 결과 저장", json.loads((sp.POSTED / "f.json").read_text())["results"]["facebook"]["permalink"])
     fblog.clear()
     W("g.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "channel_text": {"instagram": "릴스 캡션"},
@@ -159,6 +159,10 @@ except spf.FbFatal:
 except RuntimeError:
     pass
 check("속도 제한(4)은 최대 3회 재시도", attempts["n"] == 4)
+pp = {"text": "본문 질문?", "poll": ["오른다", "내린다", "그대로"], "channel_text": {"instagram": "캡션"}, "media": {"type": "reels", "path": "x"}}
+check("페이스북·인스타 본문 끝에 투표 보기를 글로 붙임", sp.fb_text(pp).endswith("① 오른다\n② 내린다\n③ 그대로") and sp.ig_caption(pp).startswith("캡션\n\n여러분의 생각은?"))
+check("투표가 없으면 본문 그대로", sp.fb_text({"text": "a"}) == "a")
+check("이미 보기를 써 둔 본문에는 다시 붙이지 않음", sp.with_poll_text("x\n① 오른다", pp) == "x\n① 오른다")
 wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").read_text(encoding="utf-8")
 step = wf[wf.index("Commit results"):]
 check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로 둠(중복 게시 방지)",
