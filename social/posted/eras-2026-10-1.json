@@ -9,5 +9,16 @@
   "channels": [
     "threads"
   ],
-  "publish_at": "2026-10-14T23:36:54-04:00"
+  "publish_at": "2026-10-14T23:36:54-04:00",
+  "results": {
+    "threads": {
+      "ids": [
+        "17961145874997259",
+        "18114853262020125"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/DegBchRDaBk",
+      "done": true
+    }
+  },
+  "posted_at": "2026-10-14T23:45:12-04:00"
 }
