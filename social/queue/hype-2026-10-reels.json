@@ -12,7 +12,10 @@
   "publish_at": "2026-10-15T11:51:28-04:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "container": "18096699971389749",
+      "id": "17881570722627288",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/DehaOriEh3m/"
     },
     "facebook": {
       "waiting": "공개 확인 대기(social/FACEBOOK_LIVE 없음)"
