@@ -8,5 +8,10 @@
     "path": "static/social/kod-2026-10/KOD_shorts.mp4",
     "cover": "static/social/kod-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-15T06:53:25-04:00"
+  "publish_at": "2026-10-15T06:53:25-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    }
+  }
 }
