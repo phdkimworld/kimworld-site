@@ -436,6 +436,9 @@ if (D / "index.html").exists():
     _tk = next((D / "t").glob("*/index.html")).read_text(encoding="utf-8")
     check('data-sent ' in _tk and 'data-sent-v="bull"' in _tk and 'data-sent-v="bear"' in _tk and "sentiment.js" in _tk and _tk.index("data-sent ") < _tk.index('id="reports"' if 'id="reports"' in _tk else "seg-tabs"),
           "종목 화면 위: 투자 심리 투표(불리시·베어리시)")
+    _rp = (D / "r/rgti-2026-10/index.html").read_text(encoding="utf-8") if (D / "r/rgti-2026-10/index.html").exists() else next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
+    check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index('class="prose"') < _rp.index("data-sent ") < _rp.index('class="sources"'),
+          "리포트 본문 끝: 같은 종목 투자 심리 투표")
     st = (D / "settings/index.html")
     st_html = st.read_text(encoding="utf-8") if st.exists() else ""
     check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))

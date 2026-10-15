@@ -68,3 +68,33 @@
   <p class="cmty-rule muted">개인 의견을 나누는 곳이며 투자 권유가 아닙니다. 링크·연락처·종목 추천·리딩방 홍보는 자동으로 가려지고, 신고가 쌓인 글도 가려집니다. <a href="/terms/">이용약관</a></p>
 </section>
 {%- endmacro %}
+
+{# 투자 심리 투표(2026-10-14): 종목 화면 위·리포트 본문 끝. 하루 한 표 → 투표하면 오늘·30일 누적 지수·추이 그래프(static/js/sentiment.js).
+   같은 종목이면 종목 화면과 리포트가 같은 표를 쓴다(어디서 눌러도 그 종목 하루 한 표) #}
+{% macro sentiment(code, nm, q=none, where=none) -%}
+<section class="sent" data-sent data-ticker="{{ code }}"{% if where %} data-where="{{ where }}"{% endif %} aria-labelledby="sent-h">
+  <div class="sent-head">
+    <h2 class="sent-q" id="sent-h">{{ q or (nm ~ ', 앞으로 어떻게 보세요?') }}</h2>
+    <span class="sent-meta" data-sent-meta></span>
+  </div>
+  <div class="sent-btns" role="group" aria-label="투자 심리 투표">
+    <button type="button" class="sent-b sent-bull" data-sent-v="bull" aria-pressed="false"><span class="sent-ico" aria-hidden="true">▲</span><span><strong>오를 것 같다</strong><small>불리시 <em data-sent-pct="bull"></em></small></span></button>
+    <button type="button" class="sent-b sent-bear" data-sent-v="bear" aria-pressed="false"><span class="sent-ico" aria-hidden="true">▼</span><span><strong>내릴 것 같다</strong><small>베어리시 <em data-sent-pct="bear"></em></small></span></button>
+  </div>
+  <p class="sent-tease" data-sent-tease>투표하면 30일 투자 심리 지수와 추이 그래프가 열립니다</p>
+  <div class="sent-res" data-sent-res hidden>
+    <div class="sent-idx">
+      <div><span class="sent-k">30일 누적 심리 지수</span><strong class="sent-n" data-sent-idx></strong><span class="sent-lab" data-sent-lab></span></div>
+      <div class="sent-today"><span class="sent-k">오늘 투표</span><span data-sent-today></span></div>
+    </div>
+    <div class="sent-bar" aria-hidden="true"><i class="sb-bull" data-sent-barb></i><i class="sb-bear" data-sent-barr></i></div>
+    <div class="sent-chart-head">
+      <span class="sent-k">심리 추이</span>
+      <div class="sent-range" role="group" aria-label="기간"><button type="button" data-sent-days="30" aria-pressed="true">30일</button><button type="button" data-sent-days="90" aria-pressed="false">90일</button></div>
+    </div>
+    <div class="sent-chart" data-sent-chart></div>
+    <p class="sent-legend"><span class="lg-line"></span>30일 누적 지수 <span class="lg-dot"></span>그날 비율 <span class="muted">· 50 위는 강세, 아래는 약세</span></p>
+    <p class="sent-note" data-sent-note></p>
+  </div>
+</section>
+{%- endmacro %}

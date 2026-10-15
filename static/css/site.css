@@ -1412,3 +1412,5 @@ body:has(.rdock) .to-top { display: none !important; }
 .sent-legend .lg-line { display: inline-block; width: 16px; height: 3px; border-radius: 2px; background: var(--accent); }
 .sent-legend .lg-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--text); opacity: .6; margin-left: 6px; }
 .sent-note { margin: 8px 2px 0; font-size: .72rem; color: var(--muted); line-height: 1.5; }
+.prose + .sent { margin-top: 28px; }
+@media print { .sent { display: none !important; } }

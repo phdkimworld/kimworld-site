@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card, icon, community %}
+{% from "_macros.html" import card, icon, community, sentiment %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.seo_title }} | {{ site.site_name }}{% endblock %}
 {% block description %}{{ r.summary }}{% endblock %}
@@ -125,6 +125,8 @@
       {% for piece in body_pieces %}{{ piece|safe }}{% endfor %}
     </div>
 
+    {% if site.api_url %}{{ sentiment(r.ticker, r.company, '다 읽고 나니, ' ~ r.company ~ ' 앞으로 어떻게 보세요?', 'report') }}{% endif %}
+
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">
       <h2 id="src-h">출처</h2>
@@ -209,4 +211,5 @@
 </nav>
 <a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
 <div class="term-pop" role="tooltip" hidden></div>
+{% if site.api_url %}<script src="{{ base }}/static/js/sentiment.js?v={{ asset_ver }}" defer></script>{% endif %}
 {% endblock %}
