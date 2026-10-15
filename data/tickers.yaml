@@ -426,3 +426,9 @@ HYPE:
   exchange: "Coinbase"
   theme: "코인·블록체인"
   aliases: ["하이퍼리퀴드", "Hyperliquid", "HYPE", "하이퍼리퀴드 코인"]
+IOVA:
+  name: "이오반스 바이오테라퓨틱스"
+  name_en: "Iovance Biotherapeutics, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["이오반스", "아이오반스", "Iovance", "Iovance Biotherapeutics", "암타그비", "Amtagvi"]
