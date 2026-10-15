@@ -11,8 +11,10 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     "media": {"type": "reels", "path": "static/social/lhx/LHX_shorts.mp4"},   # 선택
     "channel_text": {"instagram": "인스타 전용 캡션"},  # 선택: 채널별 본문
     "replies": [{"text": "...", "link_attachment": "https://..."}],  # 선택: Threads 이어지는 댓글
-    "link_attachment": "https://..."                    # 선택: Threads 링크 카드
+    "link_attachment": "https://...",                   # 선택: Threads 링크 카드
+    "poll": ["보기 1", "보기 2", "보기 3"]               # 선택: Threads 본문 투표(보기 2~4개, 각 25자 이하, 24시간)
   }
+  poll 은 Threads 본문에만 붙고(인스타에는 없음) link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
   media.type: image | carousel | reels
     image  → "path": 이미지 1장 (JPEG 권장)
     carousel → "paths": [이미지 2~10장]
@@ -51,6 +53,8 @@ SITE = "https://drkimworld.com"
 TH_API = "https://graph.threads.net/v1.0"
 IG_API = "https://graph.instagram.com/v23.0"
 TH_LIMIT = 500
+POLL_OPTION_LIMIT = 25
+POLL_KEYS = ("option_a", "option_b", "option_c", "option_d")
 IG_LIMIT = 2200
 CHANNELS = ("threads", "instagram")
 MEDIA_EXT = {"image": (".jpg", ".jpeg", ".png"), "reels": (".mp4", ".mov")}
@@ -114,6 +118,18 @@ def load(path):
                 errs.append(f"replies[{i}] text 가 비어 있음")
             elif threads_len(rt) > TH_LIMIT:
                 errs.append(f"replies[{i}] {threads_len(rt)}자 > {TH_LIMIT}자 제한")
+        poll = post.get("poll")
+        if poll is not None:
+            if not isinstance(poll, list) or not 2 <= len(poll) <= 4:
+                errs.append("poll 은 보기 2~4개의 목록이어야 함")
+            else:
+                for i, o in enumerate(poll, 1):
+                    if not isinstance(o, str) or not o.strip():
+                        errs.append(f"poll[{i}] 보기가 비어 있음")
+                    elif len(o) > POLL_OPTION_LIMIT:
+                        errs.append(f"poll[{i}] {len(o)}자 > {POLL_OPTION_LIMIT}자 제한")
+            if post.get("link_attachment"):
+                errs.append("poll 과 link_attachment 는 함께 쓸 수 없음(링크는 replies 에)")
     m = post.get("media")
     if m is not None:
         typ = m.get("type") if isinstance(m, dict) else None
@@ -171,6 +187,8 @@ def th_publish_one(part, uid, token, reply_to=None):
     params = {"media_type": "TEXT", "text": part["text"]}
     if part.get("link_attachment"):
         params["link_attachment"] = part["link_attachment"]
+    if part.get("poll"):
+        params["poll_attachment"] = json.dumps(dict(zip(POLL_KEYS, part["poll"])), ensure_ascii=False)
     if reply_to:
         params["reply_to_id"] = reply_to
     creation = call(TH_API, "POST", f"{uid}/threads", params, token)["id"]
@@ -189,7 +207,7 @@ def do_threads(post, res, save):
     if not token:
         raise RuntimeError("THREADS_ACCESS_TOKEN 비밀값이 없음")
     uid = call(TH_API, "GET", "me", {"fields": "id"}, token)["id"]  # 토큰 주인 계정으로 게시
-    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment")}] + list(post.get("replies", []) or [])
+    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll")}] + list(post.get("replies", []) or [])
     ids = res.setdefault("ids", [])
     for i in range(len(ids), len(parts)):
         ids.append(th_publish_one(parts[i], uid, token, reply_to=ids[-1] if ids else None))

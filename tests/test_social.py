@@ -34,6 +34,13 @@ with tempfile.TemporaryDirectory() as d:
     W("bad3.json", {"text": "x", "publish_at": past, "channels": ["facebook"]})
     check("모르는 채널은 검사 실패", sp.main(["--check"]) == 1)
     (sp.QUEUE / "bad3.json").unlink()
+    W("bad4.json", {"text": "x", "publish_at": past, "channels": ["threads"], "poll": ["하나"]})
+    check("투표 보기 1개는 검사 실패", sp.main(["--check"]) == 1)
+    W("bad4.json", {"text": "x", "publish_at": past, "channels": ["threads"], "poll": ["가" * 26, "나"]})
+    check("투표 보기 25자 초과는 검사 실패", sp.main(["--check"]) == 1)
+    W("bad4.json", {"text": "x", "publish_at": past, "channels": ["threads"], "poll": ["가", "나"], "link_attachment": "https://drkimworld.com/"})
+    check("투표와 링크 카드 함께 쓰면 검사 실패", sp.main(["--check"]) == 1)
+    (sp.QUEUE / "bad4.json").unlink()
 
     log = []
     def fake(api, method, path, params, token):
@@ -45,13 +52,17 @@ with tempfile.TemporaryDirectory() as d:
     sp.call = fake; sp.url_ready = lambda u: True
     W("a.json", {"text": "본문", "publish_at": past, "channels": ["threads", "instagram"],
                  "media": {"type": "reels", "path": "static/social/a.mp4", "cover": "static/social/a.jpg"},
-                 "channel_text": {"instagram": "인스타 캡션"},
+                 "channel_text": {"instagram": "인스타 캡션"}, "poll": ["오른다", "내린다", "그대로"],
                  "replies": [{"text": "댓글", "link_attachment": "https://drkimworld.com/r/x/"}]})
     W("b.json", {"text": "내일", "publish_at": future, "channels": ["threads"]})
     W("c.json", {"text": "글만", "publish_at": past, "channels": ["threads", "instagram"]})
     check("두 채널 게시 성공", sp.main([]) == 0)
     posted = json.loads((sp.POSTED / "a.json").read_text())
     check("Threads 본문 → 댓글 순서", len(posted["results"]["threads"]["ids"]) == 2)
+    th = [l for l in log if l[0] == sp.TH_API and l[2] == "9/threads"]
+    check("투표는 Threads 본문에만 poll_attachment 로",
+          json.loads(th[0][3].get("poll_attachment", "{}")) == {"option_a": "오른다", "option_b": "내린다", "option_c": "그대로"}
+          and "poll_attachment" not in th[1][3])
     ig = [l for l in log if l[0] == sp.IG_API and l[2] == "7/media"]
     check("릴스 컨테이너: REELS·공개 주소·인스타 전용 캡션",
           ig and ig[0][3]["media_type"] == "REELS" and ig[0][3]["video_url"] == "https://drkimworld.com/static/social/a.mp4"

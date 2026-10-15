@@ -13,13 +13,14 @@
   "channels": ["threads", "instagram"],
   "media": {"type": "reels", "path": "static/social/lhx-2026-10/LHX_shorts.mp4", "cover": "static/social/lhx-2026-10/cover.jpg"},
   "channel_text": {"instagram": "인스타 캡션(링크가 눌리지 않으므로 'drkimworld.com 에서 검색' 안내)"},
+  "poll": ["11월 3일 해제 뒤 오른다", "내린다", "보합"],
   "replies": [{"text": "Threads 이어지는 댓글(리포트 링크)", "link_attachment": "https://drkimworld.com/r/..."}]
 }
 ```
 
 - `publish_at`: 시간대를 빼면 미국 동부시간. 예약 실행은 몇 분 늦을 수 있다.
 - `channels`: `threads`, `instagram` 가운데 하나 이상.
-- **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드.
+- **Threads**: TEXT 게시(본문·댓글 각 500자, 이모지는 4자로 셈). `replies`로 이어지는 댓글, `link_attachment`로 링크 카드. `poll`(보기 2~4개, 각 25자 이하)은 본문에 투표로 붙고(24시간), 본문의 `link_attachment`와 함께 쓸 수 없다.
 - **Instagram**: 미디어가 있어야 게시한다(없으면 건너뜀). `media.type`
   - `image`: `path` 1장(JPEG 권장)
   - `carousel`: `paths` 2~10장
