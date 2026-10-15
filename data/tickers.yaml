@@ -384,3 +384,9 @@ ZRO:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["레이어제로", "LayerZero", "레이어 제로", "ZRO"]
+KITE:
+  name: "카이트"
+  name_en: "Kite AI"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["카이트", "Kite AI", "카이트 AI", "KITE"]
