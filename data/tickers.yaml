@@ -354,3 +354,9 @@ BURU:
   exchange: "OTC"
   theme: "우주항공·방산"
   aliases: ["누부루", "NUBURU", "Nuburu", "테크네", "Tekne"]
+BEAM:
+  name: "빔 테라퓨틱스"
+  name_en: "Beam Therapeutics"
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["빔", "Beam", "Beam Therapeutics", "빔 테라퓨틱스"]
