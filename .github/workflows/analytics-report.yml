@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ADMIN_IN: ${{ secrets.KIMWORLD_ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -21,7 +22,11 @@ jobs:
           ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
           echo "::add-mask::$ADMIN"
           mkdir -p .cache
-          CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "https://api.drkimworld.com/v1/admin/analytics?days=7")
+          # api.drkimworld.com 은 Cloudflare 봇 검사가 GitHub 러너를 막으므로(403 'Just a moment') 같은 워커의 workers.dev 주소로 부른다
+          SUB=$(curl -sS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+          BASE=${SUB:+https://kimworld-api.$SUB.workers.dev}
+          BASE=${BASE:-https://api.drkimworld.com}
+          CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "$BASE/v1/admin/analytics?days=7")
           echo "::notice title=AN HTTP::$CODE $(wc -c < .cache/an.json) bytes"
           if [ "$CODE" != "200" ]; then echo "::notice title=AN BODY::$(head -c 300 .cache/an.json | tr -d '\r\n%')"; fi
       - name: Report
