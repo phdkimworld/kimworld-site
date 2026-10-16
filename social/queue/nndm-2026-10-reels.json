@@ -22,5 +22,17 @@
     "path": "static/social/nndm-2026-10/NNDM_shorts.mp4",
     "cover": "static/social/nndm-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-16T11:45:47-04:00"
+  "publish_at": "2026-10-16T11:45:47-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    },
+    "facebook": {
+      "video_id": "1854201622453077",
+      "post_id": "1854201622453077",
+      "comment_id": "1854201622453077_1911954513545721",
+      "permalink": "/reel/1854201622453077/",
+      "done": true
+    }
+  }
 }
