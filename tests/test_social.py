@@ -110,8 +110,8 @@ with tempfile.TemporaryDirectory() as d:
     check("페이스북 글 게시 성공", sp.main([]) == 0)
     feed = [l for l in fblog if l[1] == "55/feed"]
     com = [l for l in fblog if l[1].endswith("/comments")]
-    check("페이스북: 본문은 feed(끝에 투표 보기 글), 링크는 첫 댓글(utm_source=facebook)",
-          feed and feed[0][2]["message"].startswith("페북 본문\n\n여러분의 생각은?") and feed[0][2]["message"].endswith("② 나") and com and "utm_source=facebook" in com[0][2]["message"])
+    check("페이스북: 본문은 feed(투표 보기 글 안 붙임), 링크는 첫 댓글(utm_source=facebook)",
+          feed and feed[0][2]["message"] == "페북 본문" and com and "utm_source=facebook" in com[0][2]["message"])
     check("페이스북 결과 저장", json.loads((sp.POSTED / "f.json").read_text())["results"]["facebook"]["permalink"])
     fblog.clear()
     W("g.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "channel_text": {"instagram": "릴스 캡션"},
@@ -123,7 +123,22 @@ with tempfile.TemporaryDirectory() as d:
     check("릴스 3단계(start→파일 직접 업로드→finish), 인스타 캡션(사이트 주소 403 회피)",
           ph == ["start", "finish"] and up and up[0][5] == b"x" and up[0][4]["file_size"] == "1" and up[0][4]["offset"] == "0"
           and "file_url" not in up[0][4] and fin[0][2]["description"] == "릴스 캡션")
+    check("replies 없는 릴스는 첫 댓글 없음", not [l for l in fblog if l[1].endswith("/comments")])
     fblog.clear()
+    W("g2.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "media": {"type": "reels", "path": "static/social/a.mp4"},
+                  "replies": [{"text": "리포트 https://drkimworld.com/r/x/?utm_source=facebook&utm_content=reels_comment"}]})
+    check("페이스북 릴스 replies[0] → 첫 댓글", sp.main([]) == 0
+          and [l for l in fblog if l[1] == "777/comments" and "reels_comment" in l[2]["message"]])
+    fblog.clear()
+    def fbnocomment(method, path, params, token, base=sp.FB_API, headers=None, body=None):
+        if path.endswith("/comments"): raise RuntimeError("HTTP 400")
+        return fbfake(method, path, params, token, base, headers, body)
+    sp.fb_call = fbnocomment
+    W("g3.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "media": {"type": "reels", "path": "static/social/a.mp4"},
+                  "replies": [{"text": "리포트"}]})
+    check("릴스 첫 댓글 실패는 게시를 막지 않고 기록만", sp.main([]) == 0
+          and json.loads((sp.POSTED / "g3.json").read_text())["results"]["facebook"].get("comment_error"))
+    sp.fb_call = fbfake; fblog.clear()
     W("p.json", {"text": "사진 글", "publish_at": past, "channels": ["facebook"], "media": {"type": "image", "path": "static/social/a.jpg"}})
     check("페이스북 사진 게시 성공", sp.main([]) == 0)
     pho = [l for l in fblog if l[1] == "55/photos"]
@@ -171,7 +186,7 @@ def flaky(req, timeout=0):
 spf.urllib.request.urlopen = flaky
 check("GET 재시도도 같은 주소로(오류 본문이 요청을 덮지 않음)", spf.fb_call("GET", "1/comments", {"a": "b"}, "tok") == {"ok": True} and seen[0] == seen[1] and seen[1].endswith("?a=b"))
 pp = {"text": "본문 질문?", "poll": ["오른다", "내린다", "그대로"], "channel_text": {"instagram": "캡션"}, "media": {"type": "reels", "path": "x"}}
-check("페이스북·인스타 본문 끝에 투표 보기를 글로 붙임", sp.fb_text(pp).endswith("① 오른다\n② 내린다\n③ 그대로") and sp.ig_caption(pp).startswith("캡션\n\n여러분의 생각은?"))
+check("인스타 캡션 끝에만 투표 보기를 글로 붙이고 페이스북은 안 붙임", "①" not in sp.fb_text(pp) and sp.ig_caption(pp).endswith("① 오른다\n② 내린다\n③ 그대로"))
 check("투표가 없으면 본문 그대로", sp.fb_text({"text": "a"}) == "a")
 check("이미 보기를 써 둔 본문에는 다시 붙이지 않음", sp.with_poll_text("x\n① 오른다", pp) == "x\n① 오른다")
 wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").read_text(encoding="utf-8")

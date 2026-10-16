@@ -450,3 +450,9 @@ SLS:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["셀라스", "SELLAS", "셀라스 라이프 사이언스", "SELLAS Life Sciences"]
+AEHR:
+  name: "에어 테스트 시스템즈"
+  name_en: "Aehr Test Systems"
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["에어 테스트", "에어테스트", "Aehr", "Aehr Test Systems", "에어 테스트 시스템즈"]

@@ -825,7 +825,7 @@ def seo_fields(r: dict) -> dict:
     if len(desc) > 100:
         desc = desc[:98].rstrip() + "…"
     return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook}", "seo_hook": hook,
-            "share_title": share_title, "share_desc": f"{desc} 회원 가입 없이 무료로 전문 보기"}
+            "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기"}
 
 
 def build(drafts=False, strict=False, out: Path = DIST):

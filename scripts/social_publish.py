@@ -98,7 +98,8 @@ NUMS = "①②③④"
 
 
 def with_poll_text(text, post):
-    """투표를 API로 넣을 수 없는 채널(인스타·페이스북)은 poll 보기를 본문 끝에 글로 붙인다(운영자 지시 2026-10-15)."""
+    """투표를 API로 넣을 수 없는 인스타는 poll 보기를 본문 끝에 글로 붙인다(운영자 지시 2026-10-15).
+    페이스북은 붙이지 않는다(운영자 지시 2026-10-16: 참여 유도 글 노출 감소 위험)."""
     poll = post.get("poll")
     if not isinstance(poll, list) or not 2 <= len(poll) <= 4 or "①" in text:
         return text
@@ -111,7 +112,7 @@ def ig_caption(post):
 
 
 def fb_text(post):
-    """페이스북 본문. 릴스·사진 글은 인스타 캡션을 함께 쓴다. poll 이 있으면 보기를 끝에 글로 붙인다."""
+    """페이스북 본문. 릴스·사진 글은 인스타 캡션을 함께 쓴다. poll 보기는 붙이지 않는다(참여 유도 감점 회피, 2026-10-16)."""
     ct = post.get("channel_text") or {}
     if ct.get("facebook"):
         t = ct["facebook"]
@@ -119,7 +120,7 @@ def fb_text(post):
         t = ct["instagram"]
     else:
         t = post.get("text", "")
-    return with_poll_text(t, post)
+    return t
 
 
 def media_paths(m):
@@ -440,8 +441,14 @@ def do_facebook(post, res, save, now, live_used):
             res["post_id"] = r["id"]
         save()
     reps = post.get("replies") or []
-    if not m and reps and not res.get("comment_id"):
-        res["comment_id"] = fb_call("POST", f"{res['post_id']}/comments", {"message": fb_comment_text(reps[0]["text"])}, token)["id"]
+    if reps and not res.get("comment_id") and (not m or m["type"] == "reels"):
+        try:
+            res["comment_id"] = fb_call("POST", f"{res['post_id']}/comments", {"message": fb_comment_text(reps[0]["text"])}, token)["id"]
+            res.pop("comment_error", None)
+        except RuntimeError as e:
+            if not m:
+                raise
+            res["comment_error"] = str(e)[:200]  # 릴스 첫 댓글 실패는 게시를 막지 않는다
         save()
     try:
         field = "permalink_url"
