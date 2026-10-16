@@ -84,7 +84,22 @@ def parse_front(path: Path):
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", text, re.S)
     if not m:
         raise BuildError(f"{path.relative_to(ROOT)}: 맨 위에 --- 로 감싼 머리말이 없습니다.")
-    return yaml.safe_load(m.group(1)) or {}, m.group(2)
+    try:
+        return yaml.load(m.group(1), Loader=_UniqueKeyLoader) or {}, m.group(2)
+    except yaml.constructor.ConstructorError as e:
+        raise BuildError(f"{path.relative_to(ROOT)}: 머리말에 같은 키가 두 번 있습니다({e.problem}). 뒤의 값이 앞의 값을 덮어씁니다.")
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """머리말에서 같은 키가 두 번 나오면 오류(독립 검토 2026-10-16: 출처 url 중복이 조용히 덮어써짐)."""
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for k, _ in node.value:
+            key = self.construct_object(k, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(None, None, f"중복 키 '{key}'", k.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
 
 
 def to_date(v):
