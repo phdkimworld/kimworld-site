@@ -82,6 +82,18 @@ h1{font-weight:900;font-size:64px;line-height:1.2;color:#fff;margin-bottom:44px;
 /* 하단 배너 미드롤(A6): 높이 15% 이하 */
 .banner{position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(90deg,#F5B83D,#FFD27A);color:#0E1A2B;display:flex;align-items:center;justify-content:center;gap:28px;font-size:52px;font-weight:900;letter-spacing:-1px}
 .banner .pill{padding:6px 22px;border-radius:999px;background:#0E1A2B;color:#F5B83D;font-size:38px}
+/* poll: Threads 투표처럼 보기 막대(운영자 지시 2026-10-16 "영상 마지막에 쓰레드 같은 폴") — 끝에서 두 번째 문단 */
+.pollb{justify-content:center;align-items:center}
+.pcard{width:1360px;background:rgba(22,37,59,.96);border:2px solid #22385A;border-radius:36px;padding:56px 64px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.pcard .ph{display:flex;align-items:center;gap:18px;font-size:34px;font-weight:900;color:#F5B83D}
+.pcard .ph .dot{width:18px;height:18px;border-radius:50%;background:#F5B83D;box-shadow:0 0 0 8px rgba(245,184,61,.2)}
+.pcard .pq{margin-top:22px;font-size:62px;font-weight:900;color:#fff;line-height:1.25;letter-spacing:-1px}
+.pcard .opts{margin-top:40px;display:flex;flex-direction:column;gap:22px}
+.pcard .op{display:flex;align-items:center;gap:28px;border:3px solid #3A5378;border-radius:999px;padding:22px 40px;font-size:50px;font-weight:900;color:#fff}
+.pcard .op .n{flex:none;width:72px;height:72px;border-radius:50%;border:3px solid #9FB3CC;color:#9FB3CC;display:flex;align-items:center;justify-content:center;font-size:40px}
+.pcard .op.now{border-color:#F5B83D;background:rgba(245,184,61,.12)}.pcard .op.now .n{border-color:#F5B83D;background:#F5B83D;color:#0E1A2B}
+.pcard .pf{margin-top:36px;font-size:40px;font-weight:900;color:#F5B83D;text-align:center}
+.pcard .pf.hid{visibility:hidden}
 
 </style></head><body><div id="stage"></div>
 <script>
@@ -96,6 +108,7 @@ compare(d,st){const sd=s=>`<div class="side ${vis(s.at,st)}"><div class="hd">${e
 list(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="list">${d.items.map((i,k)=>`<div class="li ${vis(i.at,st)}"><div class="no">${esc(i.no??k+1)}</div><div><div class="t">${esc(i.text)}</div>${i.sub?`<div class="s">${esc(i.sub)}</div>`:''}</div></div>`).join('')}</div></div>`},
 quote(d,st){return `<div class="body quote"><div class="mark">?</div><div class="q ${vis(d.at,st)}">${esc(d.text)}</div>${d.sub?`<div class="sub ${vis(d.sub_at,st)}">${esc(d.sub)}</div>`:''}</div>`},
 source(d,st){return `<div class="body source">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="src ${vis(d.at,st)}"><div class="kd">${esc(d.kind||'원문')}</div><div class="orig">${esc(d.orig)}</div>${d.tr?`<div class="tr">${esc(d.tr)}</div>`:''}<div class="by">${esc(d.src)} · ${esc(d.date)}</div></div></div>`},
+poll(d,st){const N=['①','②','③','④'];return `<div class="body pollb"><div class="pcard"><div class="ph"><span class="dot"></span>${esc(d.head||'투표')}</div><div class="pq ${vis(d.at,st)}">${esc(d.question)}</div><div class="opts">${d.options.map((o,k)=>`<div class="op ${vis(o.at,st)}"><span class="n">${N[k]}</span>${esc(o.text)}</div>`).join('')}</div><div class="pf ${vis(d.foot_at,st)}">${esc(d.foot||'댓글에 번호 하나만 남겨 주세요')}</div></div></div>`},
 outro(d,st){return `<div class="body outro"><div class="b">김박사 월드</div>${(d.lines||[]).map(l=>`<div class="l ${vis(l.at,st)}">${esc(l.text)}</div>`).join('')}</div>`},
 chart(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="chart" id="ch"></div></div>`}
 };

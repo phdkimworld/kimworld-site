@@ -94,7 +94,7 @@ def sfx_events():
         if new_slide:
             kick = str(d.get('kicker', ''))
             if d.get('layout') == 'hero': ev.append((t0, 'riser')); kind = 'boom'
-            elif d.get('layout') == 'outro': kind = 'chime'
+            elif d.get('layout') in ('outro', 'poll'): kind = 'chime'
             elif kick.startswith(('미스터리', '단서', '반전')) or (d.get('layout') == 'quote' and kick): kind = 'boom'
             else: kind = 'whoosh'
             if 'sfx' in d: kind = None if d['sfx'] == 'none' else d['sfx']

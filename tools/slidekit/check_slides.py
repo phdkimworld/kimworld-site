@@ -10,7 +10,7 @@ for i,p in enumerate(s['paras']):
     n=len(tm[i]['sents']);sl=p['slides']
     for j,x in enumerate(sl):
         f=x.get('from',0);nxt=sl[j+1].get('from',0) if j+1<len(sl) else n
-        ats=[f]+([x['at']] if 'at' in x else [])+[it['at'] for k in ('items','stats','points','lines') for it in x.get(k,[]) if isinstance(it,dict) and 'at' in it]+[x[k]['at'] for k in ('left','right') if k in x and 'at' in x[k]]
+        ats=[f]+([x['at']] if 'at' in x else [])+[it['at'] for k in ('items','stats','points','lines','options') for it in x.get(k,[]) if isinstance(it,dict) and 'at' in it]+[x[k]['at'] for k in ('left','right') if k in x and 'at' in x[k]]+([x['foot_at']] if 'foot_at' in x else [])
         if f>=n or max(ats)>=min(n,nxt) or min(ats)<f: print('BAD p%d s%d'%(i+1,j),x.get('layout'),f,ats,'n',n,'next',nxt);ok=False
         if x.get('layout') in ('quote','source') and x.get('at',f)!=f: print('QUOTE p%d'%(i+1));ok=False
         els=ats[1:]
@@ -25,6 +25,12 @@ for i,p in enumerate(s['paras']):
     for a in p.get('ad',[]):
         if a>=n: print('ADBAD',i+1,a,n);ok=False
         else: print('ad p%d[%d]'%(i+1,a),tm[i]['sents'][a]['text'][:45])
+# POLL: 롱폼 끝(마지막 두 문단 안)에 Threads 같은 투표 화면 1장(운영자 지시 2026-10-16). 보기 2~4개, 각 12자 이하
+pl=[x for p in s['paras'][-2:] for x in p['slides'] if x.get('layout')=='poll']
+if not pl: print('POLL 마지막 두 문단에 poll 화면이 없음: 끝에서 두 번째 문단에 투표(question·options·foot_at)를 넣는다');ok=False
+for x in pl:
+    o=x.get('options',[])
+    if not 2<=len(o)<=4 or any(len(str(i.get('text','')))>12 for i in o): print('POLL 보기는 2~4개, 각 12자 이하:',[i.get('text') for i in o]);ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')
