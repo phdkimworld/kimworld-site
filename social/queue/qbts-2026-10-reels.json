@@ -1,0 +1,26 @@
+{
+  "text": "사상 최대 수주에 정부까지 주주인데 왜 1년 새 -71%일까?\n\n양자컴퓨터 회사 디웨이브 퀀텀(QBTS).\n1년 전 오늘 사상 최고 44.78달러, 오늘 12.815달러.\n올해 상반기 이자수익은 본업 이익의 약 3배, 주식 수는 3년 반 새 4.7배.\n증자 완료 발표 뒤엔 닷새 +117.5%.\n\n풀영상과 사건별 주가 반응을 정리한 무료 리포트는\ndrkimworld.com 에서 '디웨이브'를 검색해 보세요.\n\n※ 공개 보도를 정리한 교육용 분석이며 매수·매도 권유가 아닙니다.\n\n#디웨이브퀀텀 #QBTS #양자컴퓨터 #미국주식 #김박사월드",
+  "poll": [
+    "실적 뒤 반등",
+    "실적 뒤 추가 하락",
+    "큰 변화 없음"
+  ],
+  "channels": [
+    "instagram",
+    "facebook"
+  ],
+  "media": {
+    "type": "reels",
+    "path": "static/social/qbts-2026-10/QBTS_shorts.mp4",
+    "cover": "static/social/qbts-2026-10/cover.jpg"
+  },
+  "publish_at": "2026-10-15T22:25:00-04:00",
+  "results": {
+    "instagram": {
+      "last_error": "IG_ACCESS_TOKEN 비밀값이 없음"
+    },
+    "facebook": {
+      "last_error": "FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음"
+    }
+  }
+}
