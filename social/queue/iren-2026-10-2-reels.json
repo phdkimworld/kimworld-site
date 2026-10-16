@@ -14,5 +14,16 @@
     "path": "static/social/iren-2026-10-2/IREN_shorts.mp4",
     "cover": "static/social/iren-2026-10-2/cover.jpg"
   },
-  "publish_at": "2026-10-16T06:55:00-04:00"
+  "publish_at": "2026-10-16T06:55:00-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    },
+    "facebook": {
+      "video_id": "1105495225782303",
+      "post_id": "1105495225782303",
+      "permalink": "/reel/1105495225782303/",
+      "done": true
+    }
+  }
 }
