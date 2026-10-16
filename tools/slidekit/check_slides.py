@@ -15,6 +15,7 @@ for i,p in enumerate(s['paras']):
         if x.get('layout') in ('quote','source') and x.get('at',f)!=f: print('QUOTE p%d'%(i+1));ok=False
         els=ats[1:]
         if els and min(els)>f and x.get('layout')!='outro': print('BLANK p%d s%d'%(i+1,j),x.get('layout'),x.get('title',''),'첫 문장(%d) 동안 제목만 보임: 첫 요소의 at을 from과 같게(지침 A3)'%f);ok=False
+        if x.get('layout')=='chart' and sum(1 for it in x.get('points',[]) if it.get('at',f)==f)<2: print('CHART1 p%d s%d'%(i+1,j),x.get('title',''),'첫 문장 동안 점이 하나뿐(빈 화면으로 잡힘): 첫 두 점의 at을 from과 같게');ok=False
         for it in x.get('items',[]):
             if isinstance(it,dict) and len(str(it.get('no','')))>2: print('BADGE p%d'%(i+1),it.get('no'),'(번호 배지는 2자 이하)');ok=False
     first=sl[0]; fa=[it.get('at',0) for k in ('items','stats','points','lines') for it in first.get(k,[]) if isinstance(it,dict)]+[first[k].get('at',0) for k in ('left','right') if k in first]
