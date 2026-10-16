@@ -14,10 +14,10 @@ IONQ:
   aliases: ["IonQ"]
 QBTS:
   name: "디웨이브 퀀텀"
-  name_en: "D-Wave Quantum"
-  exchange: "NYSE"
+  name_en: "D-Wave Quantum Inc."
+  exchange: "NASDAQ"
   theme: "양자컴퓨팅"
-  aliases: ["디웨이브", "D-Wave"]
+  aliases: ["디웨이브", "D-Wave", "디웨이브 퀀텀", "D-Wave Quantum"]
 NVDA:
   name: "엔비디아"
   name_en: "NVIDIA"
