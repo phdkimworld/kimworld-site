@@ -458,6 +458,7 @@ button { font: inherit; color: inherit; }
 .kw-login { width: 100%; justify-content: center; font-weight: 700; font-size: .95rem; min-height: 48px; }
 .kw-login-google { background: #fff; color: #1f1f1f; border: 1px solid #747775; }
 .kw-login-kakao { background: #FEE500; color: rgba(0,0,0,.85); border: 0; }
+.kw-login-naver { background: #03C75A; color: #fff; border: 0; }
 .kw-small { font-size: .8rem; }
 .cm-item-pinned { background: var(--surface-2); border-radius: 12px; padding: 12px; margin: 4px 0 8px; border-bottom: 0; }
 .cm-badge-notice { background: var(--text); color: var(--bg); }

@@ -213,13 +213,14 @@ function safeEqual(a, b) {
   return x === 0;
 }
 
-// ---------- 소셜 로그인(구글·카카오). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
+// ---------- 소셜 로그인(구글·카카오·네이버). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
 const SITE = "https://drkimworld.com";
 const SESSION_DAYS = 180;
 function providers(env) {
   const p = [];
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) p.push("google");
   if (env.KAKAO_REST_KEY) p.push("kakao");
+  if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) p.push("naver");
   return p;
 }
 function cookieOf(req, name) {
@@ -233,7 +234,7 @@ function b64urlJson(part) {
   const s = part.replace(/-/g, "+").replace(/_/g, "/");
   return JSON.parse(decodeURIComponent(escape(atob(s + "===".slice((s.length + 3) % 4)))));
 }
-async function oauthSubject(provider, code, env, redirectUri) {
+async function oauthSubject(provider, code, env, redirectUri, state) {
   if (provider === "google") {
     const r = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -254,6 +255,18 @@ async function oauthSubject(provider, code, env, redirectUri) {
     if (!t.access_token) return null;
     const u = await (await fetch("https://kapi.kakao.com/v2/user/me", { headers: { Authorization: `Bearer ${t.access_token}` } })).json();
     return u && u.id ? "kakao:" + u.id : null;
+  }
+  if (provider === "naver") {
+    // 네이버: 회원 번호(id)만 쓴다. 개발자센터에서 고른 다른 항목(별명 등)은 읽지도 저장하지도 않는다
+    const r = await fetch("https://nid.naver.com/oauth2.0/token", {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+      body: new URLSearchParams({ grant_type: "authorization_code", client_id: env.NAVER_CLIENT_ID, client_secret: env.NAVER_CLIENT_SECRET, code, state: state || "" }),
+    });
+    const t = await r.json();
+    if (!t.access_token) return null;
+    const u = await (await fetch("https://openapi.naver.com/v1/nid/me", { headers: { Authorization: `Bearer ${t.access_token}` } })).json();
+    const id = u && u.resultcode === "00" && u.response && u.response.id;
+    return id ? "naver:" + id : null;
   }
   return null;
 }
@@ -784,7 +797,7 @@ export default {
 
       // ---------- 계정(계정 키) ----------
       // ---------- 로그인 ----------
-      const am0 = p.match(/^\/v1\/auth\/(google|kakao)\/(start|callback)$/);
+      const am0 = p.match(/^\/v1\/auth\/(google|kakao|naver)\/(start|callback)$/);
       if (am0 && req.method === "GET") {
         const [, prov, step] = am0;
         if (!providers(env).includes(prov)) return json(req, { error: "provider", message: "이 로그인은 아직 준비 중입니다." }, 404);
@@ -795,15 +808,16 @@ export default {
           await db.prepare("INSERT INTO oauth_state (state, provider, ret, exp) VALUES (?, ?, ?, ?)").bind(state, prov, safeReturn(url.searchParams.get("return")), now + 600e3).run();
           const q = prov === "google"
             ? new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: "code", scope: "openid", state, prompt: "select_account" })
-            : new URLSearchParams({ client_id: env.KAKAO_REST_KEY, redirect_uri: redirectUri, response_type: "code", state });
-          return redirect((prov === "google" ? "https://accounts.google.com/o/oauth2/v2/auth?" : "https://kauth.kakao.com/oauth/authorize?") + q);
+            : new URLSearchParams({ client_id: prov === "naver" ? env.NAVER_CLIENT_ID : env.KAKAO_REST_KEY, redirect_uri: redirectUri, response_type: "code", state });
+          const AUTH = { google: "https://accounts.google.com/o/oauth2/v2/auth?", kakao: "https://kauth.kakao.com/oauth/authorize?", naver: "https://nid.naver.com/oauth2.0/authorize?" };
+          return redirect(AUTH[prov] + q);
         }
         const st = await db.prepare("SELECT provider, ret, exp FROM oauth_state WHERE state = ?").bind(url.searchParams.get("state") || "").first();
         await db.prepare("DELETE FROM oauth_state WHERE state = ? OR exp < ?").bind(url.searchParams.get("state") || "", now).run();
         const back = (r, flag) => { const [path, hash] = r.split("#"); return `${SITE}${path}${path.includes("?") ? "&" : "?"}login=${flag}${hash ? "#" + hash : ""}`; };
         if (!st || st.provider !== prov || st.exp < now || !url.searchParams.get("code")) return redirect(back("/", "fail"));
         let subject = null;
-        try { subject = await oauthSubject(prov, url.searchParams.get("code"), env, redirectUri); } catch { subject = null; }
+        try { subject = await oauthSubject(prov, url.searchParams.get("code"), env, redirectUri, url.searchParams.get("state")); } catch { subject = null; }
         if (!subject) return redirect(back(st.ret, "fail"));
         const oActor = "o-" + (await sha256hex(`${env.SALT || "dev-salt"}|oauth|${subject}`)).slice(0, 30);
         const token = randHex(32);

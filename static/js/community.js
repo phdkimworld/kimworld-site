@@ -234,7 +234,7 @@
   }
   function field(label, input) { var w = el('label', 'kw-field'); w.appendChild(el('span', null, label)); w.appendChild(input); return w; }
   function btn(text, cls, fn) { var b = el('button', cls || 'btn', text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; }
-  var PNAME = { google: 'Google로 로그인', kakao: '카카오 로그인' };
+  var PNAME = { google: 'Google로 로그인', kakao: '카카오 로그인', naver: '네이버 로그인' };
   function loginUrl(prov) { return API + '/v1/auth/' + prov + '/start?return=' + encodeURIComponent(location.pathname + location.search.replace(/[?&]login=\w+/, '') + location.hash); }
 
   function openAccount() {

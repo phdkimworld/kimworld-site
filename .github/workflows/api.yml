@@ -3,7 +3,7 @@ name: API (views, comments)
 # worker/ 가 바뀌거나 손으로 실행하면 Cloudflare에 API를 배포한다.
 # 필요한 GitHub 비밀값: CLOUDFLARE_API_TOKEN(권한: Account Workers Scripts Edit, Account D1 Edit), CLOUDFLARE_ACCOUNT_ID (없으면 배포를 건너뛴다)
 # 선택: KIMWORLD_ADMIN_TOKEN (관리 화면 비밀번호. 없으면 API 토큰에서 만든 값을 쓴다)
-# 로그인(있는 것만 켜짐): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET / KAKAO_REST_KEY, KAKAO_CLIENT_SECRET(카카오에서 켠 경우만)
+# 로그인(있는 것만 켜짐): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET / KAKAO_REST_KEY, KAKAO_CLIENT_SECRET(카카오에서 켠 경우만) / NAVER_CLIENT_ID, NAVER_CLIENT_SECRET
 on:
   push:
     branches: [main]
@@ -37,6 +37,8 @@ jobs:
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
       KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+      NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+      NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
     defaults:
       run:
         working-directory: worker
@@ -74,7 +76,7 @@ jobs:
           ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
           printf '%s' "$SALT" | $W secret put SALT
           printf '%s' "$ADMIN" | $W secret put ADMIN_TOKEN
-          for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET KAKAO_REST_KEY KAKAO_CLIENT_SECRET; do
+          for k in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET KAKAO_REST_KEY KAKAO_CLIENT_SECRET NAVER_CLIENT_ID NAVER_CLIENT_SECRET; do
             v="${!k}"
             if [ -n "$v" ]; then printf '%s' "$v" | $W secret put "$k" >/dev/null && echo "::notice::$k 설정함"; else echo "::notice::$k 없음"; fi
           done

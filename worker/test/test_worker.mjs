@@ -20,7 +20,7 @@ function stmt(sql, args = []) {
   };
 }
 const DB = { prepare: (sql) => stmt(sql), batch: async (list) => Promise.all(list.map((s) => s.run())) };
-const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey" };
+const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey", NAVER_CLIENT_ID: "nid", NAVER_CLIENT_SECRET: "nsec" };
 // 구글·카카오 서버 흉내
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const PUSHED = [];
@@ -34,6 +34,8 @@ globalThis.fetch = async (u, opt = {}) => {
   }
   if (u.startsWith("https://kauth.kakao.com/oauth/token")) return new Response(JSON.stringify({ access_token: "at-" + new URLSearchParams(String(opt.body)).get("code") }));
   if (u.startsWith("https://kapi.kakao.com/v2/user/me")) return new Response(JSON.stringify({ id: 4242 }));
+  if (u.startsWith("https://nid.naver.com/oauth2.0/token")) return new Response(JSON.stringify({ access_token: "nat-" + new URLSearchParams(String(opt.body)).get("code") }));
+  if (u.startsWith("https://openapi.naver.com/v1/nid/me")) return new Response(JSON.stringify({ resultcode: "00", message: "success", response: { id: "nv-" + String((opt.headers || {}).Authorization || "").slice(-5), nickname: "읽지않음" } }));
   if (u.startsWith("https://fcm.googleapis.com/") || u.startsWith("https://web.push.apple.com/")) { // 푸시 서비스 흉내: 받은 요청을 모은다
     PUSHED.push({ u, headers: opt.headers, body: new Uint8Array(opt.body) });
     return new Response("", { status: u.includes("/gone") ? 410 : 201 });
@@ -215,7 +217,7 @@ check(r.status === 401, "관리 토큰이 한 글자만 달라도 거절");
 
 console.log("소셜 로그인·계정·종토방·팔로우·알림");
 let r0 = await call("GET", "/v1/me", { ip: "80.0.0.1" });
-check(r0.data.user === null && r0.data.loggedIn === false && r0.data.providers.join() === "google,kakao", "처음엔 로그인 안 됨, 켜진 로그인 종류");
+check(r0.data.user === null && r0.data.loggedIn === false && r0.data.providers.join() === "google,kakao,naver", "처음엔 로그인 안 됨, 켜진 로그인 종류");
 const LA = await login("google", "alice");
 check(LA.start.startsWith("https://accounts.google.com/") && LA.start.includes("scope=openid&") && !LA.start.includes("email"), "구글은 회원 번호(openid)만 요청");
 check(/^kw_s=[0-9a-f]{64}$/.test(LA.cookie) && LA.location === "https://drkimworld.com/t/xndu/?login=ok#board", "로그인 뒤 쿠키를 받고 원래 자리로");
@@ -241,6 +243,10 @@ r1 = await call("GET", "/v1/me", { ip: "80.0.0.9", cookie: LA2.cookie, dev: "oth
 check(r1.data.user && r1.data.user.id === uA, "다른 기기에서 같은 구글 계정으로 로그인하면 같은 계정");
 const LB = await login("kakao", "bob", "80.0.0.2");
 check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.start.includes("scope"), "카카오는 동의 항목 없이(회원 번호만)");
+const LN = await login("naver", "dave1", "80.0.0.4");
+check(LN.start.startsWith("https://nid.naver.com/oauth2.0/authorize?") && /^kw_s=[0-9a-f]{64}$/.test(LN.cookie) && LN.location.includes("login=ok"), "네이버 로그인(회원 번호만)");
+r1 = await call("POST", "/v1/me", { body: { auto: true }, ip: "80.0.0.4", cookie: LN.cookie });
+check(r1.data.ok && r1.data.user.nick !== "읽지않음", "네이버 별명은 읽지 않고 자동 닉네임");
 r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
 const uB = r1.data.user.id;
 // 자동 가입: 닉네임·소개를 묻지 않고 지어 주며, 첫 변경은 바로 가능
@@ -269,11 +275,11 @@ check(r1.data.ok && r1.data.user.bio === "소개만 바꾸기", "소개는 언�
 sqlite.exec(`UPDATE users SET nick = '장투러', nick_lc = '장투러' WHERE id = ${uB}`); // 이후 검사를 위해 원래대로
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "로그인 없이 종토방 글", t: 8000 }, ip: "80.0.0.3" });
 check(r1.data.ok && r1.data.status === "ok", "로그인 없이도 종토방에 익명 글");
-const savedKeys = [env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY];
-env.GOOGLE_CLIENT_ID = ""; env.KAKAO_REST_KEY = "";
+const savedKeys = [env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY, env.NAVER_CLIENT_ID];
+env.GOOGLE_CLIENT_ID = ""; env.KAKAO_REST_KEY = ""; env.NAVER_CLIENT_ID = "";
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-anon", nick: "지나가던개미", body: "로그인 준비 중에는 익명 글", t: 8000 }, ip: "80.0.0.4" });
 check(r1.data.ok && r1.data.status === "ok", "로그인을 아직 안 켰으면 종토방도 익명으로 씀");
-[env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY] = savedKeys;
+[env.GOOGLE_CLIENT_ID, env.KAKAO_REST_KEY, env.NAVER_CLIENT_ID] = savedKeys;
 r1 = await call("POST", "/v1/comments", { body: { slug: "b-xndu", body: "요크빌 매각 규모가 관건이네요", t: 8000 }, ip: "80.0.0.1", cookie: LA.cookie });
 check(r1.data.ok, "계정으로 종토방 글");
 const post = r1.data.id;
