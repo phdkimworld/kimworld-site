@@ -444,6 +444,12 @@ TAO:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["비트텐서", "Bittensor", "TAO", "타오", "비트텐서 코인"]
+RENDER:
+  name: "렌더"
+  name_en: "Render"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["렌더", "Render", "RENDER", "RNDR", "렌더토큰", "렌더 네트워크", "Render Network"]
 SLS:
   name: "셀라스 라이프 사이언스"
   name_en: "SELLAS Life Sciences Group, Inc."
