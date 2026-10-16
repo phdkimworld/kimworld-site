@@ -20,7 +20,7 @@ function stmt(sql, args = []) {
   };
 }
 const DB = { prepare: (sql) => stmt(sql), batch: async (list) => Promise.all(list.map((s) => s.run())) };
-const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey", NAVER_CLIENT_ID: "nid", NAVER_CLIENT_SECRET: "nsec" };
+const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid", GOOGLE_CLIENT_SECRET: "gsec", KAKAO_REST_KEY: "kkey", NAVER_CLIENT_ID: "nid", NAVER_CLIENT_SECRET: "nsec", NAVER_LIVE: "1" };
 // 구글·카카오 서버 흉내
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const PUSHED = [];
@@ -243,7 +243,12 @@ r1 = await call("GET", "/v1/me", { ip: "80.0.0.9", cookie: LA2.cookie, dev: "oth
 check(r1.data.user && r1.data.user.id === uA, "다른 기기에서 같은 구글 계정으로 로그인하면 같은 계정");
 const LB = await login("kakao", "bob", "80.0.0.2");
 check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.start.includes("scope"), "카카오는 동의 항목 없이(회원 번호만)");
+env.NAVER_LIVE = "";
+r1 = await call("GET", "/v1/me", { ip: "80.0.0.4" });
+const r1t = await call("GET", "/v1/me?nt=1", { ip: "80.0.0.4" });
+check(!r1.data.providers.includes("naver") && r1t.data.providers.includes("naver"), "네이버 검수 전: ?nt=1 화면에만 버튼");
 const LN = await login("naver", "dave1", "80.0.0.4");
+env.NAVER_LIVE = "1";
 check(LN.start.startsWith("https://nid.naver.com/oauth2.0/authorize?") && /^kw_s=[0-9a-f]{64}$/.test(LN.cookie) && LN.location.includes("login=ok"), "네이버 로그인(회원 번호만)");
 r1 = await call("POST", "/v1/me", { body: { auto: true }, ip: "80.0.0.4", cookie: LN.cookie });
 check(r1.data.ok && r1.data.user.nick !== "읽지않음", "네이버 별명은 읽지 않고 자동 닉네임");

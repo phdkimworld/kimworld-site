@@ -216,11 +216,12 @@ function safeEqual(a, b) {
 // ---------- 소셜 로그인(구글·카카오·네이버). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
 const SITE = "https://drkimworld.com";
 const SESSION_DAYS = 180;
-function providers(env) {
+// 네이버는 검수 전('개발 중')에는 등록한 사람만 로그인된다. NAVER_LIVE=1 이 되기 전에는 ?nt=1 로 연 화면(운영자 시험·검수 캡처)에만 버튼을 보인다
+function providers(env, naverTest = false) {
   const p = [];
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) p.push("google");
   if (env.KAKAO_REST_KEY) p.push("kakao");
-  if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) p.push("naver");
+  if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET && (env.NAVER_LIVE === "1" || naverTest)) p.push("naver");
   return p;
 }
 function cookieOf(req, name) {
@@ -800,7 +801,7 @@ export default {
       const am0 = p.match(/^\/v1\/auth\/(google|kakao|naver)\/(start|callback)$/);
       if (am0 && req.method === "GET") {
         const [, prov, step] = am0;
-        if (!providers(env).includes(prov)) return json(req, { error: "provider", message: "이 로그인은 아직 준비 중입니다." }, 404);
+        if (!providers(env, true).includes(prov)) return json(req, { error: "provider", message: "이 로그인은 아직 준비 중입니다." }, 404);
         const redirectUri = `${url.origin}/v1/auth/${prov}/callback`;
         if (step === "start") {
           if (!(await allow(db, `login|${ih}`, 30, 3600e3, now))) return json(req, { error: "rate" }, 429);
@@ -835,7 +836,7 @@ export default {
       // ---------- 계정 ----------
       if (p === "/v1/me" && req.method === "GET") {
         const me = session ? await userByActor(db, actor) : null;
-        const base = { providers: providers(env), loggedIn: !!session };
+        const base = { providers: providers(env, url.searchParams.get("nt") === "1"), loggedIn: !!session };
         if (!me) return json(req, { ...base, user: null }, 200, { "Cache-Control": "no-store" });
         const [un, dmc, bl] = await Promise.all([
           db.prepare("SELECT COUNT(*) AS n FROM notifs WHERE uid = ? AND seen = 0").bind(me.id).first(),

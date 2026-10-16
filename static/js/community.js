@@ -188,7 +188,9 @@
 
   // ---------- 계정(계정 키): 이메일·전화 없이 닉네임만. 키는 이 브라우저에만 저장 ----------
   var ME = null, UNREAD = 0, LOGGED = false, PROVIDERS = [], DMN = 0, DMREQ = 0, BLOCKED = {};
-  var meReady = api('/v1/me').then(function (d) {
+  // ?naver=test 로 열면 검수 전 네이버 로그인 버튼을 보인다(운영자 시험·검수 캡처용). 한 번 열면 이 브라우저 세션 동안 유지
+  var NT = /[?&]naver=test/.test(location.search); try { if (NT) sessionStorage.setItem('kw_nt', '1'); else NT = sessionStorage.getItem('kw_nt') === '1'; } catch (e) {}
+  var meReady = api('/v1/me' + (NT ? '?nt=1' : '')).then(function (d) {
     ME = d.user || null; UNREAD = d.unread || 0; LOGGED = !!d.loggedIn; PROVIDERS = d.providers || [];
     DMN = d.dmUnread || 0; DMREQ = d.dmRequests || 0; BLOCKED = {}; (d.blocked || []).forEach(function (x) { BLOCKED[x] = 1; });
     if (ME) seedAv(ME.id, ME.av);
