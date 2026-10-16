@@ -18,10 +18,21 @@
   "publish_at": "2026-10-15T22:25:00-04:00",
   "results": {
     "threads": {
-      "last_error": "THREADS_ACCESS_TOKEN 비밀값이 없음"
+      "last_error": "THREADS_ACCESS_TOKEN 비밀값이 없음",
+      "ids": [
+        "18146405746535142",
+        "17996649552041830"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/DeieimXm7mx",
+      "done": true
     },
     "facebook": {
-      "last_error": "FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음"
+      "last_error": "FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음",
+      "post_id": "1033484903190014_122136776450736633",
+      "comment_id": "122136776450736633_1463799475666276",
+      "permalink": "https://www.facebook.com/122136709832736633/posts/122136776450736633",
+      "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-15T22:38:04-04:00"
 }
