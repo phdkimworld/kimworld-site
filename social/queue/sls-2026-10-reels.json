@@ -14,5 +14,16 @@
     "path": "static/social/sls-2026-10/SLS_shorts.mp4",
     "cover": "static/social/sls-2026-10/cover.jpg"
   },
-  "publish_at": "2026-10-16T00:12:00-04:00"
+  "publish_at": "2026-10-16T00:12:00-04:00",
+  "results": {
+    "instagram": {
+      "waiting": "미디어 주소 배포 대기"
+    },
+    "facebook": {
+      "video_id": "1090537133834458",
+      "post_id": "1090537133834458",
+      "permalink": "/reel/1090537133834458/",
+      "done": true
+    }
+  }
 }
