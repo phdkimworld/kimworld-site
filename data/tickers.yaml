@@ -474,3 +474,9 @@ ANRO:
   exchange: "NYSE"
   theme: "바이오·헬스케어"
   aliases: ["알토 뉴로사이언스", "알토뉴로사이언스", "알토", "Alto Neuroscience"]
+NEAR:
+  name: "니어 프로토콜"
+  name_en: "NEAR Protocol"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["니어 프로토콜", "니어프로토콜", "니어", "NEAR Protocol", "NEAR", "NEAR Intents", "니어 인텐츠"]
