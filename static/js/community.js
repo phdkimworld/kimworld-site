@@ -249,24 +249,24 @@
         var tl = el('p', 'muted kw-small'); tl.appendChild(document.createTextNode('로그인하면 ')); var ta = el('a', null, '이용약관'); ta.href = base + '/terms/'; ta.target = '_blank'; tl.appendChild(ta); tl.appendChild(document.createTextNode('에 동의한 것으로 봅니다.')); body.appendChild(tl);
         return;
       }
-      if (!ME) { // 로그인은 했지만 닉네임을 아직 안 정함
-        var body2 = dialog('닉네임 정하기');
-        body2.appendChild(el('p', 'muted', '커뮤니티에 보일 이름입니다. 닉네임은 14일에 한 번 바꿀 수 있습니다.'));
-        var nick = el('input'); nick.maxLength = 12; nick.placeholder = '한글·영문·숫자 2~12자'; nick.autocomplete = 'off';
-        var bio = el('input'); bio.maxLength = 80; bio.placeholder = '한 줄 소개 (선택)';
-        var agree = el('input'); agree.type = 'checkbox';
-        var ag = el('label', 'kw-check'); ag.appendChild(agree);
-        var agt = el('span'); agt.appendChild(document.createTextNode('이용약관에 동의합니다 ')); var tl2 = el('a', null, '(보기)'); tl2.href = base + '/terms/'; tl2.target = '_blank'; agt.appendChild(tl2); ag.appendChild(agt);
-        body2.appendChild(field('닉네임', nick)); body2.appendChild(field('소개', bio)); body2.appendChild(ag);
-        body2.appendChild(btn('시작하기', 'btn btn-primary', function () {
-          if (!agree.checked) { msg.textContent = '이용약관에 동의해 주세요.'; return; }
-          api('/v1/me', { method: 'POST', body: { nick: nick.value.trim(), bio: bio.value } }).then(function (d) {
-            if (!d.ok) { msg.textContent = d.message || '만들지 못했습니다.'; return; }
-            if (window.kwEv) kwEv('signup');
-            location.reload();
-          }).catch(function () { msg.textContent = '만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
-        }));
+      if (!ME) { // 로그인은 했지만 계정이 아직 없음: 묻지 않고 닉네임을 자동으로 지어 바로 가입(나중에 언제든 변경)
+        var body2 = dialog('가입하는 중…');
         body2.appendChild(msg);
+        api('/v1/me', { method: 'POST', body: { auto: true } }).then(function (d) {
+          if (!d.ok) { msg.textContent = d.message || '가입하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
+          if (window.kwEv) kwEv('signup');
+          var nn = (d.user && d.user.nick) || '';
+          var h = dlg.querySelector('.kw-dlg-head h2'); if (h) h.textContent = '가입 완료';
+          body2.textContent = '';
+          var p1 = el('p'); p1.appendChild(document.createTextNode('닉네임은 ')); p1.appendChild(el('strong', null, nn)); p1.appendChild(document.createTextNode('(으)로 정해 두었어요.'));
+          body2.appendChild(p1);
+          body2.appendChild(el('p', 'muted', '마음에 안 들면 "내 계정"에서 언제든 바꿀 수 있어요.'));
+          var row = el('div', 'kw-row');
+          row.appendChild(btn('시작하기', 'btn btn-primary', function () { location.reload(); }));
+          row.appendChild(btn('지금 바꾸기', 'btn', function () { try { sessionStorage.setItem('kw_open_acct', '1'); } catch (e) {} location.reload(); }));
+          body2.appendChild(row);
+          dlg.addEventListener('close', function () { location.reload(); }, { once: true });
+        }).catch(function () { msg.textContent = '가입하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'; });
         body2.appendChild(btn('로그아웃', 'cm-link', logout));
         return;
       }
@@ -499,7 +499,9 @@
         .then(function (s) { if (s) { var ep = s.endpoint; s.unsubscribe().catch(function () {}); go(ep); } else go(''); }, function () { go(''); });
     } catch (e) { go(''); }
   }
-  // 로그인에서 돌아왔을 때: 주소의 ?login= 을 지우고, 닉네임이 없으면 바로 정하게 한다
+  // 가입 직후 "지금 바꾸기"를 눌렀으면 새로 고친 뒤 내 계정 창을 연다
+  meReady.then(function () { var k = null; try { k = sessionStorage.getItem('kw_open_acct'); sessionStorage.removeItem('kw_open_acct'); } catch (e) {} if (k && ME) openAccount(); });
+  // 로그인에서 돌아왔을 때: 주소의 ?login= 을 지우고, 계정이 없으면 바로 자동 가입한다
   (function () {
     var m = /[?&]login=(ok|fail)/.exec(location.search); if (!m) return;
     var clean = location.pathname + location.search.replace(/([?&])login=\w+&?/, '$1').replace(/[?&]$/, '') + location.hash;

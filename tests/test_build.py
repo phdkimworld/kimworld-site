@@ -396,7 +396,8 @@ check('class="table-wrap table-text"' in w and 'data-label="목적"' in w, "글 
 pv = (SRC / "dist/privacy/index.html")
 if pv.exists():
     pvt = pv.read_text(encoding="utf-8")
-    check("Google Analytics" not in pvt and "스티비" not in pvt and "<!--if:" not in pvt, "안 쓰는 GA4·뉴스레터는 개인정보처리방침에 안 나옴")
+    ga_on = bool(((yaml.safe_load((SRC / "site.yaml").read_text(encoding="utf-8")) or {}).get("analytics") or {}).get("ga4_id"))
+    check(("Google Analytics" in pvt) == ga_on and "스티비" not in pvt and "<!--if:" not in pvt, "개인정보처리방침: 쓰는 서비스(GA4)만 나오고 안 쓰는 뉴스레터는 안 나옴")
 rp = (SRC / "dist/r/pltr-2026-10/index.html")
 if rp.exists():
     rpt = rp.read_text(encoding="utf-8")

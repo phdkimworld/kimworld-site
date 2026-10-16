@@ -79,7 +79,7 @@
 
 - **데이블(추천 콘텐츠 광고)**: 미리 설치해 둠. `ads.yaml`의 `dable.service`(승인 때 받은 서비스 이름)와 `dable.widgets.report`(위젯 번호)를 넣으면 모든 페이지에 로그 스크립트, 리포트 출처 아래(`placements.report_recommend`)에 위젯, 개인정보처리방침에 데이블 줄이 자동으로 켜진다. 리포트에는 `dable:item_id`·`dable:author`·`dable:published_time` 메타가 늘 들어간다. 승인 조건: 최근 7일 하루 평균 페이지뷰 3,000 또는 방문자 1,500, 글 100개 이상.
 - **ads.txt 추가 줄**: 새 네트워크가 요구하면 `ads.yaml`의 `ads_txt_extra`에 넣는다(형식 검사). 애드센스 줄은 자동.
-- **GA4**: `site.yaml`의 `analytics.ga4_id`(G-…)만 넣으면 모든 페이지에 태그, 개인정보처리방침에 Google Analytics 줄이 켜진다.
+- **GA4**: 켜짐(G-K0VCTFY1BY, 2026-10-15). `site.yaml`의 `analytics.ga4_id`만 넣으면 모든 페이지에 태그, 개인정보처리방침에 Google Analytics 줄이 켜진다.
 
 ## 5. 도메인 연결
 

@@ -243,6 +243,15 @@ const LB = await login("kakao", "bob", "80.0.0.2");
 check(LB.start.startsWith("https://kauth.kakao.com/oauth/authorize?") && !LB.start.includes("scope"), "카카오는 동의 항목 없이(회원 번호만)");
 r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
 const uB = r1.data.user.id;
+// 자동 가입: 닉네임·소개를 묻지 않고 지어 주며, 첫 변경은 바로 가능
+const LC = await login("google", "carol", "80.0.0.3");
+r1 = await call("POST", "/v1/me", { body: { auto: true, nick: "무시됨" }, ip: "80.0.0.3", cookie: LC.cookie });
+check(r1.data.ok && r1.data.auto && /^[가-힣]{2,4}[가-힣]{1,3}\d{4}$/.test(r1.data.user.nick) && r1.data.user.nick.length <= 12, "자동 가입: 무작위 닉네임(형용사+동물+숫자)");
+check(r1.data.user.nickNext <= Date.now(), "자동 닉네임은 바로 바꿀 수 있음");
+r1 = await call("POST", "/v1/me", { body: { auto: true }, ip: "80.0.0.3", cookie: LC.cookie });
+check(r1.data.ok && !r1.data.auto, "자동 가입 두 번 눌러도 계정은 하나");
+r1 = await call("POST", "/v1/me", { body: { nick: "캐롤투자" }, ip: "80.0.0.3", cookie: LC.cookie });
+check(r1.data.ok && r1.data.user.nick === "캐롤투자" && r1.data.user.nickNext > Date.now() + 13 * 864e5, "자동 닉네임 첫 변경 뒤에는 14일 규칙");
 // 닉네임 변경: 14일에 한 번, 규칙·중복 검사, 지난 글 이름도 함께
 r1 = await call("POST", "/v1/me", { body: { nick: "장기투자자" }, ip: "80.0.0.2", cookie: LB.cookie });
 check(r1.status === 429 && r1.data.error === "nick_wait", "가입 직후에는 14일 동안 닉네임 변경 불가");

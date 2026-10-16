@@ -118,8 +118,16 @@ function nickProblem(nick) {
   if (/운영자|관리자|김박사|admin|drkim|kimworld/i.test(nick) || needsHold(nick)) return "쓸 수 없는 닉네임입니다.";
   return null;
 }
-// 다음에 닉네임을 바꿀 수 있는 시각(가입 직후 정한 닉네임도 14일 뒤부터)
-const nickNext = (u) => (u.nick_changed || u.created) + ACCOUNT.nickChangeMs;
+// 다음에 닉네임을 바꿀 수 있는 시각(가입 직후 정한 닉네임도 14일 뒤부터).
+// 가입 때 자동으로 지어 준 닉네임(nick_changed = -1)은 첫 변경을 바로 할 수 있다
+const nickNext = (u) => (u.nick_changed === -1 ? 0 : (u.nick_changed || u.created) + ACCOUNT.nickChangeMs);
+// 가입 때 자동으로 지어 주는 닉네임: 형용사 + 동물 + 숫자 4자리(예: 든든한황소2741). 최대 12자
+const AUTO_ADJ = ["든든한", "날쌘", "푸른", "붉은", "차분한", "영리한", "대담한", "느긋한", "빠른", "단단한", "조용한", "밝은", "용감한", "꼼꼼한", "부지런한"];
+const AUTO_NOUN = ["황소", "독수리", "늑대", "고래", "사자", "호랑이", "여우", "매", "거북", "펭귄", "부엉이", "치타", "물개", "판다", "들소"];
+function autoNick() {
+  const r = new Uint32Array(3); crypto.getRandomValues(r);
+  return AUTO_ADJ[r[0] % AUTO_ADJ.length] + AUTO_NOUN[r[1] % AUTO_NOUN.length] + String(1000 + (r[2] % 9000));
+}
 // 알림: 같은 대상·종류는 한 줄로 모으고 개수만 늘린다(좋아요 100개 → 알림 1줄)
 async function notify(db, uid, type, ref, slug, fromNick, now) {
   if (!uid) return;
@@ -846,16 +854,28 @@ export default {
           const u = await userByActor(db, actor);
           return json(req, { ok: true, user: { id: u.id, nick: u.nick, bio: u.bio, created: u.created, status: u.status, nickNext: nickNext(u), av: u.av || 0, dmPref: u.dm_pref || "all" } });
         }
-        const nick = String(b.nick || "").trim();
-        const prob = nickProblem(nick);
+        // auto: 닉네임·소개를 묻지 않고 바로 가입(운영자 지시 2026-10-15). 닉네임은 자동으로 짓고, 첫 변경은 바로 할 수 있다
+        const auto = b.auto === true;
+        let nick = auto ? autoNick() : String(b.nick || "").trim();
+        const prob = auto ? null : nickProblem(nick);
         if (prob) return json(req, { error: "nick", message: prob }, 400);
         if (!(await allow(db, `acct|${ih}`, ACCOUNT.createPerIpDay, 864e5, now))) return json(req, { error: "rate", message: "오늘은 이 네트워크에서 더 만들 수 없습니다." }, 429);
-        const ins = await db.prepare("INSERT OR IGNORE INTO users (actor, nick, nick_lc, bio, created) VALUES (?, ?, ?, ?, ?)").bind(actor, nick, nick.toLowerCase(), bio, now).run();
-        if (!ins.meta?.changes) return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
+        let ins = null;
+        for (let i = 0; i < (auto ? 6 : 1); i++) {
+          if (i) nick = autoNick();
+          ins = await db.prepare("INSERT OR IGNORE INTO users (actor, nick, nick_lc, bio, created, nick_changed) VALUES (?, ?, ?, ?, ?, ?)").bind(actor, nick, nick.toLowerCase(), auto ? "" : bio, now, auto ? -1 : null).run();
+          if (ins.meta?.changes) break;
+          if (await userByActor(db, actor)) break; // 같은 기기에서 두 번 눌렀을 때
+        }
+        if (!ins.meta?.changes) {
+          const again = await userByActor(db, actor);
+          if (again) return json(req, { ok: true, user: { ...again, nickNext: nickNext(again) } });
+          return json(req, { error: "taken", message: "이미 쓰는 닉네임입니다." }, 409);
+        }
         const u = await userByActor(db, actor);
         // 이 기기에서 로그인 전에 쓴 익명 댓글을 계정으로 옮긴다
         if (devActor && !devActor.startsWith("ip-")) await db.prepare("UPDATE comments SET uid = ?, nick = ?, did = ? WHERE did = ? AND uid IS NULL").bind(u.id, nick, actor, devActor).run();
-        return json(req, { ok: true, user: u });
+        return json(req, { ok: true, auto, user: { ...u, nickNext: nickNext(u) } });
       }
       if (p === "/v1/me/delete" && req.method === "POST") {
         const me = await userByActor(db, actor);
