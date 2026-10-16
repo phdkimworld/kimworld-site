@@ -15,7 +15,10 @@
       채널마다 토큰·게시물 목록·댓글 읽기 권한을 확인한다(답글 쓰기 권한은 실제로 달아 봐야 안다).
   python scripts/social_comments.py --post
       social/replies/*.json 의 답글을 게시하고 결과를 파일의 "results" 에 적은 뒤 social/replies/done/ 으로 옮긴다.
-      답글 파일 형식: {"replies": [{"platform": "threads|instagram|facebook", "to": "<replyTo>", "text": "..."}]}
+      답글 파일 형식: {"replies": [{"platform": "threads|instagram|facebook", "to": "<replyTo>", "text": "...", "kind": "top|followup|request"}]}
+      본문의 리포트 링크(drkimworld.com/r/<slug>/)에는 게시 직전에 위치별 UTM 을 붙인다(운영자 지시 2026-10-16):
+      utm_source=<채널>&utm_medium=comment&utm_campaign=<slug>&utm_content=reply|followup|request
+      (kind 가 top·없음이면 reply, followup 이면 대댓글 followup, request 면 종목 요청 답글 request). 이미 있는 utm 값은 덮어쓴다.
       결과가 이미 있는 항목(성공·실패 모두)은 다시 달지 않는다(중복 방지).
 
 비밀값(환경변수): THREADS_ACCESS_TOKEN, IG_ACCESS_TOKEN, FB_PAGE_ID, FB_PAGE_TOKEN. 값은 출력하지 않는다.
@@ -38,6 +41,20 @@ POST_WINDOW_DAYS = 60   # 이 기간 안에 올린 게시물의 댓글을 본다
 MAX_PER_FILE = 30
 LIMITS = {"threads": 500, "instagram": 2200, "facebook": 8000}
 SLUG_RE = re.compile(r"drkimworld\.com/r/([a-z0-9-]+)/")
+LINK_RE = re.compile(r"https?://(?:www\.)?drkimworld\.com/r/([a-z0-9-]+)/(\?[^\s]*)?")
+UTM_CONTENT = {"top": "reply", "reply": "reply", "followup": "followup", "request": "request"}
+
+
+def tag_links(text, source, kind):
+    """답글 본문의 리포트 링크에 위치별 UTM 을 붙인다. 댓글 답글(reply)·대댓글 답글(followup)·종목 요청 답글(request)을 따로 센다."""
+    content = UTM_CONTENT.get(kind or "top", "reply")
+
+    def sub(m):
+        slug, q = m.group(1), (m.group(2) or "")[1:]
+        keep = [kv for kv in q.split("&") if kv and not kv.startswith("utm_")]
+        utm = [f"utm_source={source}", "utm_medium=comment", f"utm_campaign={slug}", f"utm_content={content}"]
+        return f"https://drkimworld.com/r/{slug}/?" + "&".join(keep + utm)
+    return LINK_RE.sub(sub, text)
 
 
 def ts(s):
@@ -293,12 +310,13 @@ def post_files():
         for i, r in enumerate(reps):
             if res[i] is not None:
                 continue
-            errs = check_reply(r)
+            r = {**r, "text": tag_links((r.get("text") or "").strip(), r.get("platform"), r.get("kind"))}
+            errs = check_reply(r)   # 글자 수는 UTM 을 붙인 뒤로 센다
             if errs:
                 res[i] = {"error": "; ".join(errs)}
             else:
                 try:
-                    res[i] = {"id": post_one(r["platform"], r["to"], r["text"].strip()),
+                    res[i] = {"id": post_one(r["platform"], r["to"], r["text"]),
                               "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
                 except (RuntimeError, KeyError) as e:
                     res[i] = {"error": str(e)[:300]}

@@ -61,5 +61,13 @@ with tempfile.TemporaryDirectory() as d:
     (sc.REPLIES / "r2.json").write_text(json.dumps({"replies": [{"platform": "instagram", "to": "9", "text": "a"}], "results": [{"id": "old"}]}), encoding="utf-8")
     sc.post_files()
     check("결과가 있는 답글은 다시 달지 않음", len(sent) == 2)
+    (sc.REPLIES / "r3.json").write_text(json.dumps({"replies": [
+        {"platform": "threads", "to": "7", "text": "리포트 → https://drkimworld.com/r/agnc-2026-10/ 어때요?", "kind": "followup"},
+        {"platform": "facebook", "to": "1_3", "text": "https://drkimworld.com/r/a-1/?utm_source=threads&utm_content=x"}]}, ensure_ascii=False), encoding="utf-8")
+    sc.post_files()
+    check("대댓글 답글 링크는 utm_content=followup(채널·comment·slug)",
+          sent[2][2] == "리포트 → https://drkimworld.com/r/agnc-2026-10/?utm_source=threads&utm_medium=comment&utm_campaign=agnc-2026-10&utm_content=followup 어때요?")
+    check("kind 없으면 reply, 이미 있던 utm 은 채널 값으로 덮어씀",
+          sent[3][2] == "https://drkimworld.com/r/a-1/?utm_source=facebook&utm_medium=comment&utm_campaign=a-1&utm_content=reply")
 
 print(f"{ok}개 통과")

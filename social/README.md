@@ -79,7 +79,9 @@ gh secret set IG_ACCESS_TOKEN -R phdkimworld/kimworld-site
 
 ## 댓글 모니터링 (Threads · Instagram · Facebook, 운영자 지시 2026-10-15)
 
-유튜브 댓글 자동 답글과 같은 요령으로, 우리 게시물에 달린 시청자 댓글과 우리 답글 뒤의 대댓글에 답한다. 3시간마다 도는 세션 예약 작업 '유튜브 댓글 자동 답글'이 함께 처리한다.
+유튜브 댓글 자동 답글과 같은 요령으로, 우리 게시물에 달린 시청자 댓글과 우리 답글 뒤의 대댓글에 답한다. 매시간 도는 세션 예약 작업 '댓글 자동 답글'이 함께 처리한다.
+
+**답글 링크 위치별 유입(UTM, 운영자 지시 2026-10-16)**: 답글 파일 항목에 `"kind": "top|followup|request"`를 넣으면 `--post`가 본문의 리포트 링크에 `utm_source=<채널>&utm_medium=comment&utm_campaign=<slug>&utm_content=reply|followup|request`를 붙인다(댓글 답글·대댓글 답글·종목 요청 답글을 따로 센다, 원고에는 맨 주소만). 유튜브는 `tools/yt_reply.py --reply … --kind followup`으로 같은 값을 붙인다(utm_source=youtube). 사이트 관리자 '유입 분석 → 캠페인(UTM)'에서 위치별로 본다.
 
 1. 세션이 `.github/workflows/social-comments.yml`을 `mode=list`로 수동 실행한다. 작업 로그의 `OPEN_JSON:` 한 줄에 채널별 '답할 차례' 목록이 나온다(`kind` top/followup, `replyTo`, `context`, `slug`).
 2. 세션이 리포트 숫자로 답글을 써서 `social/replies/<날짜-시각>.json`(`{"replies":[{"platform","to","text"}]}`)으로 main에 푸시한다.
