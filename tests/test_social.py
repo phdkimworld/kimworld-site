@@ -159,6 +159,17 @@ except spf.FbFatal:
 except RuntimeError:
     pass
 check("속도 제한(4)은 최대 3회 재시도", attempts["n"] == 4)
+seen = []
+def flaky(req, timeout=0):
+    seen.append(req.full_url)
+    if len(seen) == 1:
+        raise urllib.error.HTTPError("u", 500, "x", {}, io.BytesIO(json.dumps({"error": {"code": 2, "message": "m"}}).encode()))
+    class R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    return R(b'{"ok": true}')
+spf.urllib.request.urlopen = flaky
+check("GET 재시도도 같은 주소로(오류 본문이 요청을 덮지 않음)", spf.fb_call("GET", "1/comments", {"a": "b"}, "tok") == {"ok": True} and seen[0] == seen[1] and seen[1].endswith("?a=b"))
 pp = {"text": "본문 질문?", "poll": ["오른다", "내린다", "그대로"], "channel_text": {"instagram": "캡션"}, "media": {"type": "reels", "path": "x"}}
 check("페이스북·인스타 본문 끝에 투표 보기를 글로 붙임", sp.fb_text(pp).endswith("① 오른다\n② 내린다\n③ 그대로") and sp.ig_caption(pp).startswith("캡션\n\n여러분의 생각은?"))
 check("투표가 없으면 본문 그대로", sp.fb_text({"text": "a"}) == "a")

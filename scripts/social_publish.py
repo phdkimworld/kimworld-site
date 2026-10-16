@@ -347,13 +347,13 @@ def fb_call(method, path, params, token, base=FB_API, headers=None, body=None):
             with urllib.request.urlopen(req, timeout=120) as r:
                 return json.loads(r.read().decode() or "{}")
         except urllib.error.HTTPError as e:
-            body = e.read().decode(errors="replace").replace(token, "***")
+            ebody = e.read().decode(errors="replace").replace(token, "***")  # body(보낼 바이트)를 덮지 않는다
             try:
-                err = json.loads(body).get("error", {})
+                err = json.loads(ebody).get("error", {})
             except ValueError:
                 err = {}
             code = err.get("code")
-            msg = f"HTTP {e.code} code={code}: {err.get('message', body)[:240]}"
+            msg = f"HTTP {e.code} code={code}: {err.get('message', ebody)[:240]}"
             if code in (190, 200) or (isinstance(code, int) and 200 <= code < 300) or e.code in (400, 401, 403) and code not in (1, 2, 4, 17, 32, 341, 613):
                 raise FbFatal(msg) from None
             last = RuntimeError(msg)
