@@ -372,7 +372,9 @@ async function analytics(db, now, daysIn) {
   for (const x of acEv) (evBySrc[x.src] = evBySrc[x.src] || {})[x.ev] = x.n;
   const acq = {
     channels: acCh, channelsPrev: acChPrev,
-    sources: acSrc.map((x) => ({ ...x, prevSess: prevBySrc[x.src] || 0, ev: evBySrc[x.src] || {} })),
+    // an_srcev 는 출처(src)로만 쌓여 채널이 갈린 같은 출처(예: youtube/youtube 와 direct/youtube)에 같은 이벤트가 두 번 붙었다(2026-10-16).
+    // 세션이 가장 많은 줄(정렬상 첫 줄)에만 붙인다
+    sources: acSrc.map((x, i) => ({ ...x, prevSess: prevBySrc[x.src] || 0, ev: acSrc.findIndex((y) => y.src === x.src) === i ? evBySrc[x.src] || {} : {} })),
     daily: acDaily, landings: acLand, refs: acRef, campaigns: acCamp, dow: acDow,
   };
   const evMap = (rows) => Object.fromEntries(rows.map((x) => [x.ev, x.n]));
@@ -573,7 +575,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다

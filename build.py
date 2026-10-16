@@ -402,6 +402,28 @@ def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late
     return out
 
 
+def insert_mid_next(body_html: str, rel: dict | None) -> str:
+    """본문 40% 안팎, 문단과 문단 사이에 같은 테마 다음 리포트 한 줄 링크를 끼운다(2026-10-16 운영 통계: 리포트 평균 스크롤 55%·
+    유튜브 유입 세션당 1.4쪽이라 맨 아래 '다음에 읽을 만한' 칸까지 내려오는 사람이 적다). 소제목(광고 자리) 바로 앞은 피하고
+    인용·목록·접기·표 안에는 넣지 않는다."""
+    if not rel or plain_len(body_html) < 3000:
+        return body_html
+    target = len(body_html) * 0.4
+    best = -1
+    for m in re.finditer(r"</p>\s*(?=<p[\s>])", body_html):
+        pos = m.end()
+        before = body_html[:pos]
+        if any(before.count(f"<{t}") != before.count(f"</{t}>") for t in ("blockquote", "details", "table", "li", "aside", "figure")):
+            continue
+        if best < 0 or abs(pos - target) < abs(best - target):
+            best = pos
+    if best < 0 or not (0.25 <= best / len(body_html) <= 0.6):
+        return body_html
+    box = (f'<p class="mid-next"><span class="mid-next-k">함께 읽기</span> '
+           f'<a href="{html.escape(rel["url"], quote=True)}" data-mid-next>{html.escape(rel["ticker"])} · {html.escape(rel["title"])} →</a></p>\n')
+    return body_html[:best] + box + body_html[best:]
+
+
 def plain_len(s: str) -> int:
     return len(re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", s)))
 
@@ -956,6 +978,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     for r in reports:
         ads.begin_page()
         body, used_terms = apply_glossary(r["body_html"], glossary)
+        body = insert_mid_next(body, (r.get("related") or [None])[0])
         exclude = []  # 리포트에서 다룬 회사의 상품도 광고에 나올 수 있다(법적 제한 없음)
         ad_ctx = {"theme": r["theme"], "exclude": exclude}
         pieces = []

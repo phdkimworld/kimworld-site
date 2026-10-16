@@ -821,6 +821,9 @@ body:has(.tabbar) .install-bar { bottom: calc(66px + env(safe-area-inset-bottom,
 .sum-jump { margin: 10px 0 0; font-size: .86rem; font-weight: 700; }
 .sum-jump a { color: var(--accent); text-decoration: none; }
 .next-theme { margin-top: 24px; }
+.mid-next { margin: 1.4em 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--surface-2, rgba(127,127,127,.08)); border-radius: 0 8px 8px 0; font-size: .92rem; line-height: 1.5; }
+.mid-next-k { display: block; font-size: .76rem; font-weight: 700; color: var(--muted, #888); margin-bottom: 2px; }
+.mid-next a { font-weight: 700; color: var(--accent); text-decoration: none; overflow-wrap: anywhere; }
 .featured { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .featured-badge { margin: -2px 0 10px; font-size: .78rem; font-weight: 800; color: var(--accent); }
 

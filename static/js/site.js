@@ -753,3 +753,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   if (src === 'youtube' || /youtube\.com$|youtu\.be$/.test(ref) || utm === 'youtube') { nav.hidden = false; if (window.kwEv) kwEv('yt_jump_shown'); }
   nav.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('yt_jump_click'); });
 })();
+
+// 본문 중간 '함께 읽기' 링크 누름(2026-10-16: 리포트 → 다음 리포트 이동 측정)
+(function () {
+  var a = document.querySelector('[data-mid-next]'); if (!a) return;
+  a.addEventListener('click', function () { if (window.kwEv) kwEv('mid_next_click'); });
+})();
