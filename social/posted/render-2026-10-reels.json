@@ -25,7 +25,10 @@
   "publish_at": "2026-10-16T16:00:28-04:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "container": "18096870734389749",
+      "id": "18125521684916358",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/DekaJxDlWiM/"
     },
     "facebook": {
       "video_id": "1733628071064777",
@@ -34,5 +37,6 @@
       "permalink": "/reel/1733628071064777/",
       "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-16T16:38:20-04:00"
 }
