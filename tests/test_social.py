@@ -5,7 +5,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import social_publish as sp
-sp.ig_hold = lambda *a: None  # 게시 간격 규칙은 아래(모듈 다시 불러온 뒤)에서 따로 시험한다
 
 ok = 0
 def check(name, cond):
@@ -194,19 +193,4 @@ wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").r
 step = wf[wf.index("Commit results"):]
 check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로 둠(중복 게시 방지)",
       step.find("git config user.name") != -1 and step.find("git config user.name") < step.find("pull -q --rebase"))
-with tempfile.TemporaryDirectory() as d2:
-    d2 = Path(d2); spf.QUEUE = d2 / "q"; spf.POSTED = d2 / "p"; spf.QUEUE.mkdir(); spf.POSTED.mkdir()
-    now = datetime.now(timezone.utc)
-    reel = {"media": {"type": "reels"}, "channels": ["instagram"]}; car = {"media": {"type": "carousel"}, "channels": ["instagram"]}
-    check("인스타 간격: 기록 없으면 바로 게시", spf.ig_hold(reel, now, False) is None)
-    check("인스타 간격: 릴스가 함께 대기 중이면 캐러셀은 뒤로", spf.ig_hold(car, now, True) == "릴스 먼저")
-    P = lambda n, h, t: (spf.POSTED / n).write_text(json.dumps({"media": {"type": t}, "results": {"instagram": {"id": "1", "at": (now - timedelta(hours=h)).isoformat()}}}))
-    P("a.json", 2, "reels")
-    check("인스타 간격: 4시간 안에 또 올리지 않음", "간격" in (spf.ig_hold(reel, now, False) or ""))
-    (spf.POSTED / "a.json").unlink(); P("a.json", 5, "carousel")
-    check("인스타 간격: 캐러셀은 하루 1개", "캐러셀" in (spf.ig_hold(car, now, False) or "") and spf.ig_hold(reel, now, False) is None)
-    P("b.json", 10, "reels"); P("c.json", 20, "reels")
-    check("인스타 간격: 하루 3개면 멈춤", "하루" in (spf.ig_hold(reel, now, False) or ""))
-    P("d.json", 30, "reels"); (spf.POSTED / "c.json").unlink(); (spf.POSTED / "b.json").unlink()
-    check("인스타 간격: 24시간 지난 기록은 세지 않음", spf.ig_hold(reel, now, False) is None)
 print(f"\n모두 통과 ({ok})")

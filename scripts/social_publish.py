@@ -278,48 +278,7 @@ def ig_wait(cid, token, limit=600):
     raise RuntimeError("인스타 컨테이너 처리 시간 초과(10분)")
 
 
-# 인스타그램 게시 간격(운영자 지시 2026-10-16 "인스타그램 뷰가 전혀 안 나온다"): 팔로워 3명 계정이 이틀에 56개를
-# 올리자 거의 모든 게시물의 도달이 0이었다. 하루 최대 IG_DAILY개, IG_GAP_H시간 간격, 캐러셀은 하루 IG_CAROUSEL_DAILY개,
-# 같은 때 게시 대상이면 릴스 먼저. 넘치면 버리지 않고 다음 실행까지 기다린다.
-IG_DAILY, IG_GAP_H, IG_CAROUSEL_DAILY = 3, 4, 1
-
-
-def ig_recent(now):
-    """최근 24시간 인스타 게시 시각 목록 [(시각, 종류)]."""
-    out = []
-    for q in list(POSTED.glob("*.json")) + list(QUEUE.glob("*.json")):
-        try:
-            d = json.loads(q.read_text(encoding="utf-8"))
-        except ValueError:
-            continue
-        r = d.get("results", {}).get("instagram", {})
-        if not r.get("id"):
-            continue
-        at = r.get("at") or d.get("posted_at")
-        if not at:
-            continue
-        t = parse_time(at)
-        if now - t < timedelta(hours=24):
-            out.append((t, (d.get("media") or {}).get("type", "")))
-    return sorted(out)
-
-
-def ig_hold(post, now, reels_due):
-    """지금 이 게시물을 인스타에 올리면 안 되는 이유(없으면 None)."""
-    rec = ig_recent(now)
-    typ = (post.get("media") or {}).get("type", "")
-    if len(rec) >= IG_DAILY:
-        return f"인스타 하루 {IG_DAILY}개 도달"
-    if rec and now - rec[-1][0] < timedelta(hours=IG_GAP_H):
-        return f"인스타 {IG_GAP_H}시간 간격 대기"
-    if typ != "reels" and sum(1 for _, k in rec if k != "reels") >= IG_CAROUSEL_DAILY:
-        return f"인스타 캐러셀 하루 {IG_CAROUSEL_DAILY}개 도달"
-    if typ != "reels" and reels_due:
-        return "릴스 먼저"
-    return None
-
-
-def do_instagram(post, res, save, now, reels_due=False):
+def do_instagram(post, res, save, now):
     m = post.get("media")
     if not m:
         res.update(done=True, skipped="미디어 없음")
@@ -337,11 +296,6 @@ def do_instagram(post, res, save, now, reels_due=False):
             raise RuntimeError(f"미디어 주소가 {STALE_HOURS}시간 넘게 열리지 않음(사이트 배포 확인): {urls}")
         res["waiting"] = "미디어 주소 배포 대기"
         return  # 다음 실행에서 다시 시도
-    if not res.get("container"):
-        why = ig_hold(post, now, reels_due)
-        if why:
-            res["waiting"] = why
-            return
     res.pop("waiting", None)
     cap = ig_caption(post)
     typ = m["type"]
@@ -365,7 +319,7 @@ def do_instagram(post, res, save, now, reels_due=False):
         save()
     ig_wait(res["container"], token)
     mid = call(IG_API, "POST", f"{uid}/media_publish", {"creation_id": res["container"]}, token)["id"]
-    res.update(id=mid, done=True, at=datetime.now(NY).isoformat(timespec="seconds"))
+    res.update(id=mid, done=True)
     try:
         res["permalink"] = call(IG_API, "GET", mid, {"fields": "permalink"}, token).get("permalink", "")
     except RuntimeError:
@@ -594,9 +548,7 @@ def main(argv):
                 elif ch == "facebook":
                     do_facebook(post, res, save, now, live_used)
                 else:
-                    reels_due = any(q is not p and (o.get("media") or {}).get("type") == "reels" and "instagram" in o["channels"]
-                                    for q, o in due)
-                    do_instagram(post, res, save, now, reels_due)
+                    do_instagram(post, res, save, now)
             except RuntimeError as e:
                 failed += 1
                 res["last_error"] = str(e)[:300]
