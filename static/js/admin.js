@@ -274,7 +274,7 @@
     var pos = function (v) { return POS[v] ? POS[v] + (POS[v] !== v && v !== '-' ? ' (' + v + ')' : '') : v; };
     g2.appendChild(table('링크 위치별 유입(UTM)', ['출처 / 매체', '위치', '방문', '계속 읽은 비율', '방문당 체류', '종목·영상 수'], A.campaigns.map(function (x) {
       return [x.src + ' / ' + pos(x.med), pos(x.cont), nf(x.sess), pct(x.multi, x.sess), dur(x.sess ? x.secs / x.sess : 0), nf(x.camps || 0)];
-    }), { note: '종목·영상(utm_campaign)은 합쳐서 위치(utm_content)별로 봅니다. 링크 끝에 ?utm_source=youtube&utm_medium=video&utm_content=pinned 처럼 붙이면 설명란·고정 댓글·영상 속 안내를 나눠 볼 수 있습니다.' }));
+    }), { note: '종목·영상(utm_campaign)은 합쳐서 위치(utm_content)별로 봅니다. 링크 끝에 ?utm_source=youtube&utm_medium=video&utm_content=pinned 처럼 붙이면 설명란·고정 댓글·영상 속 안내를 나눠 볼 수 있습니다. 유튜브 매체는 롱폼 video, 쇼츠 shorts로 나뉩니다.' }));
     wrap.appendChild(g2);
     return wrap;
   }
