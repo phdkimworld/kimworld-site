@@ -16,6 +16,8 @@ for i,p in enumerate(s['paras']):
         els=ats[1:]
         if els and min(els)>f and x.get('layout')!='outro': print('BLANK p%d s%d'%(i+1,j),x.get('layout'),x.get('title',''),'첫 문장(%d) 동안 제목만 보임: 첫 요소의 at을 from과 같게(지침 A3)'%f);ok=False
         if x.get('layout')=='chart' and sum(1 for it in x.get('points',[]) if it.get('at',f)==f)<2: print('CHART1 p%d s%d'%(i+1,j),x.get('title',''),'첫 문장 동안 점이 하나뿐(빈 화면으로 잡힘): 첫 두 점의 at을 from과 같게');ok=False
+        # CHART2: 차트 점을 나중 문장에 덧붙이면 화면 전환으로 잡히지 않아 긴 정지가 된다(AEHR p1·p5, IREN). 점은 모두 같은 at, 다음 내용은 새 슬라이드로
+        if x.get('layout')=='chart' and len(set(it.get('at',f) for it in x.get('points',[])))>1: print('CHART2 p%d s%d'%(i+1,j),x.get('title',''),'점이 여러 문장에 나뉘어 나옴: 점은 한 번에, 다음 점은 새 슬라이드(compare·stat)로');ok=False
         for it in x.get('items',[]):
             if isinstance(it,dict) and len(str(it.get('no','')))>2: print('BADGE p%d'%(i+1),it.get('no'),'(번호 배지는 2자 이하)');ok=False
     first=sl[0]; fa=[it.get('at',0) for k in ('items','stats','points','lines') for it in first.get(k,[]) if isinstance(it,dict)]+[first[k].get('at',0) for k in ('left','right') if k in first]
