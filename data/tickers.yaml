@@ -462,3 +462,9 @@ NNDM:
   exchange: "NASDAQ"
   theme: "산업재·인수합병"
   aliases: ["나노디멘션", "나노 디멘션", "Nano Dimension", "나노 디멘션스"]
+ANRO:
+  name: "알토 뉴로사이언스"
+  name_en: "Alto Neuroscience"
+  exchange: "NYSE"
+  theme: "바이오·헬스케어"
+  aliases: ["알토 뉴로사이언스", "알토뉴로사이언스", "알토", "Alto Neuroscience"]
