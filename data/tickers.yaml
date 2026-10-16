@@ -456,3 +456,9 @@ AEHR:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["에어 테스트", "에어테스트", "Aehr", "Aehr Test Systems", "에어 테스트 시스템즈"]
+NNDM:
+  name: "나노 디멘션"
+  name_en: "Nano Dimension"
+  exchange: "NASDAQ"
+  theme: "산업재·인수합병"
+  aliases: ["나노디멘션", "나노 디멘션", "Nano Dimension", "나노 디멘션스"]
