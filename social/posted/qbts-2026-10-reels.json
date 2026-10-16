@@ -18,7 +18,10 @@
   "results": {
     "instagram": {
       "last_error": "IG_ACCESS_TOKEN 비밀값이 없음",
-      "waiting": "미디어 주소 배포 대기"
+      "container": "18096760328389749",
+      "id": "18155772577454700",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/Deih-e5AWXW/"
     },
     "facebook": {
       "last_error": "FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음",
@@ -27,5 +30,6 @@
       "permalink": "/reel/1667615134753526/",
       "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-15T23:08:08-04:00"
 }
