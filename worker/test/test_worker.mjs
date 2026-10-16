@@ -691,6 +691,8 @@ console.log("푸시 알림");
     const pt = new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv: nonce }, await subtle.importKey("raw", cek, "AES-GCM", false, ["decrypt"]), ct));
     return JSON.parse(new TextDecoder().decode(pt.slice(0, pt.lastIndexOf(2))));
   }
+  // 1분 예약 작업: waitUntil 로 넘긴 일이 끝날 때까지 기다린다(느린 CI에서 고정 50ms 대기는 모자람)
+  const cron = async () => { const w = []; await worker.scheduled({}, env, { waitUntil: (p) => w.push(p) }); await Promise.all(w); };
   const P1 = await mkUser("push1", "알림받기", "71.0.0.1"), P2 = await mkUser("push2", "알림주기", "71.0.0.2"), P3 = await mkUser("push3", "모르는이", "71.0.0.3");
   await env.DB.prepare("UPDATE users SET created = created - 3 * 86400000 WHERE id IN (?, ?, ?)").bind(P1.id, P2.id, P3.id).run(); // 새 계정 글쓰기 제한을 피한다
   const key = (await call("GET", "/v1/push/key")).data.key;
@@ -718,8 +720,7 @@ console.log("푸시 알림");
   check(q.some((x) => x.type === "reply") && q.some((x) => x.type === "follow"), "푸시: 알림이 생기면 대기열에(푸시 켠 사람만)");
   check(!(await env.DB.prepare("SELECT 1 AS y FROM push_pending WHERE uid = ?").bind(P2.id).first()), "푸시: 푸시 안 켠 사람은 대기열에 안 쌓인다");
   PUSHED.length = 0;
-  let r = await worker.scheduled({}, env, { waitUntil: (p) => p });
-  await new Promise((ok) => setTimeout(ok, 50));
+  await cron();
   const got = await Promise.all(PUSHED.map((x) => decrypt(x.body)));
   check(got.some((x) => x.t === "알림주기님이 답글을 달았습니다" && x.u === "/p/?id=" + post.id) && got.some((x) => x.t.includes("팔로우했습니다")), "푸시: 1분 작업이 답글·팔로우 알림을 보낸다");
   // 설정: 답글은 '내가 팔로우한 사람만', 팔로우 알림 끔 → 모르는 사람 답글은 안 옴, 팔로우한 사람 답글은 옴
@@ -729,13 +730,13 @@ console.log("푸시 알림");
   const post2 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "두 번째 시험 글", t: 8000 })).data;
   await as(P3, "POST", "/v1/comments", { slug: "b-talk", body: "모르는 사람 답글", parent: post2.id, t: 8000 });
   await as(P3, "POST", "/v1/follow", { uid: P1.id });
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   check(PUSHED.length === 0, "푸시: '팔로우한 사람만'·끔 설정이면 보내지 않는다");
   await as(P1, "POST", "/v1/follow", { uid: P3.id });
   await env.DB.prepare("DELETE FROM rate").run(); await env.DB.prepare("UPDATE comments SET created = created - 3600000 WHERE uid IN (?, ?)").bind(P1.id, P3.id).run(); // 글쓰기 간격 제한을 비운다(시험용)
   const post3 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "세 번째 시험 글", t: 8000 })).data;
   await as(P3, "POST", "/v1/comments", { slug: "b-talk", body: "이제 팔로우한 사람 답글", parent: post3.id, t: 8000 });
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   const gotF = await Promise.all(PUSHED.map((x) => decrypt(x.body)));
   check(PUSHED.length === 1 && gotF[0].t.startsWith("모르는이님"), "푸시: 내가 팔로우한 사람의 답글은 보낸다");
   // 일시 중지·방해 금지 시간
@@ -744,22 +745,22 @@ console.log("푸시 알림");
   const post4 = (await as(P1, "POST", "/v1/comments", { slug: "b-talk", body: "네 번째 시험 글", t: 8000 })).data;
   await as(P2, "POST", "/v1/comments/" + post4.id + "/like");
   await env.DB.prepare("INSERT INTO push_pending (uid, type, ref, slug, from_nick, n, updated) VALUES (?, 'report', 'rgti-2026-10', '', '리게티 주가 내러티브와 패턴 투자전략: 정부가 주주가 됐다', 1, ?)").bind(P1.id, Date.now()).run();
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   check(PUSHED.length === 0, "푸시: 일시 중지 중에는 보내지 않는다");
   await as(P1, "POST", "/v1/push/prefs", { prefs: { pause: 0, quiet: true, qFrom: 0, qTo: 1439, tz: 0 } });
   await env.DB.prepare("UPDATE push_pending SET updated = updated + 1 WHERE uid = ? AND type = 'report'").bind(P1.id).run();
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   check(PUSHED.length === 0, "푸시: 방해 금지 시간에는 보내지 않는다");
   await as(P1, "POST", "/v1/push/prefs", { prefs: { quiet: false } });
   await env.DB.prepare("UPDATE push_pending SET updated = updated + 2 WHERE uid = ? AND type = 'report'").bind(P1.id).run();
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   const rep = PUSHED.length === 1 ? await decrypt(PUSHED[0].body) : {};
   check(rep.t === "새 리포트 · RGTI" && rep.b === "정부가 주주가 됐다" && rep.u === "/r/rgti-2026-10/", "푸시: 팔로우한 종목 새 리포트 알림(제목은 짧게)");
   // 쪽지: 처음 보는 사람의 쪽지는 '쪽지 요청'으로, 요청 알림 끔이면 안 옴
   await as(P1, "POST", "/v1/push/prefs", { prefs: { dmreq: "off" } });
   await as(P2, "POST", "/v1/dm/send", { to: P1.id, body: "안녕하세요 처음 인사드려요" });
   const dq = await env.DB.prepare("SELECT slug FROM push_pending WHERE uid = ? AND type = 'dm'").bind(P1.id).first();
-  PUSHED.length = 0; await worker.scheduled({}, env, { waitUntil: (p) => p }); await new Promise((ok) => setTimeout(ok, 50));
+  PUSHED.length = 0; await cron();
   check(dq && dq.slug === "req" && PUSHED.length === 0, "푸시: 처음 보는 사람 쪽지는 '쪽지 요청', 끄면 안 옴");
   // 구독이 끝난 기기(410)는 지운다 · 로그아웃하면 이 기기 구독을 지운다
   const gone = { endpoint: "https://web.push.apple.com/gone/1", keys: sub.keys };
