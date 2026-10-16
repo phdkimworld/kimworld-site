@@ -3,6 +3,7 @@ name: Social comments (Threads·Instagram·Facebook 댓글)
 # 유튜브 댓글 자동 답글과 같은 요령으로 SNS 댓글·대댓글을 모니터링한다(운영자 지시 2026-10-15).
 #  - 수동 실행 mode=list : 답할 차례인 댓글을 모아 작업 로그의 "OPEN_JSON:" 한 줄로 낸다(세션이 읽어 답글을 쓴다).
 #  - 수동 실행 mode=probe: 채널마다 댓글 읽기 권한을 확인한다.
+#  - 수동 실행 mode=insights: 인스타그램·Threads 게시물 성과를 "INSIGHTS_JSON:" 한 줄로 낸다(운영자 지시 2026-10-16).
 #  - social/replies/*.json 이 올라오면 답글을 게시하고 결과를 social/replies/done/ 에 커밋한다.
 # 필요한 GitHub 비밀값: THREADS_ACCESS_TOKEN, IG_ACCESS_TOKEN, FB_PAGE_ID, FB_PAGE_TOKEN
 on:
@@ -12,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "list(기본) / probe"
+        description: "list(기본) / probe / insights(인스타·Threads 게시물 성과)"
         required: false
         default: "list"
       days:
@@ -50,6 +51,7 @@ jobs:
           case "$MODE" in
             post) python scripts/social_comments.py --post ;;
             probe) python scripts/social_comments.py --probe ;;
+            insights) python scripts/social_insights.py --log --days "$DAYS" ;;
             *) python scripts/social_comments.py --list --days "$DAYS" --log ;;
           esac
       - name: Commit results
