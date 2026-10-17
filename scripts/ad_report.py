@@ -37,7 +37,7 @@ def main() -> None:
     chunks, cur = [], []
     for x in out:
         cur.append(x)
-        if len(json.dumps(cur, ensure_ascii=False)) > 6000:
+        if len(json.dumps(cur, ensure_ascii=False)) > 3300:  # 주석 하나는 4096자에서 잘린다
             chunks.append(cur[:-1]); cur = [x]
     if cur:
         chunks.append(cur)
