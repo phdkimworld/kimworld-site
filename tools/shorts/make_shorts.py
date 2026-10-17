@@ -17,6 +17,7 @@
 #        poll(q, opts[2~4개, 각 10자 이하], opt_at[비율들], foot, foot_at) — Threads 투표 같은 카드(운영자 지시 2026-10-16 '숏폼에도 마지막에 폴').
 #          마지막 두 장면 안에 꼭 하나(없으면 렌더를 멈춘다). 정답 표시·비율·특정 보기 강조 금지(숨긴 답 규칙).
 #  sfx: boom(드롭·히트) / tick(숫자). 영상 전체 3~5개만 쓴다(지침).
+#  group: "A"|"B" 필수(실험 조). 첫 장면 at 0 요소는 애니메이션 없이 최종 크기(0초 프레임 = 표지, 독립 검토 2026-10-17).
 import json, os, subprocess, sys, wave
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'slidekit'))
@@ -124,7 +125,7 @@ def draw_el(core, el, p, dur):
             sf = font(FBD, 48); sim = text_img(el['sub'], sf, COL['sub'])
             core.alpha_composite(sim, (int(cx + dx - sim.width / 2), int(y + im.height + 6)))
     elif k == 'stamp':
-        sc = 1.0 + 0.8 * (1 - ease(lt / 0.18))
+        sc = 1.0 if el.get('anim') == 'none' else 1.0 + 0.8 * (1 - ease(lt / 0.18))
         f = font(FB, el.get('size', 120)); tim = text_img(el['text'], f, col)
         box = Image.new('RGBA', (tim.width + 60, tim.height + 40), (0, 0, 0, 0))
         ImageDraw.Draw(box).rounded_rectangle([3, 3, box.width - 4, box.height - 4], radius=16, outline=col, width=10)
@@ -218,6 +219,11 @@ def main(spec_p, raw, out):
     tm = json.load(open(os.path.splitext(raw)[0] + '_timing.json', encoding='utf-8'))
     sents = [s for p in tm['paras'] for s in p['sents']]
     scenes = spec['scenes']
+    assert spec.get('group') in ('A', 'B'), 'GROUP: shorts.json에 "group":"A"|"B"(그 회차 실험 조)를 적는다 — 독립 검토 2026-10-17'
+    # 0초 프레임이 표지다(조회는 첫 프레임부터): 첫 장면에서 0초에 뜨는 요소는 확대·튀어나오기 없이 최종 크기로 그린다
+    for el in scenes[0]['els']:
+        if el.get('at', 0.0) == 0.0 and el['kind'] in ('num', 'text', 'stamp'):
+            el['anim'] = 'none'
     assert len(sents) == len(scenes), f'문장 {len(sents)} / 장면 {len(scenes)} 수가 다르다(한 줄 = 한 문장 = 한 장면)'
     polls = [el for sc in scenes[-2:] for el in sc['els'] if el['kind'] == 'poll']
     assert polls, 'POLL: 마지막 두 장면 안에 poll 요소(Threads 같은 투표 카드)가 없다 — 운영자 지시 2026-10-16'
