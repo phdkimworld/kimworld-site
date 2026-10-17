@@ -761,3 +761,10 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   var a = document.querySelector('[data-mid-next]'); if (!a) return;
   a.addEventListener('click', function () { if (window.kwEv) kwEv('mid_next_click'); });
 })();
+
+// 광고·제휴 문의 메일: 화면에는 '＠'로 적어 두고(주소 수집 로봇 막기), 누르면 진짜 주소로 메일을 연다
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a.mail-link'); if (!a) return;
+  e.preventDefault();
+  location.href = 'mailto:' + a.getAttribute('data-u') + '@' + a.getAttribute('data-d') + '?subject=' + encodeURIComponent('[김박사 월드 광고·제휴 문의]');
+});

@@ -1072,10 +1072,22 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "{{site_name}}": site.get("site_name", ""),
         "{{channel_name}}": op.get("display_name") or site.get("site_name", ""),
         "{{youtube_url}}": op.get("youtube_url") or "#",
+        "{{report_count}}": str(len(reports)),
+        "{{theme_count}}": str(len({r["theme"] for r in reports})),
     }
+    # 광고·제휴 문의 메일(도메인 역할 주소, 운영자 개인 메일 아님). 화면에는 '＠'로 적고 site.js가 눌렀을 때 진짜 주소로 바꾼다(주소 수집 로봇 막기)
+    _cm = str((site.get("contact") or {}).get("ads_email") or "").strip()
+    if _cm and "@" in _cm:
+        _u, _d = _cm.split("@", 1)
+        repl["{{ads_email}}"] = f'<a class="mail-link" href="#" data-u="{html.escape(_u)}" data-d="{html.escape(_d)}">{html.escape(_u)}＠{html.escape(_d)}</a>'
+    else:
+        repl["{{ads_email}}"] = f'[{op.get("display_name") or site.get("site_name", "")} 유튜브 채널]({op.get("youtube_url") or "#"})의 댓글'
+    _ads_mail_on = bool(_cm and "@" in _cm)
     page_flags = {
         "ga4": bool((site.get("analytics") or {}).get("ga4_id")),
         "dable": bool(ads.on and ads.dable_service),
+        "adsmail": _ads_mail_on,
+        "noadsmail": not _ads_mail_on,
         "newsletter": bool((site.get("newsletter") or {}).get("url")),
         "api": bool(site.get("api_url")),
     }
