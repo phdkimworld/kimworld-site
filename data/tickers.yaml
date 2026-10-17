@@ -480,3 +480,9 @@ NEAR:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["니어 프로토콜", "니어프로토콜", "니어", "NEAR Protocol", "NEAR", "NEAR Intents", "니어 인텐츠"]
+MBOT:
+  name: "마이크로봇 메디컬"
+  name_en: "Microbot Medical Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["마이크로봇 메디컬", "마이크로봇메디컬", "마이크로봇", "Microbot Medical", "Microbot", "LIBERTY"]

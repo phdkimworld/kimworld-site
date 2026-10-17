@@ -1,5 +1,5 @@
 # 사이트 리포트용 대표 가격 차트 PNG (가로 1080, 흰 배경, 시간순 막대)
-# 사용: python3 make_chart.py chart.json 출력.png
+# 사용: python3 make_chart.py chart.json 출력.png  (chart.json에 "scale": "log"를 넣으면 로그 눈금)
 import json, sys
 from PIL import Image, ImageDraw, ImageFont
 c = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -13,7 +13,12 @@ T = lambda x, y, t, f, col: d.text((x * S, y * S), t, font=f, fill=col)
 y = 36
 for line in c["title"][:2]: T(40, y, line, F("Bold", 34), "#0E1A2B"); y += 48
 vmax = max(r[2] for r in rows + ([[0, 0, ref["v"]]] if ref else [])) * 1.05
-bx = lambda v: L + (W - L - R) * v / vmax
+if c.get("scale") == "log":  # 선택: 값 차이가 수십~수백 배일 때 로그 눈금 막대
+    import math
+    lo = math.log10(min(r[2] for r in rows) / 2); hi = math.log10(vmax)
+    bx = lambda v: L + (W - L - R) * (math.log10(v) - lo) / (hi - lo)
+else:
+    bx = lambda v: L + (W - L - R) * v / vmax
 for i, (dt, lab, v) in enumerate(rows):
     y0 = TOP + i * RH; last = i == len(rows) - 1
     T(40, y0 + 6, dt, F("Bold", 24), "#0E1A2B"); T(40, y0 + 38, lab, F("Regular", 22), "#5E6B7D")
