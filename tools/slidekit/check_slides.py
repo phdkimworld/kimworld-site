@@ -20,6 +20,9 @@ for i,p in enumerate(s['paras']):
         if x.get('layout')=='chart' and len(set(it.get('at',f) for it in x.get('points',[])))>1: print('CHART2 p%d s%d'%(i+1,j),x.get('title',''),'점이 여러 문장에 나뉘어 나옴: 점은 한 번에, 다음 점은 새 슬라이드(compare·stat)로');ok=False
         for it in x.get('items',[]):
             if isinstance(it,dict) and len(str(it.get('no','')))>2: print('BADGE p%d'%(i+1),it.get('no'),'(번호 배지는 2자 이하)');ok=False
+        # BIG: stat 큰 글자가 13자 이상이면 화면 밖으로 잘린다(10-17 TIA 13장). 긴 말은 title·label로
+        for it in x.get('stats',[]):
+            if isinstance(it,dict) and len(str(it.get('big','')))>12: print('BIG p%d s%d'%(i+1,j),it.get('big'),'(stat big은 12자 이하, 긴 말은 title·label로)');ok=False
     first=sl[0]; fa=[it.get('at',0) for k in ('items','stats','points','lines') for it in first.get(k,[]) if isinstance(it,dict)]+[first[k].get('at',0) for k in ('left','right') if k in first]
     if i==0 and fa and min(fa)>0: print('BAD p1 첫 화면이 첫 문장 동안 비어 있음 (훅 5초 이탈 위험): 첫 요소의 at을 0으로'); ok=False
     for a in p.get('ad',[]):
