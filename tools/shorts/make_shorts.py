@@ -14,6 +14,8 @@
 #  요소 공통: at(장면 안 시작 비율 0~1), until(사라지는 비율), y(핵심 영역 안 0~768), x(가운데 기준, 기본 540)
 #  kind: chart(pts, draw[시작,끝], labels{인덱스:글}, level, level_label) / num(text, from, to, fmt, sub, size, color, anim pop|count|slide_l|slide_r)
 #        text(text, size, color, anim, box) / stamp(text, color) / bars(vals, labels, values, draw) / doc(text) / q(text)
+#        poll(q, opts[2~4개, 각 10자 이하], opt_at[비율들], foot, foot_at) — Threads 투표 같은 카드(운영자 지시 2026-10-16 '숏폼에도 마지막에 폴').
+#          마지막 두 장면 안에 꼭 하나(없으면 렌더를 멈춘다). 정답 표시·비율·특정 보기 강조 금지(숨긴 답 규칙).
 #  sfx: boom(드롭·히트) / tick(숫자). 영상 전체 3~5개만 쓴다(지침).
 import json, os, subprocess, sys, wave
 import numpy as np
@@ -152,6 +154,21 @@ def draw_el(core, el, p, dur):
         d.rectangle([x + 34, yy + 60 + 3 * 58 - 8, x + w - 34, yy + 60 + 3 * 58 + 26], outline=COL['red'], width=6)
         if el.get('text'):
             f = font(FBD, 56); d.text((cx - d.textlength(el['text'], font=f) / 2, yy + h + 20), el['text'], font=f, fill=COL['white'])
+    elif k == 'poll':  # 가운데 x 60~900(오른쪽 버튼 자리 피함), 핵심 영역 y 0~620
+        x0, x1 = 60, 900
+        d.rounded_rectangle([x0, y, x1, y + 590], radius=34, fill=(22, 37, 59, 245), outline=(34, 56, 90, 255), width=3)
+        d.ellipse([x0 + 40, y + 42, x0 + 64, y + 66], fill=COL['yellow']); d.text((x0 + 80, y + 28), el.get('head', '투표'), font=font(FB, 44), fill=COL['yellow'])
+        qf = font(FB, fit_size(el['q'], FB, 64, x1 - x0 - 80)); d.text((x0 + 40, y + 96), el['q'], font=qf, fill=COL['white'])
+        ats = el.get('opt_at', [0.15 + 0.2 * i for i in range(len(el['opts']))]); nums = '①②③④'
+        for i, o in enumerate(el['opts']):
+            if p < ats[i]:
+                continue
+            g = ease((p - ats[i]) * dur / 0.2); oy = y + 190 + i * 104; ox = x0 + 40 - 40 * (1 - g)
+            d.rounded_rectangle([ox, oy, x1 - 40, oy + 86], radius=43, fill=(52, 78, 116, 255), outline=(90, 120, 160, 255), width=4)
+            d.text((ox + 30, oy + 6), nums[i], font=font(FB, 54), fill=COL['sub'])
+            d.text((ox + 110, oy + 4), o, font=font(FB, fit_size(o, FB, 56, x1 - ox - 190)), fill=COL['white'])
+        if p >= el.get('foot_at', 0.8):
+            ff = font(FB, 46); ft = el.get('foot', '댓글에 번호 하나만'); d.text(((x0 + x1) / 2 - d.textlength(ft, font=ff) / 2, y + 515), ft, font=ff, fill=COL['yellow'])
     elif k == 'q':
         sc = 0.6 + 0.4 * ease(lt / 0.25)
         im = text_img('?', font(FB, 300), COL['yellow']); im = im.resize((int(im.width * sc), int(im.height * sc)))
@@ -202,6 +219,10 @@ def main(spec_p, raw, out):
     sents = [s for p in tm['paras'] for s in p['sents']]
     scenes = spec['scenes']
     assert len(sents) == len(scenes), f'문장 {len(sents)} / 장면 {len(scenes)} 수가 다르다(한 줄 = 한 문장 = 한 장면)'
+    polls = [el for sc in scenes[-2:] for el in sc['els'] if el['kind'] == 'poll']
+    assert polls, 'POLL: 마지막 두 장면 안에 poll 요소(Threads 같은 투표 카드)가 없다 — 운영자 지시 2026-10-16'
+    for el in polls:
+        assert 2 <= len(el['opts']) <= 4 and all(len(o) <= 10 for o in el['opts']), f"POLL 보기는 2~4개, 각 10자 이하: {el['opts']}"
     wd = os.path.join(os.path.dirname(out), 'shorts_out'); os.makedirs(wd, exist_ok=True)
     # 1) 음성: 문장만 잘라 0.15초 간격으로 다시 붙인다
     a, sr = read_wav(raw); GAP, LEAD, TAIL = 0.15, 0.05, 0.25
