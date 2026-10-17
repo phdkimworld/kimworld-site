@@ -834,11 +834,11 @@ body:has(.tabbar) .install-bar { bottom: calc(66px + env(safe-area-inset-bottom,
 .t-latest .summary-title .muted { font-weight: 400; font-size: .8rem; margin-left: 4px; }
 
 /* ---------- 운영 통계: 유입 분석(채널 색은 채널을 따라감, 검증한 8색 + 기타 회색) ---------- */
-:root { --ch-search: #2a78d6; --ch-youtube: #eb6834; --ch-direct: #1baf7a; --ch-messenger: #eda100; --ch-social: #e87ba4; --ch-community: #008300; --ch-ai: #6250d6; --ch-referral: #e34948; --ch-other: #8a877f; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ch-search: #3987e5; --ch-youtube: #d95926; --ch-direct: #199e70; --ch-messenger: #c98500; --ch-social: #d55181; --ch-community: #008300; --ch-ai: #9085e9; --ch-referral: #e66767; --ch-other: #8f8b82; } }
-:root[data-theme="dark"] { --ch-search: #3987e5; --ch-youtube: #d95926; --ch-direct: #199e70; --ch-messenger: #c98500; --ch-social: #d55181; --ch-community: #008300; --ch-ai: #9085e9; --ch-referral: #e66767; --ch-other: #8f8b82; }
+:root { --ch-app: #0f8fa3; --ch-search: #2a78d6; --ch-youtube: #eb6834; --ch-direct: #1baf7a; --ch-messenger: #eda100; --ch-social: #e87ba4; --ch-community: #008300; --ch-ai: #6250d6; --ch-referral: #e34948; --ch-other: #8a877f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ch-app: #25b0c4; --ch-search: #3987e5; --ch-youtube: #d95926; --ch-direct: #199e70; --ch-messenger: #c98500; --ch-social: #d55181; --ch-community: #008300; --ch-ai: #9085e9; --ch-referral: #e66767; --ch-other: #8f8b82; } }
+:root[data-theme="dark"] { --ch-app: #25b0c4; --ch-search: #3987e5; --ch-youtube: #d95926; --ch-direct: #199e70; --ch-messenger: #c98500; --ch-social: #d55181; --ch-community: #008300; --ch-ai: #9085e9; --ch-referral: #e66767; --ch-other: #8f8b82; }
 .ch-search { --c: var(--ch-search); } .ch-youtube { --c: var(--ch-youtube); } .ch-direct { --c: var(--ch-direct); } .ch-messenger { --c: var(--ch-messenger); }
-.ch-social { --c: var(--ch-social); } .ch-community { --c: var(--ch-community); } .ch-ai { --c: var(--ch-ai); } .ch-referral { --c: var(--ch-referral); } .ch-other { --c: var(--ch-other); }
+.ch-social { --c: var(--ch-social); } .ch-community { --c: var(--ch-community); } .ch-ai { --c: var(--ch-ai); } .ch-referral { --c: var(--ch-referral); } .ch-other { --c: var(--ch-other); } .ch-app { --c: var(--ch-app); }
 .an-seg { fill: var(--c); }
 .an-sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 .an-chl, .an-li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

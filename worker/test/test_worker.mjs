@@ -492,8 +492,11 @@ for (const [s, a, en] of [[1, 20, 0], [2, 40, 1], [3, 40, 0]]) await call("POST"
   await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", s: 1, a: 0, sc: 0, hu: 1 }, ip: "93.0.0.7", ua: "Mozilla/5.0 (Linux; Android 14; CUBOT X30) Chrome/129.0 Mobile Safari/537.36" });
   check((await env.DB.prepare("SELECT SUM(pv) AS n FROM an_page").first()).n === pv0 + 1, "봇 걸러내기: 화면을 만진 사람(이름에 bot이 든 휴대폰 포함)은 센다");
 }
+await call("POST", "/v1/hit", { body: { p: "/", r: "app", ch: "app", sd: "push", lp: "/", m: 1, n: 0, s: 1, a: 40, sc: 50, app: 1 }, ip: "92.0.0.9" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const A = an.data.acq;
+const appCh = A.channels.find((x) => x.ch === "app"), pushSrc = A.sources.find((x) => x.src === "push");
+check(appCh && appCh.sess === 1 && pushSrc && pushSrc.ch === "app", "앱 채널: 홈 화면 앱·푸시 알림 유입을 따로 센다");
 const ns = A.sources.find((x) => x.src === "naver-search");
 check(ns && ns.ch === "search" && ns.sess === 1 && ns.multi === 1 && ns.pv === 2 && ns.secs === 60 && ns.ev.signup === 1, "세부 출처: 세션·2페이지·체류·가입");
 const gpt = A.sources.find((x) => x.src === "chatgpt");

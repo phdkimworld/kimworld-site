@@ -41,7 +41,9 @@ self.addEventListener('push', (e) => {
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const url = new URL(BASE + ((e.notification.data && e.notification.data.u) || '/'), self.location.origin).href;
+  const url0 = new URL(BASE + ((e.notification.data && e.notification.data.u) || '/'), self.location.origin);
+  url0.searchParams.set('from', 'push'); // 운영 통계에서 '앱 > 푸시 알림' 유입으로 센다
+  const url = url0.href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
     for (const c of cs) {
       if (new URL(c.url).origin === self.location.origin && 'focus' in c) {

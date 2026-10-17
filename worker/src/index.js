@@ -619,7 +619,7 @@ export default {
             ON CONFLICT(day, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, newv = newv + excluded.newv`)
             .bind(today, src, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 1 ? n : 0));
         // ---- 유입 분석(세분화): 채널 > 세부 출처, 랜딩 페이지 × 세부 출처, 리퍼러 도메인, UTM 캠페인, 출처별 전환 ----
-        const CH = new Set(["search", "ai", "youtube", "social", "messenger", "community", "referral", "email", "direct", "internal"]);
+        const CH = new Set(["search", "ai", "youtube", "social", "messenger", "community", "referral", "email", "direct", "internal", "app"]);
         const ch = CH.has(b.ch) ? b.ch : "direct";
         const sd = /^[a-z0-9.-]{1,40}$/.test(String(b.sd || "")) ? String(b.sd) : src;
         let lp = String(b.lp || path).slice(0, 100).toLowerCase(); if (!PATHS.test(lp) || lp === "/admin/") lp = "/(기타)";

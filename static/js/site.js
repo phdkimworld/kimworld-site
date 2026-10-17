@@ -511,6 +511,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     SS('kw-src', src);
     // 세분화 유입: 채널 > 세부 출처(네이버 검색/블로그/카페, 구글 검색/디스커버, 카톡 공유 등). 리퍼러는 도메인만 쓴다
     var fine = classify(h, UA, u);
+    // 홈 화면에 설치한 앱으로 열었거나 푸시 알림을 눌러 들어온 방문은 '앱' 채널로 따로 센다(링크·utm으로 들어온 앱 방문은 원래 출처 유지)
+    var fromPush = new URLSearchParams(location.search).get('from') === 'push';
+    if (fromPush || (isApp && !u && (!h || /drkimworld\.com$/.test(h)))) { fine = ['app', fromPush ? 'push' : 'app-home']; src = 'app'; SS('kw-src', src); }
     SS('kw-ch', fine[0]); SS('kw-sd', fine[1]); SS('kw-rh', h ? h.replace(/^www\./, '').slice(0, 80) : '');
     SS('kw-lp', location.pathname.toLowerCase());
     var qs = new URLSearchParams(location.search), utm = {};
