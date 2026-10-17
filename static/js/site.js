@@ -568,8 +568,10 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     // 봇 걸러내기: 화면을 한 번도 만지지 않았고 15초도 머물지 않았으면 보내지 않는다(링크 검사·미리보기 봇은 열었다 바로 닫는다)
     if (!human && active < 15) return;
     sent = true;
+    // 30초 이상 머문 세션(engaged)은 세션 누적 시간이 처음 30초를 넘는 페이지에서 한 번만 센다(페이지마다 세면 100%를 넘음)
+    var acc = parseInt(SS('kw-act'), 10) || 0, en = (acc < 30 && acc + active >= 30) ? 1 : 0; SS('kw-act', String(acc + active));
     var did = LS('kw-did') || '';
-    var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, sc: maxSc,
+    var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, en: en, sc: maxSc,
       app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}),
       ch: SS('kw-ch') || 'direct', sd: SS('kw-sd') || src, rh: n === 1 ? (SS('kw-rh') || '') : '', lp: SS('kw-lp') || location.pathname, u: (function () { try { return JSON.parse(SS('kw-utm') || 'null'); } catch (e) { return null; } })() });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');

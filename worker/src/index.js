@@ -623,7 +623,8 @@ export default {
         const ch = CH.has(b.ch) ? b.ch : "direct";
         const sd = /^[a-z0-9.-]{1,40}$/.test(String(b.sd || "")) ? String(b.sd) : src;
         let lp = String(b.lp || path).slice(0, 100).toLowerCase(); if (!PATHS.test(lp) || lp === "/admin/") lp = "/(기타)";
-        const eng = a >= 30 ? 1 : 0;
+        // engaged = 세션 누적 30초 이상. 새 화면은 그 순간 한 번만 en=1, 예전 화면(en 없음)은 첫 페이지 30초 이상만
+        const eng = b.en !== undefined ? (b.en ? 1 : 0) : (s === 1 && a >= 30 ? 1 : 0);
         q.push(db.prepare(`INSERT INTO an_acq (day, ch, src, pv, secs, sess, multi, deep, newv, mob, app, engaged) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, ch, src) DO UPDATE SET pv = pv + 1, secs = secs + excluded.secs, sess = sess + excluded.sess, multi = multi + excluded.multi, deep = deep + excluded.deep,
             newv = newv + excluded.newv, mob = mob + excluded.mob, app = app + excluded.app, engaged = engaged + excluded.engaged`)

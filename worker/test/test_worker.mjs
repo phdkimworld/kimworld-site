@@ -475,6 +475,7 @@ await call("POST", "/v1/hit", { body: { p: "/", r: "naver", ch: "search", sd: "n
 await call("POST", "/v1/hit", { body: { p: "/r/ionq-2026-10/", r: "youtube", ch: "youtube", sd: "youtube", rh: "www.youtube.com", lp: "/r/ionq-2026-10/", m: 1, n: 0, s: 1, a: 200, sc: 90,
   u: { s: "YouTube", m: "video", c: "ionq-2026-10", t: "pinned<script>" } }, ip: "92.0.0.2" });
 await call("POST", "/v1/hit", { body: { p: "/", r: "direct", ch: "hacker", sd: "BAD SRC!", lp: "/../etc", s: 1, a: 5 }, ip: "92.0.0.3" });
+for (const [s, a, en] of [[1, 20, 0], [2, 40, 1], [3, 40, 0]]) await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", ch: "ai", sd: "chatgpt", lp: "/r/rgti-2026-10/", m: 1, n: 1, s, a, en, sc: 50, hu: 1 }, ip: "92.0.0.4" });
 { // 봇 걸러내기: 봇 이름표·데이터센터 망·반응 없는 방문은 통계·조회수에 넣지 않고 이유별 합계만
   const pv0 = (await env.DB.prepare("SELECT SUM(pv) AS n FROM an_page").first()).n;
   const v0 = (await call("POST", "/v1/view", { body: { slug: "bot-test-2026-10" }, ip: "93.0.0.9" })).data.views;
@@ -495,6 +496,8 @@ an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const A = an.data.acq;
 const ns = A.sources.find((x) => x.src === "naver-search");
 check(ns && ns.ch === "search" && ns.sess === 1 && ns.multi === 1 && ns.pv === 2 && ns.secs === 60 && ns.ev.signup === 1, "세부 출처: 세션·2페이지·체류·가입");
+const gpt = A.sources.find((x) => x.src === "chatgpt");
+check(gpt && gpt.sess === 1 && gpt.engaged === 1 && ns.engaged === 1, "30초 이상 머문 세션(engaged)은 페이지 수와 관계없이 세션당 한 번(100% 넘지 않음)");
 check(A.landings.some((x) => x.path === "/r/ionq-2026-10/" && x.src === "youtube" && x.sess === 1 && x.secs === 200), "랜딩 페이지 × 출처(유튜브 영상별)");
 check(A.refs.some((x) => x.host === "m.search.naver.com"), "리퍼러 도메인");
 check(A.campaigns.some((x) => x.src === "youtube" && x.camps >= 1 && x.cont === "pinnedscript" && x.camp === undefined), "UTM: 종목 구분 없이 위치별로 합친다(이상한 글자는 지움)");
