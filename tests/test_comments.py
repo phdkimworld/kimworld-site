@@ -70,4 +70,7 @@ with tempfile.TemporaryDirectory() as d:
     check("kind 없으면 reply, 이미 있던 utm 은 채널 값으로 덮어씀",
           sent[3][2] == "https://drkimworld.com/r/a-1/?utm_source=facebook&utm_medium=comment&utm_campaign=a-1&utm_content=reply")
 
+check("홍보 댓글 조치: hide·delete 는 text 없이 통과", sc.check_reply({"platform": "threads", "to": "123", "action": "hide"}) == [] and sc.check_reply({"platform": "instagram", "to": "9", "action": "delete"}) == [])
+check("홍보 댓글 조치: 모르는 action 은 거절", sc.check_reply({"platform": "facebook", "to": "1_2", "action": "ban"}) != [])
+
 print(f"{ok}개 통과")

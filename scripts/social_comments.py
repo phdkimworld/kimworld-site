@@ -282,8 +282,38 @@ def post_one(platform, to, text):
     raise RuntimeError(f"모르는 채널: {platform}")
 
 
+# 홍보·스팸 댓글 조치(운영자 지시 2026-10-17 "홍보글 다는 애들은 차단하거나 삭제하거나 권한 내에서 적절히 조치"):
+# 답글 파일 항목에 "action":"hide"|"delete" 를 주면 text 없이 그 댓글을 숨기거나 지운다.
+#  - Threads: 남의 답글은 지울 수 없어 숨긴다(manage_reply hide). delete 를 줘도 숨김으로 처리한다.
+#  - 인스타그램: hide=true(숨김) 또는 DELETE(내 게시물의 댓글 삭제).
+#  - 페이스북: is_hidden=true(숨김) 또는 DELETE.
+def moderate_one(platform, to, action):
+    if platform == "threads":
+        call(TH_API, "POST", f"{to}/manage_reply", {"hide": "true"}, os.environ["THREADS_ACCESS_TOKEN"])
+        return "hidden"
+    if platform == "instagram":
+        tok = os.environ["IG_ACCESS_TOKEN"]
+        if action == "delete":
+            call(IG_API, "DELETE", to, {}, tok); return "deleted"
+        call(IG_API, "POST", to, {"hide": "true"}, tok); return "hidden"
+    if platform == "facebook":
+        tok = os.environ["FB_PAGE_TOKEN"]
+        if action == "delete":
+            fb_call("DELETE", to, {}, tok); return "deleted"
+        fb_call("POST", to, {"is_hidden": "true"}, tok); return "hidden"
+    raise RuntimeError(f"모르는 채널: {platform}")
+
+
 def check_reply(r):
     errs = []
+    if r.get("action") is not None:
+        if r.get("action") not in ("hide", "delete"):
+            errs.append(f"action 이 맞지 않음: {r.get('action')}")
+        if r.get("platform") not in LIMITS:
+            errs.append(f"platform 이 맞지 않음: {r.get('platform')}")
+        if not re.fullmatch(r"[0-9_A-Za-z.-]+", str(r.get("to", ""))):
+            errs.append(f"to 가 맞지 않음: {r.get('to')}")
+        return errs
     if r.get("platform") not in LIMITS:
         errs.append(f"platform 이 맞지 않음: {r.get('platform')}")
     if not re.fullmatch(r"[0-9_A-Za-z.-]+", str(r.get("to", ""))):
@@ -316,6 +346,12 @@ def post_files():
                 res[i] = {"error": "; ".join(errs)}
             else:
                 try:
+                    if r.get("action"):
+                        res[i] = {"moderated": moderate_one(r["platform"], r["to"], r["action"]),
+                                  "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                        print(f"{p.name} #{i} {r['platform']} 댓글 {r['to']} {res[i]['moderated']}")
+                        save()
+                        continue
                     res[i] = {"id": post_one(r["platform"], r["to"], r["text"]),
                               "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
                 except (RuntimeError, KeyError) as e:
