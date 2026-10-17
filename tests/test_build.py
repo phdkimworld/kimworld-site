@@ -402,6 +402,13 @@ rp = (SRC / "dist/r/pltr-2026-10/index.html")
 if rp.exists():
     rpt = rp.read_text(encoding="utf-8")
     check('class="fold src-fold"' in rpt and 'class="chart-link"' in rpt, "출처 접기·차트 크게 보기")
+    m = re.search(r'class="chart-link" href="([^"]+)"', rpt)
+    vp = SRC / "dist" / (m.group(1).lstrip("/") if m else "x")
+    ok = bool(m) and m.group(1).endswith(".view.png") and vp.exists()
+    if ok:
+        from PIL import Image
+        ok = Image.open(vp).mode == "RGB"  # 불투명(따로 열어도 바탕이 밝게 바뀌지 않음)
+    check(ok, "차트 크게 보기는 검은 바탕 불투명 판(.view.png)으로")
 
 print("13) 검색 노출")
 sf = B.seo_fields

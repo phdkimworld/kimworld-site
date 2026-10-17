@@ -903,7 +903,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body_html = shape_for_reading(fold_event_cards(body_html))
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
-                           r'<a class="chart-link" href="\2" target="_blank" rel="noopener" aria-label="차트 크게 보기">\1</a>', body_html)
+                           lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{m.group(1)}</a>', body_html)
         toc = [t for t in md.toc_tokens]
         chars = plain_len(body_html)
         min_chars = int(site.get("lint", {}).get("min_chars", 0))

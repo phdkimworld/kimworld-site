@@ -53,12 +53,33 @@ def to_dark(src: Path, dst: Path) -> bool:
     return True
 
 
+VIEW_BG = (0, 0, 0)  # '크게 보기'(그림만 따로 여는 화면)의 바탕 = 사이트 바탕(--bg #000)
+
+
+def view_name(name: str) -> str:
+    """'크게 보기'용 파일 이름: aave-2026-10.png → aave-2026-10.view.png"""
+    return name[:-4] + ".view.png" if name.endswith(".png") else name
+
+
+def write_view(dark_png: Path, dst: Path) -> None:
+    """투명 바탕 어두운 차트를 검은 바탕에 깔아 불투명 PNG로 쓴다.
+    그림만 따로 열면 브라우저가 투명 부분을 밝은 회색으로 칠해 밝은 글자가 안 보이기 때문(2026-10-16 운영자 신고)."""
+    from PIL import Image
+    im = Image.open(dark_png).convert("RGBA")
+    bg = Image.new("RGBA", im.size, VIEW_BG + (255,))
+    bg.alpha_composite(im)
+    bg.convert("RGB").save(dst, optimize=True)
+
+
 def convert_all(src_dir: Path, out_dir: Path, cache_dir: Path | None = None) -> int:
-    """src_dir의 차트를 out_dir(같은 이름)에 어두운 판으로 쓴다. 바뀌지 않은 차트는 캐시에서 꺼낸다."""
+    """src_dir의 차트를 out_dir(같은 이름)에 어두운 판으로 쓴다. 바뀌지 않은 차트는 캐시에서 꺼낸다.
+    '크게 보기'용 불투명 판(<이름>.view.png)도 함께 쓴다(변환이 안 되면 원본을 그대로 복사해 링크가 깨지지 않게)."""
     n = 0
     try:
         import numpy  # noqa: F401
     except Exception:
+        for f in sorted(src_dir.glob("*.png")):
+            (out_dir / view_name(f.name)).write_bytes(f.read_bytes())
         return 0  # numpy가 없으면 원본(흰 배경)을 그대로 둔다
     import os
     # 캐시는 사용자 홈 아래(검사용 임시 사이트·매시 빌드가 같은 결과를 다시 계산하지 않게). CHART_CACHE로 바꿀 수 있다
@@ -67,11 +88,16 @@ def convert_all(src_dir: Path, out_dir: Path, cache_dir: Path | None = None) -> 
     for f in sorted(src_dir.glob("*.png")):
         h = hashlib.md5(f.read_bytes() + b"v2").hexdigest()[:12]
         c = cache_dir / f"{f.stem}-{h}.png"
+        cv = cache_dir / f"{f.stem}-{h}.view.png"
         try:
             if not c.exists():
                 to_dark(f, c)
+            if not cv.exists():
+                write_view(c, cv)
             (out_dir / f.name).write_bytes(c.read_bytes())
+            (out_dir / view_name(f.name)).write_bytes(cv.read_bytes())
             n += 1
         except Exception:
+            (out_dir / view_name(f.name)).write_bytes(f.read_bytes())
             continue
     return n
