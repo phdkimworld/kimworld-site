@@ -486,3 +486,9 @@ MBOT:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["마이크로봇 메디컬", "마이크로봇메디컬", "마이크로봇", "Microbot Medical", "Microbot", "LIBERTY"]
+GOSS:
+  name: "고사머 바이오"
+  name_en: "Gossamer Bio, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["고사머 바이오", "고사머바이오", "고서머 바이오", "고사머", "Gossamer Bio", "Gossamer", "세랄루티닙", "seralutinib"]
