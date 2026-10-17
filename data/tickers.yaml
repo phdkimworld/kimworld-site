@@ -492,3 +492,9 @@ GOSS:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["고사머 바이오", "고사머바이오", "고서머 바이오", "고사머", "Gossamer Bio", "Gossamer", "세랄루티닙", "seralutinib"]
+RUBI:
+  name: "루비코"
+  name_en: "Rubico Inc."
+  exchange: "NASDAQ"
+  theme: "석유·가스"
+  aliases: ["Rubico", "루비코 주가"]
