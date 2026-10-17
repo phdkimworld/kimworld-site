@@ -498,3 +498,9 @@ RUBI:
   exchange: "NASDAQ"
   theme: "석유·가스"
   aliases: ["Rubico", "루비코 주가"]
+TIA:
+  name: "셀레스티아"
+  name_en: "Celestia"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["셀레스티아", "Celestia", "티아", "셀레스티아 코인", "Celestia Foundation", "셀레스티아 재단"]
