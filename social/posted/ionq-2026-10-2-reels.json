@@ -25,7 +25,10 @@
   "publish_at": "2026-10-18T08:27:00-04:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "container": "18097125542389749",
+      "id": "17896623000680505",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/Deovbaoij_R/"
     },
     "facebook": {
       "video_id": "2999149057093606",
@@ -34,5 +37,6 @@
       "permalink": "/reel/2999149057093606/",
       "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-18T09:01:22-04:00"
 }
