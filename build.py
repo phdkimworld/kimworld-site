@@ -1076,18 +1076,28 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "{{theme_count}}": str(len({r["theme"] for r in reports})),
     }
     # 광고·제휴 문의 메일(도메인 역할 주소, 운영자 개인 메일 아님). 화면에는 '＠'로 적고 site.js가 눌렀을 때 진짜 주소로 바꾼다(주소 수집 로봇 막기)
-    _cm = str((site.get("contact") or {}).get("ads_email") or "").strip()
-    if _cm and "@" in _cm:
-        _u, _d = _cm.split("@", 1)
-        repl["{{ads_email}}"] = f'<a class="mail-link" href="#" data-u="{html.escape(_u)}" data-d="{html.escape(_d)}">{html.escape(_u)}＠{html.escape(_d)}</a>'
-    else:
-        repl["{{ads_email}}"] = f'[{op.get("display_name") or site.get("site_name", "")} 유튜브 채널]({op.get("youtube_url") or "#"})의 댓글'
-    _ads_mail_on = bool(_cm and "@" in _cm)
+    _yt_fallback = f'[{op.get("display_name") or site.get("site_name", "")} 유튜브 채널]({op.get("youtube_url") or "#"})의 댓글'
+
+    def _mail_link(addr):
+        _u, _d = addr.split("@", 1)
+        return f'<a class="mail-link" href="#" data-u="{html.escape(_u)}" data-d="{html.escape(_d)}">{html.escape(_u)}＠{html.escape(_d)}</a>'
+
+    _contact = site.get("contact") or {}
+    _mail_on = {}
+    for _key in ("ads_email", "contact_email", "privacy_email"):
+        _cm = str(_contact.get(_key) or "").strip()
+        _mail_on[_key] = bool(_cm and "@" in _cm and re.fullmatch(r"[A-Za-z0-9._+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", _cm))
+        repl["{{" + _key + "}}"] = _mail_link(_cm) if _mail_on[_key] else _yt_fallback
+    _ads_mail_on = _mail_on["ads_email"]
     page_flags = {
         "ga4": bool((site.get("analytics") or {}).get("ga4_id")),
         "dable": bool(ads.on and ads.dable_service),
         "adsmail": _ads_mail_on,
         "noadsmail": not _ads_mail_on,
+        "contactmail": _mail_on["contact_email"],
+        "nocontactmail": not _mail_on["contact_email"],
+        "privacymail": _mail_on["privacy_email"],
+        "noprivacymail": not _mail_on["privacy_email"],
         "newsletter": bool((site.get("newsletter") or {}).get("url")),
         "api": bool(site.get("api_url")),
     }

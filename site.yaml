@@ -13,10 +13,12 @@ operator:
   display_name: "김박사 월드 미스터리"   # 유튜브 채널 이름(공개 활동명)
   youtube_url: "https://www.youtube.com/@drkimworld_2026"   # 유튜브 채널 주소
 
-# 광고·제휴 문의 메일(도메인 역할 주소). Cloudflare 이메일 라우팅으로 운영자 메일함에 전달되게 한 뒤 넣는다.
-# 비어 있으면 광고 안내 페이지는 유튜브 댓글로 문의받는다
+# 문의 메일(도메인 역할 주소, 운영자 개인 메일 아님). Cloudflare 이메일 라우팅으로 운영자 메일함(라벨 '김박사월드')에 전달된다.
+# 비어 있으면 해당 페이지는 유튜브 댓글로 문의받는다. admin@ 은 서비스 가입용이라 공개하지 않는다
 contact:
-  ads_email: ""        # 예: partner@drkimworld.com
+  ads_email: "partner@drkimworld.com"       # 광고·제휴 (광고·제휴 안내 페이지)
+  contact_email: "contact@drkimworld.com"   # 일반 문의·오류 제보 (문의 페이지)
+  privacy_email: "privacy@drkimworld.com"   # 개인정보 요청 (개인정보처리방침)
 
 analytics:
   ga4_id: "G-K0VCTFY1BY"                     # G-XXXXXXXXXX

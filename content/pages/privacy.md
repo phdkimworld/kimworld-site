@@ -1,6 +1,6 @@
 ---
 title: 개인정보처리방침
-updated: 2026-10-14
+updated: 2026-10-18
 description: 김박사 월드 개인정보처리방침
 ---
 
@@ -64,7 +64,8 @@ Google·GitHub 등 일부 서비스는 국외(미국 등)에서 정보를 처리
 ## 8. 개인정보 보호책임자
 
 - 책임자: {{site_name}} 운영자
-- 창구: [{{channel_name}} 유튜브 채널]({{youtube_url}})
+- 창구: {{privacy_email}} <!--if:privacymail-->
+- 창구: [{{channel_name}} 유튜브 채널]({{youtube_url}}) <!--if:noprivacymail-->
 
 개인정보 침해 신고·상담은 개인정보침해신고센터(국번 없이 118, privacy.kisa.or.kr)에도 할 수 있습니다.
 
