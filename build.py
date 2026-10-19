@@ -1208,7 +1208,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     # 웹앱(홈 화면에 설치): 앱 정보 + 서비스 워커(오프라인 대비, 정적 파일 캐시) + 오프라인 안내 페이지
     manifest = {
         "id": f"{base_path}/", "name": site["site_name"], "short_name": site["site_name"], "description": site.get("description", ""),
-        "start_url": f"{base_path}/?source=pwa", "scope": f"{base_path}/", "display": "standalone",
+        "start_url": f"{base_path}/?utm_source=pwa&utm_medium=app", "scope": f"{base_path}/", "display": "standalone",
         "background_color": "#000000", "theme_color": "#000000", "lang": "ko", "dir": "ltr", "categories": ["finance", "news"],
         "icons": [
             {"src": f"{base_path}/static/icon-192.png", "sizes": "192x192", "type": "image/png"},

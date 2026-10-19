@@ -532,6 +532,12 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   // 이번 방문(탭 세션)의 몇 번째 페이지인지, 처음 들어온 경로
   var n = (parseInt(SS('kw-sn'), 10) || 0) + 1; SS('kw-sn', String(n));
   var src = SS('kw-src');
+  // 앱 아이콘으로 새로 연 경우(시작 주소 표시: 새 앱은 utm_source=pwa, 예전에 설치한 앱은 source=pwa)는 이전 세션 기록이 남아 있어도 새 방문으로 다시 분류한다
+  var qs0 = new URLSearchParams(location.search), appLaunch = qs0.get('source') === 'pwa' || qs0.get('utm_source') === 'pwa';
+  if (appLaunch && src && src !== 'app') { src = null; n = 1; SS('kw-sn', '1'); SS('kw-act', '0'); }
+  if (appLaunch && history.replaceState) { // 시작 주소 표시는 읽었으니 지운다(새로 고침·공유 때 다시 새 방문으로 세지 않게. GA4는 이미 읽음)
+    try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])(source=pwa|utm_source=pwa|utm_medium=app)(&|$)/g, '$1').replace(/([?&])(source=pwa|utm_source=pwa|utm_medium=app)(&|$)/g, '$1').replace(/[?&]+$/, '') + location.hash); } catch (e) {}
+  }
   if (!src) {
     var h = '', u = new URLSearchParams(location.search).get('utm_source') || '';
     try { h = document.referrer ? new URL(document.referrer).hostname.toLowerCase() : ''; } catch (e) {}
@@ -544,12 +550,13 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     // 세분화 유입: 채널 > 세부 출처(네이버 검색/블로그/카페, 구글 검색/디스커버, 카톡 공유 등). 리퍼러는 도메인만 쓴다
     var fine = classify(h, UA, u);
     // 홈 화면에 설치한 앱으로 열었거나 푸시 알림을 눌러 들어온 방문은 '앱' 채널로 따로 센다(링크·utm으로 들어온 앱 방문은 원래 출처 유지)
+    // 일부 브라우저(삼성 인터넷 바로가기 등)는 설치 앱도 display-mode가 standalone이 아니다 → 시작 주소 표시(appLaunch)로도 판단
     var fromPush = new URLSearchParams(location.search).get('from') === 'push';
-    if (fromPush || (isApp && !u && (!h || /drkimworld\.com$/.test(h)))) { fine = ['app', fromPush ? 'push' : 'app-home']; src = 'app'; SS('kw-src', src); }
+    if (fromPush || appLaunch || (isApp && (!u || u === 'pwa') && (!h || /drkimworld\.com$/.test(h)))) { fine = ['app', fromPush ? 'push' : 'app-home']; src = 'app'; SS('kw-src', src); }
     SS('kw-ch', fine[0]); SS('kw-sd', fine[1]); SS('kw-rh', h ? h.replace(/^www\./, '').slice(0, 80) : '');
     SS('kw-lp', location.pathname.toLowerCase());
     var qs = new URLSearchParams(location.search), utm = {};
-    ['source', 'medium', 'campaign', 'content'].forEach(function (k) { var v = qs.get('utm_' + k); if (v) utm[k.charAt(0) === 'c' && k !== 'campaign' ? 't' : k.charAt(0)] = v.slice(0, 60); });
+    if (qs.get('utm_source') !== 'pwa') ['source', 'medium', 'campaign', 'content'].forEach(function (k) { var v = qs.get('utm_' + k); if (v) utm[k.charAt(0) === 'c' && k !== 'campaign' ? 't' : k.charAt(0)] = v.slice(0, 60); });
     SS('kw-utm', Object.keys(utm).length ? JSON.stringify(utm) : '');
   }
   function classify(h, ua, u) {
