@@ -535,6 +535,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   // 앱 아이콘으로 새로 연 경우(시작 주소 표시: 새 앱은 utm_source=pwa, 예전에 설치한 앱은 source=pwa)는 이전 세션 기록이 남아 있어도 새 방문으로 다시 분류한다
   var qs0 = new URLSearchParams(location.search), appLaunch = qs0.get('source') === 'pwa' || qs0.get('utm_source') === 'pwa';
   if (appLaunch && src && src !== 'app') { src = null; n = 1; SS('kw-sn', '1'); SS('kw-act', '0'); }
+  // 브라우저 탭에서 '앱으로 열기'로 넘어오면 세션 기록(직접 방문)이 앱 창으로 그대로 따라온다 → 앱 창에서 직접 방문으로 남아 있으면 앱으로 고친다
+  else if (isApp && src === 'direct' && SS('kw-ch') === 'direct') { src = 'app'; SS('kw-src', 'app'); SS('kw-ch', 'app'); SS('kw-sd', 'app-home'); }
   if (appLaunch && history.replaceState) { // 시작 주소 표시는 읽었으니 지운다(새로 고침·공유 때 다시 새 방문으로 세지 않게. GA4는 이미 읽음)
     try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])(source=pwa|utm_source=pwa|utm_medium=app)(&|$)/g, '$1').replace(/([?&])(source=pwa|utm_source=pwa|utm_medium=app)(&|$)/g, '$1').replace(/[?&]+$/, '') + location.hash); } catch (e) {}
   }
