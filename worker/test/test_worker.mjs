@@ -810,6 +810,27 @@ console.log("투자 심리 투표");
     && r.data.bear.length === 1 && r.data.bear[0].t === "QBTS" && r.data.bear[0].bull === 20 && !JSON.stringify(r.data).includes("actor"),
     "심리 순위: 참여 많은 순·불리시·베어리시, 표본 적은 종목 제외, 합계만");
   check(/public/.test(r.headers.get("Cache-Control") || ""), "심리 순위: 공개 캐시");
+  // 투표 상자만 떼어 공유·리포스트·인용
+  const PV1 = await mkUser("pollA", "투표공유", "76.0.0.1"), PV2 = await mkUser("pollB", "투표팔로워", "76.0.0.2");
+  await as(PV2, "POST", "/v1/follow", { uid: PV1.id });
+  r = await as(PV1, "POST", "/v1/repost", { kind: "v", ref: "rgti" });
+  check(r.data.reposted === true && r.data.count === 1, "투표 리포스트");
+  r = await as(PV1, "GET", "/v1/sentiment/RGTI");
+  check(r.data.rp && r.data.rp.n === 1 && r.data.rp.on === true, "투표 상자: 리포스트 수·내가 했는지");
+  r = await as(PV2, "GET", "/v1/feed?tab=mix&limit=20");
+  check((r.data.reposts || []).some((x) => x.type === "poll" && x.ticker === "RGTI" && x.rp.uid === PV1.id), "팔로워 피드에 리포스트한 투표");
+  r = await as(PV1, "GET", "/v1/users/" + PV1.id);
+  check((r.data.reposts || []).some((x) => x.kind === "v" && x.ticker === "RGTI"), "프로필 리포스트 탭에 투표");
+  r = await as(PV1, "POST", "/v1/comments", { slug: "b-rgti", body: "저는 오른다에 한 표", quote: { kind: "v", ref: "RGTI", text: "" }, t: 5000 });
+  check(r.data.ok && r.data.status === "ok", "투표 인용 글 올리기");
+  r = await as(PV1, "GET", "/v1/users/" + PV1.id);
+  check(r.data.items.some((x) => x.quote && x.quote.kind === "v" && x.quote.ref === "RGTI"), "인용 글에 투표 상자(kind v)");
+  const badq = await as(PV2, "POST", "/v1/comments", { slug: "b-rgti", body: "잘못된 종목", quote: { kind: "v", ref: "bad!!", text: "" }, t: 5000 });
+  check(badq.status === 400, "투표 인용: 잘못된 종목 거절");
+  r = await as(PV1, "POST", "/v1/repost", { kind: "v", ref: "RGTI" });
+  check(r.data.reposted === false && r.data.count === 0, "투표 리포스트 취소");
+  const sv2 = await worker.fetch(new Request("https://api.drkimworld.com/s/v/rgti"), env); const sh = await sv2.text();
+  check(sv2.status === 200 && sh.includes("$RGTI 오를까, 내릴까?") && sh.includes("/t/rgti/") && sh.includes("#sent-h") && sh.includes("og/b-rgti.png"), "투표 공유 미리보기(/s/v/티커)");
   const sv = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.sentiment;
   check(sv && sv.votes >= 7 && sv.voters >= 7 && sv.repeat >= 0 && sv.daily.length === 7 && sv.top.some((x) => x.ticker === "IONQ" && x.bull === 5), "운영 통계: 투자 심리 투표 참여(표·참여자·일별·종목별)");
 }

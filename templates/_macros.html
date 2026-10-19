@@ -98,6 +98,11 @@
     <button type="button" class="sent-b sent-bear" data-sent-v="bear" aria-pressed="false"><span class="sent-ico" aria-hidden="true">▼</span><span><strong>내릴 것 같다</strong><small>베어리시 <em data-sent-pct="bear"></em></small></span></button>
   </div>
   <p class="sent-tease" data-sent-tease>투표하면 다른 투자자들의 결과(강세·약세 비율)와 30일 추이 그래프가 열려요</p>
+  {#- 투표 상자만 떼어 공유·리포스트·인용(2026-10-18): 공유는 미리보기 주소(/s/v/티커), 리포스트·인용은 커뮤니티에 투표 상자째 #}
+  <div class="sent-acts">
+    <button type="button" class="sa-b" data-sent-share aria-label="이 투표 공유">{{ icon('share') }}<span>투표 공유</span></button>
+    <button type="button" class="sa-b pa-repost" data-repost data-kind="v" data-ref="{{ code }}" aria-pressed="false" aria-label="투표 리포스트·인용" hidden>{{ icon('repost') }}<span>리포스트</span><span class="sa-n" data-n></span></button>
+  </div>
   <div class="sent-res" data-sent-res hidden>
     <div class="sent-idx">
       <div><span class="sent-k">30일 누적 심리 지수</span><strong class="sent-n" data-sent-idx></strong><span class="sent-lab" data-sent-lab></span></div>

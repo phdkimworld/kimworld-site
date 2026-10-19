@@ -809,7 +809,10 @@
       (d.reposts || []).forEach(function (x) {
         var li = el('li', 'rc-item'), a = el('a', 'rc-link'), h = el('span', 'rc-head');
         h.appendChild(el('span', 'rp-mark', '↻'));
-        if (x.kind === 'r') {
+        if (x.kind === 'v') {
+          a.href = base + '/t/' + String(x.ticker).toLowerCase() + '/#sent-h'; h.appendChild(el('span', 'rank-tick', x.ticker)); h.appendChild(el('span', 'muted', '투자 심리 투표 · ' + ago(x.at)));
+          a.appendChild(h); a.appendChild(el('span', 'rc-body', '📊 $' + x.ticker + ', 앞으로 어떻게 보세요? 오를 것 / 내릴 것'));
+        } else if (x.kind === 'r') {
           a.href = reportUrl(x.slug); var tk = el('span', 'rank-tick', ''); h.appendChild(tk); h.appendChild(el('span', 'muted', '리포트 · ' + ago(x.at)));
           var tt = el('span', 'rc-body', '…'); a.appendChild(h); a.appendChild(tt);
           reportTitle(x.slug).then(function (r) { tk.textContent = r.k; tt.textContent = shortTitle(r.t); });
@@ -901,7 +904,7 @@
         h.appendChild(el('span', 'rank-tick', threadLabel(c.slug)));
         h.appendChild(el('span', 'muted', (c.reply ? '답글 · ' : '') + ago(c.created) + (c.likes ? ' · ♥ ' + num(c.likes) : '')));
         a.appendChild(h); a.appendChild(el('span', 'rc-body', c.body));
-        if (c.quote) a.appendChild(el('span', 'rc-quote', '❝ ' + c.quote.text));
+        if (c.quote) a.appendChild(el('span', 'rc-quote', c.quote.kind === 'v' ? '📊 $' + c.quote.ref + ' 투자 심리 투표' : '❝ ' + c.quote.text));
         li.appendChild(a); ul.appendChild(li);
       });
       // 글이 5개 이상이면 4번째 글 뒤에 광고 하나(쿠팡 상자)
@@ -934,7 +937,31 @@
   }
   function shortTitle(t) { return String(t || '').replace(/^.*?(주가|가격) 내러티브와 패턴 투자전략:\s*/, ''); }
   // 인용 상자: 출처(리포트 제목 / 원글 쓴 사람) + 인용한 부분. 누르면 원문의 그 자리로
+  // 투자 심리 투표 상자(인용·리포스트): 글 안에서 바로 투표하고, 투표하면 30일 비율이 열린다(sentiment.js가 칠함)
+  function pollBox(t) {
+    t = String(t || '').toUpperCase();
+    var nm = ''; (KW.tk || []).forEach(function (x) { if (x.c === t) nm = x.n; });
+    var w = el('div', 'quote-box quote-poll'), hd = el('div', 'qp-head');
+    hd.appendChild(el('strong', null, '📊 ' + (nm || '$' + t) + ', 앞으로 어떻게 보세요?'));
+    var go = el('a', null, '추이 →'); go.href = base + '/t/' + t.toLowerCase() + '/#sent-h'; hd.appendChild(go);
+    w.appendChild(hd);
+    var fp = el('div', 'fpoll'); fp.setAttribute('data-fpoll', ''); fp.setAttribute('data-keep', ''); fp.setAttribute('data-ticker', t);
+    var bs = el('div', 'fp-btns');
+    [['bull', '▲ 오를 것'], ['bear', '▼ 내릴 것']].forEach(function (x) { var b = el('button', 'fp-b fp-' + x[0], x[1]); b.type = 'button'; b.setAttribute('data-fp-v', x[0]); b.setAttribute('aria-pressed', 'false'); bs.appendChild(b); });
+    fp.appendChild(bs);
+    var tz = el('p', 'fp-tease', '🔒 투표하면 다른 투자자들의 결과가 보여요'); tz.setAttribute('data-fp-tease', ''); fp.appendChild(tz);
+    var res = el('div', 'fp-res'); res.setAttribute('data-fp-res', ''); res.hidden = true;
+    var bar = el('div', 'fp-bar'), bb = el('i', 'fp-bb'), br = el('i', 'fp-br'); bb.setAttribute('data-fp-bb', ''); br.setAttribute('data-fp-br', ''); bar.appendChild(bb); bar.appendChild(br); res.appendChild(bar);
+    var ln = el('div', 'fp-line'); ['fp-up', 'fp-meta', 'fp-down'].forEach(function (c) { var sp = el('span', c); sp.setAttribute('data-' + c, ''); ln.appendChild(sp); }); res.appendChild(ln);
+    fp.appendChild(res); w.appendChild(fp);
+    var acts = el('div', 'sent-acts');
+    var rb = el('button', 'sa-b pa-repost'); rb.type = 'button'; rb.setAttribute('data-repost', ''); rb.setAttribute('data-kind', 'v'); rb.setAttribute('data-ref', t); rb.setAttribute('aria-pressed', 'false');
+    rb.appendChild(document.createTextNode('↻ 투표 리포스트')); acts.appendChild(rb); w.appendChild(acts);
+    if (window.kwPolls) setTimeout(function () { window.kwPolls(document); }, 0);
+    return w;
+  }
   function quoteBox(q) {
+    if (q.kind === 'v') return pollBox(q.ref);
     var a = el('a', 'quote-box');
     var words = String(q.text).split(' ');
     var frag = words.length > 8 ? encodeURIComponent(words.slice(0, 4).join(' ')) + ',' + encodeURIComponent(words.slice(-4).join(' ')) : encodeURIComponent(q.text);
@@ -968,13 +995,13 @@
     var r1 = btn(on ? '리포스트 취소' : '리포스트', 'btn rp-opt', function () { dlg.close(); doRepost(kind, ref); });
     r1.insertBefore(document.createTextNode('↻ '), r1.firstChild);
     body.appendChild(r1);
-    body.appendChild(el('p', 'muted kw-small rp-desc', '내 프로필과 나를 팔로우한 사람의 피드에 그대로 다시 올립니다.'));
+    body.appendChild(el('p', 'muted kw-small rp-desc', kind === 'v' ? '이 투표를 내 프로필과 나를 팔로우한 사람의 피드에 다시 올립니다.' : '내 프로필과 나를 팔로우한 사람의 피드에 그대로 다시 올립니다.'));
     var r2 = btn('❝ 인용해서 내 생각 쓰기', 'btn rp-opt', function () {
       var src = String(b.getAttribute('data-quote-src') || '').replace(/\s+/g, ' ').trim();
       openQuote({ kind: kind, ref: ref, text: src.length > 300 ? src.slice(0, 297).replace(/\s\S*$/, '') + '…' : src });
     });
     body.appendChild(r2);
-    body.appendChild(el('p', 'muted kw-small rp-desc', '본문에서 문장을 드래그하면 그 부분만 골라 인용할 수 있어요.'));
+    body.appendChild(el('p', 'muted kw-small rp-desc', kind === 'v' ? '투표 상자를 붙인 새 글로 올립니다. 보는 사람이 글에서 바로 투표할 수 있어요.' : '본문에서 문장을 드래그하면 그 부분만 골라 인용할 수 있어요.'));
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-repost]'); if (!b || b.disabled) return;
@@ -986,13 +1013,13 @@
     if (!opts.onDone && window.kwCmtyDone) opts.onDone = window.kwCmtyDone; // 리포트·종목 화면: 올린 뒤 그 화면 커뮤니티 목록에 바로
     meReady.then(function () {
       if (LOGGED && !ME) { openAccount(); return; }
-      var body = dialog(!q ? '새 글' : q.text ? '인용하기' : '리포트 공유'); if (window.kwEv) kwEv(q ? 'quote_open' : 'compose_open');
+      var body = dialog(!q ? '새 글' : q.kind === 'v' ? '투표 인용하기' : q.text ? '인용하기' : '리포트 공유'); if (window.kwEv) kwEv(q ? 'quote_open' : 'compose_open');
       var head = el('div', 'qt-who'); head.appendChild(ME ? avatar(ME.nick, ME.id) : avatar('익')); head.appendChild(el('strong', null, ME ? ME.nick : '익명으로 쓰기'));
       body.appendChild(head);
       var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500;
-      ta.placeholder = !q ? '이 종목에 대한 생각을 나눠 보세요' : q.text ? '이 부분에 대한 내 생각을 써 주세요' : '이 리포트에 대한 생각을 써 주세요';
+      ta.placeholder = !q ? '이 종목에 대한 생각을 나눠 보세요' : q.kind === 'v' ? '나는 어느 쪽인지, 왜 그렇게 보는지 써 주세요' : q.text ? '이 부분에 대한 내 생각을 써 주세요' : '이 리포트에 대한 생각을 써 주세요';
       body.appendChild(ta);
-      if (q) { var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); body.appendChild(pv); }
+      if (q) { var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); if (q.kind === 'v') pv.querySelectorAll('.fpoll, .sent-acts').forEach(function (x) { x.remove(); }); body.appendChild(pv); }
       var nick = null;
       if (!ME) { nick = el('input', 'qt-nick'); nick.maxLength = 12; nick.placeholder = '닉네임 (비우면 익명)'; body.appendChild(nick); }
       // 종목 태그: 리포트·종목 화면이면 그 종목이 기본, 지우면 태그 없이(커뮤니티 전체에만)
@@ -1005,6 +1032,7 @@
       };
       var bm = /^b-(.+)$/.exec(opts.board || (q && q.slug) || '');
       if (q && q.kind === 'r') reportTitle(q.ref).then(function (r) { setDefault(r.k); });
+      else if (q && q.kind === 'v') setDefault(String(q.ref).toUpperCase());
       else setDefault(bm && bm[1] !== 'talk' ? bm[1].toUpperCase() : '');
       body.appendChild(field('종목 태그', sel));
       var m = el('p', 'kw-msg'); m.setAttribute('role', 'status');
@@ -1200,7 +1228,7 @@
   // 홈 피드·글 상세(social.js)가 같이 쓰는 도구
   window.KWC = {
     myTopics: myTopics, topicBoards: topicBoards, topics: topicsIn,
-    openCompose: openQuote, loadIndex: loadIndex, quoteBox: quoteBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
+    openCompose: openQuote, loadIndex: loadIndex, quoteBox: quoteBox, pollBox: pollBox, reportTitle: reportTitle, shortTitle: shortTitle, reportUrl: reportUrl, paintRepost: paintRepost,
     api: api, el: el, num: num, ago: ago, avatar: avatar, seedAv: seedAv, isBlocked: isBlocked, hideBlocked: hideBlocked, richText: richText, nickEl: nickEl, dialog: dialog, btn: btn, apiBase: API, openFollows: openFollows, dev: DEV, flash: function (t) { flash(t); },
     profileUrl: profileUrl, postUrl: postUrl, threadUrl: threadUrl, threadLabel: threadLabel,
     setHeart: setHeart, meReady: meReady, openAccount: openAccount, openBell: openBell, loginUrl: loginUrl, providerName: function (p) { return PNAME[p] || p; }, state: function () { return { me: ME, logged: LOGGED, providers: PROVIDERS, dmUnread: DMN, dmRequests: DMREQ }; }, setDm: function (n, r) { DMN = n; DMREQ = r; paintHeader(); }, setBlocked: function (uid, on) { if (on) BLOCKED[uid] = 1; else delete BLOCKED[uid]; hideBlocked(); }

@@ -597,7 +597,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -736,9 +736,11 @@ export default {
         if (b.quote && !parent) {
           const qt = cleanText(b.quote.text, 301).replace(/\s+/g, " ");
           // 리포트는 문장 없이 통째로 공유할 수도 있다(빈 글자 = 리포트 카드만 붙임)
-          const share = b.quote.kind === "r" && qt === "";
+          const share = (b.quote.kind === "r" || b.quote.kind === "v") && qt === "";
           if (!share && (qt.length < 2 || qt.length > 300)) return json(req, { error: "quote", message: "인용할 부분은 2~300자로 골라 주세요." }, 400);
           if (b.quote.kind === "r" && SLUG_RE.test(String(b.quote.ref || "")) && !String(b.quote.ref).startsWith("b-")) q = { kind: "r", ref: String(b.quote.ref), text: qt };
+          // 투자 심리 투표 상자를 통째로 붙여 올리기(인용). 글에서 바로 투표할 수 있다
+          else if (b.quote.kind === "v" && /^[A-Z0-9.]{1,10}$/.test(String(b.quote.ref || "").toUpperCase())) q = { kind: "v", ref: String(b.quote.ref).toUpperCase(), text: "" };
           else if (b.quote.kind === "p") {
             qTarget = await db.prepare("SELECT id, uid, did, slug, body, status FROM comments WHERE id = ?").bind(parseInt(b.quote.ref, 10) || 0).first();
             const norm = (x) => String(x || "").replace(/\s+/g, " ").replace(/…$/, "").trim();
@@ -940,7 +942,8 @@ export default {
           followsMe: me ? !!(await db.prepare("SELECT 1 AS y FROM follows WHERE follower = ? AND followee = ?").bind(u.id, me.id).first()) : false,
           blocked: me ? !!(await db.prepare("SELECT 1 AS y FROM blocks WHERE blocker = ? AND blocked = ?").bind(me.id, u.id).first()) : false,
           items: (posts.results || []).map((c) => ({ id: c.id, slug: c.slug, body: c.body, likes: c.likes, views: c.views || 0, created: c.created, reply: !!c.parent_id, quote: quoteOf(c) })),
-          reposts: (rps.results || []).filter((x) => x.kind === "r" || x.pid).map((x) => x.kind === "r" ? { kind: "r", slug: x.ref, at: x.created }
+          reposts: (rps.results || []).filter((x) => x.kind === "r" || x.kind === "v" || x.pid).map((x) => x.kind === "r" ? { kind: "r", slug: x.ref, at: x.created }
+            : x.kind === "v" ? { kind: "v", ticker: x.ref, at: x.created }
             : { kind: "p", at: x.created, post: { id: x.pid, slug: x.slug, nick: x.nick, uid: x.puid || null, body: x.body } }),
         }, 200, { "Cache-Control": "no-store" });
       }
@@ -951,6 +954,7 @@ export default {
         const { kind, ref } = await readJson(req);
         let key = "", target = null;
         if (kind === "r" && SLUG_RE.test(String(ref || "")) && !String(ref).startsWith("b-")) key = String(ref);
+        else if (kind === "v" && /^[A-Z0-9.]{1,10}$/.test(String(ref || "").toUpperCase())) key = String(ref).toUpperCase();
         else if (kind === "p") {
           target = await db.prepare("SELECT id, uid, slug, status, parent_id, pinned FROM comments WHERE id = ?").bind(parseInt(ref, 10) || 0).first();
           if (!target || target.status !== "ok" || target.pinned || !isBoard(target.slug)) return json(req, { error: "target", message: "리포스트할 수 없는 글입니다." }, 400);
@@ -1135,6 +1139,7 @@ export default {
             for (const c of (await db.prepare(`SELECT ${cols} FROM comments c WHERE c.status = 'ok' AND c.id IN (${pids.map(() => "?").join(",")})`).bind(actor, me.id, ...pids).all()).results || []) prow[c.id] = c;
           }
           reposts = rr.map((x) => x.kind === "r" ? { type: "report", slug: x.ref, rp: { nick: x.nick, uid: x.uid, at: x.created } }
+            : x.kind === "v" ? { type: "poll", ticker: x.ref, rp: { nick: x.nick, uid: x.uid, at: x.created } }
             : prow[x.ref] ? { ...pub(prow[x.ref]), rp: { nick: x.nick, uid: x.uid, at: x.created } } : null).filter(Boolean);
         }
         // 종목 커뮤니티 첫 화면: 운영자 공지(고정 글)를 맨 위에
@@ -1248,13 +1253,16 @@ export default {
         const mine = await db.prepare("SELECT v FROM sent_votes WHERE day = ? AND ticker = ? AND actor = ?").bind(day, tk, actor).first();
         const since30 = kstDay(now - 29 * 864e5);
         const tot = await db.prepare("SELECT COALESCE(SUM(bull), 0) AS bull, COALESCE(SUM(bear), 0) AS bear FROM sent_daily WHERE ticker = ? AND day >= ?").bind(tk, since30).first();
-        if (!mine) return json(req, { voted: null, day, n30: (tot.bull || 0) + (tot.bear || 0) }, 200, { "Cache-Control": "no-store" });
+        // 투표 상자 리포스트(kind 'v'): 개수와 내가 했는지
+        const rpN = await db.prepare("SELECT COUNT(*) AS n, MAX(CASE WHEN u.actor = ? THEN 1 ELSE 0 END) AS mine FROM reposts r JOIN users u ON u.id = r.uid WHERE r.kind = 'v' AND r.ref = ?").bind(actor, tk).first();
+        const rp = { n: rpN?.n || 0, on: !!rpN?.mine };
+        if (!mine) return json(req, { voted: null, day, n30: (tot.bull || 0) + (tot.bear || 0), rp }, 200, { "Cache-Control": "no-store" });
         // 연속 참여일(오늘부터 거꾸로 하루도 빠지지 않은 날 수, 최대 60)
         const days = (await db.prepare("SELECT day FROM sent_votes WHERE actor = ? AND ticker = ? AND day >= ? ORDER BY day DESC").bind(actor, tk, kstDay(now - 59 * 864e5)).all()).results || [];
         let streak = 0; for (const d of days) { if (d.day === kstDay(now - streak * 864e5)) streak++; else break; }
         const series = (await db.prepare("SELECT day, bull, bear FROM sent_daily WHERE ticker = ? AND day >= ? ORDER BY day").bind(tk, kstDay(now - 119 * 864e5)).all()).results || [];
         const today = series.find((x) => x.day === day) || { bull: 0, bear: 0 };
-        return json(req, { voted: mine.v > 0 ? "bull" : "bear", day, streak, today: { bull: today.bull, bear: today.bear }, d30: { bull: tot.bull || 0, bear: tot.bear || 0 }, series }, 200, { "Cache-Control": "no-store" });
+        return json(req, { voted: mine.v > 0 ? "bull" : "bear", day, streak, today: { bull: today.bull, bear: today.bear }, d30: { bull: tot.bull || 0, bear: tot.bear || 0 }, series, rp }, 200, { "Cache-Control": "no-store" });
       }
 
       // ---------- 푸시 알림(웹앱·브라우저) ----------
@@ -1324,13 +1332,19 @@ export default {
       // ---------- 공유 미리보기: 종토방·라운지 글(/s/p/번호)과 프로필(/s/u/번호) ----------
       // 글·프로필 화면은 브라우저가 API로 채우는 정적 페이지라 카카오톡·쓰레드·X 미리보기가 '글 | 김박사 월드'로만 나온다.
       // 공유 버튼은 이 주소를 쓰고, 미리보기 로봇에는 글 내용으로 만든 제목·설명·그림을, 사람에게는 바로 그 글로 넘겨 준다.
-      const shm = p.match(/^\/s\/(p|u)\/(\d+)$/);
+      const shm = p.match(/^\/s\/(p|u)\/(\d+)$/) || p.match(/^\/s\/(v)\/([A-Za-z0-9.]{1,10})$/);
       if (shm && req.method === "GET") {
         const esc = (x) => String(x || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
         const cut = (x, n) => { x = String(x || "").replace(/\s+/g, " ").trim(); return x.length > n ? x.slice(0, n - 1) + "…" : x; };
-        const id = parseInt(shm[2], 10), q = "utm_source=share&utm_medium=link";
+        const id = parseInt(shm[2], 10) || 0, q = "utm_source=share&utm_medium=link";
         let title = "김박사 월드", desc = "주가가 왜 그렇게 움직였는지, 공시와 실적으로 쓴 무료 리포트와 투자자 커뮤니티", img = `${SITE}/static/og-default.png`, to = `${SITE}/`;
-        if (shm[1] === "p") {
+        if (shm[1] === "v") { // 투자 심리 투표 상자만 떼어 공유: 미리보기는 질문, 사람은 그 종목 화면의 투표 상자로
+          const tk = shm[2].toUpperCase();
+          const t = await db.prepare("SELECT COALESCE(SUM(bull), 0) + COALESCE(SUM(bear), 0) AS n FROM sent_daily WHERE ticker = ? AND day >= ?").bind(tk, kstDay(now - 29 * 864e5)).first();
+          title = `$${tk} 오를까, 내릴까? · 투자 심리 투표`;
+          desc = (t?.n ? `지난 30일 ${t.n}표. ` : "") + "한 번 눌러 투표하면 다른 투자자들의 강세·약세 비율과 추이가 열립니다.";
+          img = `${SITE}/og/b-${tk.toLowerCase()}.png`; to = `${SITE}/t/${tk.toLowerCase()}/?${q}&utm_campaign=poll#sent-h`;
+        } else if (shm[1] === "p") {
           let c = await db.prepare("SELECT id, slug, nick, uid, body, parent_id, status FROM comments WHERE id = ?").bind(id).first();
           if (c && c.status === "ok" && /^b-/.test(c.slug)) {
             const code = c.slug.slice(2), board = code === "talk" ? "커뮤니티" : `$${code.toUpperCase()} 커뮤니티`;

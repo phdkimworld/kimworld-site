@@ -79,7 +79,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pts.length < 3) { var n = document.createElement('p'); n.className = 'sent-few'; n.textContent = '아직 기록이 쌓이는 중입니다. 매일 투표가 모이면 선이 이어져요.'; el.appendChild(n); }
   }
 
-  function load() { return C.api('/v1/sentiment/' + encodeURIComponent(tk)).then(paint).catch(function () {}); }
+  function load() { return C.api('/v1/sentiment/' + encodeURIComponent(tk)).then(function (d) { paint(d); if (d && d.rp && C.paintRepost) C.paintRepost('v', tk, d.rp.n, d.rp.on); }).catch(function () {}); }
+  // 투표 상자만 공유: 미리보기(카카오톡·쓰레드·X)에는 질문이, 누르면 이 종목 화면의 투표 상자로
+  var shb = q('[data-sent-share]');
+  if (shb) shb.addEventListener('click', function () {
+    var h = q('.sent-q'), u = (C.apiBase || '') + '/s/v/' + encodeURIComponent(tk);
+    var text = (h ? h.textContent.trim() : '$' + tk + ' 앞으로 어떻게 보세요?') + '\n오를까, 내릴까? 투표하고 다른 투자자들의 생각을 확인해 보세요.';
+    if (window.kwEv) kwEv('poll_share');
+    if (navigator.share) { navigator.share({ title: '$' + tk + ' 투자 심리 투표', text: text, url: u }).catch(function () {}); return; }
+    var all = text + '\n' + u;
+    (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () { C.flash('투표 링크를 복사했습니다. 카카오톡·커뮤니티에 붙여 넣으세요'); }, function () { prompt('아래 내용을 복사하세요', all); });
+  });
   qa('[data-sent-v]').forEach(function (b) {
     b.addEventListener('click', function () {
       var v = b.getAttribute('data-sent-v');
@@ -111,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
     Array.prototype.forEach.call(document.querySelectorAll('[data-fpoll][data-ticker="' + t + '"]'), function (fp) { paintPoll(fp, st); });
   }
   function paintPoll(fp, st) {
-    if (tk && fp.getAttribute('data-ticker') === tk) { fp.hidden = true; return; }
+    if (tk && fp.getAttribute('data-ticker') === tk && !fp.hasAttribute('data-keep')) { fp.hidden = true; return; }
     fp.hidden = false;
     var v = st && st.voted;
     fp.classList.toggle('is-voted', !!v);

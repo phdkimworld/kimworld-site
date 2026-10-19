@@ -321,6 +321,10 @@
     }
     // 팔로우한 사람이 리포스트한 리포트: 피드에 있는 그 리포트 카드를 복제해 '○○님이 리포스트함' 줄을 붙인다
     function render(c) {
+      if (c.type === 'poll') { // 팔로우한 사람이 리포스트한 투자 심리 투표: 피드에서 바로 투표
+        var pc = el('article', 'post upost rp-poll'), pl = el('a', 'rp-line'); pl.href = C.profileUrl(c.rp.uid); pl.textContent = '↻ ' + c.rp.nick + '님이 투표를 리포스트함';
+        pc.appendChild(pl); pc.appendChild(C.pollBox(c.ticker)); return pc;
+      }
       if (c.type !== 'report') return postCard(c);
       var orig = list.querySelector('article.post:not(.upost)[data-slug="' + c.slug + '"]'), card;
       var line = el('a', 'rp-line'); line.href = C.profileUrl(c.rp.uid); line.textContent = '↻ ' + c.rp.nick + '님이 리포스트함';
@@ -347,7 +351,7 @@
           newest = items.reduce(function (m, c) { return Math.max(m, c.created); }, 0) || Date.now();
           // 팔로잉 탭: 팔로우한 사람의 리포스트를 리포스트한 시각으로 섞는다(같은 글이 이미 있으면 한 번만)
           var have = {}; items.forEach(function (c) { have[c.id] = 1; });
-          (d.reposts || []).forEach(function (x) { if (x.type === 'report' || !have[x.id]) { x._t = x.rp.at; items.push(x); if (x.id) have[x.id] = 1; } });
+          (d.reposts || []).forEach(function (x) { if (x.type === 'report' || x.type === 'poll' || !have[x.id]) { x._t = x.rp.at; items.push(x); if (x.id) have[x.id] = 1; } });
           if (d.reposts && d.reposts.length) items.sort(function (a, b) { return (b._t || b.created) - (a._t || a.created); });
           place(items, hotMode); nudge();
         } else appendTail(items, true);
