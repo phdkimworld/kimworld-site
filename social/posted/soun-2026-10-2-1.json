@@ -15,5 +15,22 @@
     "threads",
     "facebook"
   ],
-  "publish_at": "2026-10-19T06:11:19-04:00"
+  "publish_at": "2026-10-19T06:11:19-04:00",
+  "results": {
+    "threads": {
+      "ids": [
+        "17883910332625026",
+        "17912662194538860"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/DerC66nFr9j",
+      "done": true
+    },
+    "facebook": {
+      "post_id": "1033484903190014_122137440254736633",
+      "comment_id": "122137440254736633_1105727655151363",
+      "permalink": "https://www.facebook.com/122136709832736633/posts/122137440254736633",
+      "done": true
+    }
+  },
+  "posted_at": "2026-10-19T06:29:52-04:00"
 }
