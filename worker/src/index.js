@@ -599,7 +599,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share", "next_bar"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다

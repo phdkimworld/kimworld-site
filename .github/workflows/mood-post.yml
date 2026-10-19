@@ -1,0 +1,50 @@
+name: Mood post (주간 개미 심리 순위 Threads 글)
+
+# 매주 일요일 저녁(미국 동부) 지난 30일 투자 심리 투표 순위(종목별 합계만)를 받아 Threads 글을 social/queue/ 에 넣는다.
+# 게시는 Social 워크플로(15분마다)가 한다. 표가 적으면 건너뛴다. 운영자 요청 2026-10-19(수익성: 투표 데이터를 콘텐츠로).
+on:
+  schedule:
+    - cron: "7 0 * * 1"   # 월 00:07 UTC = 일 20:07 EDT / 19:07 EST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social
+  cancel-in-progress: false
+
+jobs:
+  mood:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Fetch ranking
+        run: |
+          mkdir -p .cache
+          # api.drkimworld.com 은 Cloudflare 봇 검사가 GitHub 러너를 막으므로 같은 워커의 workers.dev 주소로 부른다
+          SUB=$(curl -sS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+          BASE=${SUB:+https://kimworld-api.$SUB.workers.dev}
+          BASE=${BASE:-https://api.drkimworld.com}
+          CODE=$(curl -sS --max-time 30 -o .cache/mood.json -w '%{http_code}' -A "kimworld-mood-post" "$BASE/v1/sentiment/top")
+          echo "::notice title=mood HTTP::$CODE"
+      - name: Build post
+        run: |
+          pip install -q pyyaml
+          python3 scripts/mood_post.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A social/queue
+          if git diff --cached --quiet; then echo "새 글 없음"; exit 0; fi
+          git commit -q -m "주간 개미 심리 순위 글 $(TZ=America/New_York date '+%Y-%m-%d') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

@@ -356,6 +356,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var id = decodeURIComponent(a.getAttribute('href').slice(1));
     if (openTo(id)) { e.preventDefault(); try { history.replaceState(null, '', '#' + id); } catch (x) {} if (window.kwEv) kwEv('fig_click'); }
   });
+  // 읽는 중 아래 줄의 '다음 리포트' 누름(방문당 페이지 수 개선 효과 측정)
+  document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-next-bar]') && window.kwEv) kwEv('next_bar'); }, true);
   if (/^#ev-\d+$/.test(location.hash)) setTimeout(function () { openTo(location.hash.slice(1)); }, 50);
 })();
 

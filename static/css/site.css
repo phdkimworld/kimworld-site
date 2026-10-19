@@ -1489,3 +1489,6 @@ article.report .sent { margin-top: 14px; }
 .quote-poll .qp-head a { font-size: .76rem; color: var(--muted); text-decoration: none; white-space: nowrap; flex: none; }
 .quote-poll .fpoll { margin: 0; padding: 0; border: 0; background: none; }
 .quote-poll .fpoll .fp-q { display: none; }
+
+.rdock .rd-next { color: var(--accent); font-weight: 700; }
+.rdock .rd-next .ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
