@@ -1463,3 +1463,15 @@ article.report .sent { margin-top: 14px; }
 .an-table th.an-sort::after { content: " ↕"; opacity: .35; font-size: .8em; }
 .an-table th[aria-sort="descending"]::after { content: " ▼"; opacity: .9; color: var(--accent); }
 .an-table th[aria-sort="ascending"]::after { content: " ▲"; opacity: .9; color: var(--accent); }
+
+/* 검색 화면 투자 심리 순위 */
+.mood-tabs { display: flex; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
+.mood-tabs button { font: inherit; font-size: .84rem; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+.mood-tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 700; }
+.mood-list { --s-up: #f2555a; --s-down: #3b82f6; }
+.mood-list[hidden] { display: none; }
+.mood-v { flex: none; font-size: .78rem; font-weight: 800; }
+.mood-up { color: var(--s-up); } .mood-down { color: var(--s-down); } .mood-even { color: var(--muted); }
+.mood-note { font-size: .76rem; margin: 10px 0 4px; line-height: 1.5; }
+.mood-empty { padding: 14px 0; }
+.explore-tabs [hidden] { display: none; }

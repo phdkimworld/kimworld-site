@@ -236,8 +236,10 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
         '</span><span class="card-company">' + esc(r.c) + '</span><span class="card-theme">' + esc(r.th) + '</span></div><h3 class="card-title">' +
         esc(r.t) + '</h3><p class="card-summary">' + esc(r.s) + '</p><div class="card-meta">' + esc(r.d) + '</div></a></article>';
     }
+    var moodRefresh = null; // 투자 심리 순위가 종목 이름(search.json)보다 먼저 오면, 이름이 오면 다시 그린다
     function run() {
       if (!data) return;
+      if (moodRefresh) { moodRefresh(); moodRefresh = null; }
       var q = input.value.trim();
       var url = new URL(location.href);
       if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
@@ -285,7 +287,37 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
         var bx = holder.querySelector('.ad-coupang-products'); if (window.kwAdNew && bx) kwAdNew(bx);
       });
       var start = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { start = start || sessionStorage.getItem('kw-ex'); } catch (e) {}
-      if (start && document.querySelector('[data-ex-pane="' + start + '"]')) pick(start);
+      if (start && start !== 'mood' && document.querySelector('[data-ex-pane="' + start + '"]')) pick(start);
+
+      // 투자 심리 순위(참여 많은·불리시·베어리시). 자료가 있을 때만 탭을 보이고, 따로 고른 탭이 없으면 첫 화면으로 연다. 실패하면 조용히 숨김
+      var moodTab = document.querySelector('[data-ex-tab="mood"]'), API = ((window.KW || {}).api || '').replace(/\/+$/, '');
+      if (!moodTab || !API) return;
+      fetch(API + '/v1/sentiment/top').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.top || !d.top.length) return;
+        var names = {};
+        function setNames() { (data || []).forEach(function (r) { if (r.k && !names[r.k]) names[r.k] = r.c; }); }
+        var list = document.querySelector('[data-mood-list]'), empty = document.querySelector('[data-mood-empty]'), mn = document.querySelector('[data-mood-min]');
+        if (mn && d.min) mn.textContent = d.min;
+        var btns = document.querySelectorAll('[data-mood]');
+        function show(k) {
+          setNames();
+          btns.forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-mood') === k ? 'true' : 'false'); });
+          var items = d[k] || [];
+          list.innerHTML = items.map(function (x, i) {
+            var side = x.bull >= 50 ? 'up' : 'down', pct = x.bull >= 50 ? x.bull : 100 - x.bull;
+            var lab = k === 'top' ? (x.bull > 50 ? '불리시 ' + x.bull + '%' : x.bull < 50 ? '베어리시 ' + (100 - x.bull) + '%' : '반반') : (k === 'bull' ? '불리시 ' + pct + '%' : '베어리시 ' + pct + '%');
+            return '<li class="rank-item"><span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(x.t.toLowerCase()) + '/"><span class="rank-tick">' + esc(x.t) +
+              '</span><span class="rank-title">' + esc(names[x.t] || '') + '</span></a><span class="mood-v mood-' + (x.bull === 50 ? 'even' : side) + '">' + lab + '</span><span class="rank-n muted">' + x.n + '표</span></li>';
+          }).join('');
+          list.hidden = !items.length; empty.hidden = !!items.length;
+        }
+        btns.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-mood')); if (window.kwEv) kwEv('mood_rank'); }); });
+        show('top');
+        if (!data) moodRefresh = function () { var cur = document.querySelector('[data-mood][aria-selected="true"]'); show(cur ? cur.getAttribute('data-mood') : 'top'); };
+        moodTab.hidden = false;
+        var asked = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { asked = asked || sessionStorage.getItem('kw-ex'); } catch (e) {}
+        if (!asked || asked === 'mood') pick('mood');
+      }).catch(function () {});
     })();
     input.value = new URLSearchParams(location.search).get('q') || '';
     fetch(base + '/search.json').then(function (r) { return r.json(); }).then(function (d) { data = d; run(); })

@@ -14,12 +14,28 @@
   {# 검색어가 없을 때: 쓰레드 검색 화면처럼 탭으로 나눠 보는 탐색 #}
   <section class="explore" data-explore aria-label="탐색">
     <div class="explore-tabs" role="tablist" aria-label="탐색">
+      {% if site.api_url %}<button type="button" role="tab" data-ex-tab="mood" aria-selected="false" hidden>투자 심리</button>{% endif %}
       <button type="button" role="tab" data-ex-tab="tickers" aria-selected="true">인기 종목</button>
       <button type="button" role="tab" data-ex-tab="themes" aria-selected="false">테마</button>
       <button type="button" role="tab" data-ex-tab="reports" aria-selected="false">많이 본 리포트</button>
       {% if site.api_url %}<button type="button" role="tab" data-ex-tab="talk" aria-selected="false">최근 이야기</button>{% endif %}
     </div>
     <div class="insights" data-insights>
+      {% if site.api_url %}
+      <div class="ex-pane" data-ex-pane="mood" role="tabpanel" hidden>
+        <div class="ins-head">
+          <h2 class="ex-h">투자 심리 순위 <span class="muted ex-sub">최근 30일 이용자 투표</span></h2>
+        </div>
+        <div class="mood-tabs" role="tablist" aria-label="순위 종류">
+          <button type="button" role="tab" data-mood="top" aria-selected="true">참여 많은</button>
+          <button type="button" role="tab" data-mood="bull" aria-selected="false">불리시 상위</button>
+          <button type="button" role="tab" data-mood="bear" aria-selected="false">베어리시 상위</button>
+        </div>
+        <ol class="rank mood-list" data-mood-list></ol>
+        <p class="muted mood-empty" data-mood-empty hidden>아직 이 순위에 오를 만큼 투표가 모이지 않았습니다.</p>
+        <p class="muted mood-note">이용자 투표 결과이며 투자 판단의 근거가 아닙니다. 지난 30일 <span data-mood-min>3</span>표 이상 모인 종목만 보입니다. 종목 화면에서 직접 투표할 수 있습니다.</p>
+      </div>
+      {% endif %}
       <div class="ex-pane" data-ex-pane="tickers" role="tabpanel">
         <div class="ex-block" data-trending hidden>
           <h2 class="ex-h">요즘 많이 찾는 종목 <span class="muted ex-sub">최근 7일 조회·검색</span></h2>

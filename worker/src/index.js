@@ -597,7 +597,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -1210,6 +1210,18 @@ export default {
           }
         }
         return json(req, { items }, 200, { "Cache-Control": "no-store" });
+      }
+      // 검색 화면 '투자 심리 순위': 지난 30일 참여 많은 종목·불리시 상위·베어리시 상위(종목별 합계만, 개인정보 없음)
+      // 표본이 적은 종목은 뺀다(SENT_TOP_MIN 표 미만). 순위에 오른 종목은 투표 전에도 비율이 보인다(운영자 결정 2026-10-18)
+      if (p === "/v1/sentiment/top" && req.method === "GET") {
+        const min = Math.max(1, parseInt(env.SENT_TOP_MIN || "3", 10) || 3);
+        const r = await db.prepare("SELECT ticker, SUM(bull) AS bull, SUM(bear) AS bear FROM sent_daily WHERE day >= ? GROUP BY ticker HAVING SUM(bull) + SUM(bear) >= ?")
+          .bind(kstDay(now - 29 * 864e5), min).all();
+        const rows = (r.results || []).map((x) => ({ t: x.ticker, n: x.bull + x.bear, bull: Math.round(x.bull / (x.bull + x.bear) * 100) }));
+        const top = [...rows].sort((a, b) => b.n - a.n || a.t.localeCompare(b.t)).slice(0, 10);
+        const bull = rows.filter((x) => x.bull > 50).sort((a, b) => b.bull - a.bull || b.n - a.n).slice(0, 10);
+        const bear = rows.filter((x) => x.bull < 50).sort((a, b) => a.bull - b.bull || b.n - a.n).slice(0, 10);
+        return json(req, { days: 30, min, top, bull, bear }, 200, { "Cache-Control": "public, max-age=300" });
       }
       const sm = p.match(/^\/v1\/sentiment\/([A-Za-z0-9.]{1,10})$/);
       if (sm && (req.method === "GET" || req.method === "POST")) {

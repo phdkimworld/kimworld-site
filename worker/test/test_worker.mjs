@@ -803,6 +803,13 @@ console.log("투자 심리 투표");
   r = await call("GET", "/v1/sentiment?t=rgti,IONQ,bad!!", { ip: "72.0.0.2" });
   check(r.data.items.RGTI.voted === "bull" && r.data.items.RGTI.d30.bull === 11 && r.data.items.IONQ.voted === null && r.data.items.IONQ.d30 === undefined && r.data.items.IONQ.n30 === 5 && !r.data.items["BAD!!"],
     "심리: 피드용 묶음 조회(투표한 종목만 비율)");
+  await env.DB.prepare("INSERT INTO sent_daily (ticker, day, bull, bear) VALUES ('QBTS', ?, 1, 4), ('SOUN', ?, 0, 1)").bind(d(2), d(2)).run();
+  r = await call("GET", "/v1/sentiment/top", { ip: "72.0.0.30" });
+  check(r.status === 200 && r.data.top[0].t === "RGTI" && r.data.top[0].n === 12 && !r.data.top.some((x) => x.t === "SOUN")
+    && r.data.bull[0].t === "IONQ" && r.data.bull[0].bull === 100 && r.data.bull.some((x) => x.t === "RGTI" && x.bull === 92)
+    && r.data.bear.length === 1 && r.data.bear[0].t === "QBTS" && r.data.bear[0].bull === 20 && !JSON.stringify(r.data).includes("actor"),
+    "심리 순위: 참여 많은 순·불리시·베어리시, 표본 적은 종목 제외, 합계만");
+  check(/public/.test(r.headers.get("Cache-Control") || ""), "심리 순위: 공개 캐시");
   const sv = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.sentiment;
   check(sv && sv.votes >= 7 && sv.voters >= 7 && sv.repeat >= 0 && sv.daily.length === 7 && sv.top.some((x) => x.ticker === "IONQ" && x.bull === 5), "운영 통계: 투자 심리 투표 참여(표·참여자·일별·종목별)");
 }
