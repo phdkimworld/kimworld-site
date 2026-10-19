@@ -441,6 +441,8 @@ async function analytics(db, now, daysIn) {
     prev: { pv: prevPage?.pv || 0, secs: prevPage?.secs || 0, sess: prevSrc?.sess || 0, multi: prevSrc?.multi || 0, newv: prevSrc?.newv || 0, uv: prevUv?.n || 0, signups: prevSignups?.n || 0 },
     active: { dau: dau?.n || 0, wau: wau?.n || 0, mau: mau?.n || 0 },
     series, sources: srcs, pages, types, hours,
+    // 날짜별 시간대(한국 시각 기준 기록). 화면에서 미국 동부시간으로 바꿔 그린다(서머타임 반영)
+    hoursDay: await all("SELECT day, h, pv FROM an_hour WHERE day >= ? ORDER BY day, h", since),
     community: { users: users?.n || 0, banned: users?.banned || 0, board: posts?.board || 0, replies: posts?.replies || 0, report: posts?.report || 0,
       writers: posts?.writers || 0, postLikes: likes?.n || 0, follows: follows?.total || 0, newFollows: follows?.recent || 0, held: queue?.held || 0, hidden: queue?.hidden || 0 },
     topUsers, searches, ads, ...ext,

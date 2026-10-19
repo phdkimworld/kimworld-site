@@ -379,6 +379,16 @@
     var hours = []; for (var h = 0; h < 24; h++) hours.push({ h: h, pv: 0 });
     (d.hours || []).forEach(function (x) { hours[x.h].pv = x.pv; });
     g.appendChild(bars('시간대별 페이지뷰 (한국 시각)', hours, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hours.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시'; } }));
+    // 미국 동부시간: 한국 시각 기록(날짜+시)을 실제 시각으로 바꿔 뉴욕 시간으로 다시 묶는다(서머타임 자동 반영)
+    var hoursEt = []; for (var he = 0; he < 24; he++) hoursEt.push({ h: he, pv: 0 });
+    var etFmt = null; try { etFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }); } catch (e) {}
+    if (etFmt && (d.hoursDay || []).length) {
+      d.hoursDay.forEach(function (x) {
+        var t = new Date(x.day + 'T' + (x.h < 10 ? '0' : '') + x.h + ':30:00+09:00');
+        var hh = parseInt(etFmt.format(t), 10) % 24; if (hoursEt[hh]) hoursEt[hh].pv += x.pv;
+      });
+      g.appendChild(bars('시간대별 페이지뷰 (미국 동부시간)', hoursEt, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hoursEt.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시 (ET)'; } }));
+    }
     body.appendChild(g);
 
     var acq = acquisition(d, T); delta.short = false; if (acq) body.appendChild(acq);
