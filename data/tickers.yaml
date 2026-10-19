@@ -504,3 +504,9 @@ TIA:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["셀레스티아", "Celestia", "티아", "셀레스티아 코인", "Celestia Foundation", "셀레스티아 재단"]
+SUI:
+  name: "수이"
+  name_en: "Sui"
+  exchange: "Upbit"
+  theme: "코인·블록체인"
+  aliases: ["수이", "Sui", "수이 코인", "Mysten Labs", "미스텐 랩스", "Sui Foundation", "수이 재단"]
