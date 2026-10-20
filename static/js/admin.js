@@ -375,6 +375,9 @@
     g.appendChild(bars('일별 페이지뷰', d.series, 'pv', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t); } }));
     var sAvg = d.series.map(function (r) { return { day: r.day, v: r.pv ? r.secs / r.pv : 0 }; });
     g.appendChild(bars('일별 평균 체류시간', sAvg, 'v', function (v) { return dur(v); }, { label: dayLabel, sub: function () { return '기간 평균 ' + dur(avg); } }));
+    // 방문당 페이지 수(그날 페이지뷰 ÷ 세션). 광고 노출 기회를 가장 직접 보여 주는 수익 지표(2026-10-20 운영자 요청)
+    var sPps = d.series.map(function (r) { return { day: r.day, v: r.sess ? r.pv / r.sess : 0 }; });
+    g.appendChild(bars('일별 방문당 페이지 수', sPps, 'v', function (v) { return v ? v.toFixed(2) : '0'; }, { label: dayLabel, sub: function () { return '기간 평균 ' + (T.sess ? (T.pv / T.sess).toFixed(2) : '0') + '쪽'; } }));
     g.appendChild(bars('일별 가입자', d.series, 'signups', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '명'; } }));
     g.appendChild(bars('일별 새 커뮤니티 글', d.series, 'board', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '개'; } }));
     var hours = []; for (var h = 0; h < 24; h++) hours.push({ h: h, pv: 0 });
