@@ -510,3 +510,9 @@ SUI:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["수이", "Sui", "수이 코인", "Mysten Labs", "미스텐 랩스", "Sui Foundation", "수이 재단"]
+RTX:
+  name: "RTX"
+  name_en: "RTX Corporation"
+  exchange: "NYSE"
+  theme: "우주항공·방산"
+  aliases: ["레이시온", "Raytheon", "레이시온 테크놀로지스", "프랫앤휘트니", "Pratt & Whitney", "콜린스 에어로스페이스", "Collins Aerospace"]
