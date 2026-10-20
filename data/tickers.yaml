@@ -522,3 +522,9 @@ TSLA:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["테슬라", "Tesla", "일론 머스크", "로보택시", "사이버캡", "옵티머스"]
+SPCX:
+  name: "스페이스X"
+  name_en: "Space Exploration Technologies Corp."
+  exchange: "NASDAQ"
+  theme: "우주항공·방산"
+  aliases: ["스페이스X", "SpaceX", "스페이스엑스", "스타링크", "Starlink", "스타십", "Starship"]
