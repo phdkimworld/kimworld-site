@@ -74,9 +74,9 @@ placements:
   report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
   report_recommend: dable_report        # 출처 목록 아래, 쿠팡 상자 바로 위: 데이블 '같이 볼 만한 글' 위젯(번호가 없으면 아무것도 없음)
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
-  report_bottom: adfit_report_end       # 면책 고지 위. 애드핏 '리포트 하단' 단위(320x100)
+  report_bottom: [adfit_report_end, coupang_products]  # 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡
   list: [adfit_list, coupang_products]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
-  report_late: coupang_products         # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 본문 상자와 다른 테마 상품
+  report_late: [adfit_report_end, coupang_products]  # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 2026-10-19 애드핏 '리포트 하단'을 맨 아래(보이는 비율 1%)에서 이 자리로 올림. 단위는 한 페이지 한 번이라 이 자리에 쓰면 맨 아래는 쿠팡
   rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
   feed_inline: [adfit_feed, adfit_feed2, adsense_in_article, coupang_products]   # 홈 피드 사이(처음 HTML의 고정 자리, 아래 rhythm.home_feed): 애드핏 피드 → 애드핏 피드2 → 애드센스 → 쿠팡. 목록 광고(list)가 첫 자리
   page_bottom: [adfit_bottom, coupang_banner]   # (애드핏 '하단' 단위가 있고 그 페이지 애드핏이 4개 미만이면 애드핏) 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너

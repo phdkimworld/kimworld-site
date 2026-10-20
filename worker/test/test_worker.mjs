@@ -449,6 +449,11 @@ check(an.data.sources.find((x) => x.src === "youtube").sess === 1 && an.data.sou
 check(an.data.pages.some((x) => x.path === "/(기타)") && an.data.pages.find((x) => x.path === "/r/rgti-2026-10/").scroll === 80, "모르는 주소는 기타로, 스크롤 100% 넘지 않음");
 check(an.data.series.length === 7 && an.data.active.dau === 2 && an.data.community.users >= 1, "날짜 축 7일, 오늘 방문자, 가입자 수");
 check(!JSON.stringify((await DB.prepare("SELECT * FROM an_seen").all()).results).includes("91.0.0"), "방문 기록에 IP 없음");
+// 빨리 나감(15초 안·무반응): 페이지뷰에는 안 넣고 합계만
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", q: 1, a: 3, r: "youtube", s: 1 }, ip: "91.0.0.4" });
+await call("POST", "/v1/hit", { body: { p: "/", q: 1, a: 2, r: "direct", s: 2 }, ip: "91.0.0.5" });
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_land === 1, "빨리 나간 방문: 페이지뷰 제외, quick·첫 페이지 quick_land 합계");
 // 확장 통계: 앱으로 연 방문·기기·행동 이벤트·유입 페이지·검색 실패
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", m: 1, n: 1, s: 1, a: 60, sc: 50, app: 1, os: "android", br: "chrome", ev: ["installed", "share", "share", "hack<script>"] }, ip: "91.0.0.6" });
 await call("POST", "/v1/search", { body: { q: "팔란티어", miss: 1 }, ip: "91.0.0.6" });

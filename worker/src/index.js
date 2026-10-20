@@ -603,6 +603,8 @@ export default {
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
+        // 빨리 나감(15초 안·무반응): 화면이 보낸 표시. 봇이 아니면 '빠른 이탈' 합계만(페이지뷰·세션에는 넣지 않음). 랜딩(첫 페이지)이면 quick_land 도
+        if (b.q === 1) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) { await countBot(db, today, bot || "quick"); if (!bot && s === 1) await countBot(db, today, "quick_land"); } return json(req, { ok: true }); }
         const why = bot || (a < 2 && !sc && !evs.length && !b.hu ? "idle" : "");
         if (why) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) await countBot(db, today, why); return json(req, { ok: true }); }
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });

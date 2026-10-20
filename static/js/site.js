@@ -602,7 +602,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     for (var i = 0; i < R.length; i++) if (R[i][0].test(h)) return [R[i][1], R[i][2]];
     return ['referral', h.replace(/^www\./, '').replace(/^m\./, '').slice(0, 40)];
   }
-  var active = 0, last = Date.now(), maxSc = 0, sent = false, human = false;
+  var active = 0, last = Date.now(), maxSc = 0, sent = false, human = false, quickSent = false;
   ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach(function (e) { addEventListener(e, function (ev) { last = Date.now(); if (ev.isTrusted && e !== 'scroll') human = true; }, { passive: true }); });
   setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - last < 30000) active++; }, 1000);
   addEventListener('scroll', function () {
@@ -612,7 +612,11 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   function send() {
     if (sent) return;
     // 봇 걸러내기: 화면을 한 번도 만지지 않았고 15초도 머물지 않았으면 보내지 않는다(링크 검사·미리보기 봇은 열었다 바로 닫는다)
-    if (!human && active < 15) return;
+    if (!human && active < 15) {
+      // 15초 안에 화면을 만지지 않고 나간 방문: 페이지뷰로는 세지 않고 '빨리 나감' 합계만 따로 센다(2026-10-19: 애드핏 요청 수가 우리 페이지뷰의 약 7배라 확인용)
+      if (!quickSent) { quickSent = true; var qb = JSON.stringify({ p: location.pathname, q: 1, a: active, r: src, s: n }); try { if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/v1/hit', qb))) fetch(API + '/v1/hit', { method: 'POST', body: qb, keepalive: true }); } catch (e) {} }
+      return;
+    }
     sent = true;
     // 30초 이상 머문 세션(engaged)은 세션 누적 시간이 처음 30초를 넘는 페이지에서 한 번만 센다(페이지마다 세면 100%를 넘음)
     var acc = parseInt(SS('kw-act'), 10) || 0, en = (acc < 30 && acc + active >= 30) ? 1 : 0; SS('kw-act', String(acc + active));

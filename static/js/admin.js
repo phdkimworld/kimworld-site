@@ -337,6 +337,7 @@
     var info = el('p', 'muted an-info', d.since + ' ~ 오늘 (' + d.days + '일, 한국 날짜) · ' + new Date(d.generated).toLocaleString('ko-KR') + ' 기준' + (d.days > 30 ? ' · 방문자 수는 최근 35일만 보관' : ''));
     var BT = d.bots || {}, btN = (BT.ua || 0) + (BT.dc || 0) + (BT.idle || 0);
     if (btN) info.textContent += ' · 봇으로 보고 뺀 페이지뷰 ' + nf(btN) + '(봇 이름표 ' + nf(BT.ua || 0) + ' · 데이터센터 망 ' + nf(BT.dc || 0) + ' · 반응 없음 ' + nf(BT.idle || 0) + ')';
+    if (BT.quick) info.textContent += ' · 15초 안에 무반응으로 나간 페이지 ' + nf(BT.quick) + '(그중 첫 페이지 ' + nf(BT.quick_land || 0) + ', 페이지뷰에는 넣지 않음)';
     body.appendChild(info);
 
     var k = el('div', 'an-tiles');
