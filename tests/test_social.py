@@ -193,4 +193,9 @@ wf = (Path(__file__).resolve().parent.parent / ".github/workflows/social.yml").r
 step = wf[wf.index("Commit results"):]
 check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로 둠(중복 게시 방지)",
       step.find("git config user.name") != -1 and step.find("git config user.name") < step.find("pull -q --rebase"))
+KST = sp.KST
+n0 = datetime(2026, 10, 20, 20, 10, tzinfo=KST)
+check("다음 칸: KST 20:10 → 21:10", sp.next_slot(n0).strftime("%H:%M") == "21:10")
+check("3시간 안에 잡힌 글이 있으면 그다음 칸", sp.next_slot(n0, [datetime(2026, 10, 20, 21, 0, tzinfo=KST)]).strftime("%d %H:%M") == "21 07:40")
+check("밤 23시 뒤에는 다음 날 아침 칸", sp.next_slot(datetime(2026, 10, 20, 23, 30, tzinfo=KST)).strftime("%d %H:%M") == "21 07:40")
 print(f"\n모두 통과 ({ok})")

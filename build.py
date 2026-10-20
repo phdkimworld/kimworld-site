@@ -961,6 +961,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         r["check_id"] = next((t["id"] for t in flat if "체크리스트" in t["name"]), "") or next((t["id"] for t in flat if "리스크" in t["name"]), "")
         r["yt_jump"] = [t for t in r["toc"] if re.match(r"^[3-6]부", t["name"])][:4] or r["toc"][2:6]
         r["has_diag"] = 'id="diagnosis"' in r["body_html"]
+        # SNS 글이 묻는 '몇 번?'의 답이 있는 3부 소제목(운영자 지시 2026-10-20 SNS 퍼널: 질문 → 답으로 바로)
+        r["answer_id"] = next((t["id"] for t in flat if re.search(r"무너진 날|거래일 뒤|몇 번", t["name"])), "")
         idx = public.index(r) if r in public else -1
         r["prev"] = public[idx + 1] if idx >= 0 and idx + 1 < len(public) else None
         r["next"] = public[idx - 1] if idx > 0 else None

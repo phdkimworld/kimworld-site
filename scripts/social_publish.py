@@ -72,6 +72,39 @@ IG_LIMIT = 2200
 CHANNELS = ("threads", "instagram", "facebook")
 MEDIA_EXT = {"image": (".jpg", ".jpeg", ".png"), "reels": (".mp4", ".mov")}
 STALE_HOURS = 6  # 미디어 주소가 이 시간 넘게 열리지 않으면 실패로 표시
+TH_TOPIC_DEFAULT = "미국주식"  # Threads 주제 태그 기본값(글마다 "topic_tag"로 바꾼다, 코인 글은 "코인")
+# 한국 시청자가 많이 보는 시각(KST). 새 글은 바로 올리지 않고 다음 칸에 넣는다(운영자 지시 2026-10-20)
+KST = ZoneInfo("Asia/Seoul")
+SLOTS_KST = ((7, 40), (12, 10), (18, 40), (21, 10))
+SLOT_GAP_HOURS = 3  # 같은 칸에 두 글이 겹치지 않게, 대기열·최근 게시 글과 이 시간 이상 띄운다
+
+
+def next_slot(now=None, taken=()):
+    """지금 이후 가장 가까운 KST 황금 시간 칸(이미 잡힌 시각과 SLOT_GAP_HOURS 안이면 다음 칸)."""
+    now = (now or datetime.now(timezone.utc)).astimezone(KST)
+    taken = [t.astimezone(KST) for t in taken]
+    day = now.date()
+    for d in range(0, 8):
+        for h, m in SLOTS_KST:
+            t = datetime(day.year, day.month, day.day, h, m, tzinfo=KST) + timedelta(days=d)
+            if t <= now + timedelta(minutes=5):
+                continue
+            if all(abs((t - x).total_seconds()) >= SLOT_GAP_HOURS * 3600 for x in taken):
+                return t
+    return now + timedelta(hours=1)
+
+
+def taken_times():
+    out = []
+    for q in list(QUEUE.glob("*.json")) + list(POSTED.glob("*.json")):
+        try:
+            d = json.loads(q.read_text(encoding="utf-8"))
+            t = parse_time(d.get("posted_at") or d.get("publish_at") or "")
+        except Exception:
+            continue
+        if t:
+            out.append(t)
+    return out
 
 
 def threads_len(text):
@@ -233,9 +266,18 @@ def th_publish_one(part, uid, token, reply_to=None):
         params["link_attachment"] = part["link_attachment"]
     if part.get("poll"):
         params["poll_attachment"] = json.dumps(dict(zip(POLL_KEYS, part["poll"])), ensure_ascii=False)
+    if part.get("topic_tag"):
+        params["topic_tag"] = part["topic_tag"]
     if reply_to:
         params["reply_to_id"] = reply_to
-    creation = call(TH_API, "POST", f"{uid}/threads", params, token)["id"]
+    try:
+        creation = call(TH_API, "POST", f"{uid}/threads", params, token)["id"]
+    except RuntimeError as e:  # 주제 태그를 받지 않는 경우에도 글은 올린다
+        if "topic_tag" not in params:
+            raise
+        print(f"::warning::Threads 주제 태그 없이 다시 시도: {str(e)[:120]}")
+        params.pop("topic_tag")
+        creation = call(TH_API, "POST", f"{uid}/threads", params, token)["id"]
     last = None
     for wait in (3, 10, 20, 30):
         time.sleep(wait)
@@ -251,7 +293,9 @@ def do_threads(post, res, save):
     if not token:
         raise RuntimeError("THREADS_ACCESS_TOKEN 비밀값이 없음")
     uid = call(TH_API, "GET", "me", {"fields": "id"}, token)["id"]  # 토큰 주인 계정으로 게시
-    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll")}] + list(post.get("replies", []) or [])
+    # 주제 태그(운영자 지시 2026-10-20 'SNS 알고리즘 선택'): 팔로워가 거의 없는 계정은 주제 피드가 첫 노출 통로다
+    tag = post.get("topic_tag", TH_TOPIC_DEFAULT)
+    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll"), "topic_tag": tag}] + list(post.get("replies", []) or [])
     ids = res.setdefault("ids", [])
     for i in range(len(ids), len(parts)):
         ids.append(th_publish_one(parts[i], uid, token, reply_to=ids[-1] if ids else None))
@@ -306,7 +350,18 @@ def do_instagram(post, res, save, now):
             prm = {"media_type": "REELS", "video_url": public_url(m["path"]), "caption": cap, "share_to_feed": "true"}
             if m.get("cover"):
                 prm["cover_url"] = public_url(m["cover"])
-            cid = call(IG_API, "POST", f"{uid}/media", prm, token)["id"]
+            # 체험 릴스(운영자 지시 2026-10-20): 팔로워 3명 계정이라 팔로워 아닌 사람에게 먼저 보이고, 반응이 좋으면 자동으로 일반 릴스가 된다
+            if m.get("trial", True):
+                prm["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE"})
+            try:
+                cid = call(IG_API, "POST", f"{uid}/media", prm, token)["id"]
+            except RuntimeError as e:
+                if "trial_params" not in prm:
+                    raise
+                print(f"::warning::인스타 체험 릴스 없이 다시 시도: {str(e)[:120]}")
+                prm.pop("trial_params")
+                res["trial"] = "unsupported"
+                cid = call(IG_API, "POST", f"{uid}/media", prm, token)["id"]
         else:
             kids = []
             for p in m["paths"]:
@@ -491,6 +546,9 @@ def ping():
 def main(argv):
     if "--ping" in argv:
         return ping()
+    if "--next-slot" in argv:  # 새 SNS 글의 publish_at 으로 쓸 다음 황금 시간 칸(미국 동부시간 ISO)
+        print(next_slot(taken=taken_times()).astimezone(NY).isoformat(timespec="minutes"))
+        return 0
     if "--delete" in argv:
         i = argv.index("--delete")
         ch, target = (argv[i + 1:i + 3] + ["", ""])[:2]

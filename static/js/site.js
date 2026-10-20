@@ -806,6 +806,19 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   nav.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('yt_jump_click'); });
 })();
 
+// SNS(Threads·인스타·페이스북)에서 온 독자에게만: 글이 물은 '몇 번?'의 답으로 바로 가는 줄(운영자 지시 2026-10-20)
+(function () {
+  var nav = document.querySelector('[data-sns-jump]'); if (!nav) return;
+  var src = ''; try { src = sessionStorage.getItem('kw-src') || ''; } catch (e) {}
+  var utm = (new URLSearchParams(location.search).get('utm_source') || '').toLowerCase();
+  var ua = navigator.userAgent || '';
+  if (/^(threads|instagram|facebook)$/.test(src) || /threads|instagram|facebook|ig_/.test(utm) || /instagram|FBAN|FBAV|Barcelona/i.test(ua)) {
+    nav.hidden = false; var yt = document.querySelector('[data-yt-jump]'); if (yt) yt.hidden = true;
+    if (window.kwEv) kwEv('sns_jump_shown');
+  }
+  nav.addEventListener('click', function (e) { if (e.target.closest('a') && window.kwEv) kwEv('sns_jump_click'); });
+})();
+
 // 본문 중간 '함께 읽기' 링크 누름(2026-10-16: 리포트 → 다음 리포트 이동 측정)
 (function () {
   var a = document.querySelector('[data-mid-next]'); if (!a) return;

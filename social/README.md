@@ -35,6 +35,14 @@
 - `channel_text`: 채널마다 본문을 따로 쓸 때.
 - 미리 검사: `python scripts/social_publish.py --check`
 
+## 노출을 늘리는 기본값 (운영자 지시 2026-10-20)
+
+- `publish_at`은 `python3 scripts/social_publish.py --next-slot`이 내는 시각(KST 07:40·12:10·18:40·21:10 가운데 다음 칸, 대기열·최근 글과 3시간 이상 간격).
+- Threads 첫 글에 `topic_tag`(기본 `미국주식`, 글마다 `"topic_tag"`로 바꿈). 태그를 받지 않으면 태그 없이 다시 올린다.
+- 인스타 릴스는 체험 릴스(`trial_params` SS_PERFORMANCE)로 올린다. 끄려면 `media.trial: false`. 받지 않으면 일반 릴스로 다시 올리고 `results.instagram.trial = "unsupported"`.
+- 페이스북은 릴스 파일에서만 올린다(텍스트+링크 댓글 글은 7일 11세션·평균 4초).
+- 리포트 페이지는 SNS에서 온 독자에게 '글이 물은 몇 번?의 답' 바로가기(`data-sns-jump`)를 보인다. 이벤트 `sns_jump_shown`·`sns_jump_click`.
+
 ## 인스타 미디어를 drkimworld.com 에서 공개하는 방법
 
 인스타 API는 파일을 직접 받지 않고 **공개 주소에서 가져간다**. 그래서 미디어를 저장소의 `static/social/<slug>/`에 넣는다.
