@@ -417,7 +417,18 @@ def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late
     return out
 
 
-def insert_mid_next(body_html: str, rel: dict | None) -> str:
+def mid_next_pick(r: dict) -> tuple[dict | None, str]:
+    """본문 중간 링크 대상: 같은 종목 후속편 → 같은 종목 지난 리포트 → 같은 테마 다른 종목(2026-10-20: 테마 다른 종목 링크는
+    리포트 265뷰에 누름 0. 유튜브·Threads 독자는 그 종목 하나를 보러 오므로 같은 종목 리포트를 먼저 잇는다)."""
+    if r.get("newer"):
+        return r["newer"], "이 종목 후속 리포트"
+    if r.get("ticker_reports"):
+        return r["ticker_reports"][0], "이 종목 지난 리포트"
+    rel = (r.get("related") or [None])[0]
+    return rel, "같은 테마 다른 종목"
+
+
+def insert_mid_next(body_html: str, rel: dict | None, label: str = "함께 읽기") -> str:
     """본문 40% 안팎, 문단과 문단 사이에 같은 테마 다음 리포트 한 줄 링크를 끼운다(2026-10-16 운영 통계: 리포트 평균 스크롤 55%·
     유튜브 유입 세션당 1.4쪽이라 맨 아래 '다음에 읽을 만한' 칸까지 내려오는 사람이 적다). 소제목(광고 자리) 바로 앞은 피하고
     인용·목록·접기·표 안에는 넣지 않는다."""
@@ -434,8 +445,9 @@ def insert_mid_next(body_html: str, rel: dict | None) -> str:
             best = pos
     if best < 0 or not (0.25 <= best / len(body_html) <= 0.6):
         return body_html
-    box = (f'<p class="mid-next"><span class="mid-next-k">함께 읽기</span> '
-           f'<a href="{html.escape(rel["url"], quote=True)}" data-mid-next>{html.escape(rel["ticker"])} · {html.escape(rel["title"])} →</a></p>\n')
+    title = rel["title"].split(" | ")[0].strip()  # 검색용 꼬리말(| 주가 내러티브와 패턴 투자전략)은 링크 글에서 뺀다
+    box = (f'<p class="mid-next"><span class="mid-next-k">{html.escape(label)}</span> '
+           f'<a href="{html.escape(rel["url"], quote=True)}" data-mid-next>{html.escape(rel["ticker"])} · {html.escape(title)} →</a></p>\n')
     return body_html[:best] + box + body_html[best:]
 
 
@@ -993,7 +1005,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     for r in reports:
         ads.begin_page()
         body, used_terms = apply_glossary(r["body_html"], glossary)
-        body = insert_mid_next(body, (r.get("related") or [None])[0])
+        body = insert_mid_next(body, *mid_next_pick(r))
         exclude = []  # 리포트에서 다룬 회사의 상품도 광고에 나올 수 있다(법적 제한 없음)
         ad_ctx = {"theme": r["theme"], "exclude": exclude}
         pieces = []
