@@ -37,7 +37,7 @@
 
 ## 노출을 늘리는 기본값 (운영자 지시 2026-10-20)
 
-- `publish_at`은 `python3 scripts/social_publish.py --next-slot`이 내는 시각(KST 07:40·12:10·18:40·21:10 가운데 다음 칸, 대기열·최근 글과 3시간 이상 간격).
+- `publish_at`은 영상 공개 직후 현재 시각(운영자 지시 2026-10-20 "시간 바꾸는건 안돼. 발행은 반드시 즉시"). `--next-slot`은 쓰지 않는다.
 - Threads 첫 글에 `topic_tag`(기본 `미국주식`, 글마다 `"topic_tag"`로 바꿈). 태그를 받지 않으면 태그 없이 다시 올린다.
 - 인스타 릴스는 체험 릴스(`trial_params` SS_PERFORMANCE)로 올린다. 끄려면 `media.trial: false`. 받지 않으면 일반 릴스로 다시 올리고 `results.instagram.trial = "unsupported"`.
 - 페이스북은 릴스 파일에서만 올린다(텍스트+링크 댓글 글은 7일 11세션·평균 4초).
