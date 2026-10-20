@@ -528,3 +528,9 @@ SPCX:
   exchange: "NASDAQ"
   theme: "우주항공·방산"
   aliases: ["스페이스X", "SpaceX", "스페이스엑스", "스타링크", "Starlink", "스타십", "Starship"]
+SMCI:
+  name: "슈퍼마이크로"
+  name_en: "Super Micro Computer, Inc."
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["슈퍼마이크로", "슈퍼마이크로 컴퓨터", "Supermicro", "Super Micro Computer", "AI 서버"]
