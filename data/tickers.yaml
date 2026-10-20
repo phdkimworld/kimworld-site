@@ -516,3 +516,9 @@ RTX:
   exchange: "NYSE"
   theme: "우주항공·방산"
   aliases: ["레이시온", "Raytheon", "레이시온 테크놀로지스", "프랫앤휘트니", "Pratt & Whitney", "콜린스 에어로스페이스", "Collins Aerospace"]
+TSLA:
+  name: "테슬라"
+  name_en: "Tesla, Inc."
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["테슬라", "Tesla", "일론 머스크", "로보택시", "사이버캡", "옵티머스"]
