@@ -9,5 +9,16 @@
       "text": "순위 전체 보기·직접 투표하기 👇",
       "link_attachment": "https://drkimworld.com/search/?utm_source=threads&utm_medium=social&utm_campaign=mood#tab=mood"
     }
-  ]
+  ],
+  "results": {
+    "threads": {
+      "ids": [
+        "18114127793115844",
+        "18247725070312703"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/DeshuQ4oGej",
+      "done": true
+    }
+  },
+  "posted_at": "2026-10-19T20:18:09-04:00"
 }
