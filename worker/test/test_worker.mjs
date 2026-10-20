@@ -454,6 +454,10 @@ await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", q: 1, a: 3, r: "y
 await call("POST", "/v1/hit", { body: { p: "/", q: 1, a: 2, r: "direct", s: 2 }, ip: "91.0.0.5" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_land === 1, "빨리 나간 방문: 페이지뷰 제외, quick·첫 페이지 quick_land 합계");
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", s: 1, a: 40, av: { adfit: 2, coupang: 1, hack: 5, adsense: 999 } }, ip: "91.0.0.7" });
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+const adv = {}; (an.data.eventsDaily || []).forEach((x) => { if (x.ev.startsWith("adv_")) adv[x.ev] = (adv[x.ev] || 0) + x.n; });
+check(adv.adv_adfit === 2 && adv.adv_coupang === 1 && adv.adv_adsense === 20 && !adv.adv_hack, "화면에 보인 광고 수: 종류별 일별 합계(모르는 종류 버림, 한 페이지 20까지)");
 // 확장 통계: 앱으로 연 방문·기기·행동 이벤트·유입 페이지·검색 실패
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", m: 1, n: 1, s: 1, a: 60, sc: 50, app: 1, os: "android", br: "chrome", ev: ["installed", "share", "share", "hack<script>"] }, ip: "91.0.0.6" });
 await call("POST", "/v1/search", { body: { q: "팔란티어", miss: 1 }, ip: "91.0.0.6" });

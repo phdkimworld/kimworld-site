@@ -603,6 +603,19 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     return ['referral', h.replace(/^www\./, '').replace(/^m\./, '').slice(0, 40)];
   }
   var active = 0, last = Date.now(), maxSc = 0, sent = false, human = false, quickSent = false;
+  // 화면에 실제로 보인 광고 수(종류별): 광고 상자가 절반 이상 1초 보이면 한 번(2026-10-20 운영자 요청 '일별 광고 노출')
+  var adSeen = {}, adView = {};
+  function adKind(b) { var c = b.className || ''; return /ad-adfit/.test(c) ? 'adfit' : /ad-adsense/.test(c) ? 'adsense' : /ad-dable/.test(c) ? 'dable' : /coupang/.test(c) ? 'coupang' : ''; }
+  var adIo = window.IntersectionObserver ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var b = e.target;
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) { if (!b._kwAv) b._kwAv = setTimeout(function () { var k = adKind(b); if (k && !b.classList.contains('hidden')) adView[k] = (adView[k] || 0) + 1; adIo.unobserve(b); }, 1000); }
+      else if (b._kwAv) { clearTimeout(b._kwAv); b._kwAv = 0; }
+    });
+  }, { threshold: [0, 0.5] }) : null;
+  function adScan() { if (!adIo) return; Array.prototype.forEach.call(document.querySelectorAll('aside.ad, .ad-coupang-products'), function (b) { if (!adSeen[b._kwAid || (b._kwAid = Math.random())]) { adSeen[b._kwAid] = 1; adIo.observe(b); } }); }
+  adScan(); setTimeout(adScan, 2500);
+  if (window.MutationObserver) { var adMoT = 0; new MutationObserver(function () { clearTimeout(adMoT); adMoT = setTimeout(adScan, 300); }).observe(document.body, { childList: true, subtree: true }); }
   ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach(function (e) { addEventListener(e, function (ev) { last = Date.now(); if (ev.isTrusted && e !== 'scroll') human = true; }, { passive: true }); });
   setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - last < 30000) active++; }, 1000);
   addEventListener('scroll', function () {
@@ -622,7 +635,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var acc = parseInt(SS('kw-act'), 10) || 0, en = (acc < 30 && acc + active >= 30) ? 1 : 0; SS('kw-act', String(acc + active));
     var did = LS('kw-did') || '';
     var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, en: en, sc: maxSc,
-      app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}),
+      app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}), av: adView,
       ch: SS('kw-ch') || 'direct', sd: SS('kw-sd') || src, rh: n === 1 ? (SS('kw-rh') || '') : '', lp: SS('kw-lp') || location.pathname, u: (function () { try { return JSON.parse(SS('kw-utm') || 'null'); } catch (e) { return null; } })() });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
     try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}

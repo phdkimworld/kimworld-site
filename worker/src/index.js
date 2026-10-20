@@ -342,7 +342,7 @@ async function analytics(db, now, daysIn) {
     one("SELECT SUM(app) AS n FROM an_page WHERE day >= ?", since),
     all("SELECT ev, SUM(n) AS n FROM an_event WHERE day >= ? GROUP BY ev", since),
     all("SELECT ev, SUM(n) AS n FROM an_event WHERE day >= ? AND day < ? GROUP BY ev", prevSince, since),
-    all("SELECT day, ev, SUM(n) AS n FROM an_event WHERE day >= ? AND ev IN ('installed', 'install_accept', 'login_start', 'share') GROUP BY day, ev", since),
+    all("SELECT day, ev, SUM(n) AS n FROM an_event WHERE day >= ? AND (ev IN ('installed', 'install_accept', 'login_start', 'share') OR ev LIKE 'adv_%') GROUP BY day, ev", since),
     // 처음 본 날(이 기록이 있는 35일 안에서) 기준 코호트: 다음 날·7일 안에 다시 왔는지
     all(`WITH f AS (SELECT vh, MIN(day) AS fd FROM an_seen GROUP BY vh)
          SELECT f.fd AS day, COUNT(*) AS n,
@@ -619,6 +619,11 @@ export default {
         ];
         if (s === 1) q.push(db.prepare("INSERT INTO an_entry (day, path, src, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, path, src) DO UPDATE SET n = n + 1").bind(today, path, src));
         for (const e of evs) q.push(db.prepare("INSERT INTO an_event (day, ev, n) VALUES (?, ?, 1) ON CONFLICT(day, ev) DO UPDATE SET n = n + 1").bind(today, e));
+        // 화면에 보인 광고 수(종류별, 한 페이지 종류마다 20까지): an_event 의 adv_<종류>
+        if (b.av && typeof b.av === "object") for (const k of ["adfit", "coupang", "adsense", "dable"]) {
+          const c = Math.max(0, Math.min(20, parseInt(b.av[k], 10) || 0));
+          if (c) q.push(db.prepare("INSERT INTO an_event (day, ev, n) VALUES (?, ?, ?) ON CONFLICT(day, ev) DO UPDATE SET n = n + excluded.n").bind(today, "adv_" + k, c));
+        }
         if (s <= 2) q.push(db.prepare(`INSERT INTO an_src (day, src, sess, multi, newv) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(day, src) DO UPDATE SET sess = sess + excluded.sess, multi = multi + excluded.multi, newv = newv + excluded.newv`)
             .bind(today, src, s === 1 ? 1 : 0, s === 2 ? 1 : 0, s === 1 ? n : 0));
