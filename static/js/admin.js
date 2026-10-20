@@ -378,6 +378,14 @@
     // 방문당 페이지 수(그날 페이지뷰 ÷ 세션). 광고 노출 기회를 가장 직접 보여 주는 수익 지표(2026-10-20 운영자 요청)
     var sPps = d.series.map(function (r) { return { day: r.day, v: r.sess ? r.pv / r.sess : 0 }; });
     g.appendChild(bars('일별 방문당 페이지 수', sPps, 'v', function (v) { return v ? v.toFixed(2) : '0'; }, { label: dayLabel, sub: function () { return '기간 평균 ' + (T.sess ? (T.pv / T.sess).toFixed(2) : '0') + '쪽'; } }));
+    // 일별 광고 노출: 화면에 절반 이상 1초 보인 광고 상자 수(종류별 합). 애드핏 자체 집계(렌더 기준)와는 다르다
+    var edA = {}; (d.eventsDaily || []).forEach(function (x) { if (/^adv_/.test(x.ev)) (edA[x.day] = edA[x.day] || {})[x.ev.slice(4)] = x.n; });
+    var advK = { adfit: '애드핏', coupang: '쿠팡', adsense: '애드센스', dable: '데이블' };
+    var sAdv = d.series.map(function (r) { var e = edA[r.day] || {}, t = 0; Object.keys(advK).forEach(function (k) { t += e[k] || 0; }); return { day: r.day, v: t, e: e }; });
+    g.appendChild(bars('일별 광고 노출(화면에 보인 광고)', sAdv, 'v', nf, { label: dayLabel, sub: function (t) {
+      var by = {}; sAdv.forEach(function (x) { Object.keys(x.e).forEach(function (k) { by[k] = (by[k] || 0) + x.e[k]; }); });
+      return '합계 ' + nf(t) + (Object.keys(by).length ? ' · ' + Object.keys(by).map(function (k) { return (advK[k] || k) + ' ' + nf(by[k]); }).join(' · ') : '') + ' · 페이지뷰당 ' + (T.pv ? (t / T.pv).toFixed(2) : '0') + '개';
+    } }));
     g.appendChild(bars('일별 가입자', d.series, 'signups', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '명'; } }));
     g.appendChild(bars('일별 새 커뮤니티 글', d.series, 'board', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t) + '개'; } }));
     var hours = []; for (var h = 0; h < 24; h++) hours.push({ h: h, pv: 0 });
@@ -498,14 +506,6 @@
     })));
     var ad = {}; (d.adDaily || []).forEach(function (x) { ad[x.day] = x; });
     var sAd = d.series.map(function (r) { var x = ad[r.day] || {}; return { day: r.day, clicks: x.clicks || 0, imps: x.imps || 0 }; });
-    // 일별 광고 노출: 화면에 절반 이상 1초 보인 광고 상자 수(종류별 합). 애드핏 자체 집계(렌더 기준)와는 다르다
-    var edA = {}; (d.eventsDaily || []).forEach(function (x) { if (/^adv_/.test(x.ev)) (edA[x.day] = edA[x.day] || {})[x.ev.slice(4)] = x.n; });
-    var advK = { adfit: '애드핏', coupang: '쿠팡', adsense: '애드센스', dable: '데이블' };
-    var sAdv = d.series.map(function (r) { var e = edA[r.day] || {}, t = 0; Object.keys(advK).forEach(function (k) { t += e[k] || 0; }); return { day: r.day, v: t, e: e }; });
-    g6.appendChild(bars('일별 광고 노출(화면에 보인 광고)', sAdv, 'v', nf, { label: dayLabel, sub: function (t) {
-      var by = {}; sAdv.forEach(function (x) { Object.keys(x.e).forEach(function (k) { by[k] = (by[k] || 0) + x.e[k]; }); });
-      return '합계 ' + nf(t) + (Object.keys(by).length ? ' · ' + Object.keys(by).map(function (k) { return (advK[k] || k) + ' ' + nf(by[k]); }).join(' · ') : '') + ' · 페이지뷰당 ' + (T.pv ? (t / T.pv).toFixed(2) : '0') + '개';
-    } }));
     g6.appendChild(bars('일별 쿠팡 상자 클릭', sAd, 'clicks', nf, { label: dayLabel, sub: function (t) { var im = sAd.reduce(function (a, x) { return a + x.imps; }, 0); return '클릭 ' + nf(t) + ' · 노출 ' + nf(im) + ' · 클릭률 ' + pct(t, im); } }));
     body.appendChild(g6);
     body.hidden = false;
