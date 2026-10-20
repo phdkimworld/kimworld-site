@@ -468,6 +468,8 @@ if (D / "index.html").exists():
     check("noindex" in st_html and "settings.js" in st_html and "data-push-on" in st_html and all(f'data-pref-who="{k}"' in st_html for k in ("reply", "mention", "quote", "repost"))
           and all(f'data-pref-on="{k}"' in st_html for k in ("report", "like", "follow", "dm", "dmreq")), "설정 페이지: 푸시 켜기·종류별(끔/팔로우한 사람/모든 사람)·켬끔")
     check("Disallow: /settings/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 설정 차단")
+    _rb = (D / "robots.txt").read_text(encoding="utf-8")
+    check("Allow: /search/$" in _rb and "Disallow: /search/\n" in _rb, "robots: 예전 도메인의 /search/<스팸> 주소 차단, 검색 화면은 허용")
     _hm = (D / "index.html").read_text(encoding="utf-8")
     _tb = re.search(r'<nav class="tabbar".*?</nav>', _hm, re.S)
     check(_tb and '/settings/' in _tb.group(0) and _tb.group(0).count('<a ') + _tb.group(0).count('<button') == 6, "아래 탭 줄에 '설정'(6칸)")

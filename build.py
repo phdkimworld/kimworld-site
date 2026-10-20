@@ -1164,7 +1164,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
     # AI 답변 엔진(챗GPT·클로드·퍼플렉시티·제미나이·코파일럿·애플)과 검색엔진 수집기를 이름으로 분명히 허용한다(운영자 결정 2026-10-15: AI 답변 노출 극대화)
     ai_bots = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-User", "Claude-SearchBot", "anthropic-ai", "PerplexityBot", "Perplexity-User",
                "Google-Extended", "Applebot-Extended", "Amazonbot", "meta-externalagent", "DuckAssistBot", "MistralAI-User", "cohere-ai"]
-    rules = "Allow: /\nDisallow: /admin/\nDisallow: /dm/\nDisallow: /settings/\n"
+    # /search/<무엇> 은 예전 도메인 주인이 남긴 스팸 주소(서치 콘솔 2026-10-19 확인: 영양제 이름 등, 지금은 404).
+    # 새 사이트의 적은 크롤링 몫을 그 주소들에 쓰지 않게 막는다. 우리 검색 화면(/search/)은 허용(그 화면은 원래 noindex)
+    rules = "Allow: /\nAllow: /search/$\nAllow: /search/?\nDisallow: /search/\nDisallow: /admin/\nDisallow: /dm/\nDisallow: /settings/\n"
     # 일반 검색엔진은 HTML 리포트만 색인한다(마크다운 사본 /r/*.md 는 원본 표시를 달 수 없어 '중복'으로 잡히지 않게 막는다)
     search_bots = ["Googlebot", "Bingbot", "Yeti", "Daum", "Applebot"]
     robots = ("".join(f"User-agent: {b}\n" for b in ai_bots) + rules
