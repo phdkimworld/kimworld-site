@@ -16,6 +16,10 @@ P = tm['paras']; D = deck['paras']
 assert len(P) == len(D), f'문단 수 불일치: 음성 {len(P)} / slides.json {len(D)}'
 absp = lambda p: p if os.path.isabs(p) else os.path.join(base, p)
 midroll = absp(deck['midroll'])
+# 운영자 지시 2026-10-21: 미드롤에서 리포트 말고 사이트·앱 기능도 광고한다.
+# deck에 'midroll_app'(사이트·앱 기능 이미지)이 있으면 마지막 전체 화면 안내(닫기)에 그 이미지를 띄운다
+midroll_app = absp(deck['midroll_app']) if deck.get('midroll_app') else None
+isad = lambda k: k[0] == 'AD'
 wd = os.path.join(os.path.dirname(out), 'slides_out'); os.makedirs(wd, exist_ok=True)
 
 # 1) 문장마다 보여 줄 화면 결정
@@ -35,7 +39,8 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         t0 = 0.0 if (pi == 0 and si == 0) else (pt['start'] if si == 0 else s['start'])
         k = max(i for i, x in enumerate(sl) if x.get('from', 0) <= si) if any(x.get('from', 0) <= si for x in sl) else 0
         sdur = s['end'] - s['start']
-        if si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0: key = ('AD',); full_used += sdur
+        if si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
+            key = ('AD', 'app' if midroll_app and pi == ad_paras[-1] else 'rep'); full_used += sdur
         elif si in ads: key = (pi, k, si, 'B')
         else: key = (pi, k, si)
         seq.append((t0, key, sl))
@@ -53,7 +58,7 @@ async def render():
         await pg.goto('file://' + os.path.join(KIT, 'slide.html')); await pg.wait_for_timeout(300)
         for _, key, _, sl in segs:
             if key in files: continue
-            if key == ('AD',): files[key] = midroll; continue
+            if isad(key): files[key] = midroll_app if key[1] == 'app' else midroll; continue
             pi, k, si = key[:3]; ban = len(key) == 4; d = dict(sl[k])
             if d.get('bg'): d['bg'] = 'file://' + absp(d['bg'])
             f = os.path.join(wd, f'p{pi+1:02d}_s{k}_{si}{"_b" if ban else ""}.png')
@@ -85,11 +90,11 @@ with open(lst, 'w') as fo:
 def sfx_events():
     ev, last_t, prev = [], -99.0, None
     for t0, key, t1, sl in segs:
-        if key == ('AD',):
-            if prev != ('AD',): ev.append((t0, 'chime'))
+        if isad(key):
+            if prev is None or not isad(prev): ev.append((t0, 'chime'))
             prev = key; continue
         pi, k, si = key[:3]; d = sl[k]
-        new_slide = prev is None or prev == ('AD',) or prev[:2] != (pi, k)
+        new_slide = prev is None or isad(prev) or prev[:2] != (pi, k)
         kind = None
         if new_slide:
             kick = str(d.get('kicker', ''))
@@ -114,7 +119,7 @@ sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-i', mixed,
     '-vf', 'scale=1920:1080,fps=30,format=yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-crf', '20', '-r', '30',
     '-af', 'alimiter=limit=0.95,apad', '-t', f'{total:.3f}', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', out], check=True)
-ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if k == ('AD',)]
+ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if isad(k)]
 # 지침 A4·A6 지표: 같은 그림이 이어지는 최장 시간(미드롤·outro 제외), 전체 화면 미드롤 합계, 배너 횟수
 import hashlib
 hv = {}
@@ -123,7 +128,7 @@ def hsh(f):
     return hv[f]
 static, run = [], None
 for a, k, b, _ in segs:
-    if k == ('AD',) or a >= outro_t0: run = None; continue
+    if isad(k) or a >= outro_t0: run = None; continue
     h = hsh(files[k])
     if run and run[2] == h: run[1] = b
     else: run = [a, b, h]; static.append(run)
