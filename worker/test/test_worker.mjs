@@ -840,6 +840,23 @@ console.log("투자 심리 투표");
   check(r.data.reposted === false && r.data.count === 0, "투표 리포스트 취소");
   const sv2 = await worker.fetch(new Request("https://api.drkimworld.com/s/v/rgti"), env); const sh = await sv2.text();
   check(sv2.status === 200 && sh.includes("$RGTI 오를까, 내릴까?") && sh.includes("/t/rgti/") && sh.includes("#sent-h") && sh.includes("og/b-rgti.png"), "투표 공유 미리보기(/s/v/티커)");
+  // 리포트 업데이트 요청
+  r = await call("GET", "/v1/requests/rgti", { ip: "77.0.0.1" });
+  check(r.status === 200 && r.data.n === 0 && r.data.mine === false, "업데이트 요청: 처음엔 0");
+  r = await call("POST", "/v1/requests/rgti", { body: {}, ip: "77.0.0.1" });
+  check(r.data.n === 1 && r.data.mine === true && r.data.changed === "on", "업데이트 요청: 누르면 요청");
+  await call("POST", "/v1/requests/RGTI", { body: {}, ip: "77.0.0.2" });
+  await call("POST", "/v1/requests/IONQ", { body: {}, ip: "77.0.0.2" });
+  r = await call("GET", "/v1/requests/RGTI", { ip: "77.0.0.3" });
+  check(r.data.n === 2 && r.data.mine === false, "업데이트 요청: 여러 사람 합계, 내 요청 여부");
+  r = await call("POST", "/v1/requests/RGTI", { body: {}, ip: "77.0.0.1" });
+  check(r.data.n === 1 && r.data.mine === false && r.data.changed === "off", "업데이트 요청: 다시 누르면 취소");
+  await env.DB.prepare("INSERT INTO upd_req (ticker, actor, ih, created) VALUES ('QBTS', 'old', 'x', ?)").bind(Date.now() - 40 * 864e5).run();
+  r = await call("GET", "/v1/requests/top", { ip: "77.0.0.4" });
+  check(r.data.items.length === 2 && r.data.items.every((x) => x.n === 1) && !r.data.items.some((x) => x.t === "QBTS") && !JSON.stringify(r.data).includes("actor"), "업데이트 요청 순위: 최근 30일만, 합계만");
+  check((await call("POST", "/v1/requests/RGTI", { body: {}, ip: "77.0.0.5", ua: "facebookexternalhit/1.1" })).status === 403, "업데이트 요청: 봇 거절");
+  const ua0 = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.updReq;
+  check(Array.isArray(ua0) && ua0.some((x) => x.ticker === "IONQ" && x.n === 1), "운영 통계: 업데이트 요청 종목별");
   const sv = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.sentiment;
   check(sv && sv.votes >= 7 && sv.voters >= 7 && sv.repeat >= 0 && sv.daily.length === 7 && sv.top.some((x) => x.ticker === "IONQ" && x.bull === 5), "운영 통계: 투자 심리 투표 참여(표·참여자·일별·종목별)");
 }

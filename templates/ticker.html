@@ -41,6 +41,13 @@
     <p class="sum-jump"><a href="{{ rs[0].url }}">전체 리포트 읽기 →</a></p>
   </section>
   {% endif %}
+  {% if site.api_url %}
+  {#- 리포트 업데이트 요청(2026-10-21): 최근 30일 요청 수를 보여 주고 누르면 요청/취소. 요청 많은 종목은 검색 화면 순위와 제작 우선순위에 쓰인다 #}
+  <section class="upd-req" data-upd-req data-ticker="{{ code }}" aria-label="리포트 업데이트 요청" hidden>
+    <div class="ur-txt"><strong>최신 리포트 {{ rs[0].data_as_of|kdate }} 기준</strong><span class="muted" data-ur-n>새 리포트가 필요하면 요청해 주세요</span></div>
+    <button type="button" class="btn ur-btn" data-ur-btn aria-pressed="false">🔔 업데이트 요청</button>
+  </section>
+  {% endif %}
   <div class="cards" id="reports">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
   {{ page_bottom|safe }}

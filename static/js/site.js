@@ -292,8 +292,12 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       // 투자 심리 순위(참여 많은·불리시·베어리시). 자료가 있을 때만 탭을 보이고, 따로 고른 탭이 없으면 첫 화면으로 연다. 실패하면 조용히 숨김
       var moodTab = document.querySelector('[data-ex-tab="mood"]'), API = ((window.KW || {}).api || '').replace(/\/+$/, '');
       if (!moodTab || !API) return;
-      fetch(API + '/v1/sentiment/top').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-        if (!d || !d.top || !d.top.length) return;
+      var jget = function (u) { return fetch(API + u).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); };
+      Promise.all([jget('/v1/sentiment/top'), jget('/v1/requests/top')]).then(function (res) {
+        var d = res[0] || { top: [], bull: [], bear: [] }, rq = (res[1] && res[1].items) || [];
+        d.req = rq;
+        var rqBtn = document.querySelector('[data-mood="req"]'); if (rqBtn) rqBtn.hidden = !rq.length;
+        if (!(d.top && d.top.length) && !rq.length) return;
         var names = {};
         function setNames() { (data || []).forEach(function (r) { if (r.k && !names[r.k]) names[r.k] = r.c; }); }
         var list = document.querySelector('[data-mood-list]'), empty = document.querySelector('[data-mood-empty]'), mn = document.querySelector('[data-mood-min]');
@@ -305,14 +309,15 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
           var items = d[k] || [];
           list.innerHTML = items.map(function (x, i) {
             var side = x.bull >= 50 ? 'up' : 'down', pct = x.bull >= 50 ? x.bull : 100 - x.bull;
+            var link = '<span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(x.t.toLowerCase()) + '/"><span class="rank-tick">' + esc(x.t) + '</span><span class="rank-title">' + esc(names[x.t] || '') + '</span></a>';
+            if (k === 'req') return '<li class="rank-item">' + link + '<span class="mood-v mood-even">' + x.n + '명 요청</span></li>';
             var lab = k === 'top' ? (x.bull > 50 ? '불리시 ' + x.bull + '%' : x.bull < 50 ? '베어리시 ' + (100 - x.bull) + '%' : '반반') : (k === 'bull' ? '불리시 ' + pct + '%' : '베어리시 ' + pct + '%');
-            return '<li class="rank-item"><span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(x.t.toLowerCase()) + '/"><span class="rank-tick">' + esc(x.t) +
-              '</span><span class="rank-title">' + esc(names[x.t] || '') + '</span></a><span class="mood-v mood-' + (x.bull === 50 ? 'even' : side) + '">' + lab + '</span><span class="rank-n muted">' + x.n + '표</span></li>';
+            return '<li class="rank-item">' + link + '<span class="mood-v mood-' + (x.bull === 50 ? 'even' : side) + '">' + lab + '</span><span class="rank-n muted">' + x.n + '표</span></li>';
           }).join('');
           list.hidden = !items.length; empty.hidden = !!items.length;
         }
         btns.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-mood')); if (window.kwEv) kwEv('mood_rank'); }); });
-        show('top');
+        show(d.top && d.top.length ? 'top' : 'req');
         if (!data) moodRefresh = function () { var cur = document.querySelector('[data-mood][aria-selected="true"]'); show(cur ? cur.getAttribute('data-mood') : 'top'); };
         moodTab.hidden = false;
         var asked = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { asked = asked || sessionStorage.getItem('kw-ex'); } catch (e) {}

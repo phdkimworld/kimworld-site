@@ -70,6 +70,7 @@ def summarize(a: dict) -> dict:
     s = a.get("sentiment") or {}
     out["sentiment"] = {**pick(s, ("votes", "voters", "tickers", "repeat", "prevVotes", "prevVoters")),
                         "top": [pick(x, ("ticker", "bull", "bear")) for x in s.get("top", [])[:10]]}
+    out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
     out["bots"] = a.get("bots")
     out["os"] = {}
     for x in a.get("tech", []):

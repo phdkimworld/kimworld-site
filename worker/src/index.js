@@ -423,6 +423,8 @@ async function analytics(db, now, daysIn) {
     prevVotes: svPrevT?.votes || 0, prevVoters: svPrevT?.voters || 0, top: svTop,
     daily: Array.from({ length: days }, (_, i) => { const day = D(days - 1 - i); return { day, votes: svDay[day]?.votes || 0, voters: svDay[day]?.voters || 0 }; }),
   };
+  // 리포트 업데이트 요청(최근 30일, 종목별)
+  ext.updReq = await all("SELECT ticker, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC LIMIT 15", now - 30 * 864e5).catch(() => []);
   const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
   ext.bots = Object.fromEntries(botRows.map((x) => [x.why, x.n]));
   // 날짜 축을 빈 날 없이 채운다
@@ -599,7 +601,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share", "next_bar"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share", "next_bar", "update_request"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -1236,6 +1238,33 @@ export default {
         const bull = rows.filter((x) => x.bull > 50).sort((a, b) => b.bull - a.bull || b.n - a.n).slice(0, 10);
         const bear = rows.filter((x) => x.bull < 50).sort((a, b) => a.bull - b.bull || b.n - a.n).slice(0, 10);
         return json(req, { days: 30, min, top, bull, bear }, 200, { "Cache-Control": "public, max-age=300" });
+      }
+      // ---------- 종목 리포트 업데이트 요청(최근 30일 요청 수, 순위) ----------
+      if (p === "/v1/requests/top" && req.method === "GET") {
+        const r = await db.prepare("SELECT ticker AS t, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC, MAX(created) DESC LIMIT 10").bind(now - 30 * 864e5).all();
+        return json(req, { days: 30, items: r.results || [] }, 200, { "Cache-Control": "public, max-age=300" });
+      }
+      const updm = p.match(/^\/v1\/requests\/([A-Za-z0-9.]{1,10})$/);
+      if (updm && (req.method === "GET" || req.method === "POST")) {
+        const tk = updm[1].toUpperCase(), since = now - 30 * 864e5;
+        let changed = null;
+        if (req.method === "POST") {
+          if (botWhy(req)) return json(req, { error: "bot" }, 403);
+          const prev = await db.prepare("SELECT created FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).first();
+          if (prev && prev.created >= since) { // 다시 누르면 요청 취소
+            await db.prepare("DELETE FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).run(); changed = "off";
+          } else {
+            const same = await db.prepare("SELECT COUNT(*) AS n FROM upd_req WHERE ticker = ? AND ih = ? AND created >= ?").bind(tk, ih, now - 864e5).first();
+            if ((same?.n || 0) >= 5 || !(await allow(db, `ureq|${ih}`, 100, 864e5, now))) return json(req, { error: "rate", message: "오늘은 이 네트워크에서 더 요청할 수 없습니다." }, 429);
+            await db.prepare("INSERT INTO upd_req (ticker, actor, ih, created) VALUES (?, ?, ?, ?) ON CONFLICT(ticker, actor) DO UPDATE SET created = excluded.created, ih = excluded.ih").bind(tk, actor, ih, now).run();
+            changed = "on";
+          }
+        }
+        const [cnt, mine] = await Promise.all([
+          db.prepare("SELECT COUNT(*) AS n FROM upd_req WHERE ticker = ? AND created >= ?").bind(tk, since).first(),
+          db.prepare("SELECT 1 AS y FROM upd_req WHERE ticker = ? AND actor = ? AND created >= ?").bind(tk, actor, since).first(),
+        ]);
+        return json(req, { n: cnt?.n || 0, mine: !!mine, changed }, 200, { "Cache-Control": "no-store" });
       }
       const sm = p.match(/^\/v1\/sentiment\/([A-Za-z0-9.]{1,10})$/);
       if (sm && (req.method === "GET" || req.method === "POST")) {

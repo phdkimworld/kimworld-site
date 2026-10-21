@@ -171,6 +171,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch(function () { fpBusy[t] = 0; fp.classList.remove('is-busy'); C.flash('투표하지 못했습니다'); });
   }, true);
   polls(document);
+  // ---------- 종목 화면: 리포트 업데이트 요청 ----------
+  var ur = document.querySelector('[data-upd-req]');
+  if (ur) (function () {
+    var t = ur.getAttribute('data-ticker'), btn = ur.querySelector('[data-ur-btn]'), nEl = ur.querySelector('[data-ur-n]'), busy = 0;
+    function paintUr(d) {
+      if (!d || d.n == null) return;
+      ur.hidden = false;
+      btn.setAttribute('aria-pressed', d.mine ? 'true' : 'false');
+      btn.textContent = d.mine ? '✓ 요청함 (취소하려면 누르기)' : '🔔 업데이트 요청';
+      nEl.textContent = d.n ? '최근 30일 ' + C.num(d.n) + '명이 새 리포트를 요청했어요' : '새 리포트가 필요하면 첫 요청을 남겨 주세요';
+    }
+    C.api('/v1/requests/' + encodeURIComponent(t)).then(paintUr).catch(function () {});
+    btn.addEventListener('click', function () {
+      if (busy) return; busy = 1; btn.disabled = true;
+      C.api('/v1/requests/' + encodeURIComponent(t), { method: 'POST', body: {} }).then(function (d) {
+        busy = 0; btn.disabled = false;
+        if (d && d.n != null) { paintUr(d); if (d.changed === 'on') { if (window.kwEv) kwEv('update_request'); C.flash('요청했어요. 요청이 많은 종목은 새 리포트 제작 순서에 반영됩니다'); } else C.flash('요청을 취소했어요'); }
+        else C.flash((d && d.message) || '요청하지 못했습니다');
+      }).catch(function () { busy = 0; btn.disabled = false; C.flash('요청하지 못했습니다'); });
+    });
+  })();
   // 피드에 카드가 새로 붙으면(더 보기·대표 글 복제) 그 카드의 투표도 칠한다
   var feed = document.querySelector('[data-feed]') || document.querySelector('main');
   if (feed && window.MutationObserver) new MutationObserver(function (ms) {
