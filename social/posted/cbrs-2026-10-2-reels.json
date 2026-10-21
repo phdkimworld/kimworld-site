@@ -25,7 +25,11 @@
   "publish_at": "2026-10-21T18:16-04:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "trial": "unsupported",
+      "container": "18097655705389749",
+      "id": "18074442455726752",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/DexjGrDDItX/"
     },
     "facebook": {
       "video_id": "1263683402602676",
@@ -34,5 +38,6 @@
       "permalink": "/reel/1263683402602676/",
       "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-21T19:06:39-04:00"
 }
