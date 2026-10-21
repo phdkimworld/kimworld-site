@@ -540,3 +540,9 @@ NFLX:
   exchange: "NASDAQ"
   theme: "미디어·스트리밍"
   aliases: ["넷플릭스", "Netflix", "넷플", "NFLX"]
+ISRG:
+  name: "인튜이티브 서지컬"
+  name_en: "Intuitive Surgical, Inc."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["인튜이티브 서지컬", "인튜이티브", "Intuitive Surgical", "다빈치", "da Vinci", "수술 로봇"]
