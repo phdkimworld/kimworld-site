@@ -70,6 +70,21 @@ def summarize(a: dict) -> dict:
     s = a.get("sentiment") or {}
     out["sentiment"] = {**pick(s, ("votes", "voters", "tickers", "repeat", "prevVotes", "prevVoters")),
                         "top": [pick(x, ("ticker", "bull", "bear")) for x in s.get("top", [])[:10]]}
+    # 리포트 구간별 도달·체류(0022): 전체 곡선(첫 구간 대비 도달 %, 도달한 사람의 평균 초)과 페이지뷰 상위 리포트 8개의 같은 곡선
+    SEC = ["top", "ans", "can", "news", "term", "p1", "p2", "p3", "p4", "p5", "p6", "src", "more", "comm"]
+
+    def curve(rows):
+        m = {x.get("sec"): x for x in rows}
+        base = (m.get("top") or {}).get("reach") or 0
+        return {"n": base, **{c: [rate(m[c].get("reach", 0), base, 100, 0), rate(m[c].get("secs", 0), m[c].get("reach", 0), 1, 0)]
+                             for c in SEC if c in m}} if base else None
+    sec = a.get("sections") or {}
+    out["sections"] = {"all": curve(sec.get("all") or [])}
+    byp = {}
+    for x in sec.get("byPath") or []:
+        byp.setdefault(x.get("path"), []).append(x)
+    top = [x.get("path") for x in a.get("reports", []) if x.get("path") in byp][:8]
+    out["sections"]["reports"] = {p: curve(byp[p]) for p in top}
     out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
     out["bots"] = a.get("bots")
     out["os"] = {}

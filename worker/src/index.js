@@ -298,6 +298,9 @@ function countBot(db, today, why) {
   return db.prepare("INSERT INTO an_bot (day, why, n) VALUES (?, ?, 1) ON CONFLICT(day, why) DO UPDATE SET n = n + 1").bind(today, why).run().catch(() => {});
 }
 
+// 리포트 구간 코드(순서 = 글 순서). site.js 의 secCode 와 맞춘다
+const SECS = ["top", "ans", "can", "news", "term", "p1", "p2", "p3", "p4", "p5", "p6", "src", "more", "comm"];
+
 async function analytics(db, now, daysIn) {
   const days = [7, 30, 90].includes(daysIn) ? daysIn : 30;
   const D = (k) => kstDay(now - k * 864e5);
@@ -406,6 +409,11 @@ async function analytics(db, now, daysIn) {
     cohorts, tech, entries,
     reports: rpages.map((x) => ({ ...x, slug: (x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1] || "", ...(react[(x.path.match(/^\/r\/([a-z0-9-]+)\/$/) || [])[1]] || { likes: 0, comments: 0, reposts: 0 }) })),
     topics, topicNew: topicNew?.n || 0, misses, adDaily,
+    // 리포트 구간별 도달·체류: 전체 합계와 리포트별(페이지뷰 많은 순으로 화면·요약에서 자른다)
+    sections: {
+      all: await all("SELECT sec, SUM(reach) AS reach, SUM(secs) AS secs FROM an_sec WHERE day >= ? GROUP BY sec", since).catch(() => []),
+      byPath: await all("SELECT path, sec, SUM(reach) AS reach, SUM(secs) AS secs FROM an_sec WHERE day >= ? GROUP BY path, sec ORDER BY path LIMIT 900", since).catch(() => []),
+    },
     actions: { reposts: rpN?.n || 0, quotes: qN?.n || 0 },
     acq,
   };
@@ -621,6 +629,16 @@ export default {
         ];
         if (s === 1) q.push(db.prepare("INSERT INTO an_entry (day, path, src, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, path, src) DO UPDATE SET n = n + 1").bind(today, path, src));
         for (const e of evs) q.push(db.prepare("INSERT INTO an_event (day, ev, n) VALUES (?, ?, 1) ON CONFLICT(day, ev) DO UPDATE SET n = n + 1").bind(today, e));
+        // 리포트 구간별 도달(rs: 화면에 들어온 구간 코드)과 구간별 본 초(sx). 코드는 정해진 것만, 초는 페이지 체류(a)를 넘지 않게
+        if (t === "r") {
+          const rs = new Set(Array.isArray(b.rs) ? b.rs.slice(0, 20).map(String) : []), sx = b.sx && typeof b.sx === "object" ? b.sx : {};
+          let left = a;
+          for (const c of SECS) {
+            const x = Math.min(left, Math.max(0, Math.min(1800, parseInt(sx[c], 10) || 0))); left -= x;
+            const r = rs.has(c) ? 1 : 0;
+            if (r || x) q.push(db.prepare("INSERT INTO an_sec (day, path, sec, reach, secs) VALUES (?, ?, ?, ?, ?) ON CONFLICT(day, path, sec) DO UPDATE SET reach = reach + excluded.reach, secs = secs + excluded.secs").bind(today, path, c, r, x));
+          }
+        }
         // 화면에 보인 광고 수(종류별, 한 페이지 종류마다 20까지): an_event 의 adv_<종류>
         if (b.av && typeof b.av === "object") for (const k of ["adfit", "coupang", "adsense", "dable"]) {
           const c = Math.max(0, Math.min(20, parseInt(b.av[k], 10) || 0));

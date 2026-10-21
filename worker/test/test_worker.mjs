@@ -867,5 +867,14 @@ console.log("투자 심리 투표");
   check(r1.headers.get("X-Robots-Tag") === "noindex" && /Disallow: \//.test(t2) && t2.includes("Allow: /s/"), "검색 색인: API는 noindex, robots.txt는 /s/만 허용");
 }
 check(needsHold("문의 01012345678") && !needsHold("정부가 지분 10%를 샀다"), "보류 판정 규칙");
+console.log("리포트 구간 통계");
+// 리포트 구간별 도달·체류(0022): 정해진 코드만, 구간 초 합은 페이지 체류를 넘지 않음, 리포트가 아니면 안 쌓음
+await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", s: 1, a: 50, rs: ["top", "ans", "p1", "hack"], sx: { top: 10, ans: 30, p1: 40, hack: 99 } }, ip: "93.0.0.8" });
+await call("POST", "/v1/hit", { body: { p: "/", r: "youtube", s: 2, a: 20, rs: ["top"], sx: { top: 20 } }, ip: "93.0.0.8" });
+const secRows = (await DB.prepare("SELECT sec, reach, secs FROM an_sec").all()).results;
+check(secRows.length === 3 && !secRows.some((x) => x.sec === "hack"), "구간 코드는 정해진 것만, 리포트만");
+check(secRows.reduce((t, x) => t + x.secs, 0) === 50 && secRows.find((x) => x.sec === "p1").secs === 10, "구간 초 합은 페이지 체류까지");
+const anS = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+check(anS.data.sections.all.find((x) => x.sec === "ans").reach === 1 && anS.data.sections.byPath.length === 3, "통계에 구간 도달·체류");
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

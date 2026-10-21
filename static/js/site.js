@@ -622,7 +622,31 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   adScan(); setTimeout(adScan, 2500);
   if (window.MutationObserver) { var adMoT = 0; new MutationObserver(function () { clearTimeout(adMoT); adMoT = setTimeout(adScan, 300); }).observe(document.body, { childList: true, subtree: true }); }
   ['scroll', 'pointerdown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach(function (e) { addEventListener(e, function (ev) { last = Date.now(); if (ev.isTrusted && e !== 'scroll') human = true; }, { passive: true }); });
-  setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - last < 30000) active++; }, 1000);
+  // 리포트 구간별 도달·체류(2026-10-21 운영자 지시 '체류시간 극대화'): 화면 위쪽 35% 선을 지난 마지막 제목이 지금 읽는 구간.
+  // 구간 코드는 worker SECS 와 같다. 리포트가 아니면 비활성
+  var secHs = null, secT = {}, secR = {};
+  function secCode(h) {
+    var id = h.id || '', t = (h.textContent || '').trim();
+    if (id === 'src-h') return 'src'; if (id === 'more-r') return 'more'; if (id === 'community-h') return 'comm';
+    var m = /^([1-6])부/.exec(t); if (m) return 'p' + m[1];
+    if (/^짧은 답/.test(t)) return 'ans'; if (/이 리포트에서/.test(t)) return 'can'; if (/같은 뉴스/.test(t)) return 'news'; if (/용어/.test(t)) return 'term';
+    return '';
+  }
+  function secList() {
+    if (secHs === null) { var art = document.querySelector('article.report'); secHs = []; if (art) Array.prototype.forEach.call(document.querySelectorAll('article.report h2, #community-h'), function (h) { var c = secCode(h); if (c) secHs.push([h, c]); }); }
+    var L = secHs; if (document.readyState === 'loading') secHs = null; // 본문이 다 그려지기 전이면 다음에 다시 찾는다
+    return L;
+  }
+  function secNow() {
+    var L = secList(), cur = 'top', vh = innerHeight;
+    if (!L.length) return '';
+    secR.top = 1;
+    for (var i = 0; i < L.length; i++) { var y = L[i][0].getBoundingClientRect().top; if (y < vh * 0.9) secR[L[i][1]] = 1; if (y <= vh * 0.35) cur = L[i][1]; }
+    return cur;
+  }
+  setInterval(function () {
+    if (document.visibilityState === 'visible' && Date.now() - last < 30000) { active++; var c = secNow(); if (c) secT[c] = (secT[c] || 0) + 1; }
+  }, 1000);
   addEventListener('scroll', function () {
     var d = document.documentElement, max = d.scrollHeight - innerHeight;
     if (max > 0) maxSc = Math.max(maxSc, Math.round(Math.min(1, scrollY / max) * 100));
@@ -640,7 +664,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var acc = parseInt(SS('kw-act'), 10) || 0, en = (acc < 30 && acc + active >= 30) ? 1 : 0; SS('kw-act', String(acc + active));
     var did = LS('kw-did') || '';
     var body = JSON.stringify({ p: location.pathname, r: src, m: matchMedia('(max-width: 759px)').matches ? 1 : 0, n: isNew ? 1 : 0, s: n, a: active, en: en, sc: maxSc,
-      app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}), av: adView,
+      app: isApp ? 1 : 0, hu: human ? 1 : 0, os: osName, br: brName, ev: Object.keys(window.kwEvents || {}), av: adView, rs: secList().length ? (secNow(), Object.keys(secR)) : undefined, sx: secList().length ? secT : undefined,
       ch: SS('kw-ch') || 'direct', sd: SS('kw-sd') || src, rh: n === 1 ? (SS('kw-rh') || '') : '', lp: SS('kw-lp') || location.pathname, u: (function () { try { return JSON.parse(SS('kw-utm') || 'null'); } catch (e) { return null; } })() });
     var url = API + '/v1/hit' + (/^[A-Za-z0-9_-]{22,64}$/.test(did) ? '?d=' + did : '');
     try { if (navigator.sendBeacon && navigator.sendBeacon(url, body)) return; } catch (e) {}
