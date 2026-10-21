@@ -30,7 +30,7 @@
   "datePublished": r.date|iso,
   "dateModified": (r.updated or r.date)|iso,
   "image": r.og_image,
-  "author": {"@type": "Organization", "name": site.site_name, "url": site.site_url ~ "/"},
+  "author": {"@type": "Organization", "name": site.site_name ~ " 편집팀", "url": site.site_url ~ "/editorial/"},
   "publisher": {"@type": "Organization", "name": site.site_name, "url": site.site_url ~ "/", "logo": {"@type": "ImageObject", "url": site.site_url ~ "/static/icon-512.png", "width": 512, "height": 512}},
   "mainEntityOfPage": page_url,
   "about": {"@type": "Corporation", "name": r.company_en or r.company, "alternateName": [r.seo_name, r.company]|unique|list, "tickerSymbol": r.ticker},
@@ -76,6 +76,7 @@
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
         <span class="views" data-views hidden></span>
         <span class="asof">숫자 기준 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></span>
+        <span class="byline">{{ site.site_name }} 편집팀 · {% if r.sources %}<a href="#src-h">출처 {{ r.sources|length }}개</a> · {% endif %}<a href="{{ base }}/editorial/">작성·검증 원칙</a></span>
       </p>
       <div class="report-actions post-actions report-bar" data-report-bar>
         <button type="button" class="pa pa-like" data-post-like aria-pressed="false" aria-label="좋아요" hidden>{{ icon('heart') }}<span data-n></span><span class="pa-txt">좋아요</span></button>

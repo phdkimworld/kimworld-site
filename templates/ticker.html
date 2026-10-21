@@ -5,6 +5,8 @@
 {% set tname = nm if nm|upper == code else nm ~ '(' ~ code ~ ')' %}
 {% block title %}{{ tname }} {{ kd }} 분석·전망 리포트 | {{ site.site_name }}{% endblock %}
 {% block description %}{{ tname }} {{ kd }} 분석 리포트 {{ rs|length }}개({{ rs[0].date|kdate }} 최신). {{ rs[0].summary }}{% endblock %}
+{#- 리포트가 하나뿐인 종목 화면은 그 리포트와 내용이 거의 같아 검색에서는 리포트 쪽만 남긴다(2026-10-21 애드센스 '가치가 낮은 콘텐츠' 대응) #}
+{% block robots %}{% if rs|length < 2 %}<meta name="robots" content="noindex,follow">{% endif %}{% endblock %}
 {% block og_image %}{{ rs[0].og_image }}{% endblock %}
 {% block og_title %}{{ rs[0].share_title }}{% endblock %}
 {% block og_desc %}{{ tname }} 무료 분석 리포트 {{ rs|length }}개와 커뮤니티 이야기. 무료로 바로 보기{% endblock %}

@@ -1089,6 +1089,14 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "{{report_count}}": str(len(reports)),
         "{{theme_count}}": str(len({r["theme"] for r in reports})),
     }
+    # 발행·갱신 기록(최근 40건): 사이트가 꾸준히 관리된다는 것을 독자·검색엔진이 볼 수 있게
+    _log = sorted(public, key=lambda r: (r["updated"] or r["date"], r["date"]), reverse=True)[:40]
+    _kd = lambda d: f"{d.year}.{d.month:02d}.{d.day:02d}"
+    repl["{{recent_updates}}"] = "\n".join(
+        f'- {_kd(r["updated"] or r["date"])} · {"갱신" if r["updated"] else "새 리포트"} · [{r["ticker"]} {html.escape(r.get("seo_name") or r.get("company") or "")}]({r["url"]}) — 숫자 기준 {_kd(r["data_as_of"])}, 출처 {len(r.get("sources") or [])}개'
+        for r in _log)
+    repl["{{public_count}}"] = str(len(public))
+    repl["{{source_total}}"] = str(sum(len(r.get("sources") or []) for r in public))
     # 광고·제휴 문의 메일(도메인 역할 주소, 운영자 개인 메일 아님). 화면에는 '＠'로 적고 site.js가 눌렀을 때 진짜 주소로 바꾼다(주소 수집 로봇 막기)
     _yt_fallback = f'[{op.get("display_name") or site.get("site_name", "")} 유튜브 채널]({op.get("youtube_url") or "#"})의 댓글'
 
@@ -1145,7 +1153,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         theme_last.setdefault(r["theme"], r["updated"] or r["date"])
     # (주소, 마지막 수정일, 대표 이미지). 리포트가 없는 테마 페이지는 내용이 없으므로 넣지 않는다(noindex)
     urls = [(f"{su}/", today, None)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"], r.get("og_image")) for r in public]
-    urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items()]
+    # 종목 화면은 리포트가 2개 이상일 때만(1개면 리포트와 거의 같은 내용이라 noindex, ticker.html)
+    urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items() if len([x for x in rs if not x["draft"]]) >= 2]
     urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
     urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
