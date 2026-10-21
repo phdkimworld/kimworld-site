@@ -534,3 +534,9 @@ SMCI:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["슈퍼마이크로", "슈퍼마이크로 컴퓨터", "Supermicro", "Super Micro Computer", "AI 서버"]
+NFLX:
+  name: "넷플릭스"
+  name_en: "Netflix, Inc."
+  exchange: "NASDAQ"
+  theme: "미디어·스트리밍"
+  aliases: ["넷플릭스", "Netflix", "넷플", "NFLX"]

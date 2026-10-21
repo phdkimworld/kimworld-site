@@ -47,3 +47,6 @@
 - name: "리츠·배당"
   slug: "reit-dividend"
   description: "모기지 리츠와 고배당주의 장부가치, 배당 정책, 금리와 증자가 주가를 움직이는 과정 분석."
+- name: "미디어·스트리밍"
+  slug: "media-streaming"
+  description: "구독형 스트리밍, 광고 요금제, 콘텐츠 투자와 인수합병이 주가를 움직이는 미디어 기업 분석."
