@@ -25,7 +25,11 @@
   "publish_at": "2026-10-21T12:28-04:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "trial": "unsupported",
+      "container": "18097628858389749",
+      "id": "17990584494026854",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/Dew8U7sjlOX/"
     },
     "facebook": {
       "video_id": "1143017764739788",
@@ -34,5 +38,6 @@
       "permalink": "/reel/1143017764739788/",
       "done": true
     }
-  }
+  },
+  "posted_at": "2026-10-21T13:28:11-04:00"
 }
