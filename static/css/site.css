@@ -1493,3 +1493,12 @@ article.report .sent { margin-top: 14px; }
 
 .rdock .rd-next { color: var(--accent); font-weight: 700; }
 .rdock .rd-next .ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 종목 화면: 리포트 업데이트 요청 */
+.upd-req { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.upd-req[hidden] { display: none; }
+.upd-req .ur-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: .86rem; }
+.upd-req .ur-txt .muted { font-size: .78rem; }
+.upd-req .ur-btn { flex: none; white-space: nowrap; font-size: .82rem; }
+.upd-req .ur-btn[aria-pressed="true"] { color: #16a34a; border-color: #16a34a; }
+@media (max-width: 420px) { .upd-req { flex-direction: column; align-items: stretch; } .upd-req .ur-btn { white-space: normal; } }
