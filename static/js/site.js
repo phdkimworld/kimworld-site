@@ -641,7 +641,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var L = secList(), cur = 'top', vh = innerHeight;
     if (!L.length) return '';
     secR.top = 1;
-    for (var i = 0; i < L.length; i++) { var y = L[i][0].getBoundingClientRect().top; if (y < vh * 0.9) secR[L[i][1]] = 1; if (y <= vh * 0.35) cur = L[i][1]; }
+    for (var i = 0; i < L.length; i++) { var rc = L[i][0].getBoundingClientRect(); if (!rc.height) continue; var y = rc.top; if (y < vh * 0.9) secR[L[i][1]] = 1; if (y <= vh * 0.35) cur = L[i][1]; }
     return cur;
   }
   setInterval(function () {
