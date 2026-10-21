@@ -546,3 +546,9 @@ ISRG:
   exchange: "NASDAQ"
   theme: "바이오·헬스케어"
   aliases: ["인튜이티브 서지컬", "인튜이티브", "Intuitive Surgical", "다빈치", "da Vinci", "수술 로봇"]
+INFQ:
+  name: "인플렉션"
+  name_en: "Infleqtion, Inc."
+  exchange: "NYSE"
+  theme: "양자컴퓨팅"
+  aliases: ["인플렉션", "Infleqtion", "인플렉션 양자", "중성 원자 양자컴퓨터"]
