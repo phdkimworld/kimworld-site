@@ -229,9 +229,12 @@
   <button type="button" class="rd-b" data-action="share" aria-label="공유">{{ icon('share') }}<span class="rd-t"><span class="rd-l">공유</span></span></button>
   <button type="button" class="rd-b pa-repost" data-repost data-kind="r" data-ref="{{ r.slug }}" data-quote-src="{{ r.summary }}" aria-pressed="false" aria-label="리포스트·인용" hidden>{{ icon('repost') }}<span class="rd-t"><span data-n></span><span class="rd-l">리포스트</span></span></button>
   <button type="button" class="rd-b" data-action="top" aria-label="맨 위로">{{ icon('up') }}<span class="rd-t"><span class="rd-l">맨 위</span></span></button>
-  {#- 2026-10-19 수익성: 방문당 1.3쪽 → 읽는 중 어디서든 다음 리포트로(맨 아래 버튼 자리). 같은 테마 첫 리포트, 없으면 지난 리포트 #}
-  {% set nx = (r.related[0] if r.related else (r.prev or r.next)) %}
-  {% if nx %}<a class="rd-b rd-next" href="{{ nx.url }}" data-next-bar aria-label="다음 리포트: {{ nx.ticker }}"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12h13M13 6.5 18.5 12 13 17.5"/></svg><span class="rd-t"><span class="rd-l">다음 {{ nx.ticker }}</span></span></a>
+  {#- 2026-10-19 수익성: 방문당 1.3쪽 → 읽는 중 어디서든 다음 리포트로(맨 아래 버튼 자리).
+      2026-10-22: 같은 테마 첫 리포트는 리포트 약 200뷰·3일 누름 0 → 본문 중간 링크처럼 같은 종목 후속편 → 같은 종목 지난 리포트 → 같은 테마 → 지난/다음 리포트 #}
+  {% if r.newer %}{% set nx, nx_l = r.newer, '후속편' %}
+  {% elif r.ticker_reports %}{% set nx, nx_l = r.ticker_reports[0], '지난 편' %}
+  {% else %}{% set nx = (r.related[0] if r.related else (r.prev or r.next)) %}{% set nx_l = ('다음 ' ~ nx.ticker) if nx else '' %}{% endif %}
+  {% if nx %}<a class="rd-b rd-next" href="{{ nx.url }}" data-next-bar aria-label="다음 리포트: {{ nx.ticker }}{% if r.newer or r.ticker_reports %} {{ nx_l }}{% endif %}"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12h13M13 6.5 18.5 12 13 17.5"/></svg><span class="rd-t"><span class="rd-l">{{ nx_l }}</span></span></a>
   {% else %}<button type="button" class="rd-b" data-action="bottom" aria-label="맨 아래로">{{ icon('down') }}<span class="rd-t"><span class="rd-l">맨 아래</span></span></button>{% endif %}
 </nav>
 <a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
