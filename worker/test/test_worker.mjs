@@ -35,7 +35,7 @@ globalThis.fetch = async (u, opt = {}) => {
   if (u.startsWith("https://kauth.kakao.com/oauth/token")) return new Response(JSON.stringify({ access_token: "at-" + new URLSearchParams(String(opt.body)).get("code") }));
   if (u.startsWith("https://kapi.kakao.com/v2/user/me")) return new Response(JSON.stringify({ id: 4242 }));
   if (u.startsWith("https://nid.naver.com/oauth2.0/token")) return new Response(JSON.stringify({ access_token: "nat-" + new URLSearchParams(String(opt.body)).get("code") }));
-  if (u.startsWith("https://openapi.naver.com/v1/nid/me")) return new Response(JSON.stringify({ resultcode: "00", message: "success", response: { id: "nv-" + String((opt.headers || {}).Authorization || "").slice(-5), nickname: "읽지않음" } }));
+  if (u.startsWith("https://openapi.naver.com/v1/nid/me")) return new Response(JSON.stringify({ resultcode: "00", message: "success", response: { id: "nv-" + String((opt.headers || {}).Authorization || "").slice(-5), nickname: "네이버별명!" } }));
   if (u.startsWith("https://fcm.googleapis.com/") || u.startsWith("https://web.push.apple.com/")) { // 푸시 서비스 흉내: 받은 요청을 모은다
     PUSHED.push({ u, headers: opt.headers, body: new Uint8Array(opt.body) });
     return new Response("", { status: u.includes("/gone") ? 410 : 201 });
@@ -251,7 +251,11 @@ const LN = await login("naver", "dave1", "80.0.0.4");
 env.NAVER_LIVE = "1";
 check(LN.start.startsWith("https://nid.naver.com/oauth2.0/authorize?") && /^kw_s=[0-9a-f]{64}$/.test(LN.cookie) && LN.location.includes("login=ok"), "네이버 로그인(회원 번호만)");
 r1 = await call("POST", "/v1/me", { body: { auto: true }, ip: "80.0.0.4", cookie: LN.cookie });
-check(r1.data.ok && r1.data.user.nick !== "읽지않음", "네이버 별명은 읽지 않고 자동 닉네임");
+check(r1.data.ok && r1.data.user.nick === "네이버별명" && r1.data.user.nickNext === 0, "네이버 별명을 첫 닉네임으로(쓸 수 없는 글자는 빼고, 바로 바꿀 수 있음)");
+check(!(await env.DB.prepare("SELECT 1 AS y FROM oauth_nick").first()), "가입하면 보관한 별명은 지운다");
+const LN2 = await login("naver", "erin2", "80.0.0.6");
+r1 = await call("POST", "/v1/me", { body: { auto: true }, ip: "80.0.0.6", cookie: LN2.cookie });
+check(r1.data.ok && r1.data.user.nick !== "네이버별명", "같은 별명이 이미 있으면 자동 닉네임");
 r1 = await call("POST", "/v1/me", { body: { nick: "장투러" }, ip: "80.0.0.2", cookie: LB.cookie });
 const uB = r1.data.user.id;
 // 자동 가입: 닉네임·소개를 묻지 않고 지어 주며, 첫 변경은 바로 가능

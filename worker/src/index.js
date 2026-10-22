@@ -258,7 +258,7 @@ async function oauthSubject(provider, code, env, redirectUri, state) {
     return u && u.id ? "kakao:" + u.id : null;
   }
   if (provider === "naver") {
-    // 네이버: 회원 번호(id)만 쓴다. 개발자센터에서 고른 다른 항목(별명 등)은 읽지도 저장하지도 않는다
+    // 네이버: 회원 번호(id)로 계정을 찾고, 별명(개발자센터 필수 항목)은 처음 가입할 때 닉네임 첫 값으로만 쓴다(2026-10-22 검수 대응, 바꿀 수 있음)
     const r = await fetch("https://nid.naver.com/oauth2.0/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
       body: new URLSearchParams({ grant_type: "authorization_code", client_id: env.NAVER_CLIENT_ID, client_secret: env.NAVER_CLIENT_SECRET, code, state: state || "" }),
@@ -267,7 +267,7 @@ async function oauthSubject(provider, code, env, redirectUri, state) {
     if (!t.access_token) return null;
     const u = await (await fetch("https://openapi.naver.com/v1/nid/me", { headers: { Authorization: `Bearer ${t.access_token}` } })).json();
     const id = u && u.resultcode === "00" && u.response && u.response.id;
-    return id ? "naver:" + id : null;
+    return id ? { sub: "naver:" + id, nick: String(u.response.nickname || "") } : null;
   }
   return null;
 }
@@ -849,10 +849,14 @@ export default {
         await db.prepare("DELETE FROM oauth_state WHERE state = ? OR exp < ?").bind(url.searchParams.get("state") || "", now).run();
         const back = (r, flag) => { const [path, hash] = r.split("#"); return `${SITE}${path}${path.includes("?") ? "&" : "?"}login=${flag}${hash ? "#" + hash : ""}`; };
         if (!st || st.provider !== prov || st.exp < now || !url.searchParams.get("code")) return redirect(back("/", "fail"));
-        let subject = null;
+        let subject = null, oNick = "";
         try { subject = await oauthSubject(prov, url.searchParams.get("code"), env, redirectUri, url.searchParams.get("state")); } catch { subject = null; }
+        if (subject && typeof subject === "object") { oNick = subject.nick || ""; subject = subject.sub; }
         if (!subject) return redirect(back(st.ret, "fail"));
         const oActor = "o-" + (await sha256hex(`${env.SALT || "dev-salt"}|oauth|${subject}`)).slice(0, 30);
+        // 네이버 별명: 아직 계정이 없을 때만 10분 보관 → 자동 가입이 첫 닉네임으로 쓴다
+        const cleanNick = oNick.replace(/[^가-힣A-Za-z0-9_]/g, "").slice(0, 12);
+        if (cleanNick.length >= 2 && !(await userByActor(db, oActor))) await db.prepare("INSERT INTO oauth_nick (actor, nick, exp) VALUES (?, ?, ?) ON CONFLICT(actor) DO UPDATE SET nick = excluded.nick, exp = excluded.exp").bind(oActor, cleanNick, now + 600e3).run();
         const token = randHex(32);
         await db.prepare("INSERT INTO sessions (th, actor, created, exp) VALUES (?, ?, ?, ?)").bind(await sha256hex(token), oActor, now, now + SESSION_DAYS * 864e5).run();
         if (Math.random() < 0.05) await db.prepare("DELETE FROM sessions WHERE exp < ?").bind(now).run();
@@ -904,6 +908,11 @@ export default {
         // auto: 닉네임·소개를 묻지 않고 바로 가입(운영자 지시 2026-10-15). 닉네임은 자동으로 짓고, 첫 변경은 바로 할 수 있다
         const auto = b.auto === true;
         let nick = auto ? autoNick() : String(b.nick || "").trim();
+        if (auto) { // 네이버로 로그인했으면 네이버 별명을 첫 값으로(쓸 수 없는 별명이거나 이미 있으면 자동 닉네임)
+          const on = await db.prepare("SELECT nick FROM oauth_nick WHERE actor = ? AND exp >= ?").bind(actor, now).first().catch(() => null);
+          if (on && !nickProblem(on.nick) && !(await db.prepare("SELECT 1 AS y FROM users WHERE nick_lc = ?").bind(on.nick.toLowerCase()).first())) nick = on.nick;
+          await db.prepare("DELETE FROM oauth_nick WHERE actor = ? OR exp < ?").bind(actor, now).run().catch(() => {});
+        }
         const prob = auto ? null : nickProblem(nick);
         if (prob) return json(req, { error: "nick", message: prob }, 400);
         if (!(await allow(db, `acct|${ih}`, ACCOUNT.createPerIpDay, 864e5, now))) return json(req, { error: "rate", message: "오늘은 이 네트워크에서 더 만들 수 없습니다." }, 429);
