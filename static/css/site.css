@@ -458,7 +458,9 @@ button { font: inherit; color: inherit; }
 .kw-login { width: 100%; justify-content: center; font-weight: 700; font-size: .95rem; min-height: 48px; }
 .kw-login-google { background: #fff; color: #1f1f1f; border: 1px solid #747775; }
 .kw-login-kakao { background: #FEE500; color: rgba(0,0,0,.85); border: 0; }
-.kw-login-naver { background: #03C75A; color: #fff; border: 0; }
+.kw-login-naver { background: #03C75A; color: #fff; border: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* 네이버 로그인 버튼 디자인 가이드: 초록 바탕(#03C75A) + 흰색 N 로고 + '네이버 로그인' (검수 대응 2026-10-22) */
+.kw-login-naver::before { content: ""; width: 14px; height: 14px; flex: none; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23fff' d='M10.8 8.6 5 0H0v16h5.2V7.4L11 16h5V0h-5.2z'/%3E%3C/svg%3E"); }
 .kw-small { font-size: .8rem; }
 .cm-item-pinned { background: var(--surface-2); border-radius: 12px; padding: 12px; margin: 4px 0 8px; border-bottom: 0; }
 .cm-badge-notice { background: var(--text); color: var(--bg); }
