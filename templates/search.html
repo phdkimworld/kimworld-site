@@ -30,10 +30,12 @@
           <button type="button" role="tab" data-mood="top" aria-selected="true">참여 많은</button>
           <button type="button" role="tab" data-mood="bull" aria-selected="false">불리시 상위</button>
           <button type="button" role="tab" data-mood="bear" aria-selected="false">베어리시 상위</button>
-          <button type="button" role="tab" data-mood="req" aria-selected="false" hidden>업데이트 요청</button>
         </div>
         <ol class="rank mood-list" data-mood-list></ol>
         <p class="muted mood-empty" data-mood-empty hidden>아직 이 순위에 오를 만큼 투표가 모이지 않았습니다.</p>
+        <h2 class="ex-h ur-rank-h">새 리포트 요청 많은 종목 <span class="muted ex-sub">최근 30일</span></h2>
+        <ol class="rank mood-list" data-req-list hidden></ol>
+        <p class="muted mood-empty" data-req-empty>아직 요청이 없습니다. 종목 화면·리포트·글 화면의 "🔔 업데이트 요청"을 눌러 새 리포트를 요청해 보세요.</p>
         <p class="muted mood-note">이용자 투표 결과이며 투자 판단의 근거가 아닙니다. 지난 30일 <span data-mood-min>3</span>표 이상 모인 종목만 보입니다. 종목 화면에서 직접 투표하거나 새 리포트를 요청할 수 있습니다.</p>
       </div>
       {% endif %}

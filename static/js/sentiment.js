@@ -171,16 +171,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch(function () { fpBusy[t] = 0; fp.classList.remove('is-busy'); C.flash('투표하지 못했습니다'); });
   }, true);
   polls(document);
-  // ---------- 종목 화면: 리포트 업데이트 요청 ----------
-  var ur = document.querySelector('[data-upd-req]');
-  if (ur) (function () {
+  // ---------- 리포트 업데이트 요청(종목 화면·리포트·글 화면) ----------
+  function initUr(ur) {
+    if (!ur || ur._kwUr) return; ur._kwUr = 1;
     var t = ur.getAttribute('data-ticker'), btn = ur.querySelector('[data-ur-btn]'), nEl = ur.querySelector('[data-ur-n]'), busy = 0;
     function paintUr(d) {
       if (!d || d.n == null) return;
-      ur.hidden = false;
-      btn.setAttribute('aria-pressed', d.mine ? 'true' : 'false');
-      btn.textContent = d.mine ? '✓ 요청함 (취소하려면 누르기)' : '🔔 업데이트 요청';
-      nEl.textContent = d.n ? '최근 30일 ' + C.num(d.n) + '명이 새 리포트를 요청했어요' : '새 리포트가 필요하면 첫 요청을 남겨 주세요';
+      document.querySelectorAll('[data-upd-req][data-ticker="' + t + '"]').forEach(function (box) {
+        box.hidden = false;
+        var b = box.querySelector('[data-ur-btn]'), ne = box.querySelector('[data-ur-n]');
+        b.setAttribute('aria-pressed', d.mine ? 'true' : 'false');
+        b.textContent = d.mine ? '✓ 요청함 (취소하려면 누르기)' : '🔔 업데이트 요청';
+        ne.textContent = d.n ? '최근 30일 ' + C.num(d.n) + '명이 새 리포트를 요청했어요' : '새 리포트가 필요하면 첫 요청을 남겨 주세요';
+      });
     }
     C.api('/v1/requests/' + encodeURIComponent(t)).then(paintUr).catch(function () {});
     btn.addEventListener('click', function () {
@@ -191,7 +194,20 @@ document.addEventListener('DOMContentLoaded', function () {
         else C.flash((d && d.message) || '요청하지 못했습니다');
       }).catch(function () { busy = 0; btn.disabled = false; C.flash('요청하지 못했습니다'); });
     });
-  })();
+  }
+  document.querySelectorAll('[data-upd-req]').forEach(initUr);
+  // 글 화면처럼 나중에 그려지는 곳에서 쓰는 상자 만들기: kwUpdReq('RGTI', '최신 리포트 2026년 10월 13일 기준')
+  window.kwUpdReq = function (t, head) {
+    var box = document.createElement('section'); box.className = 'upd-req'; box.hidden = true;
+    box.setAttribute('data-upd-req', ''); box.setAttribute('data-ticker', String(t).toUpperCase()); box.setAttribute('aria-label', '리포트 업데이트 요청');
+    var tx = document.createElement('div'); tx.className = 'ur-txt';
+    var st = document.createElement('strong'); st.textContent = head || ('$' + String(t).toUpperCase() + ' 새 리포트 요청'); tx.appendChild(st);
+    var n = document.createElement('span'); n.className = 'muted'; n.setAttribute('data-ur-n', ''); n.textContent = '새 리포트가 필요하면 요청해 주세요'; tx.appendChild(n);
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'btn ur-btn'; b.setAttribute('data-ur-btn', ''); b.setAttribute('aria-pressed', 'false'); b.textContent = '🔔 업데이트 요청';
+    box.appendChild(tx); box.appendChild(b);
+    setTimeout(function () { initUr(box); }, 0);
+    return box;
+  };
   // 피드에 카드가 새로 붙으면(더 보기·대표 글 복제) 그 카드의 투표도 칠한다
   var feed = document.querySelector('[data-feed]') || document.querySelector('main');
   if (feed && window.MutationObserver) new MutationObserver(function (ms) {

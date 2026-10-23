@@ -296,8 +296,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       Promise.all([jget('/v1/sentiment/top'), jget('/v1/requests/top')]).then(function (res) {
         var d = res[0] || { top: [], bull: [], bear: [] }, rq = (res[1] && res[1].items) || [];
         d.req = rq;
-        var rqBtn = document.querySelector('[data-mood="req"]'); if (rqBtn) rqBtn.hidden = !rq.length;
-        if (!(d.top && d.top.length) && !rq.length) return;
+        if (!res[0] && !res[1]) return; // API에 닿지 않으면 탭을 숨긴 채로
+        var rqList = document.querySelector('[data-req-list]'), rqEmpty = document.querySelector('[data-req-empty]');
         var names = {};
         function setNames() { (data || []).forEach(function (r) { if (r.k && !names[r.k]) names[r.k] = r.c; }); }
         var list = document.querySelector('[data-mood-list]'), empty = document.querySelector('[data-mood-empty]'), mn = document.querySelector('[data-mood-min]');
@@ -310,15 +310,22 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
           list.innerHTML = items.map(function (x, i) {
             var side = x.bull >= 50 ? 'up' : 'down', pct = x.bull >= 50 ? x.bull : 100 - x.bull;
             var link = '<span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(x.t.toLowerCase()) + '/"><span class="rank-tick">' + esc(x.t) + '</span><span class="rank-title">' + esc(names[x.t] || '') + '</span></a>';
-            if (k === 'req') return '<li class="rank-item">' + link + '<span class="mood-v mood-even">' + x.n + '명 요청</span></li>';
             var lab = k === 'top' ? (x.bull > 50 ? '불리시 ' + x.bull + '%' : x.bull < 50 ? '베어리시 ' + (100 - x.bull) + '%' : '반반') : (k === 'bull' ? '불리시 ' + pct + '%' : '베어리시 ' + pct + '%');
             return '<li class="rank-item">' + link + '<span class="mood-v mood-' + (x.bull === 50 ? 'even' : side) + '">' + lab + '</span><span class="rank-n muted">' + x.n + '표</span></li>';
           }).join('');
           list.hidden = !items.length; empty.hidden = !!items.length;
         }
+        function showReq() { // 업데이트 요청 순위는 투표 순위 아래에 늘 보인다
+          setNames();
+          if (!rqList) return;
+          rqList.innerHTML = rq.map(function (x, i) {
+            return '<li class="rank-item"><span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(x.t.toLowerCase()) + '/"><span class="rank-tick">' + esc(x.t) + '</span><span class="rank-title">' + esc(names[x.t] || '') + '</span></a><span class="mood-v mood-even">🔔 ' + x.n + '명 요청</span></li>';
+          }).join('');
+          rqList.hidden = !rq.length; if (rqEmpty) rqEmpty.hidden = !!rq.length;
+        }
         btns.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-mood')); if (window.kwEv) kwEv('mood_rank'); }); });
-        show(d.top && d.top.length ? 'top' : 'req');
-        if (!data) moodRefresh = function () { var cur = document.querySelector('[data-mood][aria-selected="true"]'); show(cur ? cur.getAttribute('data-mood') : 'top'); };
+        show('top'); showReq();
+        if (!data) moodRefresh = function () { var cur = document.querySelector('[data-mood][aria-selected="true"]'); show(cur ? cur.getAttribute('data-mood') : 'top'); showReq(); };
         moodTab.hidden = false;
         var asked = (/#tab=(\w+)/.exec(location.hash) || [])[1]; try { asked = asked || sessionStorage.getItem('kw-ex'); } catch (e) {}
         if (!asked || asked === 'mood') pick('mood');

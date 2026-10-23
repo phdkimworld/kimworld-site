@@ -650,6 +650,8 @@
         holder.appendChild(postCard(post, { detail: true, onDelete: function () { location.href = post.parent ? C.postUrl(post.parent) : base + '/'; } }));
         var tk = boardOf(post.slug), bl = document.querySelector('[data-pp-board]');
         if (bl) { bl.textContent = ''; if (tk) { var a = el('a', null, '· ' + tk + ' 커뮤니티'); a.href = base + '/t/' + tk.toLowerCase() + '/#community'; bl.appendChild(a); } }
+        // 종목 글이면 그 종목 리포트 업데이트 요청 상자(2026-10-22 운영자 요청)
+        if (tk && window.kwUpdReq) holder.appendChild(window.kwUpdReq(tk, '$' + tk + ' 새 리포트가 필요하세요?'));
         document.title = post.nick + ': ' + post.body.slice(0, 30) + ' | ' + document.title.split('|').pop().trim();
         rta.placeholder = post.nick + '님에게 답글 남기기';
         showReplies(d.replies, post.replies, { reply: true, sameBoard: post.slug });
