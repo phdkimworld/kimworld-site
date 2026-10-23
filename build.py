@@ -73,6 +73,33 @@ def short_answer(body: str) -> str:
     t = re.sub(r"\s+", " ", t).strip()
     return t[:1200]
 
+
+def video_question(summary: str, body_html: str) -> tuple[str, str]:
+    """요약 끝 질문(영상이 던지는 질문)과 그 답이 나오는 1부 이후 소제목 id. 못 찾으면 ("", "").
+    유튜브에서 온 독자에게 '영상의 질문 → 답 바로 보기'를 보이려고 쓴다(2026-10-23, yt_jump 누름 2%)."""
+    sents = re.split(r"(?<=[.?!])\s+", (summary or "").strip())
+    q = sents[-1].strip() if sents else ""
+    if not q.endswith("?") or len(q) < 10:
+        return "", ""
+    norm = lambda s: re.sub(r"\s+", " ", s).strip()
+    secs = []  # (id, 이름, 꾸밈 없는 본문)
+    heads = list(re.finditer(r'<h([23])[^>]*\bid="([^"]+)"[^>]*>(.*?)</h\1>', body_html, flags=re.S))
+    for i, h in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(body_html)
+        secs.append((h.group(2), norm(re.sub(r"<[^>]+>", "", h.group(3))), norm(re.sub(r"<[^>]+>", " ", body_html[h.end():end]))))
+    start = next((i for i, s in enumerate(secs) if re.match(r"^1부", s[1])), None)
+    if start is None:
+        return "", ""
+    qn = norm(q)
+    for n in range(min(len(qn) - 4, 24), 7, -1):
+        key = qn[:n]
+        for sid, _, txt in secs[start:]:
+            for m in re.finditer(re.escape(key), txt):
+                tail = re.split(r"(?<=[.?!])\s", txt[m.start():], maxsplit=1)[0]
+                if not tail.rstrip().endswith("?"):
+                    return q, sid
+    return q, ""
+
 def load_yaml(p: Path, default=None):
     if not p.exists():
         return default
@@ -961,6 +988,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
         r["check_id"] = next((t["id"] for t in flat if "체크리스트" in t["name"]), "") or next((t["id"] for t in flat if "리스크" in t["name"]), "")
         r["yt_jump"] = [t for t in r["toc"] if re.match(r"^[3-6]부", t["name"])][:4] or r["toc"][2:6]
         r["has_diag"] = 'id="diagnosis"' in r["body_html"]
+        # 영상이 던진 질문(요약 끝 문장)과 답이 나오는 소제목: 유튜브 독자 바로가기 줄 맨 앞에
+        r["yt_q"], r["yt_ans_id"] = video_question(r["summary"], r["body_html"]) if r["youtube_id"] else ("", "")
+        if r["yt_q"] and not r["yt_ans_id"]:
+            r["yt_ans_id"] = next((t["id"] for t in r["toc"] if t["name"].strip() == "짧은 답"), "")
         # SNS 글이 묻는 '몇 번?'의 답이 있는 3부 소제목(운영자 지시 2026-10-20 SNS 퍼널: 질문 → 답으로 바로)
         r["answer_id"] = next((t["id"] for t in flat if re.search(r"무너진 날|거래일 뒤|몇 번", t["name"])), "")
         idx = public.index(r) if r in public else -1

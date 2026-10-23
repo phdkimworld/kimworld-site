@@ -140,8 +140,13 @@
     </nav>
     {% endif %}
     <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
+      {% if r.yt_q and r.yt_ans_id %}
+      <p class="yt-jump-t">▶ 영상이 물은 질문: {{ r.yt_q }}</p>
+      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.yt_ans_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}
+      {%- else %}
       <p class="yt-jump-t">▶ 영상 보고 오셨나요? 영상에서 다 못 다룬 내용으로 바로 가기</p>
-      <div class="chip-row">{% if r.has_diag %}<a class="chip chip-hot" href="#diagnosis">지금 국면 진단</a>{% endif %}{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
+      <div class="chip-row">{% if r.has_diag %}<a class="chip chip-hot" href="#diagnosis">지금 국면 진단</a>{% endif %}
+      {%- endif %}{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
     </nav>
     {% endif %}
     {% if r.toc %}
