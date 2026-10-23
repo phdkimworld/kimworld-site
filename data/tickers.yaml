@@ -126,6 +126,12 @@ SLDP:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["솔리드 파워", "Solid Power"]
+QS:
+  name: "퀀텀스케이프"
+  name_en: "QuantumScape Corporation"
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["퀀텀 스케이프", "QuantumScape"]
 QXO:
   name: "큐엑스오"
   name_en: "QXO, Inc."
