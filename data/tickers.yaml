@@ -132,6 +132,12 @@ QS:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["퀀텀 스케이프", "QuantumScape"]
+EU:
+  name: "엔코어 에너지"
+  name_en: "enCore Energy Corp."
+  exchange: "NASDAQ"
+  theme: "원자력·에너지"
+  aliases: ["엔코어", "enCore Energy", "엔코어에너지"]
 QXO:
   name: "큐엑스오"
   name_en: "QXO, Inc."
