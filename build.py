@@ -456,11 +456,25 @@ def mid_next_pick(r: dict) -> tuple[dict | None, str]:
 
 
 def insert_mid_next(body_html: str, rel: dict | None, label: str = "함께 읽기") -> str:
-    """본문 40% 안팎, 문단과 문단 사이에 같은 테마 다음 리포트 한 줄 링크를 끼운다(2026-10-16 운영 통계: 리포트 평균 스크롤 55%·
+    """짧은 답 절 끝(없거나 광고 자리와 붙으면 본문 40% 안팎 문단 사이)에 같은 테마 다음 리포트 한 줄 링크를 끼운다(2026-10-16 운영 통계: 리포트 평균 스크롤 55%·
     유튜브 유입 세션당 1.4쪽이라 맨 아래 '다음에 읽을 만한' 칸까지 내려오는 사람이 적다). 소제목(광고 자리) 바로 앞은 피하고
     인용·목록·접기·표 안에는 넣지 않는다."""
     if not rel or plain_len(body_html) < 3000:
         return body_html
+    title = rel["title"].split(" | ")[0].strip()  # 검색용 꼬리말(| 주가 내러티브와 패턴 투자전략)은 링크 글에서 뺀다
+    box = (f'<p class="mid-next"><span class="mid-next-k">{html.escape(label)}</span> '
+           f'<a href="{html.escape(rel["url"], quote=True)}" data-mid-next>{html.escape(rel["ticker"])} · {html.escape(title)} →</a></p>\n')
+    # 2026-10-24: 40% 지점 링크는 5일째 누름 0, 구간 도달은 '짧은 답' 82% → 2부 52% → '다음 리포트' 17%(리포트 60뷰).
+    # 그래서 '짧은 답' 절 끝(다음 소제목 바로 앞)에 둔다. 다음 소제목이 '2부'(가운데 광고 자리)면 광고와 붙으므로 예전 자리로.
+    m = re.search(r"<h2[^>]*>\s*짧은 답\s*</h2>", body_html)
+    if m:
+        nxt = re.compile(r"<h2[\s>]").search(body_html, m.end())
+        h2 = [x.start() for x in re.finditer(r"<h2[\s>]", body_html)]
+        has_p2 = bool(re.search(r"<h2[^>]*>\s*2부", body_html))
+        is_mid_ad = nxt and (re.match(r"<h2[^>]*>\s*2부", body_html[nxt.start():nxt.start() + 80])
+                             or (not has_p2 and len(h2) >= 3 and nxt.start() == h2[2]))
+        if nxt and not is_mid_ad:
+            return body_html[:nxt.start()] + box + body_html[nxt.start():]
     target = len(body_html) * 0.4
     best = -1
     for m in re.finditer(r"</p>\s*(?=<p[\s>])", body_html):
@@ -472,9 +486,6 @@ def insert_mid_next(body_html: str, rel: dict | None, label: str = "함께 읽�
             best = pos
     if best < 0 or not (0.25 <= best / len(body_html) <= 0.6):
         return body_html
-    title = rel["title"].split(" | ")[0].strip()  # 검색용 꼬리말(| 주가 내러티브와 패턴 투자전략)은 링크 글에서 뺀다
-    box = (f'<p class="mid-next"><span class="mid-next-k">{html.escape(label)}</span> '
-           f'<a href="{html.escape(rel["url"], quote=True)}" data-mid-next>{html.escape(rel["ticker"])} · {html.escape(title)} →</a></p>\n')
     return body_html[:best] + box + body_html[best:]
 
 
