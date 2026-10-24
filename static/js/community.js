@@ -1079,6 +1079,7 @@
     var m = quoteMeta(q), url = quoteLink(q);
     var text = '“' + q.text + '”\n— ' + (q.kind === 'r' ? (m.ticker ? m.ticker + ' 리포트 · ' : '') + '김박사 월드 무료 리포트' : m.title + ' · 김박사 월드');
     if (window.kwEv) kwEv('quote_share');
+    if (window.kwShare) return kwShare({ title: m.title, text: text, url: url });
     if (navigator.share) { navigator.share({ title: m.title, text: text, url: url }).catch(function () {}); return; }
     var all = text + '\n' + url;
     (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () { flash('인용과 링크를 복사했습니다. 카카오톡에 붙여 넣으세요'); }, function () { prompt('아래 내용을 복사하세요', all); });

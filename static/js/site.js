@@ -79,12 +79,61 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       title = btn.getAttribute('data-share-title') || title;
     }
     url = shareUrl(url);
-    if (navigator.share) {
-      navigator.share({ title: title, url: url }).then(function () { track('share', { method: 'native' }); }).catch(function () {});
-      return;
-    }
-    copy(url);
+    kwShare({ title: title, url: url });
   }
+  // ---------- 공유 시트: 카카오톡 바로 보내기 + 다른 앱 + 링크 복사 ----------
+  // site.yaml kakao_js_key(공개값)가 있을 때만 시트를 연다. 없으면 예전처럼 휴대폰 공유창 또는 복사.
+  // 카카오 SDK는 시트를 열 때만 불러온다(평소 페이지 무게 그대로). 미리보기는 그 주소의 og 태그를 카카오가 긁어 간다(sendScrap)
+  var KKEY = (window.KW && KW.kakao) || '', kakaoP = null, ksEl = null, ksCur = null;
+  var KSDK = 'https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js';
+  function kakaoLoad() {
+    if (kakaoP) return kakaoP;
+    kakaoP = new Promise(function (res, rej) {
+      function ok() { try { if (!Kakao.isInitialized()) Kakao.init(KKEY); res(Kakao); } catch (e) { rej(e); } }
+      if (window.Kakao && Kakao.Share) return ok();
+      var sc = document.createElement('script'); sc.src = KSDK; sc.async = true; sc.crossOrigin = 'anonymous';
+      sc.onload = ok; sc.onerror = function () { kakaoP = null; rej(new Error('sdk')); };
+      document.head.appendChild(sc);
+    });
+    return kakaoP;
+  }
+  function plain(o) {
+    if (navigator.share) { navigator.share(o.text ? { title: o.title, text: o.text, url: o.url } : { title: o.title, url: o.url }).then(function () { track('share', { method: 'native' }); }).catch(function () {}); return; }
+    copy(o.text ? o.text + '\n' + o.url : o.url);
+  }
+  function ksClose() { if (ksEl) ksEl.hidden = true; ksCur = null; }
+  function ksSheet() {
+    if (ksEl) return ksEl;
+    ksEl = document.createElement('div'); ksEl.className = 'ksheet'; ksEl.hidden = true;
+    ksEl.innerHTML = '<div class="ks-in" role="dialog" aria-label="공유하기"><p class="ks-h">공유하기</p>' +
+      '<button type="button" class="ks-b ks-kakao" data-ks="kakao"><span class="ks-ic" aria-hidden="true">TALK</span>카카오톡으로 보내기</button>' +
+      '<button type="button" class="ks-b" data-ks="more">다른 앱으로 공유</button>' +
+      '<button type="button" class="ks-b" data-ks="copy">링크 복사</button>' +
+      '<button type="button" class="ks-x" data-ks="x">닫기</button></div>';
+    ksEl.addEventListener('click', function (e) {
+      if (e.target === ksEl) return ksClose();
+      var b = e.target.closest && e.target.closest('[data-ks]'); if (!b || !ksCur) return;
+      var o = ksCur, k = b.getAttribute('data-ks');
+      if (k === 'x') return ksClose();
+      ksClose();
+      if (k === 'kakao') {
+        var ku = o.url.replace(/([?&]utm_medium=)link/, '$1kakao');
+        var go = function (K) { K.Share.sendScrap({ requestUrl: ku }); track('share', { method: 'kakao' }); if (window.kwEv) kwEv('share_kakao'); };
+        if (window.Kakao && Kakao.Share && Kakao.isInitialized()) { try { go(Kakao); } catch (er) { plain(o); } return; }
+        kakaoLoad().then(go).catch(function () { toast('카카오톡을 열지 못했어요. 다른 앱으로 공유해 주세요'); plain(o); });
+      } else if (k === 'more') plain(o);
+      else copy(o.text ? o.text + '\n' + o.url : o.url);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') ksClose(); });
+    document.body.appendChild(ksEl);
+    return ksEl;
+  }
+  function kwShare(o) {
+    if (!KKEY) return plain(o);
+    ksCur = o; ksSheet().hidden = false; kakaoLoad().catch(function () {});
+    var f = ksEl.querySelector('.ks-kakao'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
+  }
+  window.kwShare = kwShare;
   function copy(text) {
     var done = function () { toast('링크를 복사했습니다. 카카오톡에 붙여 넣으세요'); track('share', { method: 'copy' }); };
     if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, function () { prompt('아래 주소를 복사하세요', text); }); }

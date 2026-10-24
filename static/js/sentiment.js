@@ -86,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var h = q('.sent-q'), u = (C.apiBase || '') + '/s/v/' + encodeURIComponent(tk);
     var text = (h ? h.textContent.trim() : '$' + tk + ' 앞으로 어떻게 보세요?') + '\n오를까, 내릴까? 투표하고 다른 투자자들의 생각을 확인해 보세요.';
     if (window.kwEv) kwEv('poll_share');
+    if (window.kwShare) return kwShare({ title: '$' + tk + ' 투자 심리 투표', text: text, url: u });
     if (navigator.share) { navigator.share({ title: '$' + tk + ' 투자 심리 투표', text: text, url: u }).catch(function () {}); return; }
     var all = text + '\n' + u;
     (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () { C.flash('투표 링크를 복사했습니다. 카카오톡·커뮤니티에 붙여 넣으세요'); }, function () { prompt('아래 내용을 복사하세요', all); });

@@ -147,7 +147,7 @@
   }
   var EVN = { share: '공유', save: '저장', like: '좋아요', repost: '리포스트', quote_open: '인용 창 열기', quote_submit: '인용 글 올림', follow_user: '사람 팔로우', follow_topic: '종목·테마 팔로우',
     compose_open: '글쓰기 상자 누름', post_submit: '글·댓글 올림', login_start: '로그인 시작', search: '검색', yt_play: '영상 재생', notif_open: '알림 열기',
-    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '홈 대표 글(조회수 상위) 누름', home_report: '홈에서 리포트 누름', home_post: '홈에서 커뮤니티 글 누름', fig_click: '리포트 그림 누름', sent_vote: '투자 심리 투표', sent_vote_feed: '피드 카드에서 투표', mid_next_click: '본문 중간 함께 읽기 누름', mood_rank: '검색 화면 투자 심리 순위 바꿔 봄', poll_share: '투표 상자 공유', next_bar: '읽는 중 아래 줄 다음 리포트 누름', update_request: '종목 리포트 업데이트 요청', push_on: '푸시 알림 켬',
+    yt_jump_shown: '유튜브 바로가기 노출', yt_jump_click: '유튜브 바로가기 누름', featured_click: '홈 대표 글(조회수 상위) 누름', home_report: '홈에서 리포트 누름', home_post: '홈에서 커뮤니티 글 누름', fig_click: '리포트 그림 누름', sent_vote: '투자 심리 투표', sent_vote_feed: '피드 카드에서 투표', mid_next_click: '본문 중간 함께 읽기 누름', mood_rank: '검색 화면 투자 심리 순위 바꿔 봄', poll_share: '투표 상자 공유', next_bar: '읽는 중 아래 줄 다음 리포트 누름', update_request: '종목 리포트 업데이트 요청', share_kakao: '카카오톡으로 공유', push_on: '푸시 알림 켬',
     install_prompt: '설치 가능 표시', install_card: '설치 카드 노출', install_click: '설치 누름', install_accept: '설치 수락', install_dismiss: '설치 거절', installed: '설치 완료', ios_help: '아이폰 설치 안내', signup: '가입 완료', dm_send: '쪽지 보냄', dm_open: '쪽지함 열기', avatar_set: '프로필 사진 바꿈', block: '차단', quote_share: '문장 인용 공유', quote_card: '인용 카드 만들기',
     install_bar: '설치 안내 줄 노출', install_inapp: '앱 안 브라우저→크롬 열기', ic_header: '설치 누름: 머리줄', ic_footer: '설치 누름: 바닥글', ic_bar: '설치 누름: 안내 줄', ic_report: '설치 누름: 리포트 끝', ic_feed: '설치 누름: 홈 피드' };
 

@@ -122,7 +122,7 @@
 </nav>
 {% endif %}
 <div class="toast" role="status" aria-live="polite"></div>
-<script>window.KW = { base: "{{ base }}", api: "{{ site.api_url or '' }}", tk: {{ board_ticks|tojson }} };</script>
+<script>window.KW = { base: "{{ base }}", api: "{{ site.api_url or '' }}", kakao: "{{ site.kakao_js_key or '' }}", tk: {{ board_ticks|tojson }} };</script>
 <script src="{{ base }}/static/js/site.js?v={{ asset_ver }}" defer></script>
 {% if site.api_url %}<script src="{{ base }}/static/js/community.js?v={{ asset_ver }}" defer></script>
 <script src="{{ base }}/static/js/social.js?v={{ asset_ver }}" defer></script>

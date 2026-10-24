@@ -56,6 +56,7 @@
     var m = /\/p\/\?id=(\d+)/.exec(url);
     var u = m && C.apiBase ? C.apiBase + '/s/p/' + m[1] : (window.kwShareUrl ? kwShareUrl(location.origin + url) : location.origin + url);
     if (window.kwEv) kwEv('share');
+    if (window.kwShare) return kwShare({ title: title, url: u });
     if (navigator.share) { navigator.share({ title: title, url: u }).catch(function () {}); return; }
     (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('주소를 복사했습니다'); }, function () { prompt('주소를 복사하세요', u); });
   }
