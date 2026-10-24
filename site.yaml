@@ -34,7 +34,7 @@ seo:
 # 카카오톡 공유 버튼(카카오 개발자 콘솔 → 내 애플리케이션 → 앱 키 → JavaScript 키. 웹에 그대로 보이는 공개값).
 # 비어 있으면 공유는 휴대폰 공유창/링크 복사로만 동작. 넣으면 공유 버튼이 '카카오톡으로 보내기' 시트를 연다.
 # 콘솔 → 플랫폼 → Web 사이트 도메인에 https://drkimworld.com 과 https://api.drkimworld.com 을 등록해야 한다(투표·글 공유 미리보기 주소)
-kakao_js_key: ""
+kakao_js_key: "3bcc3066e98588ef23b1db7eb3a149a3"
 
 # 조회수·댓글·좋아요·인기 리포트·요즘 찾는 종목 API(Cloudflare Worker, worker/ 폴더). 비우면 그 기능을 모두 숨긴다.
 api_url: "https://api.drkimworld.com"
