@@ -4,6 +4,10 @@ name: Analytics report (운영 통계 요약)
 # 저장소가 공개라 주석도 공개된다: 스크립트는 집계 숫자만 내보낸다(닉네임·검색어 원문 없음).
 on:
   workflow_dispatch:
+    inputs:
+      days:
+        description: "집계 기간 7·30·90일 중 하나. 비우면 7"
+        required: false
 
 permissions:
   contents: read
@@ -15,6 +19,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ADMIN_IN: ${{ secrets.KIMWORLD_ADMIN_TOKEN }}
+      DAYS_IN: ${{ inputs.days }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Fetch analytics
@@ -22,11 +27,12 @@ jobs:
           ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
           echo "::add-mask::$ADMIN"
           mkdir -p .cache
+          case "$DAYS_IN" in 30|90) DAYS=$DAYS_IN;; *) DAYS=7;; esac   # 워커가 7·30·90만 받는다
           # api.drkimworld.com 은 Cloudflare 봇 검사가 GitHub 러너를 막으므로(403 'Just a moment') 같은 워커의 workers.dev 주소로 부른다
           SUB=$(curl -sS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
           BASE=${SUB:+https://kimworld-api.$SUB.workers.dev}
           BASE=${BASE:-https://api.drkimworld.com}
-          CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "$BASE/v1/admin/analytics?days=7")
+          CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "$BASE/v1/admin/analytics?days=$DAYS")
           echo "::notice title=AN HTTP::$CODE $(wc -c < .cache/an.json) bytes"
           if [ "$CODE" != "200" ]; then echo "::notice title=AN BODY::$(head -c 300 .cache/an.json | tr -d '\r\n%')"; fi
       - name: Report
