@@ -13,6 +13,7 @@ import html
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -154,4 +155,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except urllib.error.HTTPError as e:  # 로그를 못 보는 환경에서도 원인이 보이게 주석(annotation)으로 남긴다(응답 본문에는 비밀값이 없다)
+        msg = e.read().decode("utf-8", "replace")[:600].replace("\n", " ")
+        print(f"::error title=블로거 HTTP {e.code}::{e.url.split('?')[0]} {msg}")
+        sys.exit(1)
