@@ -15,8 +15,8 @@
 | 게시 방법 | GitHub Actions 워크플로 `Blogger (새 리포트 소개 글)` (`.github/workflows/blogger.yml`) **만** 쓴다 |
 | 게시 코드 | `scripts/blogger_post.py` |
 | 게시 기록 | `social/blogger/posted.json` — `{slug: {"url": 글 주소, "at": ET 시각}}`, 워크플로가 커밋 |
-| 자동 실행 | 매일 UTC 01:20·13:20 (동부 밤 9:20·아침 9:20, 서머타임 해제 뒤엔 한 시간 앞당겨짐) |
-| 자동 규칙 | 공개 7일 이내 + 아직 안 올린 리포트, 최신 순, **하루 최대 2건**(동부 날짜 기준) |
+| 자동 실행 | 매시간 20분(UTC). 한 번에 최대 3건, 60초 간격 |
+| 자동 규칙 | 아직 안 올린 모든 리포트(최신 순, 지난 리포트까지), **하루 최대 40건**(동부 날짜 기준). 운영자 지시 2026-10-25 "최대한 많이 올려줘". 구글은 공식 게시 한도를 밝히지 않고, 보고된 경험치는 하루 약 50건·짧은 시간 연속 4~6건 뒤 403/429. 403/429가 나면 그 실행은 멈추고 다음 시간에 이어 간다 |
 | 인증 | OAuth 클라이언트 `drkimworld web`(사이트 구글 로그인과 같은 것) + 갱신 토큰 |
 
 세션(이 컨테이너)은 구글 API를 직접 부르지 않는다. 비밀값은 GitHub 비밀값에만 있고 세션은 그 값을 읽을 수 없다(비밀값 API도 프록시가 막는다). 세션이 할 수 있는 일은 **워크플로를 실행하고, 주석(annotation)으로 결과를 읽는 것**뿐이다.
@@ -39,7 +39,7 @@ gh api -X POST repos/phdkimworld/kimworld-site/actions/workflows/blogger.yml/dis
   -f ref=main -f 'inputs[slug]=iren-2026-10-3'
 ```
 - `slug`는 `content/reports/<slug>.md`의 파일 이름(확장자 없이).
-- slug를 주면 공개 7일 제한과 하루 2건 제한을 무시하고 그 리포트 하나만 올린다.
+- slug를 주면 하루 한도를 무시하고 그 리포트 하나만 올린다.
 - 이미 `posted.json`에 있으면 아무것도 안 하고 성공으로 끝난다(같은 글이 두 번 생기지 않게).
 - 사이트에서 그 리포트 주소가 아직 200으로 안 열리면 건너뛴다. **새 리포트는 `Build and deploy` 성공을 확인한 뒤에** 실행한다.
 
@@ -57,7 +57,7 @@ DRY=1 SLUG=mbot-2026-10 python3 scripts/blogger_post.py
 ```bash
 gh api -X POST repos/phdkimworld/kimworld-site/actions/workflows/blogger.yml/dispatches -f ref=main
 ```
-오늘 이미 2건 올렸으면 `올릴 글 없음(후보 n, 오늘 2/2)`으로 끝난다.
+오늘 이미 40건 올렸으면 `올릴 글 없음(후보 n, 오늘 40/40)`으로 끝난다. 한도 경고 주석은 `블로거 한도 403|429`.
 
 ### 2-4. 결과 확인 (반드시 한다)
 워크플로 로그 내려받기는 프록시가 막는다(Forbidden). 대신 **주석**을 읽는다.
@@ -76,12 +76,12 @@ gh api repos/phdkimworld/kimworld-site/check-runs/$J/annotations --jq '.[]|.mess
 - `블로거 인증 실패` — 조합별 구글 응답(오류 코드). 4장 참고
 - `블로거 게시` — `<slug> → https://phdkimworld.blogspot.com/...`: **성공. 이 주소를 운영자에게 알린다**
 - `블로거 HTTP nnn` — 게시 단계 오류와 구글 응답 본문
-- 주석이 하나도 없고 성공이면: 올릴 글이 없었던 것(이미 올렸거나 7일 지난 리포트)
+- 주석이 하나도 없고 성공이면: 올릴 글이 없었던 것(모두 올렸거나 오늘 한도)
 
 글 화면은 세션에서 확인할 수 없다(셸은 blogspot.com에 못 닿고, WebFetch는 사용자가 준 주소만 연다). 운영자에게 주소를 주고 확인을 부탁한다.
 
 ### 2-5. 리포트 제작(김박사 월드 스튜디오) 뒤에 붙여 쓰기
-새 리포트를 발행하고 `Build and deploy` 성공 → 리포트 주소가 열리는 것까지 확인했다면, 다음 자동 실행(하루 두 번)을 기다려도 되고 2-1로 바로 올려도 된다. 바로 올릴 때도 **그날 이미 2건 올렸는지** `social/blogger/posted.json`의 `at` 날짜로 먼저 확인한다(수동 실행은 하루 제한을 무시하므로 에이전트가 스스로 지킨다).
+새 리포트를 발행하고 `Build and deploy` 성공 → 리포트 주소가 열리는 것까지 확인했다면, 다음 자동 실행(매시간)을 기다려도 되고 2-1로 바로 올려도 된다(새 리포트를 먼저 올리고 싶을 때). 바로 올릴 때도 그날 40건을 넘기지 않는지 `social/blogger/posted.json`의 `at` 날짜로 확인한다.
 
 ---
 
@@ -101,7 +101,7 @@ gh api repos/phdkimworld/kimworld-site/check-runs/$J/annotations --jq '.[]|.mess
 
 **지켜야 할 규칙**
 - 리포트 본문을 옮기지 않는다. 같은 내용이 두 곳에 있으면 구글이 블로거 쪽을 원본으로 골라 사이트 리포트가 밀릴 수 있다
-- 하루 2건을 넘기지 않는다. 짧은 글을 몰아 올리면 스팸 패턴으로 보인다
+- 하루 40건을 넘기지 않고, 한 번에 3건·60초 간격을 지킨다(연속 게시는 구글이 4~6건 뒤 막는다는 보고가 있다)
 - 사이트 규칙과 같다: 매수·매도 지시, 수익 암시, 긴급성 압박, 운영자 종목 보유 여부, AI 작성 언급 금지
 - 리포트가 아닌 홍보글은 이 워크플로로 올리지 않는다(필요하면 운영자에게 먼저 묻는다)
 
@@ -153,7 +153,7 @@ gh api repos/phdkimworld/kimworld-site/check-runs/$J/annotations --jq '.[]|.mess
 
 `scripts/blogger_post.py`
 1. `social/blogger/posted.json`을 읽어 이미 올린 slug를 뺀다
-2. `content/reports/*.md` 머리말을 읽어 후보를 고른다: `draft`가 아니고, `date`가 오늘(동부) 이전이며, 자동 모드면 7일 이내
+2. `content/reports/*.md` 머리말을 읽어 후보를 고른다: `draft`가 아니고, `date`가 오늘(동부) 이전이며, 자동 모드면 BLOGGER_DAYS(기본 3650일) 이내
 3. 인증 `token()`: 클라이언트 ID(워크플로의 공개값, 그다음 비밀값 `GOOGLE_CLIENT_ID`) × 보안 비밀번호(`BLOGGER_CLIENT_SECRET`, 그다음 `GOOGLE_CLIENT_SECRET`) 조합을 차례로 `https://oauth2.googleapis.com/token`(grant_type=refresh_token)에 보내 첫 성공의 access token을 쓴다
 4. `live()`: `https://drkimworld.com/r/<slug>/`가 200인지 HEAD로 확인
 5. `publish()`: `POST https://www.googleapis.com/blogger/v3/blogs/<블로그 ID>/posts/` (`title`, `content`(HTML), `labels`)
@@ -174,4 +174,4 @@ gh api repos/phdkimworld/kimworld-site/check-runs/$J/annotations --jq '.[]|.mess
 - 세션에서 OAuth 동의 화면을 열거나 토큰을 직접 발급받으려 하기
 - 같은 리포트를 다시 올리려고 `posted.json`을 지우기(운영자가 원할 때만)
 - 블로거 글을 지우거나 고치기(API로 가능하지만 이 워크플로에는 없다. 필요하면 운영자에게 블로거 관리 화면에서 하도록 안내)
-- 하루 2건을 넘겨 몰아 올리기, 리포트가 아닌 글 대량 게시
+- 하루 40건을 넘기거나 간격 없이 몰아 올리기, 리포트가 아닌 글 대량 게시

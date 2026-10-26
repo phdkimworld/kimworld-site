@@ -2,14 +2,17 @@
 """새 리포트를 구글 블로거(김박사 월드 노트)에 짧은 소개 글로 올린다.
 
 운영자 요청 2026-10-25(구글 노출 보조). 리포트를 그대로 옮기지 않는다: 요약·핵심 3줄·차트·영상·리포트 링크만.
-스팸처럼 보이지 않도록 하루 최대 BLOGGER_DAILY(기본 2)건, 공개 7일 이내 리포트만, 이미 올린 건 다시 올리지 않는다.
+운영자 지시 2026-10-25 "최대한 많이 올려줘": 하루 최대 BLOGGER_DAILY(기본 40)건, 한 번 실행에 BLOGGER_PER_RUN(기본 3)건을 BLOGGER_GAP(기본 60)초 간격으로,
+최신 리포트부터 지난 리포트까지(BLOGGER_DAYS 기본 3650일) 올린다. 구글은 공식 한도를 밝히지 않으며 보고된 경험치는 하루 약 50건·짧은 시간 연속 4~6건이다.
+구글이 403/429(한도)로 막으면 그 실행은 멈추고(실패 아님) 다음 실행에서 이어 간다. 이미 올린 건 다시 올리지 않는다.
 올린 기록: social/blogger/posted.json {slug: {"url":…, "at":…}} (공개 저장소에는 주소·시각만)
 
 환경변수: GOOGLE_CLIENT_ID, BLOGGER_CLIENT_SECRET, BLOGGER_REFRESH_TOKEN, BLOGGER_BLOG_ID
-선택: SLUG(그 리포트 하나만), DRY=1(올리지 않고 내용만 출력), BLOGGER_DAILY
+선택: SLUG(그 리포트 하나만), DRY=1(올리지 않고 내용만 출력), BLOGGER_DAILY, BLOGGER_PER_RUN, BLOGGER_GAP, BLOGGER_DAYS
 """
 import datetime as dt
 import html
+import time
 import json
 import os
 import sys
@@ -119,7 +122,10 @@ def main() -> int:
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     now = dt.datetime.now(ET)
     today = now.date()
-    daily = int(os.environ.get("BLOGGER_DAILY") or 2)
+    daily = int(os.environ.get("BLOGGER_DAILY") or 40)
+    per_run = int(os.environ.get("BLOGGER_PER_RUN") or 3)
+    gap = int(os.environ.get("BLOGGER_GAP") or 60)
+    days = int(os.environ.get("BLOGGER_DAYS") or 3650)
     done_today = sum(1 for v in state.values() if str(v.get("at", ""))[:10] == today.isoformat())
     want = (os.environ.get("SLUG") or "").strip()
     cands = []
@@ -134,11 +140,11 @@ def main() -> int:
             d = dt.date.fromisoformat(str(fm.get("date"))[:10])
         except ValueError:
             continue
-        if d > today or (not want and (today - d).days > 7):
+        if d > today or (not want and (today - d).days > days):
             continue
         cands.append((d, slug, fm))
     cands.sort(reverse=True)  # 최신 먼저
-    room = 1 if want else max(0, daily - done_today)
+    room = 1 if want else min(per_run, max(0, daily - done_today))
     if not cands or room == 0:
         print(f"올릴 글 없음(후보 {len(cands)}, 오늘 {done_today}/{daily})")
         return 0
@@ -158,8 +164,17 @@ def main() -> int:
             print(f"::notice title=미리보기 {slug}::{title} | 라벨 {', '.join(labels)} | {html.unescape(content).replace(chr(10), " ")[:500]}")
             n += 1
             continue
-        url = publish(tok, title, content, labels)
-        state[slug] = {"url": url, "at": now.isoformat(timespec="minutes")}
+        if n:
+            time.sleep(gap)
+        try:
+            url = publish(tok, title, content, labels)
+        except urllib.error.HTTPError as ex:
+            if ex.code in (403, 429):  # 구글 게시 한도: 기록은 남기고 다음 실행에서 이어 간다
+                msg = ex.read().decode("utf-8", "replace")[:300].replace("\n", " ")
+                print(f"::warning title=블로거 한도 {ex.code}::{slug} 에서 멈춤, 이번 실행 {n}건 · {msg}")
+                break
+            raise
+        state[slug] = {"url": url, "at": dt.datetime.now(ET).isoformat(timespec="minutes")}
         print(f"::notice title=블로거 게시::{slug} → {url}")
         n += 1
     if not dry:
