@@ -576,3 +576,9 @@ WIMI:
   exchange: "NASDAQ"
   theme: "양자컴퓨팅"
   aliases: ["위마이", "WiMi", "위미 홀로그램", "위마이홀로그램", "WiMi Hologram Cloud", "마이크로알고", "MicroAlgo"]
+ANT:
+  name: "앤트로픽"
+  name_en: "Anthropic, PBC"
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["앤트로픽", "Anthropic", "앤쓰로픽", "클로드", "Claude"]
