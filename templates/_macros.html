@@ -119,5 +119,10 @@
     <p class="sent-legend"><span class="lg-line"></span>30일 누적 지수 <span class="lg-dot"></span>그날 비율 <span class="muted">· 50 위는 강세, 아래는 약세</span></p>
     <p class="sent-note" data-sent-note></p>
   </div>
+  {#- 이 종목 투자자 의견 최근 3개(투표를 붙인 의견 먼저). 투표 전에도 보인다(2026-10-26 운영자 요청) #}
+  <div class="sent-ops" data-sent-ops hidden>
+    <div class="so-head"><strong>💬 투자자 의견 <span class="so-n" data-so-n></span></strong><a class="so-all" href="#community" data-so-all>전체 보기 →</a></div>
+    <ul class="so-list" data-so-list></ul>
+  </div>
 </section>
 {%- endmacro %}

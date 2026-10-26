@@ -81,6 +81,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function load() { return C.api('/v1/sentiment/' + encodeURIComponent(tk)).then(function (d) { paint(d); if (d && d.rp && C.paintRepost) C.paintRepost('v', tk, d.rp.n, d.rp.on); }).catch(function () {}); }
   // 투표 상자만 공유: 미리보기(카카오톡·쓰레드·X)에는 질문이, 누르면 이 종목 화면의 투표 상자로
+  // 투자자 의견: 그 종목 커뮤니티 글 중 투표를 붙인 의견 먼저, 최근 3개
+  var ops = q('[data-sent-ops]'), opsList = q('[data-so-list]');
+  function loadOps() {
+    if (!ops || !C.api) return Promise.resolve();
+    return C.api('/v1/feed?board=b-' + encodeURIComponent(tk.toLowerCase()) + '&limit=20').then(function (d) {
+      var items = ((d && d.items) || []).filter(function (c) { return !(C.isBlocked && C.isBlocked(c.uid)); });
+      var isPoll = function (c) { return c.quote && c.quote.kind === 'v' ? 1 : 0; };
+      var top = items.slice().sort(function (a, b) { return isPoll(b) - isPoll(a) || b.created - a.created; }).slice(0, 3);
+      opsList.textContent = '';
+      q('[data-so-n]').textContent = items.length ? C.num(items.length) + (d.more ? '+' : '') : '';
+      q('[data-so-all]').hidden = !items.length || !document.getElementById('community');
+      if (!top.length) {
+        opsList.appendChild(C.el('li', 'so-empty', '아직 의견이 없어요. 오를지 내릴지, 첫 의견을 남겨 보세요.'));
+      }
+      top.forEach(function (c) {
+        var li = C.el('li', 'so-item'); if (c.uid) li.setAttribute('data-by-uid', c.uid);
+        var a = C.el('a', 'so-link'); a.href = ((window.KW && KW.base) || '') + '/p/?id=' + c.id;
+        a.appendChild(C.avatar(c.nick, c.uid));
+        var bx = C.el('div', 'so-bx');
+        var hd = C.el('div', 'so-hd'); hd.appendChild(C.el('strong', null, c.nick)); hd.appendChild(C.el('span', 'muted', ' · ' + C.ago(c.created) + (isPoll(c) ? ' · 📊 투표 의견' : '')));
+        bx.appendChild(hd); bx.appendChild(C.el('p', 'so-body', c.body));
+        var mt = []; if (c.likes) mt.push('♥ ' + C.num(c.likes)); if (c.replies) mt.push('답글 ' + C.num(c.replies));
+        if (mt.length) bx.appendChild(C.el('span', 'so-meta muted', mt.join(' · ')));
+        a.appendChild(bx); li.appendChild(a); opsList.appendChild(li);
+        a.addEventListener('click', function () { if (window.kwEv) kwEv('poll_op_open'); });
+      });
+      ops.hidden = false;
+    }).catch(function () {});
+  }
+  setTimeout(loadOps, 200);
   // 의견 남기기: 투표 상자를 붙인 글쓰기 창(그 종목 커뮤니티로). 투표했으면 내 쪽을 첫 줄 힌트로
   var cmb = q('[data-sent-cmt]');
   if (cmb) cmb.addEventListener('click', function () {
@@ -89,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var mine = DATA && DATA.voted, side = mine === 'bull' ? '오를 것 같다' : mine === 'bear' ? '내릴 것 같다' : '';
     C.openCompose({ kind: 'v', ref: tk, text: '' }, {
       board: 'b-' + tk.toLowerCase(), title: '$' + tk + ' 의견 남기기',
+      onDone: function () { loadOps().then(function () { if (ops) ops.scrollIntoView({ behavior: 'smooth', block: 'center' }); }); },
       placeholder: side ? '나는 "' + side + '" 쪽. 왜 그렇게 보는지 한두 줄 남겨 주세요' : '오를까, 내릴까? 내 생각과 이유를 한두 줄 남겨 주세요'
     });
   });
