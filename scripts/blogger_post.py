@@ -12,6 +12,7 @@
 """
 import datetime as dt
 import html
+import re
 import time
 import json
 import os
@@ -40,8 +41,17 @@ def front(p: Path) -> dict:
 
 
 def short_title(fm: dict) -> str:
+    """검색형 제목: '<이름>(<티커>) 주가 분석 — <훅>'. 블로거 글 33건이 7일 동안 사이트 세션 0(2026-10-26 통합 인사이트)이라
+    블로그 검색에서 사람들이 치는 말(이름·티커·주가)을 맨 앞에 둔다(사이트 검색 제목 seo_fields와 같은 꼴)."""
     t = str(fm.get("title") or "").split(" | ")[0].strip()
-    return t[:140]
+    tk = str(fm.get("ticker") or "").strip()
+    m = re.match(r"^([^,，]{1,20})[,，]\s*(.+)$", t)
+    if not (m and tk):
+        return t[:140]
+    name, hook = m.group(1).strip(), m.group(2).strip()
+    kind = "코인 시세" if "가격" in str(fm.get("title") or "") else "주가"
+    head = name if name.upper() == tk.upper() else f"{name}({tk})"
+    return f"{head} {kind} 분석 — {hook}"[:140]
 
 
 def body(slug: str, fm: dict) -> str:
