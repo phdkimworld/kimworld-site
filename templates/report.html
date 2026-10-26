@@ -97,6 +97,25 @@
     <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>
     {% endif %}
 
+    {# 유튜브·SNS에서 온 독자용 바로가기 줄은 투표·요약·영상보다 위(첫 화면)에 둔다(2026-10-26: 누름 4/120=3%, 빠른 이탈 17%) #}
+    {% if r.yt_jump %}
+    {% if r.answer_id %}
+    <nav class="yt-jump sns-jump" data-sns-jump hidden aria-label="SNS 질문의 답">
+      <p class="yt-jump-t">💬 Threads·인스타에서 오셨나요? 글이 물은 '몇 번?'의 답부터 보세요</p>
+      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.answer_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}{% if r.youtube_id %}<a class="chip" href="https://youtu.be/{{ r.youtube_id }}" rel="noopener">풀영상</a>{% endif %}</div>
+    </nav>
+    {% endif %}
+    <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
+      {% if r.yt_q and r.yt_ans_id %}
+      <p class="yt-jump-t">▶ 영상이 물은 질문: {{ r.yt_q }}</p>
+      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.yt_ans_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}
+      {%- else %}
+      <p class="yt-jump-t">▶ 영상 보고 오셨나요? 영상에서 다 못 다룬 내용으로 바로 가기</p>
+      <div class="chip-row">{% if r.has_diag %}<a class="chip chip-hot" href="#diagnosis">지금 국면 진단</a>{% endif %}
+      {%- endif %}{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
+    </nav>
+    {% endif %}
+
     {# 투자 심리 투표: 리포트 맨 위(머리 아래, 핵심 요약 위). 종목 화면과 같은 표(운영자 결정 2026-10-14) #}
     {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
     {% if site.api_url %}
@@ -132,23 +151,6 @@
     </div>
     {% endif %}
 
-    {% if r.yt_jump %}
-    {% if r.answer_id %}
-    <nav class="yt-jump sns-jump" data-sns-jump hidden aria-label="SNS 질문의 답">
-      <p class="yt-jump-t">💬 Threads·인스타에서 오셨나요? 글이 물은 '몇 번?'의 답부터 보세요</p>
-      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.answer_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}{% if r.youtube_id %}<a class="chip" href="https://youtu.be/{{ r.youtube_id }}" rel="noopener">풀영상</a>{% endif %}</div>
-    </nav>
-    {% endif %}
-    <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
-      {% if r.yt_q and r.yt_ans_id %}
-      <p class="yt-jump-t">▶ 영상이 물은 질문: {{ r.yt_q }}</p>
-      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.yt_ans_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}
-      {%- else %}
-      <p class="yt-jump-t">▶ 영상 보고 오셨나요? 영상에서 다 못 다룬 내용으로 바로 가기</p>
-      <div class="chip-row">{% if r.has_diag %}<a class="chip chip-hot" href="#diagnosis">지금 국면 진단</a>{% endif %}
-      {%- endif %}{% for t in r.yt_jump %}<a class="chip" href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}</div>
-    </nav>
-    {% endif %}
     {% if r.toc %}
     <nav class="toc-chips" aria-label="목차">
       <span class="toc-chips-t">목차</span>
