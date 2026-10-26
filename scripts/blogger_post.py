@@ -70,11 +70,17 @@ def body(slug: str, fm: dict) -> str:
     return "\n".join(parts)
 
 
+def shape(v: str) -> str:
+    v = v.strip()
+    return f"길이 {len(v)}, 시작 {'GOCSPX-' if v.startswith('GOCSPX-') else '다른 형식'}"
+
+
 def token() -> str:
+    print(f"::notice title=비밀값 모양::BLOGGER_CLIENT_SECRET {shape(os.environ['BLOGGER_CLIENT_SECRET'])} / REFRESH 길이 {len(os.environ['BLOGGER_REFRESH_TOKEN'].strip())}, 시작 {'1//' if os.environ['BLOGGER_REFRESH_TOKEN'].strip().startswith('1//') else '다른 형식'}")
     data = urllib.parse.urlencode({
-        "client_id": os.environ["GOOGLE_CLIENT_ID"],
-        "client_secret": os.environ["BLOGGER_CLIENT_SECRET"],
-        "refresh_token": os.environ["BLOGGER_REFRESH_TOKEN"],
+        "client_id": os.environ["GOOGLE_CLIENT_ID"].strip(),
+        "client_secret": os.environ["BLOGGER_CLIENT_SECRET"].strip().strip("\"'"),
+        "refresh_token": os.environ["BLOGGER_REFRESH_TOKEN"].strip().strip("\"'"),
         "grant_type": "refresh_token",
     }).encode()
     with urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=data), timeout=30) as r:
