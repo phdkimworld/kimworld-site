@@ -105,8 +105,8 @@ E
 
 ### 1-4. 자주 묻는 질문을 바로 뽑는 예
 ```bash
-# 지난 7일 채널별 세션
-jq -r '.channels[]|"\(.ch)\t\(.sess)\t(전주 \(.prevSess))"' /tmp/an.json
+# 채널별 세션(직전 기간 자료가 없으면 "없음")
+jq -r '.channels[]|"\(.ch)\t\(.sess)\t(직전 기간 \(.prevSess // "없음"))"' /tmp/an.json
 # 구글·네이버·다음 검색 유입
 jq -r '.sources[]|select(.ch=="search")|"\(.src)\t\(.sess)"' /tmp/an.json
 # 리포트별 체류·스크롤 상위
