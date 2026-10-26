@@ -18,10 +18,14 @@ RULES = ("커뮤니티 규칙\n"
 
 
 def intro_of(body: str, limit: int = 160) -> str:
-    m = re.search(r"^## 1부[^\n]*\n+(.+?)(?:\n\n|\Z)", body, flags=re.S | re.M)
+    m = re.search(r"^## 1부[^\n]*\n+(.*?)(?=^## |\Z)", body, flags=re.S | re.M)
     if not m:
         return ""
-    t = re.sub(r"^\*\*핵심\*\*\s*", "", m.group(1).strip())          # 앞의 **핵심** 표시
+    # 1부의 첫 '본문' 문단: 소제목(### 핵심)·표·인용·이미지는 건너뛴다(2026-10-26 WIMI 공지가 '### 핵심'을 소개로 씀)
+    paras = [x.strip() for x in m.group(1).split("\n\n") if x.strip() and not x.strip().startswith(("#", "|", ">", "!", "-"))]
+    if not paras:
+        return ""
+    t = re.sub(r"^\*\*(핵심|쉽게 말하면)\*\*\s*", "", paras[0])          # 앞의 **핵심**·**쉽게 말하면** 표시
     t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)                      # 링크는 글자만
     t = re.sub(r"[*_`]", "", t).replace("\n", " ").strip()
     # 첫 문장 하나(너무 짧으면 둘째 문장까지). 한국어 문장 끝 '다.'
@@ -63,6 +67,10 @@ def main() -> None:
             "INSERT INTO comments (slug, nick, body, ih, did, created, status, pinned, reviewed) "
             f"SELECT '{slug}', '김박사 월드', '{esc}', 'notice', 'notice', {now_ms}, 'ok', 1, 1 "
             f"WHERE NOT EXISTS (SELECT 1 FROM comments WHERE slug = '{slug}' AND pinned = 1);")
+        # 소개 자리에 소제목이 들어간 옛 공지(· 회사: ###…)는 고친 소개로 바꾼다(한 번 고치면 더 걸리지 않음)
+        if intro:
+            out.append(f"UPDATE comments SET body = '{esc}' WHERE slug = '{slug}' AND pinned = 1 AND nick = '김박사 월드' "
+                       "AND body LIKE '%· 회사: #%';")
     out += report_alerts(now_ms)
     sys.stdout.write("\n".join(out) + "\n")
 

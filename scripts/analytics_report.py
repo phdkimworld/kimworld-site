@@ -7,6 +7,7 @@
 사용자 닉네임·상위 사용자·검색어 원문·검색 실패어 원문은 넣지 않는다(검색 실패는 개수만).
 """
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +20,14 @@ def pct(a, b):
 
 def rate(a, b, k=100, nd=1):
     return round(a / b * k, nd) if b else None
+
+
+def is_name_like(q: str) -> bool:
+    """종목 티커·회사 이름처럼 생긴 검색어인지(공개 주석에 실어도 되는지)."""
+    q = q.strip()
+    if not q or len(q) > 20 or re.search(r"[@/:\\]|\d{4,}", q):
+        return False
+    return bool(re.fullmatch(r"[A-Za-z0-9.\-]{1,10}|[가-힣A-Za-z0-9 .&\-]{1,20}", q)) and len(q.split()) <= 3
 
 
 def pick(d, keys):
@@ -93,6 +102,9 @@ def summarize(a: dict) -> dict:
     out["cohorts"] = [pick(x, ("day", "n", "d1", "d7")) for x in a.get("cohorts", [])[-14:]]
     misses = a.get("misses") or []
     out["search_miss"] = {"distinct": len(misses), "total": sum(x.get("n", 0) for x in misses)}
+    # 결과 없던 검색어 = 2순위 종목 요청(운영자 지시 2026-10-26 "결과 없던 검색어도 세컨티어 요청종목으로 간주").
+    # 주석은 공개되므로 종목·회사 이름처럼 생긴 짧은 검색어만 싣는다(이메일·전화번호·긴 문장 등 개인정보가 될 수 있는 것은 뺀다)
+    out["search_miss_top"] = [{"q": x.get("q"), "n": x.get("n", 0)} for x in misses if is_name_like(x.get("q") or "")][:20]
     out["searches_total"] = sum(x.get("n", 0) for x in a.get("searches", []))
     return out
 
