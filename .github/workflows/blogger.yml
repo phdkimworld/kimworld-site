@@ -1,0 +1,56 @@
+name: Blogger (새 리포트 소개 글)
+
+# 새 리포트(공개 7일 이내)를 구글 블로거 '김박사 월드 노트'에 짧은 소개 글로 올린다. 하루 최대 2건.
+# 운영자 요청 2026-10-25. 비밀값: GOOGLE_CLIENT_ID(사이트 구글 로그인과 같은 클라이언트), BLOGGER_CLIENT_SECRET, BLOGGER_REFRESH_TOKEN
+on:
+  schedule:
+    - cron: "20 1,13 * * *"   # 하루 두 번(UTC 01:20, 13:20 = 동부 저녁·아침)
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "이 리포트 하나만 올리기(비우면 자동)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+      BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+      BLOGGER_BLOG_ID: "7073807355015585186"
+      SLUG: ${{ inputs.slug }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check secrets
+        run: |
+          for k in GOOGLE_CLIENT_ID BLOGGER_CLIENT_SECRET BLOGGER_REFRESH_TOKEN; do
+            if [ -n "${!k}" ]; then echo "::notice::$k 설정함"; else echo "::warning::$k 없음 — 건너뜀"; SKIP=1; fi
+          done
+          if [ -n "$SKIP" ]; then echo "SKIP=1" >> $GITHUB_ENV; fi
+      - name: Post
+        if: env.SKIP != '1'
+        run: |
+          pip install -q pyyaml
+          python3 scripts/blogger_post.py
+      - name: Commit
+        if: env.SKIP != '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A social/blogger
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "블로거 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
