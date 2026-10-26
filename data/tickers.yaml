@@ -564,3 +564,9 @@ INFQ:
   exchange: "NYSE"
   theme: "양자컴퓨팅"
   aliases: ["인플렉션", "Infleqtion", "인플렉션 양자", "중성 원자 양자컴퓨터"]
+BTBT:
+  name: "비트 디지털"
+  name_en: "Bit Digital, Inc."
+  exchange: "NASDAQ"
+  theme: "코인·블록체인"
+  aliases: ["비트디지털", "Bit Digital", "골든 불", "Golden Bull", "DNJR"]
