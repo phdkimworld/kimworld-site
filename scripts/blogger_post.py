@@ -70,21 +70,29 @@ def body(slug: str, fm: dict) -> str:
     return "\n".join(parts)
 
 
-def shape(v: str) -> str:
-    v = v.strip()
-    return f"길이 {len(v)}, 시작 {'GOCSPX-' if v.startswith('GOCSPX-') else '다른 형식'}"
-
-
 def token() -> str:
-    print(f"::notice title=비밀값 모양::BLOGGER_CLIENT_SECRET {shape(os.environ['BLOGGER_CLIENT_SECRET'])} / REFRESH 길이 {len(os.environ['BLOGGER_REFRESH_TOKEN'].strip())}, 시작 {'1//' if os.environ['BLOGGER_REFRESH_TOKEN'].strip().startswith('1//') else '다른 형식'}")
-    data = urllib.parse.urlencode({
-        "client_id": os.environ["GOOGLE_CLIENT_ID"].strip(),
-        "client_secret": os.environ["BLOGGER_CLIENT_SECRET"].strip().strip("\"'"),
-        "refresh_token": os.environ["BLOGGER_REFRESH_TOKEN"].strip().strip("\"'"),
-        "grant_type": "refresh_token",
-    }).encode()
-    with urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=data), timeout=30) as r:
-        return json.load(r)["access_token"]
+    """클라이언트 ID·보안 비밀번호 조합을 차례로 시도한다(블로거 전용 비밀번호 → 사이트 구글 로그인 비밀번호).
+    갱신 토큰은 OAuth 클라이언트에 묶여 있고, 같은 클라이언트의 사용 중인 비밀번호라면 어느 것이든 통한다."""
+    rt = os.environ["BLOGGER_REFRESH_TOKEN"].strip().strip("\"'")
+    ids = [os.environ.get("GOOGLE_CLIENT_ID", ""), os.environ.get("GOOGLE_CLIENT_ID_SECRET", "")]
+    secs = [("BLOGGER_CLIENT_SECRET", os.environ.get("BLOGGER_CLIENT_SECRET", "")), ("GOOGLE_CLIENT_SECRET", os.environ.get("GOOGLE_CLIENT_SECRET", ""))]
+    last = None
+    for cid in dict.fromkeys(i.strip() for i in ids if i.strip()):
+        for name, sec in secs:
+            sec = sec.strip().strip("\"'")
+            if not sec:
+                continue
+            data = urllib.parse.urlencode({"client_id": cid, "client_secret": sec, "refresh_token": rt, "grant_type": "refresh_token"}).encode()
+            try:
+                with urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=data), timeout=30) as r:
+                    tok = json.load(r)["access_token"]
+                print(f"::notice title=블로거 인증::{name} + 클라이언트 {cid[:12]}… 로 성공")
+                return tok
+            except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8", "replace")[:300].replace("\n", " ")
+                print(f"::warning title=블로거 인증 실패::{name} + 클라이언트 {cid[:12]}… → {e.code} {body}")
+                last = e
+    raise SystemExit("블로거 인증 실패(위 경고 참고)") if last is None else SystemExit(1)
 
 
 def publish(tok: str, title: str, content: str, labels: list) -> str:

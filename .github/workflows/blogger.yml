@@ -25,6 +25,8 @@ jobs:
     env:
       GOOGLE_CLIENT_ID: "385980026755-sdef5j26m2kk509tuiec56s3099jc8av.apps.googleusercontent.com"   # drkimworld web 클라이언트(공개값)
       BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_CLIENT_ID_SECRET: ${{ secrets.GOOGLE_CLIENT_ID }}
       BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
       BLOGGER_BLOG_ID: "7073807355015585186"
       SLUG: ${{ inputs.slug }}
