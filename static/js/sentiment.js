@@ -81,6 +81,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function load() { return C.api('/v1/sentiment/' + encodeURIComponent(tk)).then(function (d) { paint(d); if (d && d.rp && C.paintRepost) C.paintRepost('v', tk, d.rp.n, d.rp.on); }).catch(function () {}); }
   // 투표 상자만 공유: 미리보기(카카오톡·쓰레드·X)에는 질문이, 누르면 이 종목 화면의 투표 상자로
+  // 의견 남기기: 투표 상자를 붙인 글쓰기 창(그 종목 커뮤니티로). 투표했으면 내 쪽을 첫 줄 힌트로
+  var cmb = q('[data-sent-cmt]');
+  if (cmb) cmb.addEventListener('click', function () {
+    if (window.kwEv) kwEv('poll_comment');
+    if (!C.openCompose) return;
+    var mine = DATA && DATA.voted, side = mine === 'bull' ? '오를 것 같다' : mine === 'bear' ? '내릴 것 같다' : '';
+    C.openCompose({ kind: 'v', ref: tk, text: '' }, {
+      board: 'b-' + tk.toLowerCase(), title: '$' + tk + ' 의견 남기기',
+      placeholder: side ? '나는 "' + side + '" 쪽. 왜 그렇게 보는지 한두 줄 남겨 주세요' : '오를까, 내릴까? 내 생각과 이유를 한두 줄 남겨 주세요'
+    });
+  });
   var shb = q('[data-sent-share]');
   if (shb) shb.addEventListener('click', function () {
     var h = q('.sent-q'), u = (C.apiBase || '') + '/s/v/' + encodeURIComponent(tk);

@@ -1013,11 +1013,11 @@
     if (!opts.onDone && window.kwCmtyDone) opts.onDone = window.kwCmtyDone; // 리포트·종목 화면: 올린 뒤 그 화면 커뮤니티 목록에 바로
     meReady.then(function () {
       if (LOGGED && !ME) { openAccount(); return; }
-      var body = dialog(!q ? '새 글' : q.kind === 'v' ? '투표 인용하기' : q.text ? '인용하기' : '리포트 공유'); if (window.kwEv) kwEv(q ? 'quote_open' : 'compose_open');
+      var body = dialog(opts.title || (!q ? '새 글' : q.kind === 'v' ? '투표 인용하기' : q.text ? '인용하기' : '리포트 공유')); if (window.kwEv) kwEv(q ? 'quote_open' : 'compose_open');
       var head = el('div', 'qt-who'); head.appendChild(ME ? avatar(ME.nick, ME.id) : avatar('익')); head.appendChild(el('strong', null, ME ? ME.nick : '익명으로 쓰기'));
       body.appendChild(head);
       var ta = el('textarea', 'qt-body'); ta.rows = 3; ta.maxLength = 500;
-      ta.placeholder = !q ? '이 종목에 대한 생각을 나눠 보세요' : q.kind === 'v' ? '나는 어느 쪽인지, 왜 그렇게 보는지 써 주세요' : q.text ? '이 부분에 대한 내 생각을 써 주세요' : '이 리포트에 대한 생각을 써 주세요';
+      ta.placeholder = opts.placeholder || (!q ? '이 종목에 대한 생각을 나눠 보세요' : q.kind === 'v' ? '나는 어느 쪽인지, 왜 그렇게 보는지 써 주세요' : q.text ? '이 부분에 대한 내 생각을 써 주세요' : '이 리포트에 대한 생각을 써 주세요');
       body.appendChild(ta);
       if (q) { var pv = quoteBox(q); pv.removeAttribute('href'); pv.classList.add('quote-preview'); if (q.kind === 'v') pv.querySelectorAll('.fpoll, .sent-acts').forEach(function (x) { x.remove(); }); body.appendChild(pv); }
       var nick = null;

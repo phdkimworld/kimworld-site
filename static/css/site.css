@@ -1480,11 +1480,12 @@ article.report .sent { margin-top: 14px; }
 .explore-tabs [hidden] { display: none; }
 
 /* 투표 상자 공유·리포스트, 커뮤니티 글에 붙은 투표 */
-.sent-acts { display: flex; gap: 8px; margin-top: 10px; }
+.sent-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sa-b { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
 .sa-b .ic { width: 16px; height: 16px; }
 .sa-b[aria-pressed="true"] { color: #16a34a; border-color: #16a34a; }
 .sa-b[hidden] { display: none; }
+.sa-cmt { border-color: var(--accent); color: var(--accent); }
 .sa-n:empty { display: none; }
 .quote-poll { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); margin-top: 8px; }
 .quote-poll .qp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
