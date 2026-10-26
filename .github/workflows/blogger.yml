@@ -1,7 +1,8 @@
 name: Blogger (새 리포트 소개 글)
 
 # 새 리포트(공개 7일 이내)를 구글 블로거 '김박사 월드 노트'에 짧은 소개 글로 올린다. 하루 최대 2건.
-# 운영자 요청 2026-10-25. 비밀값: GOOGLE_CLIENT_ID(사이트 구글 로그인과 같은 클라이언트), BLOGGER_CLIENT_SECRET, BLOGGER_REFRESH_TOKEN
+# 운영자 요청 2026-10-25. 인증: drkimworld web 클라이언트(ID는 아래 공개값) + GOOGLE_CLIENT_SECRET(또는 BLOGGER_CLIENT_SECRET) + BLOGGER_REFRESH_TOKEN.
+# 다른 세션의 사용법: docs/blogger-guide.md
 on:
   schedule:
     - cron: "20 1,13 * * *"   # 하루 두 번(UTC 01:20, 13:20 = 동부 저녁·아침)
@@ -9,6 +10,9 @@ on:
     inputs:
       slug:
         description: "이 리포트 하나만 올리기(비우면 자동)"
+        required: false
+      dry:
+        description: "1이면 올리지 않고 제목·라벨·본문 앞부분만 주석으로 보여 준다"
         required: false
 
 permissions:
@@ -30,14 +34,18 @@ jobs:
       BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
       BLOGGER_BLOG_ID: "7073807355015585186"
       SLUG: ${{ inputs.slug }}
+      DRY: ${{ inputs.dry }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check secrets
         run: |
-          for k in GOOGLE_CLIENT_ID BLOGGER_CLIENT_SECRET BLOGGER_REFRESH_TOKEN; do
-            if [ -n "${!k}" ]; then echo "::notice::$k 설정함"; else echo "::warning::$k 없음 — 건너뜀"; SKIP=1; fi
+          # 값은 출력하지 않고 있는지만 남긴다
+          for k in BLOGGER_REFRESH_TOKEN GOOGLE_CLIENT_SECRET BLOGGER_CLIENT_SECRET; do
+            if [ -n "${!k}" ]; then echo "::notice::$k 설정함"; else echo "::notice::$k 없음"; fi
           done
-          if [ -n "$SKIP" ]; then echo "SKIP=1" >> $GITHUB_ENV; fi
+          if [ -z "$BLOGGER_REFRESH_TOKEN" ] || { [ -z "$GOOGLE_CLIENT_SECRET" ] && [ -z "$BLOGGER_CLIENT_SECRET" ]; }; then
+            echo "::warning::갱신 토큰 또는 보안 비밀번호가 없어 건너뜀"; echo "SKIP=1" >> $GITHUB_ENV
+          fi
       - name: Post
         if: env.SKIP != '1'
         run: |

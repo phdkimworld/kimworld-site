@@ -155,7 +155,7 @@ def main() -> int:
         labels = [x for x in [str(fm.get("ticker") or ""), str(fm.get("theme") or ""), "미국주식"] if x]
         content = body(slug, fm)
         if dry:
-            print(title, labels, content[:400], sep="\n")
+            print(f"::notice title=미리보기 {slug}::{title} | 라벨 {', '.join(labels)} | {html.unescape(content).replace(chr(10), " ")[:500]}")
             n += 1
             continue
         url = publish(tok, title, content, labels)
