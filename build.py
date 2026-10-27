@@ -1005,6 +1005,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
             r["yt_ans_id"] = next((t["id"] for t in r["toc"] if t["name"].strip() == "짧은 답"), "")
         # SNS 글이 묻는 '몇 번?'의 답이 있는 3부 소제목(운영자 지시 2026-10-20 SNS 퍼널: 질문 → 답으로 바로)
         r["answer_id"] = next((t["id"] for t in flat if re.search(r"무너진 날|거래일 뒤|몇 번", t["name"])), "")
+        # SNS 바로가기 줄 제목도 고정 문구 대신 그 리포트 요약 끝 질문으로(2026-10-27: sns_jump 누름 0/16)
+        r["sns_q"] = r["yt_q"] or (video_question(r["summary"], r["body_html"])[0] if r["answer_id"] else "")
         idx = public.index(r) if r in public else -1
         r["prev"] = public[idx + 1] if idx >= 0 and idx + 1 < len(public) else None
         r["next"] = public[idx - 1] if idx > 0 else None

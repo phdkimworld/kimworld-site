@@ -101,7 +101,8 @@
     {% if r.yt_jump %}
     {% if r.answer_id %}
     <nav class="yt-jump sns-jump" data-sns-jump hidden aria-label="SNS 질문의 답">
-      <p class="yt-jump-t">💬 Threads·인스타에서 오셨나요? 글이 물은 '몇 번?'의 답부터 보세요</p>
+      {% if r.sns_q %}<p class="yt-jump-t">💬 글이 물은 질문: {{ r.sns_q }}</p>
+      {%- else %}<p class="yt-jump-t">💬 Threads·인스타에서 오셨나요? 글이 물은 '몇 번?'의 답부터 보세요</p>{% endif %}
       <div class="chip-row"><a class="chip chip-hot" href="#{{ r.answer_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}{% if r.youtube_id %}<a class="chip" href="https://youtu.be/{{ r.youtube_id }}" rel="noopener">풀영상</a>{% endif %}</div>
     </nav>
     {% endif %}
