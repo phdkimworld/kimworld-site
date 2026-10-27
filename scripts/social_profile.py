@@ -56,7 +56,25 @@ def read_all():
     return out
 
 
+def set_profile(path):
+    """페이스북 페이지 소개(about)만 API로 고친다. Threads·인스타 바이오는 API로 고칠 수 없어 앱에서 직접 바꾼다."""
+    want = json.load(open(path, encoding="utf-8"))
+    res = {}
+    fb = want.get("facebook", {})
+    tok, pid = os.environ.get("FB_PAGE_TOKEN"), os.environ.get("FB_PAGE_ID")
+    if fb.get("about") and tok and pid:
+        try:
+            fb_call("POST", pid, {"about": fb["about"]}, tok)
+            res["facebook"] = {"ok": True}
+        except Exception as e:
+            res["facebook"] = {"ok": False, "error": str(e)}
+    print("PROFILE_SET_JSON:" + json.dumps(res, ensure_ascii=False))
+    return 0 if all(v.get("ok") for v in res.values()) else 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[1] == "--set":
+        sys.exit(set_profile(sys.argv[2]))
     r = read_all()
     for k, v in r.items():
         print(f"{k}: {'읽기 정상' if v.get('ok') else '읽기 실패'}")
