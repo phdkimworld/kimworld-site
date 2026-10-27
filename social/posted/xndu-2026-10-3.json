@@ -15,5 +15,16 @@
   "channels": [
     "threads"
   ],
-  "publish_at": "2026-10-27T03:29-04:00"
+  "publish_at": "2026-10-27T03:29-04:00",
+  "results": {
+    "threads": {
+      "ids": [
+        "18570919063077737",
+        "18137056408660039"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/De_WgXclivG",
+      "done": true
+    }
+  },
+  "posted_at": "2026-10-27T03:45:52-04:00"
 }
