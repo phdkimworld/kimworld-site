@@ -582,3 +582,9 @@ ANT:
   exchange: "NASDAQ"
   theme: "AI 소프트웨어"
   aliases: ["앤트로픽", "Anthropic", "앤쓰로픽", "클로드", "Claude"]
+SNDK:
+  name: "샌디스크"
+  name_en: "Sandisk Corporation"
+  exchange: "NASDAQ"
+  theme: "AI 반도체"
+  aliases: ["샌디스크", "SanDisk", "Sandisk"]
