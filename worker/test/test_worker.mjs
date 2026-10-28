@@ -457,7 +457,7 @@ check(!JSON.stringify((await DB.prepare("SELECT * FROM an_seen").all()).results)
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", q: 1, a: 3, r: "youtube", s: 1 }, ip: "91.0.0.4" });
 await call("POST", "/v1/hit", { body: { p: "/", q: 1, a: 2, r: "direct", s: 2 }, ip: "91.0.0.5" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
-check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_land === 1, "빨리 나간 방문: 페이지뷰 제외, quick·첫 페이지 quick_land 합계");
+check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_land === 1 && an.data.bots["ql:r:yt"] === 1 && !an.data.bots["ql:h:direct"], "빨리 나간 방문: 페이지뷰 제외, quick·첫 페이지 quick_land 합계, 랜딩 종류·유입별(ql:r:yt)");
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", s: 1, a: 40, av: { adfit: 2, coupang: 1, hack: 5, adsense: 999 } }, ip: "91.0.0.7" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const adv = {}; (an.data.eventsDaily || []).forEach((x) => { if (x.ev.startsWith("adv_")) adv[x.ev] = (adv[x.ev] || 0) + x.n; });

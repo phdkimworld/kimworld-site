@@ -95,7 +95,10 @@ def summarize(a: dict) -> dict:
     top = [x.get("path") for x in a.get("reports", []) if x.get("path") in byp][:8]
     out["sections"]["reports"] = {p: curve(byp[p]) for p in top}
     out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
-    out["bots"] = a.get("bots")
+    bots = a.get("bots") or {}
+    out["bots"] = {k: v for k, v in bots.items() if not str(k).startswith("ql:")}
+    # 빠른 이탈 랜딩을 페이지 종류(h 홈·r 리포트·t 종목·th 테마…):유입 묶음(yt·sns·search·direct·other)별로. 2026-10-28부터 쌓임
+    out["quick_land_by"] = dict(sorted(((k[3:], v) for k, v in bots.items() if str(k).startswith("ql:")), key=lambda x: -x[1]))
     out["os"] = {}
     for x in a.get("tech", []):
         out["os"][x.get("os")] = out["os"].get(x.get("os"), 0) + (x.get("pv") or 0)

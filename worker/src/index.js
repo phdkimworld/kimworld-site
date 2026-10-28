@@ -294,6 +294,14 @@ function botWhy(req) {
   if (asn && DC_ASN.has(asn)) return "dc";
   return "";
 }
+// 빠른 이탈 랜딩을 어디로(페이지 종류)·어디서(유입 묶음) 왔는지 가리는 묶음. 묶음 수를 작게 유지
+function quickSrc(src) {
+  if (src === "youtube") return "yt";
+  if (/^(threads|ig|instagram|facebook|fb|x|t\.co|twitter)$/.test(src)) return "sns";
+  if (/(google|naver|daum|bing)/.test(src)) return "search";
+  if (src === "direct") return "direct";
+  return "other";
+}
 function countBot(db, today, why) {
   return db.prepare("INSERT INTO an_bot (day, why, n) VALUES (?, ?, 1) ON CONFLICT(day, why) DO UPDATE SET n = n + 1").bind(today, why).run().catch(() => {});
 }
@@ -614,7 +622,7 @@ export default {
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
         // 빨리 나감(15초 안·무반응): 화면이 보낸 표시. 봇이 아니면 '빠른 이탈' 합계만(페이지뷰·세션에는 넣지 않음). 랜딩(첫 페이지)이면 quick_land 도
-        if (b.q === 1) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) { await countBot(db, today, bot || "quick"); if (!bot && s === 1) await countBot(db, today, "quick_land"); } return json(req, { ok: true }); }
+        if (b.q === 1) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) { await countBot(db, today, bot || "quick"); if (!bot && s === 1) { await countBot(db, today, "quick_land"); await countBot(db, today, `ql:${t}:${quickSrc(src)}`); } } return json(req, { ok: true }); }
         const why = bot || (a < 2 && !sc && !evs.length && !b.hu ? "idle" : "");
         if (why) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) await countBot(db, today, why); return json(req, { ok: true }); }
         if (!(await allow(db, `hit|${ih}`, 3000, 864e5, now))) return json(req, { ok: false });
