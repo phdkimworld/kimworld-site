@@ -69,7 +69,7 @@
       var sum = function (xs, k) { return xs.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
       var last = rows[rows.length - 1], w1 = rows.slice(-7), w0 = rows.slice(-14, -7);
       var e1 = sum(w1, 'earn'), e0 = sum(w0, 'earn'), i1 = sum(w1, 'impressions'), r1 = sum(w1, 'rendered');
-      box.appendChild(heading('애드핏 실적', '운영자가 붙여 준 데일리 리포트 · 한국 날짜 · ' + rows[0].day.slice(5).replace('-', '.') + '부터'));
+      box.appendChild(heading('애드핏 실적', '휴대폰 전달 앱 → 비공개 서버 기록 · 한국 날짜 · ' + rows[0].day.slice(5).replace('-', '.') + '부터'));
       var k = el('div', 'an-tiles');
       k.appendChild(tile('전체 예상 적립금', nf(last.cum_earn || sum(rows, 'earn')) + '원', '확정 ' + nf(last.confirmed) + '원 · 다음 달 21일부터 지급 신청'));
       k.appendChild(tile('최근 7일 적립금', nf(e1) + '원', '하루 ' + (e1 / w1.length).toFixed(1) + '원', w0.length === 7 ? delta(e1, e0) : null));
