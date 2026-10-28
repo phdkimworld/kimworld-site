@@ -60,9 +60,13 @@
     return card;
   }
   // ---------- 애드핏 실적: 운영자가 붙여 준 데일리 리포트(data/adfit_daily.csv → /admin/adfit.json). 기간 버튼과 상관없이 전체 기록 ----------
-  function adfitPanel(box) {
-    fetch(base + '/admin/adfit.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
-      if (!rows || !rows.length) return;
+  function adfitPanel(box, live) {
+    fetch(base + '/admin/adfit.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (rows) {
+      // 저장소 기록(빌드 때) + 서버 기록(휴대폰 자동 전달, 최신). 같은 날은 서버 쪽 숫자를 쓰고 메모는 저장소 쪽을 남긴다
+      var by = {}; (rows || []).forEach(function (r) { by[r.day] = r; });
+      (live || []).forEach(function (r) { by[r.day] = Object.assign({}, by[r.day] || {}, r, { note: (by[r.day] || {}).note || '' }); });
+      rows = Object.keys(by).map(function (k) { return by[k]; });
+      if (!rows.length) return;
       rows = rows.slice().sort(function (a, b) { return a.day < b.day ? -1 : 1; });
       var vr = function (r) { return r.rendered ? r.impressions / r.rendered * 100 : 0; };
       var sum = function (xs, k) { return xs.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
@@ -432,7 +436,7 @@
       g.appendChild(bars('시간대별 페이지뷰 (미국 동부시간)', hoursEt, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hoursEt.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시 (ET)'; } }));
     }
     body.appendChild(g);
-    var afBox = el('div'); body.appendChild(afBox); adfitPanel(afBox);
+    var afBox = el('div'); body.appendChild(afBox); adfitPanel(afBox, d.adfit || []);
 
     var acq = acquisition(d, T); delta.short = false; if (acq) body.appendChild(acq);
 

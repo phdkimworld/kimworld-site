@@ -880,5 +880,22 @@ check(secRows.length === 3 && !secRows.some((x) => x.sec === "hack"), "구간 �
 check(secRows.reduce((t, x) => t + x.secs, 0) === 50 && secRows.find((x) => x.sec === "p1").secs === 10, "구간 초 합은 페이지 체류까지");
 const anS = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 check(anS.data.sections.all.find((x) => x.sec === "ans").reach === 1 && anS.data.sections.byPath.length === 3, "통계에 구간 도달·체류");
+console.log("애드핏 데일리 리포트 받기");
+{
+  const { createHash } = await import("node:crypto");
+  env.ADFIT_KEY_SHA = createHash("sha256").update("af_test_key").digest("hex");
+  const txt = "[카카오애드핏 데일리 리포트]\n\n▶︎ 조회일:  2026년 10월 27일 (Tue)\n\n✓ 예상 적립금 : 5원  (-60%)\n+ 요청수 : 354 (-5.93%)\n+ 노출수 : 75 (+29.31%)\n+ 렌더드 노출수 : 308 (+7.32%)\n+ 클릭수 : 0 (%)\n+ CTR : 0% (%) \n+ eCPM : 67원 (-106.9%) \n\nㅡ\n▶︎ 적립금 현황\n\n✓ 전체 예상 적립금 : 1,408원\n✓ 확정 적립금 :  0원";
+  const r0 = await call("POST", "/v1/ingest/adfit?k=wrong", { body: { text: txt }, ip: "94.0.0.1" });
+  check(r0.status === 401, "애드핏: 열쇠가 틀리면 거절");
+  const r1 = await call("POST", "/v1/ingest/adfit?k=af_test_key", { body: { text: txt }, ip: "94.0.0.1" });
+  check(r1.status === 200 && r1.data.day === "2026-10-27" && r1.data.earn === 5, "애드핏: 알림 글을 읽어 저장");
+  const r2 = await call("POST", "/v1/ingest/adfit?k=af_test_key", { body: { text: txt.replace("5원  (-60%)", "6원") }, ip: "94.0.0.1" });
+  const row = await DB.prepare("SELECT * FROM adfit_daily WHERE day = '2026-10-27'").first();
+  check(r2.status === 200 && row.earn === 6 && row.impressions === 75 && row.rendered === 308 && row.cum_earn === 1408 && row.ecpm === 67, "애드핏: 같은 날은 고침, 숫자 쉼표·렌더드/노출 구분");
+  const r3 = await call("POST", "/v1/ingest/adfit?k=af_test_key", { body: { text: "아무 글" }, ip: "94.0.0.1" });
+  check(r3.status === 400, "애드핏: 형식이 아니면 거절");
+  const anA = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+  check((anA.data.adfit || [])[0]?.day === "2026-10-27", "통계에 애드핏 기록");
+}
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

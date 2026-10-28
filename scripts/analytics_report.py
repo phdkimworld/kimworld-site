@@ -94,6 +94,7 @@ def summarize(a: dict) -> dict:
         byp.setdefault(x.get("path"), []).append(x)
     top = [x.get("path") for x in a.get("reports", []) if x.get("path") in byp][:8]
     out["sections"]["reports"] = {p: curve(byp[p]) for p in top}
+    out["adfit"] = (a.get("adfit") or [])[:14]  # 애드핏 데일리 리포트(휴대폰 자동 전달로 D1에 쌓임). 워크플로가 data/adfit_daily.csv에 합친다
     out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
     bots = a.get("bots") or {}
     out["bots"] = {k: v for k, v in bots.items() if not str(k).startswith("ql:")}

@@ -96,6 +96,31 @@ async function dayPepper(db, day) {
 // 기기 번호: 브라우저가 만든 무작위 값(d=). 형식이 맞을 때만 쓴다
 const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
 
+// ---------- 애드핏 데일리 리포트 받기 ----------
+// 운영자 휴대폰(MacroDroid 등)이 카카오톡 '카카오애드핏' 알림 글을 POST /v1/ingest/adfit 로 보낸다.
+// 열쇠는 운영자에게만 준 무작위 값이고, 코드에는 그 SHA-256만 둔다(공개 저장소). 이 열쇠로는 애드핏 숫자만 넣을 수 있다
+const ADFIT_KEY_SHA = "4e47b701b7b75c64d4744f44af08464ef08ea64dc751ad954b63caea76199f30";
+export function parseAdfit(text) {
+  const t = String(text || "").replace(/\r/g, "");
+  const m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
+  if (!m) return null;
+  const n = (re, src = t) => { const x = re.exec(src); return x ? parseInt(x[1].replace(/,/g, ""), 10) : null; };
+  const body = t.replace(/전체 예상 적립금[^\n]*/g, "");
+  const row = {
+    day: `${m[1]}-${String(m[2]).padStart(2, "0")}-${String(m[3]).padStart(2, "0")}`,
+    earn: n(/예상 적립금\s*[:：]\s*([\d,]+)/, body),
+    requests: n(/요청수\s*[:：]\s*([\d,]+)/),
+    rendered: n(/렌더드 노출수\s*[:：]\s*([\d,]+)/),
+    impressions: n(/(?<!렌더드 )노출수\s*[:：]\s*([\d,]+)/),
+    clicks: n(/클릭수\s*[:：]\s*([\d,]+)/),
+    ecpm: n(/eCPM\s*[:：]\s*([\d,]+)/),
+    cum_earn: n(/전체 예상 적립금\s*[:：]\s*([\d,]+)/),
+    confirmed: n(/확정 적립금\s*[:：]\s*([\d,]+)/),
+  };
+  if ([row.earn, row.requests, row.impressions, row.rendered].some((v) => v == null)) return null;
+  return row;
+}
+
 // 같은 키로 정해진 시간 안에 limit번까지만 허용
 async function allow(db, key, limit, ttlMs, now) {
   await db.prepare("INSERT INTO rate (k, n, exp) VALUES (?, 1, ?) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN exp < ? THEN 1 ELSE n + 1 END, exp = CASE WHEN exp < ? THEN excluded.exp ELSE exp END")
@@ -440,6 +465,7 @@ async function analytics(db, now, daysIn) {
     daily: Array.from({ length: days }, (_, i) => { const day = D(days - 1 - i); return { day, votes: svDay[day]?.votes || 0, voters: svDay[day]?.voters || 0 }; }),
   };
   // 리포트 업데이트 요청(최근 30일, 종목별)
+  ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.updReq = await all("SELECT ticker, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC LIMIT 15", now - 30 * 864e5).catch(() => []);
   const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
   ext.bots = Object.fromEntries(botRows.map((x) => [x.why, x.n]));
@@ -1273,6 +1299,21 @@ export default {
         const bull = rows.filter((x) => x.bull > 50).sort((a, b) => b.bull - a.bull || b.n - a.n).slice(0, 10);
         const bear = rows.filter((x) => x.bull < 50).sort((a, b) => a.bull - b.bull || b.n - a.n).slice(0, 10);
         return json(req, { days: 30, min, top, bull, bear }, 200, { "Cache-Control": "public, max-age=300" });
+      }
+      // ---------- 애드핏 데일리 리포트 받기(운영자 휴대폰 자동 전달) ----------
+      if (p === "/v1/ingest/adfit" && req.method === "POST") {
+        const key = req.headers.get("X-Ingest-Key") || url.searchParams.get("k") || "";
+        if (!(await allow(db, `adfit:${ip}`, 30, 3600e3, now))) return json(req, { error: "rate" }, 429);
+        if (!key || !safeEqual(await sha256hex(key), env.ADFIT_KEY_SHA || ADFIT_KEY_SHA)) return json(req, { error: "key" }, 401);
+        const raw = (await req.text()).slice(0, 4000);
+        let text = raw; try { const j = JSON.parse(raw); if (j && typeof j.text === "string") text = j.text; } catch {}
+        const row = parseAdfit(text);
+        if (!row) return json(req, { error: "parse", message: "애드핏 데일리 리포트 형식이 아닙니다" }, 400);
+        await db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
+          ON CONFLICT(day) DO UPDATE SET earn=excluded.earn, requests=excluded.requests, impressions=excluded.impressions, rendered=excluded.rendered, clicks=excluded.clicks,
+          ecpm=excluded.ecpm, cum_earn=excluded.cum_earn, confirmed=excluded.confirmed, updated=excluded.updated`)
+          .bind(row.day, row.earn, row.requests, row.impressions, row.rendered, row.clicks, row.ecpm, row.cum_earn, row.confirmed, now).run();
+        return json(req, { ok: true, day: row.day, earn: row.earn }, 200, { "Cache-Control": "no-store" });
       }
       // ---------- 종목 리포트 업데이트 요청(최근 30일 요청 수, 순위) ----------
       if (p === "/v1/requests/top" && req.method === "GET") {
