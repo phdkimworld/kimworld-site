@@ -117,8 +117,6 @@
     </nav>
     {% endif %}
 
-    {# 투자 심리 투표: 리포트 맨 위(머리 아래, 핵심 요약 위). 종목 화면과 같은 표(운영자 결정 2026-10-14) #}
-    {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
     {% if site.api_url %}
     <section class="upd-req" data-upd-req data-ticker="{{ r.ticker }}" aria-label="리포트 업데이트 요청" hidden>
       <div class="ur-txt"><strong>{% if r.newer %}이 종목 더 최근 리포트 있음{% else %}이 리포트 숫자 {{ r.data_as_of|kdate }} 기준{% endif %}</strong><span class="muted" data-ur-n>새 리포트가 필요하면 요청해 주세요</span></div>
@@ -162,6 +160,9 @@
     <div class="prose">
       {% for piece in body_pieces %}{{ piece|safe }}{% endfor %}
     </div>
+
+    {# 투자 심리 투표: 본문을 다 읽은 뒤(6부 뒤, 출처 위). 2026-10-14 '맨 위' 결정을 2026-10-28 운영자 지시(SKILL R1.7)로 바꿈 #}
+    {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
 
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">

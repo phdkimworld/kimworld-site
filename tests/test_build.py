@@ -447,8 +447,8 @@ if (D / "index.html").exists():
     check('data-sent ' in _tk and 'data-sent-v="bull"' in _tk and 'data-sent-v="bear"' in _tk and "sentiment.js" in _tk and _tk.index("data-sent ") < _tk.index('id="reports"' if 'id="reports"' in _tk else "seg-tabs"),
           "종목 화면 위: 투자 심리 투표(불리시·베어리시)")
     _rp = (D / "r/rgti-2026-10/index.html").read_text(encoding="utf-8") if (D / "r/rgti-2026-10/index.html").exists() else next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
-    check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index("data-report-bar") < _rp.index("data-sent ") < _rp.index('class="summary-box"') < _rp.index('class="prose"'),
-          "리포트 맨 위(핵심 요약 위): 같은 종목 투자 심리 투표")
+    check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index('class="summary-box"') < _rp.index('class="prose"') < _rp.index("data-sent ") < _rp.index('class="disclaimer-box"'),
+          "리포트 본문 끝(출처 위, SKILL R1.7 2026-10-28): 같은 종목 투자 심리 투표")
     _home = (D / "index.html").read_text(encoding="utf-8")
     _c1 = re.search(r'<article class="card post"[^>]*data-ticker="([A-Z0-9.]+)".*?</article>', _home, re.S)
     check(_c1 and 'data-fpoll data-ticker="' + _c1.group(1) + '"' in _c1.group(0) and 'data-fp-v="bull"' in _c1.group(0)
