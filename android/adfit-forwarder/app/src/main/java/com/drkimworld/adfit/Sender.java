@@ -29,7 +29,7 @@ public final class Sender {
         final SharedPreferences p = prefs(c);
         final String key = p.getString("key", "").trim();
         if (text == null) text = "";
-        if (text.contains(MARK)) p.edit().putString("last_text", text).apply();
+        if (text.contains("적립금")) p.edit().putString("last_text", text).apply();
         final int h = text.hashCode();
         if (!force && p.getInt("last_hash", 0) == h && p.getInt("last_code", 0) == 200) return;
         final String body = text;
@@ -41,7 +41,7 @@ public final class Sender {
                 con.setConnectTimeout(15000); con.setReadTimeout(20000);
                 con.setRequestMethod("POST"); con.setDoOutput(true);
                 con.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-                con.setRequestProperty("User-Agent", "kimworld-adfit-forwarder/1.0");
+                con.setRequestProperty("User-Agent", "kimworld-adfit-forwarder/1.1");
                 byte[] b = body.getBytes(StandardCharsets.UTF_8);
                 try (OutputStream os = con.getOutputStream()) { os.write(b); }
                 code = con.getResponseCode();

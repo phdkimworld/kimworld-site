@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
 
         TextView h = new TextView(this); h.setText("애드핏 전달"); h.setTextSize(24); h.setTypeface(Typeface.DEFAULT_BOLD);
         box.addView(h);
-        box.addView(text("카카오톡으로 오는 '카카오애드핏 데일리 리포트' 알림만 골라 김박사 월드 운영 통계로 보냅니다. 다른 카톡 알림은 보내지 않습니다."));
+        box.addView(text("카카오톡으로 오는 '카카오애드핏' 실적 알림(데일리 리포트·매체별 보고서)만 골라 김박사 월드 운영 통계로 보냅니다. 다른 카톡 알림은 보내지 않습니다."));
 
         box.addView(text("\n1. 열쇠 (운영 통계 화면 → 애드핏 실적 → '열쇠 만들기'에서 복사)"));
         final EditText key = new EditText(this);
@@ -54,8 +54,8 @@ public class MainActivity extends Activity {
         }))));
         box.addView(button("마지막 애드핏 알림 다시 보내기", v -> {
             String t = p.getString("last_text", "");
-            if (!t.contains(Sender.MARK)) { Toast.makeText(this, "아직 받은 애드핏 알림이 없습니다", Toast.LENGTH_SHORT).show(); return; }
-            Sender.send(this, t, true, (code, body) -> runOnUiThread(() -> { Toast.makeText(this, code == 200 ? "보냈습니다" : "실패 " + code, Toast.LENGTH_LONG).show(); refresh(); }));
+            if (!t.contains("적립금")) { Toast.makeText(this, "아직 받은 애드핏 알림이 없습니다", Toast.LENGTH_SHORT).show(); return; }
+            Sender.send(this, t, true, (code, body) -> runOnUiThread(() -> { Toast.makeText(this, code == 200 ? "보냈습니다" : "실패 " + code + " " + body, Toast.LENGTH_LONG).show(); refresh(); }));
         }));
 
         box.addView(text("\n상태"));

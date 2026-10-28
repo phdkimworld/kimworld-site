@@ -23,9 +23,17 @@ def num(pat: str, text: str):
 
 def parse(text: str) -> dict:
     m = re.search(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일", text)
-    if not m:
-        raise SystemExit("조회일(YYYY년 M월 D일)을 찾지 못했습니다")
-    row = {"day": f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"}
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    else:  # 매체별 보고서: '조회일: 10월 27일 (Tue)' — 한국 날짜 기준 올해(앞으로의 달이면 작년)
+        m = re.search(r"조회일\s*[:：]?\s*(\d{1,2})월\s*(\d{1,2})일", text)
+        if not m:
+            raise SystemExit("조회일을 찾지 못했습니다")
+        import datetime as _dt
+        k = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=9))).date()
+        mo, d = int(m.group(1)), int(m.group(2))
+        y = k.year - 1 if mo > k.month else k.year
+    row = {"day": f"{y}-{mo:02d}-{d:02d}"}
     row["cum_earn"] = num(r"전체 예상 적립금", text)
     row["confirmed"] = num(r"확정 적립금", text)
     # '예상 적립금'은 '전체 예상 적립금' 줄과 겹치므로 그 줄을 지운 뒤 찾는다

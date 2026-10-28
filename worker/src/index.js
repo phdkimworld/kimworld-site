@@ -101,8 +101,13 @@ const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
 // 열쇠는 운영자가 정해 GitHub 비밀값 ADFIT_INGEST_KEY에 넣은 값(api.yml이 워커 비밀값으로 넣음). 없으면 이 기능은 꺼진다. 이 열쇠로는 애드핏 숫자만 넣을 수 있다
 export function parseAdfit(text) {
   const t = String(text || "").replace(/\r/g, "");
-  const m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
-  if (!m) return null;
+  let m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
+  if (!m) { // 매체별 보고서는 '조회일: 10월 27일 (Tue)'처럼 연도가 없다 → 한국 날짜 기준 올해(앞으로의 달이면 작년)
+    const md = /조회일\s*[:：]?\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
+    if (!md) return null;
+    const k = new Date(Date.now() + 9 * 3600e3), y = k.getUTCFullYear(), mo = parseInt(md[1], 10);
+    m = [null, String(mo > k.getUTCMonth() + 1 ? y - 1 : y), md[1], md[2]];
+  }
   const n = (re, src = t) => { const x = re.exec(src); return x ? parseInt(x[1].replace(/,/g, ""), 10) : null; };
   const body = t.replace(/전체 예상 적립금[^\n]*/g, "");
   const row = {
