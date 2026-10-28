@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""쿠팡 파트너스 API 보고서(클릭·주문·수수료)를 날짜별로 받아 data/coupang_daily.csv에 쓴다(coupang-stats.yml에서 매일).
+
+쿠팡이 센 숫자라 사이트에서 못 세는 다이내믹 배너(iframe) 클릭까지 들어 있다. 하위 ID로 자리를 나눈다:
+  banner = 페이지 맨 아래 다이내믹 배너(2026-10-28부터 subId), 테마별 상품 상자 = data/coupang.yaml 검색어 하위 ID, 그 밖 = 하위 ID 없음·사이트 밖 링크
+환경변수: COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY. PROBE=1이면 응답 모양(필드 이름·첫 줄)만 주석으로 보여 준다.
+"""
+import csv
+import datetime as dt
+import json
+import os
+import sys
+import urllib.parse
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import coupang_sync as cs  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+CSV = ROOT / "data" / "coupang_daily.csv"
+BASE = "/v2/providers/affiliate_open_api/apis/openapi/v1/reports/"
+COLS = ["day", "clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other"]
+
+
+def rows_of(js):
+    d = js.get("data") if isinstance(js, dict) else None
+    if isinstance(d, dict):
+        d = d.get("data") or d.get("items") or d.get("content") or []
+    return [x for x in (d or []) if isinstance(x, dict)]
+
+
+def first(x, *names, default=0):
+    for n in names:
+        if x.get(n) not in (None, ""):
+            return x[n]
+    return default
+
+
+def num(v):
+    try:
+        return float(str(v).replace(",", ""))
+    except ValueError:
+        return 0.0
+
+
+def day_of(x):
+    d = str(first(x, "date", "orderDate", "clickDate", "statDate", default=""))
+    d = d.replace("-", "")[:8]
+    return f"{d[:4]}-{d[4:6]}-{d[6:8]}" if len(d) == 8 and d.isdigit() else ""
+
+
+def fetch(kind, start, end, access, secret):
+    out, page = [], 0
+    while page < 20:
+        q = urllib.parse.urlencode({"startDate": start, "endDate": end, "page": page})
+        rs = rows_of(cs.report_get(BASE + kind, q, access, secret))
+        out += rs
+        if len(rs) < 1000:
+            break
+        page += 1
+    return out
+
+
+def main() -> None:
+    access, secret = os.environ.get("COUPANG_ACCESS_KEY", ""), os.environ.get("COUPANG_SECRET_KEY", "")
+    if not access or not secret:
+        print("::warning::쿠팡 API 키 없음 — 건너뜀"); return
+    kst = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date()
+    start, end = (kst - dt.timedelta(days=30)).strftime("%Y%m%d"), (kst - dt.timedelta(days=1)).strftime("%Y%m%d")
+    import yaml
+    boxes = set()
+    try:
+        auto = json.loads((ROOT / ".cache" / "coupang_auto.json").read_text(encoding="utf-8"))
+        boxes = {str(e.get("sub_id") or "").lower() for e in (auto.get("entries") or {}).values()}
+    except Exception:
+        cfg = yaml.safe_load((ROOT / "data" / "coupang.yaml").read_text(encoding="utf-8")) or {}
+        themes = yaml.safe_load((ROOT / "data" / "themes.yaml").read_text(encoding="utf-8")) or []
+        themes = themes.get("themes", themes) if isinstance(themes, dict) else themes
+        try:
+            boxes = {j["sub_id"].lower() for j in cs.plan(cfg, themes)}
+        except Exception:
+            boxes = set()
+
+    def where(x):
+        s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()
+        return "banner" if s == "banner" else "boxes" if s in boxes else "other"
+
+    data = {}
+    for kind in ("clicks", "orders", "commission"):
+        try:
+            rs = fetch(kind, start, end, access, secret)
+        except Exception as e:
+            print(f"::warning title=쿠팡 {kind}::받기 실패 {type(e).__name__}: {str(e)[:200]}")
+            continue
+        if os.environ.get("PROBE") == "1":
+            keys = sorted({k for x in rs for k in x})
+            print(f"::notice title=PROBE {kind}::{len(rs)}줄, 필드 {keys}, 첫 줄 {json.dumps(rs[:1], ensure_ascii=False)[:600]}")
+        for x in rs:
+            d = day_of(x)
+            if not d:
+                continue
+            r = data.setdefault(d, {c: 0 for c in COLS if c != "day"})
+            w = where(x)
+            if kind == "clicks":
+                n = int(num(first(x, "click", "clicks", "clickCount", "count")))
+                r["clicks"] += n; r["clicks_" + w] += n
+            elif kind == "orders":
+                r["orders"] += int(num(first(x, "orderCount", "quantity", default=1)))
+                r["gmv"] += round(num(first(x, "gmv", "orderPrice", "price", "amount")))
+            else:
+                c = round(num(first(x, "commission", "commissionAmount", "amount")))
+                r["commission"] += c; r["commission_" + w] += c
+    if not data:
+        print("::notice title=쿠팡 일별::받은 자료 없음"); return
+    old = {}
+    if CSV.exists():
+        with CSV.open(encoding="utf-8", newline="") as f:
+            old = {r["day"]: r for r in csv.DictReader(f)}
+    for d, r in data.items():
+        old[d] = {"day": d, **{k: str(v) for k, v in r.items()}}
+    with CSV.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=COLS); w.writeheader()
+        for d in sorted(old):
+            w.writerow({c: old[d].get(c, "") for c in COLS})
+    tot = {k: sum(int(float(r.get(k) or 0)) for r in data.values()) for k in ("clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission")}
+    print(f"::notice title=쿠팡 30일::{json.dumps(tot, ensure_ascii=False)}")
+
+
+if __name__ == "__main__":
+    main()

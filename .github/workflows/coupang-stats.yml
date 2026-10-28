@@ -1,0 +1,52 @@
+name: Coupang stats (쿠팡 일별 클릭·주문·수수료)
+
+# 쿠팡 파트너스 API 보고서를 매일 받아 data/coupang_daily.csv에 쓴다. 운영 통계 화면 '쿠팡 파트너스 실적'이 그린다.
+# 쿠팡이 센 숫자라 사이트가 못 세는 다이내믹 배너(iframe) 클릭도 들어 있다. 운영자 요청 2026-10-28
+on:
+  schedule:
+    - cron: "20 4 * * *"   # 매일 04:20 UTC(한국 13:20)
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: "1이면 응답 모양(필드 이름)도 주석으로"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coupang-stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+      COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+      PROBE: ${{ inputs.probe }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Restore Coupang cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache
+          key: coupang-stats-${{ github.run_id }}
+          restore-keys: coupang-
+      - name: Fetch
+        run: |
+          pip install -q pyyaml
+          python3 scripts/coupang_daily.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/coupang_daily.csv 2>/dev/null || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "쿠팡 일별 실적 $(TZ=Asia/Seoul date '+%Y-%m-%d') KST"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
