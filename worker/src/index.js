@@ -1317,8 +1317,8 @@ export default {
         const row = parseAdfit(text);
         if (!row) return json(req, { error: "parse", message: "애드핏 데일리 리포트 형식이 아닙니다" }, 400);
         await db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
-          ON CONFLICT(day) DO UPDATE SET earn=excluded.earn, requests=excluded.requests, impressions=excluded.impressions, rendered=excluded.rendered, clicks=excluded.clicks,
-          ecpm=excluded.ecpm, cum_earn=excluded.cum_earn, confirmed=excluded.confirmed, updated=excluded.updated`)
+          ON CONFLICT(day) DO UPDATE SET earn=excluded.earn, requests=excluded.requests, impressions=excluded.impressions, rendered=excluded.rendered, clicks=COALESCE(excluded.clicks, clicks),
+          ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
           .bind(row.day, row.earn, row.requests, row.impressions, row.rendered, row.clicks, row.ecpm, row.cum_earn, row.confirmed, now).run();
         return json(req, { ok: true, day: row.day, earn: row.earn }, 200, { "Cache-Control": "no-store" });
       }

@@ -89,6 +89,9 @@ def main() -> None:
     old = next((r for r in rows if r["day"] == row["day"]), None)
     if old:
         row["note"] = note or old.get("note", "")
+        for k in COLS:  # 매체별 보고서처럼 빠진 값은 예전 값을 지킨다
+            if row.get(k) is None and old.get(k) not in (None, ""):
+                row[k] = old[k]
         rows = [r for r in rows if r["day"] != row["day"]]
     else:
         row["note"] = note

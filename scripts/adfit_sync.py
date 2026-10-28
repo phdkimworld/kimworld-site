@@ -24,8 +24,9 @@ def main() -> None:
     for x in live:
         if not x.get("day"):
             continue
-        new = {k: ("" if x.get(k) is None else str(x.get(k))) for k in COLS if k != "note"}
         old = rows.get(x["day"])
+        # 매체별 보고서처럼 빠진 값(누적 등)은 예전 값을 지킨다
+        new = {k: (str(x.get(k)) if x.get(k) is not None else str((old or {}).get(k, ""))) for k in COLS if k != "note"}
         if old and all(str(old.get(k, "")) == new[k] for k in new):
             continue
         rows[x["day"]] = {**new, "note": (old or {}).get("note", "")}
