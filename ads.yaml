@@ -43,10 +43,11 @@ ads_txt_extra: []
 coupang:
   # 쿠팡 파트너스 대시보드에서 만든 카테고리 배너 코드를 그대로 붙여 넣는다. 쿠팡 도메인 밖 주소가 있으면 빌드가 실패한다.
   # 다이내믹 배너(고객 관심 기반 추천 · 추천 상품 피드 · 680x140 · 테두리 없음). 화면 폭에 맞춰 비율대로 줄어든다
+  # subId "banner": 쿠팡 보고서에서 배너 몫을 상품 상자(테마별 하위 ID)와 나눠 보려고 붙임(2026-10-28). 배너 안 클릭은 iframe이라 사이트 통계에는 안 잡힌다
   banner_html: |
     <script src="https://ads-partners.coupang.com/g.js"></script>
     <script>
-    	new PartnersCoupang.G({"id":1038868,"template":"carousel","trackingCode":"AF4489672","width":"680","height":"140","tsource":""});
+    	new PartnersCoupang.G({"id":1038868,"template":"carousel","trackingCode":"AF4489672","subId":"banner","width":"680","height":"140","tsource":""});
     </script>
   banner_height: 140
   # 테마별 상품 링크(대시보드 "상품 링크"로 만든 https://link.coupang.com/a/… 주소). 테마 이름은 data/themes.yaml과 같게.
