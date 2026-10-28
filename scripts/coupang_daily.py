@@ -19,7 +19,7 @@ import coupang_sync as cs  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 CSV = ROOT / "data" / "coupang_daily.csv"
 BASE = "/v2/providers/affiliate_open_api/apis/openapi/v1/reports/"
-COLS = ["day", "clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other"]
+COLS = ["day", "clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other", "click_addtags"]
 
 
 def rows_of(js):
@@ -85,7 +85,7 @@ def main() -> None:
         s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()
         return "banner" if s == "banner" else "boxes" if s in boxes else "other"
 
-    data = {}
+    data, seen_orders, tags = {}, set(), {}
     for kind in ("clicks", "orders", "commission"):
         try:
             rs = fetch(kind, start, end, access, secret)
@@ -99,13 +99,16 @@ def main() -> None:
             d = day_of(x)
             if not d:
                 continue
-            r = data.setdefault(d, {c: 0 for c in COLS if c != "day"})
+            r = data.setdefault(d, {c: 0 for c in COLS if c not in ("day", "click_addtags")})
             w = where(x)
             if kind == "clicks":
                 n = int(num(first(x, "click", "clicks", "clickCount", "count")))
                 r["clicks"] += n; r["clicks_" + w] += n
+                t = str(first(x, "addtag", default="?")); tags.setdefault(d, {}); tags[d][t] = tags[d].get(t, 0) + n
             elif kind == "orders":
-                r["orders"] += int(num(first(x, "orderCount", "quantity", default=1)))
+                oid = str(first(x, "orderId", default="")) or json.dumps(x, sort_keys=True)
+                if oid not in seen_orders:  # 주문 하나에 상품 여러 줄 → 주문 수는 한 번
+                    seen_orders.add(oid); r["orders"] += 1
                 r["gmv"] += round(num(first(x, "gmv", "orderPrice", "price", "amount")))
             else:
                 c = round(num(first(x, "commission", "commissionAmount", "amount")))
@@ -117,13 +120,17 @@ def main() -> None:
         with CSV.open(encoding="utf-8", newline="") as f:
             old = {r["day"]: r for r in csv.DictReader(f)}
     for d, r in data.items():
-        old[d] = {"day": d, **{k: str(v) for k, v in r.items()}}
+        old[d] = {"day": d, **{k: str(v) for k, v in r.items()}, "click_addtags": ";".join(f"{k}:{v}" for k, v in sorted((tags.get(d) or {}).items()))}
     with CSV.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLS); w.writeheader()
         for d in sorted(old):
             w.writerow({c: old[d].get(c, "") for c in COLS})
     tot = {k: sum(int(float(r.get(k) or 0)) for r in data.values()) for k in ("clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission")}
-    print(f"::notice title=쿠팡 30일::{json.dumps(tot, ensure_ascii=False)}")
+    allt = {}
+    for t in tags.values():
+        for k, v in t.items():
+            allt[k] = allt.get(k, 0) + v
+    print(f"::notice title=쿠팡 30일::{json.dumps({**tot, 'click_addtags': allt}, ensure_ascii=False)}")
 
 
 if __name__ == "__main__":
