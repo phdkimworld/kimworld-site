@@ -139,6 +139,21 @@
       }), { note: '배너는 2026-10-28부터 하위 ID(banner)로 구분합니다. 그 전 배너 클릭은 기타에 들어 있습니다. 상품 상자 = 테마별 쿠팡 상품 카드.' }));
     }).catch(function () {});
   }
+  function revenueChart(slot, series, live, dayLabel) {
+    var j = function (u) { return fetch(base + u, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }); };
+    Promise.all([j('/admin/adfit.json'), j('/admin/coupang.json')]).then(function (res) {
+      var af = {}, cp = {};
+      (res[0] || []).forEach(function (r) { af[r.day] = r.earn || 0; });
+      (live || []).forEach(function (r) { af[r.day] = r.earn || 0; });
+      (res[1] || []).forEach(function (r) { cp[r.day] = r.commission || 0; });
+      var rows = series.map(function (r) { var a = af[r.day] || 0, c = cp[r.day] || 0; return { day: r.day, v: a + c, a: a, c: c }; });
+      var ta = rows.reduce(function (x, r) { return x + r.a; }, 0), tc = rows.reduce(function (x, r) { return x + r.c; }, 0);
+      var card = bars('일별 총 광고 수익', rows, 'v', function (v) { return nf(Math.round(v)) + '원'; }, { label: dayLabel, sub: function (t) {
+        return '합계 ' + nf(t) + '원 · 애드핏 ' + nf(ta) + '원 · 쿠팡 ' + nf(tc) + '원 · 쿠팡은 어제까지, 애드핏은 다음 날 오전 기록';
+      } });
+      slot.replaceWith(card);
+    });
+  }
   function table(title, head, rows, opt) {
     opt = opt || {};
     var card = el('section', 'an-card'); card.appendChild(el('h3', 'an-ct', title));
@@ -451,6 +466,8 @@
 
     var g = el('div', 'an-grid2');
     var dayLabel = function (r) { return r.day.slice(5).replace('-', '.'); };
+    // 일별 총 광고 수익(애드핏 + 쿠팡, 원). 맨 앞 자리를 먼저 잡고 기록을 받으면 채운다(2026-10-28 운영자 요청)
+    var revSlot = el('div'); g.appendChild(revSlot); revenueChart(revSlot, d.series, d.adfit || [], dayLabel);
     g.appendChild(bars('일별 방문자', d.series, 'uv', nf, { label: dayLabel, sub: function () { return '기간 합계(중복 제외) ' + nf(T.uv) + '명'; } }));
     g.appendChild(bars('일별 페이지뷰', d.series, 'pv', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t); } }));
     var sAvg = d.series.map(function (r) { return { day: r.day, v: r.pv ? r.secs / r.pv : 0 }; });
