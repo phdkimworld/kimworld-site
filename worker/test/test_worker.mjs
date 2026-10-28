@@ -896,6 +896,12 @@ console.log("애드핏 데일리 리포트 받기");
   check(r3.status === 400, "애드핏: 형식이 아니면 거절");
   const anA = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
   check((anA.data.adfit || [])[0]?.day === "2026-10-27", "통계에 애드핏 기록");
+  const kNo = await call("POST", "/v1/admin/adfit-key", { ip: "94.0.0.2" });
+  check(kNo.status === 403, "애드핏 열쇠: 운영자가 아니면 못 만듦");
+  delete env.ADFIT_KEY_SHA;
+  await DB.prepare("INSERT INTO adfit_keys (sha, created) VALUES (?, ?)").bind(createHash("sha256").update("af_made").digest("hex"), Date.now()).run();
+  const r4 = await call("POST", "/v1/ingest/adfit?k=af_made", { body: { text: txt }, ip: "94.0.0.3" });
+  check(r4.status === 200, "애드핏: 화면에서 만든 열쇠로도 받음");
 }
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

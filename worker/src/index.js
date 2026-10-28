@@ -1303,8 +1303,10 @@ export default {
       if (p === "/v1/ingest/adfit" && req.method === "POST") {
         const key = req.headers.get("X-Ingest-Key") || url.searchParams.get("k") || "";
         if (!(await allow(db, `adfit:${ip}`, 30, 3600e3, now))) return json(req, { error: "rate" }, 429);
+        const ks = key ? await sha256hex(key) : "";
         const want = env.ADFIT_KEY_SHA || (env.ADFIT_INGEST_KEY ? await sha256hex(env.ADFIT_INGEST_KEY) : "");
-        if (!want || !key || !safeEqual(await sha256hex(key), want)) return json(req, { error: "key" }, 401);
+        const okKey = !!ks && ((want && safeEqual(ks, want)) || !!(await db.prepare("SELECT 1 AS y FROM adfit_keys WHERE sha = ?").bind(ks).first()));
+        if (!okKey) return json(req, { error: "key" }, 401);
         const raw = (await req.text()).slice(0, 4000);
         let text = raw; try { const j = JSON.parse(raw); if (j && typeof j.text === "string") text = j.text; } catch {}
         const row = parseAdfit(text);
@@ -1726,6 +1728,16 @@ export default {
       }
 
       // ---------- 운영자 애널리틱스: 운영자 계정(owners) 로그인 또는 관리 토큰 ----------
+      // 애드핏 전달 앱 열쇠 만들기(운영자 로그인만). 새로 만들면 예전 열쇠는 못 쓴다. 원문은 이 응답에서 한 번만 보인다
+      if (p === "/v1/admin/adfit-key" && req.method === "POST") {
+        const me = session ? await userByActor(db, actor) : null;
+        const own = !!me && !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first());
+        if (!own) return json(req, { error: "owner", message: "운영자 계정만 만들 수 있습니다." }, 403, { "Cache-Control": "no-store" });
+        const rnd = crypto.getRandomValues(new Uint8Array(18));
+        const key = "af_" + btoa(String.fromCharCode(...rnd)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+        await db.batch([db.prepare("DELETE FROM adfit_keys"), db.prepare("INSERT INTO adfit_keys (sha, created) VALUES (?, ?)").bind(await sha256hex(key), now)]);
+        return json(req, { key }, 200, { "Cache-Control": "no-store" });
+      }
       if (p === "/v1/admin/analytics" && req.method === "GET") {
         const auth = req.headers.get("Authorization") || "";
         let ok = !!env.ADMIN_TOKEN && safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`);

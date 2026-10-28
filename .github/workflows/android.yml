@@ -1,0 +1,43 @@
+name: Android (애드핏 전달 앱 빌드)
+
+# 운영자 휴대폰용 작은 앱: 카카오톡 '카카오애드핏 데일리 리포트' 알림만 골라 /v1/ingest/adfit 로 보낸다.
+# 빌드한 APK를 릴리스 'adfit-app'에 올린다(앱 안에 비밀값 없음. 열쇠는 운영자가 앱에 붙여 넣는다).
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Build APK
+        working-directory: android/adfit-forwarder
+        run: |
+          gradle --no-daemon -q assembleRelease
+          ls -la app/build/outputs/apk/release/
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/adfit-forwarder.apk"
+          echo "::notice title=APK::$(stat -c %s "$GITHUB_WORKSPACE/adfit-forwarder.apk") bytes, sha256 $(sha256sum "$GITHUB_WORKSPACE/adfit-forwarder.apk" | cut -c1-16)"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view adfit-app >/dev/null 2>&1; then
+            gh release upload adfit-app adfit-forwarder.apk --clobber
+          else
+            gh release create adfit-app adfit-forwarder.apk --title "애드핏 전달 앱" --notes "운영자 휴대폰용. 카카오톡 '카카오애드핏 데일리 리포트' 알림만 김박사 월드 운영 통계로 보냅니다. 설치 뒤 운영 통계 화면에서 만든 열쇠를 붙여 넣으세요." --latest=false
+          fi
+          echo "::notice title=APK URL::https://github.com/${{ github.repository }}/releases/download/adfit-app/adfit-forwarder.apk"

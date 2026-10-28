@@ -1533,3 +1533,4 @@ article.report .sent { margin-top: 14px; }
 .so-body { margin: 2px 0 0; font-size: .92rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 .so-meta { font-size: .76rem; }
 .so-empty { font-size: .85rem; color: var(--muted); padding: 6px 0; }
+.an-key { width: 100%; max-width: 420px; font: inherit; font-family: ui-monospace, monospace; padding: 10px; margin: 10px 0 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }

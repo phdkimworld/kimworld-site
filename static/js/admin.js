@@ -91,6 +91,23 @@
       box.appendChild(table('애드핏 일별 기록', ['날짜', '적립금', '요청', '렌더드', '보인 노출', '보이는 비율', '클릭', 'eCPM', '누적', '메모'], rows.slice().reverse().map(function (r) {
         return [dl(r), nf(r.earn) + '원', nf(r.requests), nf(r.rendered), nf(r.impressions), Math.round(vr(r)) + '%', nf(r.clicks), nf(r.ecpm) + '원', r.cum_earn ? nf(r.cum_earn) + '원' : '', r.note || ''];
       }), { note: '기록: data/adfit_daily.csv(scripts/adfit_add.py가 데일리 리포트 글을 읽어 넣음). 사이트 자체 집계(위 일별 광고 노출)와 기준이 달라 숫자가 다릅니다.' }));
+      // 휴대폰 '애드핏 전달' 앱 연결: 열쇠를 만들어 앱에 붙여 넣는다(원문은 지금 한 번만 보임)
+      var kc = el('section', 'an-card'); kc.appendChild(el('h3', 'an-ct', '휴대폰 자동 전달 (애드핏 전달 앱)'));
+      kc.appendChild(el('p', 'an-sub muted', '앱 받기 → 아래 버튼으로 열쇠 만들기 → 앱에 붙여 넣기. 새로 만들면 예전 열쇠는 더 못 씁니다.'));
+      var apk = el('a', 'btn an-btn', '앱 받기(APK)'); apk.href = 'https://github.com/phdkimworld/kimworld-site/releases/download/adfit-app/adfit-forwarder.apk'; kc.appendChild(apk);
+      var kb = C.btn('열쇠 만들기', 'btn btn-primary an-btn', function () {
+        if (!confirm('새 열쇠를 만들까요? 예전 열쇠를 쓰던 앱은 다시 붙여 넣어야 합니다.')) return;
+        kb.disabled = true;
+        api('/v1/admin/adfit-key', { method: 'POST', body: {} }).then(function (r) {
+          kb.disabled = false;
+          if (!r || !r.key) { out.textContent = (r && r.message) || '만들지 못했습니다'; return; }
+          out.textContent = ''; var inp = el('input', 'an-key'); inp.readOnly = true; inp.value = r.key; out.appendChild(inp);
+          var cp = C.btn('복사', 'btn an-btn', function () { inp.select(); try { navigator.clipboard.writeText(r.key); cp.textContent = '복사했어요'; } catch (e) { document.execCommand('copy'); } });
+          out.appendChild(cp); out.appendChild(el('p', 'muted an-sub', '이 열쇠는 지금만 보입니다. 앱의 열쇠 칸에 붙여 넣고 저장하세요.'));
+        }).catch(function () { kb.disabled = false; out.textContent = '만들지 못했습니다'; });
+      });
+      kc.appendChild(kb); var out = el('div', 'an-keyout'); kc.appendChild(out);
+      box.appendChild(kc);
     }).catch(function () {});
   }
   function table(title, head, rows, opt) {
