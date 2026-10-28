@@ -45,6 +45,15 @@ def main() -> None:
         msg = json.dumps(ch, ensure_ascii=False).replace("%", "%25").replace("\n", "%0A")
         print(f"::notice title=ADS {i + 1}/{len(chunks)}::{msg}")
     print(f"::notice title=ADS COUNT::{len(out)}")
+    # 쿠팡이 센 30일 수수료 전체 vs 사이트 상품 상자(하위 ID)로 들어온 몫. 나머지는 하위 ID 없는 경로(쿠팡 다이내믹 배너·사이트 밖 링크)
+    allrep = load("coupang_reports.json", {})
+    total = round(float(allrep.get("total") or 0))
+    ours = {e.get("sub_id") for e in (load("coupang_auto.json", {}).get("entries") or {}).values()}
+    site_com = sum(round(float(v.get("commission") or 0)) for k, v in rep.items() if k in ours)
+    other = {k: v for k, v in rep.items() if k not in ours}
+    print("::notice title=ADS SUMMARY::" + json.dumps({"report_ts": allrep.get("ts"), "source": allrep.get("source"), "commission_30d_total": total,
+          "commission_site_product_boxes": site_com, "commission_without_site_subid": total - site_com - sum(round(float(v.get("commission") or 0)) for v in other.values()),
+          "other_subids": other, "site_box_clicks_counted_by_site": sum(x["clicks"] for x in out)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
