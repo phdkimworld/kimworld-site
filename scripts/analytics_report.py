@@ -7,6 +7,7 @@
 사용자 닉네임·상위 사용자·검색어 원문·검색 실패어 원문은 넣지 않는다(검색 실패는 개수만).
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -94,7 +95,8 @@ def summarize(a: dict) -> dict:
         byp.setdefault(x.get("path"), []).append(x)
     top = [x.get("path") for x in a.get("reports", []) if x.get("path") in byp][:8]
     out["sections"]["reports"] = {p: curve(byp[p]) for p in top}
-    out["adfit"] = (a.get("adfit") or [])[:14]  # 애드핏 데일리 리포트(휴대폰 자동 전달로 D1에 쌓임). 워크플로가 data/adfit_daily.csv에 합친다
+    out["adfit"] = (a.get("adfit") or [])[:31]  # 애드핏 일별(비공개 D1). 공개 주석으로 내보낼 때는 뺀다
+    out["coupang"] = (a.get("coupang") or [])[:31]  # 쿠팡 일별(비공개 D1). 공개 주석으로 내보낼 때는 뺀다
     out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
     bots = a.get("bots") or {}
     out["bots"] = {k: v for k, v in bots.items() if not str(k).startswith("ql:")}
@@ -123,6 +125,15 @@ def main() -> None:
         print(f"::error title=AN::analytics 오류 {a.get('error')}")
         raise SystemExit(1)
     out = summarize(a)
+    json_out = os.environ.get("JSON_OUT")
+    if json_out:  # 전체 요약(수익 포함)은 파일로 → 워크플로가 비공개 저장소에 올린다(scripts/ops_publish.sh)
+        Path(json_out).write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    if os.environ.get("NO_ANNOTATIONS") == "1":
+        print(f"::notice title=AN PRIVATE::항목 {len(out)}개 · 비공개 저장소 phdkimworld/kimworld(ops-data) stats/analytics.json")
+        return
+    # 공개 주석(비공개 저장소를 못 쓸 때만): 수익 숫자는 빼고 내보낸다
+    for k in ("adfit", "coupang"):
+        out.pop(k, None)
     for k, v in out.items():
         while isinstance(v, list) and len(v) > 3 and len(json.dumps({k: v}, ensure_ascii=False)) > 3200:
             v = v[: max(3, len(v) * 3 // 4)]

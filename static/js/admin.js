@@ -60,12 +60,9 @@
     return card;
   }
   // ---------- 애드핏 실적: 운영자가 붙여 준 데일리 리포트(data/adfit_daily.csv → /admin/adfit.json). 기간 버튼과 상관없이 전체 기록 ----------
-  function adfitPanel(box, live) {
-    fetch(base + '/admin/adfit.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (rows) {
-      // 저장소 기록(빌드 때) + 서버 기록(휴대폰 자동 전달, 최신). 같은 날은 서버 쪽 숫자를 쓰고 메모는 저장소 쪽을 남긴다
-      var by = {}; (rows || []).forEach(function (r) { by[r.day] = r; });
-      (live || []).forEach(function (r) { by[r.day] = Object.assign({}, by[r.day] || {}, r, { note: (by[r.day] || {}).note || '' }); });
-      rows = Object.keys(by).map(function (k) { return by[k]; });
+  function adfitPanel(box, revP) {
+    revP.then(function (rv) {
+      var rows = (rv.adfit || []).slice();  // 비공개 서버 기록(휴대폰 자동 전달·옛 기록 이전분)
       if (!rows.length) return;
       rows = rows.slice().sort(function (a, b) { return a.day < b.day ? -1 : 1; });
       var vr = function (r) { return r.rendered ? r.impressions / r.rendered * 100 : 0; };
@@ -90,7 +87,7 @@
       box.appendChild(g);
       box.appendChild(table('애드핏 일별 기록', ['날짜', '적립금', '요청', '렌더드', '보인 노출', '보이는 비율', '클릭', 'eCPM', '누적', '메모'], rows.slice().reverse().map(function (r) {
         return [dl(r), nf(r.earn) + '원', nf(r.requests), nf(r.rendered), nf(r.impressions), Math.round(vr(r)) + '%', nf(r.clicks), nf(r.ecpm) + '원', r.cum_earn ? nf(r.cum_earn) + '원' : '', r.note || ''];
-      }), { note: '기록: data/adfit_daily.csv(scripts/adfit_add.py가 데일리 리포트 글을 읽어 넣음). 사이트 자체 집계(위 일별 광고 노출)와 기준이 달라 숫자가 다릅니다.' }));
+      }), { note: '기록: 비공개 서버(휴대폰 애드핏 전달 앱이 보냄). 사이트 자체 집계(위 일별 광고 노출)와 기준이 달라 숫자가 다릅니다.' }));
       // 휴대폰 '애드핏 전달' 앱 연결: 열쇠를 만들어 앱에 붙여 넣는다(원문은 지금 한 번만 보임)
       var kc = el('section', 'an-card'); kc.appendChild(el('h3', 'an-ct', '휴대폰 자동 전달 (애드핏 전달 앱)'));
       kc.appendChild(el('p', 'an-sub muted', '앱 받기 → 아래 버튼으로 열쇠 만들기 → 앱에 붙여 넣기. 새로 만들면 예전 열쇠는 더 못 씁니다.'));
@@ -111,8 +108,9 @@
     }).catch(function () {});
   }
   // ---------- 쿠팡 파트너스 실적: 쿠팡 API 보고서(data/coupang_daily.csv, 매일 coupang-stats.yml). 사이트가 못 세는 배너(iframe) 클릭까지 ----------
-  function coupangPanel(box) {
-    fetch(base + '/admin/coupang.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+  function coupangPanel(box, revP) {
+    revP.then(function (rv) {
+      var rows = rv.coupang || [];
       if (!rows || !rows.length) return;
       rows = rows.slice().sort(function (a, b) { return a.day < b.day ? -1 : 1; });
       // 빈 날도 0으로 채워 막대 간격을 맞춘다
@@ -139,13 +137,11 @@
       }), { note: '배너는 2026-10-28부터 하위 ID(banner)로 구분합니다. 그 전 배너 클릭은 기타에 들어 있습니다. 상품 상자 = 테마별 쿠팡 상품 카드.' }));
     }).catch(function () {});
   }
-  function revenueChart(slot, series, live, dayLabel) {
-    var j = function (u) { return fetch(base + u, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }); };
-    Promise.all([j('/admin/adfit.json'), j('/admin/coupang.json')]).then(function (res) {
+  function revenueChart(slot, series, revP, dayLabel) {
+    revP.then(function (rv) {
       var af = {}, cp = {};
-      (res[0] || []).forEach(function (r) { af[r.day] = r.earn || 0; });
-      (live || []).forEach(function (r) { af[r.day] = r.earn || 0; });
-      (res[1] || []).forEach(function (r) { cp[r.day] = r.commission || 0; });
+      (rv.adfit || []).forEach(function (r) { af[r.day] = r.earn || 0; });
+      (rv.coupang || []).forEach(function (r) { cp[r.day] = r.commission || 0; });
       var rows = series.map(function (r) { var a = af[r.day] || 0, c = cp[r.day] || 0; return { day: r.day, v: a + c, a: a, c: c }; });
       var ta = rows.reduce(function (x, r) { return x + r.a; }, 0), tc = rows.reduce(function (x, r) { return x + r.c; }, 0);
       var card = bars('일별 총 광고 수익', rows, 'v', function (v) { return nf(Math.round(v)) + '원'; }, { label: dayLabel, sub: function (t) {
@@ -467,7 +463,8 @@
     var g = el('div', 'an-grid2');
     var dayLabel = function (r) { return r.day.slice(5).replace('-', '.'); };
     // 일별 총 광고 수익(애드핏 + 쿠팡, 원). 맨 앞 자리를 먼저 잡고 기록을 받으면 채운다(2026-10-28 운영자 요청)
-    var revSlot = el('div'); g.appendChild(revSlot); revenueChart(revSlot, d.series, d.adfit || [], dayLabel);
+    var revP = api('/v1/admin/revenue').then(function (r) { return r && r._status === 200 ? r : { adfit: [], coupang: [] }; }).catch(function () { return { adfit: [], coupang: [] }; });
+    var revSlot = el('div'); g.appendChild(revSlot); revenueChart(revSlot, d.series, revP, dayLabel);
     g.appendChild(bars('일별 방문자', d.series, 'uv', nf, { label: dayLabel, sub: function () { return '기간 합계(중복 제외) ' + nf(T.uv) + '명'; } }));
     g.appendChild(bars('일별 페이지뷰', d.series, 'pv', nf, { label: dayLabel, sub: function (t) { return '합계 ' + nf(t); } }));
     var sAvg = d.series.map(function (r) { return { day: r.day, v: r.pv ? r.secs / r.pv : 0 }; });
@@ -499,8 +496,8 @@
       g.appendChild(bars('시간대별 페이지뷰 (미국 동부시간)', hoursEt, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hoursEt.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시 (ET)'; } }));
     }
     body.appendChild(g);
-    var afBox = el('div'); body.appendChild(afBox); adfitPanel(afBox, d.adfit || []);
-    var cpBox = el('div'); body.appendChild(cpBox); coupangPanel(cpBox);
+    var afBox = el('div'); body.appendChild(afBox); adfitPanel(afBox, revP);
+    var cpBox = el('div'); body.appendChild(cpBox); coupangPanel(cpBox, revP);
 
     var acq = acquisition(d, T); delta.short = false; if (acq) body.appendChild(acq);
 

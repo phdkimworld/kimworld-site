@@ -469,6 +469,7 @@ async function analytics(db, now, daysIn) {
     daily: Array.from({ length: days }, (_, i) => { const day = D(days - 1 - i); return { day, votes: svDay[day]?.votes || 0, voters: svDay[day]?.voters || 0 }; }),
   };
   // 리포트 업데이트 요청(최근 30일, 종목별)
+  ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.updReq = await all("SELECT ticker, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC LIMIT 15", now - 30 * 864e5).catch(() => []);
   const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
@@ -1733,6 +1734,40 @@ export default {
       }
 
       // ---------- 운영자 애널리틱스: 운영자 계정(owners) 로그인 또는 관리 토큰 ----------
+      // ---------- 수익 기록(비공개): 애드핏·쿠팡 일별. 넣기는 관리 토큰(워크플로), 보기는 운영자 로그인 또는 관리 토큰 ----------
+      if (p === "/v1/admin/revenue-import" && req.method === "POST") {
+        const auth = req.headers.get("Authorization") || "";
+        if (!env.ADMIN_TOKEN || !safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) return json(req, { error: "auth" }, 401);
+        let b = {}; try { b = await req.json(); } catch {}
+        const day = (x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x?.day || "")) ? x.day : null;
+        const int = (v) => (v === "" || v == null || !isFinite(+v)) ? null : Math.round(+v);
+        const st = [];
+        for (const x of (Array.isArray(b.adfit) ? b.adfit : []).slice(0, 400)) {
+          if (!day(x) || int(x.earn) == null) continue;
+          st.push(db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(day) DO UPDATE SET earn=excluded.earn, requests=COALESCE(excluded.requests, requests), impressions=COALESCE(excluded.impressions, impressions), rendered=COALESCE(excluded.rendered, rendered),
+            clicks=COALESCE(excluded.clicks, clicks), ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
+            .bind(x.day, int(x.earn), int(x.requests), int(x.impressions), int(x.rendered), int(x.clicks), int(x.ecpm), int(x.cum_earn), int(x.confirmed), now));
+        }
+        const CK = ["clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other"];
+        for (const x of (Array.isArray(b.coupang) ? b.coupang : []).slice(0, 400)) {
+          if (!day(x)) continue;
+          st.push(db.prepare(`INSERT INTO coupang_daily (day, ${CK.join(", ")}, click_addtags, updated) VALUES (?${",?".repeat(CK.length)},?,?)
+            ON CONFLICT(day) DO UPDATE SET ${CK.map((k) => `${k}=excluded.${k}`).join(", ")}, click_addtags=excluded.click_addtags, updated=excluded.updated`)
+            .bind(x.day, ...CK.map((k) => int(x[k]) ?? 0), String(x.click_addtags || "").slice(0, 200), now));
+        }
+        if (st.length) await db.batch(st);
+        return json(req, { ok: true, n: st.length }, 200, { "Cache-Control": "no-store" });
+      }
+      if (p === "/v1/admin/revenue" && req.method === "GET") {
+        const auth = req.headers.get("Authorization") || "";
+        let ok = !!env.ADMIN_TOKEN && safeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`);
+        if (!ok && session) { const me = await userByActor(db, actor); ok = !!me && !!(await db.prepare("SELECT 1 AS y FROM owners WHERE uid = ?").bind(me.id).first()); }
+        if (!ok) return json(req, { error: "owner", message: "운영자 계정만 볼 수 있습니다." }, 403, { "Cache-Control": "no-store" });
+        const a = await db.prepare("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day").all().catch(() => ({ results: [] }));
+        const c = await db.prepare("SELECT * FROM coupang_daily ORDER BY day").all().catch(() => ({ results: [] }));
+        return json(req, { adfit: a.results || [], coupang: (c.results || []).map(({ updated, ...r }) => r) }, 200, { "Cache-Control": "no-store" });
+      }
       // 애드핏 전달 앱 열쇠 만들기(운영자 로그인만). 새로 만들면 예전 열쇠는 못 쓴다. 원문은 이 응답에서 한 번만 보인다
       if (p === "/v1/admin/adfit-key" && req.method === "POST") {
         const me = session ? await userByActor(db, actor) : null;

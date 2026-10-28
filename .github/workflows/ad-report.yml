@@ -35,4 +35,12 @@ jobs:
           npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command \
             "SELECT g, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= '$SINCE' GROUP BY g" > ../.cache/ad_stats_kw.json
       - name: Report
-        run: python3 scripts/ad_report.py
+        env:
+          OPS_PUSH_TOKEN: ${{ secrets.OPS_PUSH_TOKEN }}
+        run: |
+          if [ -n "$OPS_PUSH_TOKEN" ]; then
+            JSON_OUT=.cache/ads.json NO_ANNOTATIONS=1 python3 scripts/ad_report.py
+            scripts/ops_publish.sh .cache/ads.json ads
+          else
+            python3 scripts/ad_report.py
+          fi

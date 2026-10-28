@@ -905,6 +905,14 @@ console.log("애드핏 데일리 리포트 받기");
   await DB.prepare("INSERT INTO adfit_keys (sha, created) VALUES (?, ?)").bind(createHash("sha256").update("af_made").digest("hex"), Date.now()).run();
   const r4 = await call("POST", "/v1/ingest/adfit?k=af_made", { body: { text: txt }, ip: "94.0.0.3" });
   check(r4.status === 200, "애드핏: 화면에서 만든 열쇠로도 받음");
+  const imp = await call("POST", "/v1/admin/revenue-import", { auth: "Bearer adm", body: { adfit: [{ day: "2026-10-20", earn: "15", requests: "327", impressions: "58", rendered: "276", clicks: "0", ecpm: "259", cum_earn: "350", confirmed: "0" }], coupang: [{ day: "2026-10-27", clicks: 5, clicks_other: 5, orders: 2, gmv: 128700, commission: 3861, commission_other: 3861, click_addtags: "400:2;460:3" }] }, ip: "94.0.0.4" });
+  check(imp.status === 200 && imp.data.n === 2, "수익 기록 넣기(관리 토큰)");
+  const impNo = await call("POST", "/v1/admin/revenue-import", { body: { adfit: [] }, ip: "94.0.0.4" });
+  check(impNo.status === 401, "수익 기록 넣기: 토큰 없으면 거절");
+  const rev = await call("GET", "/v1/admin/revenue", { auth: "Bearer adm" });
+  check(rev.status === 200 && rev.data.coupang[0].commission === 3861 && rev.data.adfit.some((x) => x.day === "2026-10-20" && x.cum_earn === 350), "수익 기록 보기");
+  const revNo = await call("GET", "/v1/admin/revenue", { ip: "94.0.0.5" });
+  check(revNo.status === 403, "수익 기록: 운영자 아니면 못 봄");
 }
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

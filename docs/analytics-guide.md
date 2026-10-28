@@ -1,9 +1,20 @@
 # 운영 통계 열람 지침 — 다른 Claude 세션·에이전트용
 
 drkimworld.com의 방문·유입·광고·참여 통계를 다른 세션이 직접 꺼내 보는 방법이다. 이 문서만 읽으면 된다.
-(작성 2026-10-26. 블로거 게시는 `docs/blogger-guide.md`, 운영 기록·애드핏 실적은 `docs/ops-log.md`)
+(작성 2026-10-26. 블로거 게시는 `docs/blogger-guide.md`, 운영 기록·애드핏 실적은 비공개 ops-log(`phdkimworld/kimworld` ops-data 브랜치 `ops-log.md`))
 
 ---
+
+## ★ 2026-10-28부터: 숫자는 비공개 쪽에서 읽는다
+
+운영자 요청("운영통계나 보안문제가 있는 부분은 더 비공개로")으로 바뀐 점. 아래 1장 이후의 '공개 주석' 방법은 **비공개 저장소 토큰이 없을 때의 대체 수단**이다.
+
+1. 비공개 저장소를 붙인다: `add_repo(phdkimworld/kimworld, push)` → `git clone --depth 1 -b ops-data https://github.com/phdkimworld/kimworld /home/claude/kimworld-ops` (있으면 `git -C /home/claude/kimworld-ops pull`)
+2. 워크플로를 돌린다(1-2와 같은 dispatch). GitHub 비밀값 `OPS_PUSH_TOKEN`이 있으면 결과가 공개 주석이 아니라 비공개 저장소 `stats/analytics.json`(운영 통계)·`stats/ads.json`(쿠팡 검색어)·`stats/coupang.json`(쿠팡 30일 요약)에 커밋된다. 주석에는 `AN PRIVATE` 같은 한 줄만 남는다.
+3. 끝나면 `git -C /home/claude/kimworld-ops pull` 하고 `jq` 로 읽는다. 예: `jq '.channels' /home/claude/kimworld-ops/stats/analytics.json`. 필드 뜻은 1-3과 같다(여기에는 `adfit`·`coupang` 일별 수익도 들어 있다).
+4. 토큰이 아직 없으면(주석에 `비공개 저장소 토큰 없음`) 1-2의 공개 주석을 쓰되, 그 주석에는 수익(애드핏·쿠팡 금액·주문)이 빠져 있다. 수익은 운영자에게 운영 통계 화면을 봐 달라고 하거나 토큰 등록을 부탁한다.
+5. 운영 기록은 비공개 저장소 `ops-log.md`에 쓴다(공개 `docs/ops-log.md`에는 쓰지 않는다). 수익 금액·주문 상세는 공개 저장소·주석·커밋 메시지에 쓰지 않는다.
+6. 운영자는 drkimworld.com/admin/ (운영자 로그인)에서 모든 숫자를 그대로 본다.
 
 ## 0. 통계가 어디에 있나 (먼저 고른다)
 
@@ -11,11 +22,11 @@ drkimworld.com의 방문·유입·광고·참여 통계를 다른 세션이 직�
 | --- | --- | --- | --- |
 | **사이트 자체 통계**(방문·세션·유입·리포트별 체류·스크롤·이벤트·광고 노출·투표·커뮤니티) | Cloudflare Worker + D1 (`/v1/admin/analytics`) | **예** | 1장: `Analytics report` 워크플로 → 주석 |
 | 쿠팡 파트너스 검색어 성과(노출·클릭·주문·수수료) | Worker + 쿠팡 API | 예 | 4장: `Ad report` 워크플로 → 주석 |
-| 쿠팡 일별 클릭·구매·수익(쿠팡 집계, 배너 포함) | 쿠팡 API 보고서 | 예 | `data/coupang_daily.csv`(매일 `Coupang stats` 워크플로가 갱신), 운영 통계 '쿠팡 파트너스 실적' |
-| 카카오 애드핏 수익 | 애드핏 대시보드(API 없음). 운영자 휴대폰이 카톡 알림을 `/v1/ingest/adfit`로 자동 전달 → D1 | **예(기록본)** | 운영자가 매일 붙여 주는 데일리 리포트 → `data/adfit_daily.csv`(`scripts/adfit_add.py`로 넣음). 운영 통계 화면 '애드핏 실적'에도 보인다. 해석은 `docs/ops-log.md` |
+| 쿠팡 일별 클릭·구매·수익(쿠팡 집계, 배너 포함) | 쿠팡 API 보고서 → 워커 D1(비공개) | 예(비공개 `stats/analytics.json`의 `coupang`, `stats/coupang.json`) | 매일 `Coupang stats` 워크플로, 운영 통계 '쿠팡 파트너스 실적' |
+| 카카오 애드핏 수익 | 애드핏 대시보드(API 없음). 운영자 휴대폰 '애드핏 전달' 앱이 카톡 알림을 `/v1/ingest/adfit`로 자동 전달 → 워커 D1(비공개) | 예(비공개 `stats/analytics.json`의 `adfit`) | 운영 통계 화면 '애드핏 실적'. 해석은 비공개 ops-log |
 | 구글 서치 콘솔(검색 노출·색인) | 운영자 구글 계정 | 아니오 | 운영자에게 화면 캡처 부탁(5장 링크) |
 | GA4 | 운영자 구글 계정 | 아니오 | 사이트 자체 통계로 대신한다 |
-| 과거 해석·결정 | `docs/ops-log.md` | 예 | 저장소에서 읽기 |
+| 과거 해석·결정 | 비공개 ops-log(`phdkimworld/kimworld` ops-data 브랜치 `ops-log.md`) | 예 | 저장소에서 읽기 |
 
 **세션의 제약** (모두 확인된 사실)
 - 셸은 drkimworld.com·api.drkimworld.com에 못 닿는다. 관리 토큰(`KIMWORLD_ADMIN_TOKEN`)도 GitHub 비밀값에만 있고 세션은 읽을 수 없다
@@ -122,7 +133,7 @@ jq '.events|{adv_adfit,adv_coupang}' /tmp/an.json
 
 ## 2. 해석할 때 주의
 
-- **애드핏 수익은 사이트 통계에 없다.** 애드핏은 API가 없고, 운영자가 데일리 리포트(요청·노출·렌더드·클릭·eCPM·적립금)를 채팅에 붙여 주면 `printf '%s' "<붙여 준 글>" | python3 scripts/adfit_add.py`로 `data/adfit_daily.csv`에 넣고 커밋한다(`--show`로 최근 10일과 7일 요약). 해석 한 줄은 `docs/ops-log.md` '애드핏 실적'에. eCPM = 적립금 ÷ *보인* 노출 × 1000. "보이는 비율" = 노출 ÷ 렌더드 노출
+- **애드핏 수익**은 API가 없어 운영자 휴대폰 '애드핏 전달' 앱이 카톡 알림을 서버로 보낸다(비공개 D1). 채팅으로 리포트를 받으면 운영자에게 앱의 '마지막 애드핏 알림 다시 보내기'를 부탁한다. 해석 한 줄은 비공개 ops-log '애드핏 실적'에. eCPM = 적립금 ÷ *보인* 노출 × 1000. "보이는 비율" = 노출 ÷ 렌더드 노출
 - 애드핏 요청 수가 사이트 pv보다 훨씬 많은 것은 정상이다(한 페이지에 광고 여러 개, 빠른 이탈·봇도 요청은 센다)
 - 사이트 통계의 날짜는 KST, 애드핏 리포트 날짜도 한국 날짜, 운영자 대화는 미국 동부 시각이다
 - 숫자가 작다(하루 세션 20~60). 하루 변동으로 결론 내지 말고 7일 합계·전주 대비로 본다
@@ -136,7 +147,7 @@ jq '.events|{adv_adfit,adv_coupang}' /tmp/an.json
 
 저장소가 공개라 **Actions 주석도 누구나 볼 수 있다.** 그래서 `scripts/analytics_report.py`는 집계 숫자만 내보낸다(닉네임·사용자 목록·검색어 원문·IP 없음. 검색 실패어는 티커·회사명처럼 생긴 것만).
 - 이 스크립트에 사용자 단위 정보·검색어 원문을 내보내는 코드를 넣지 않는다
-- 통계를 저장소 파일로 커밋할 때도 집계 숫자만(예: `docs/ops-log.md`에 요약)
+- 통계를 저장소 파일로 커밋할 때도 집계 숫자만(예: 비공개 ops-log(`phdkimworld/kimworld` ops-data 브랜치 `ops-log.md`)에 요약)
 - 세션 안 `/tmp/an.json`은 세션이 끝나면 사라진다. 그대로 커밋하지 않는다
 
 ---
@@ -179,7 +190,7 @@ gh api repos/$REPO/check-runs/$J/annotations --jq '.[]|"\(.title): \(.message)"'
 
 ## 7. 이 통계로 하는 정기 작업 (참고)
 
-- 매일 점검(예약 작업): 이 워크플로로 7일 통계를 받아 수익성·개선점을 보고, 입력·비용 없이 고칠 수 있는 것을 바로 반영하고 `docs/ops-log.md`에 남긴다
+- 매일 점검(예약 작업): 이 워크플로로 7일 통계를 받아 수익성·개선점을 보고, 입력·비용 없이 고칠 수 있는 것을 바로 반영하고 비공개 ops-log(`phdkimworld/kimworld` ops-data 브랜치 `ops-log.md`)에 남긴다
 - 매주 월요일: 애드센스 재신청 준비 점검(하루 세션 100·검색 유입 주 20 등 기준)
 - 2주마다: 쿠팡 검색어 성과
-같은 일을 중복으로 하지 않도록, 시작 전에 `docs/ops-log.md`의 날짜별 기록(최신이 위, '개선 후보' 아래)을 먼저 읽는다.
+같은 일을 중복으로 하지 않도록, 시작 전에 비공개 ops-log(`phdkimworld/kimworld` ops-data 브랜치 `ops-log.md`)의 날짜별 기록(최신이 위, '개선 후보' 아래)을 먼저 읽는다.

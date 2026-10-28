@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""쿠팡 파트너스 API 보고서(클릭·주문·수수료)를 날짜별로 받아 data/coupang_daily.csv에 쓴다(coupang-stats.yml에서 매일).
+"""쿠팡 파트너스 API 보고서(클릭·주문·수수료)를 날짜별로 받는다(coupang-stats.yml에서 매일).
+
+공개 저장소에는 숫자를 남기지 않는다(2026-10-28 운영자 요청): 날짜별 행은 ROWS_OUT 파일 → 워크플로가 워커 비공개 D1(/v1/admin/revenue-import)로 보내고,
+요약은 SEAL_OUT 파일 → 비공개 저장소 stats/coupang.json(scripts/ops_publish.sh). 상품명 등 주문 상세는 어디에도 남기지 않는다.
 
 쿠팡이 센 숫자라 사이트에서 못 세는 다이내믹 배너(iframe) 클릭까지 들어 있다. 하위 ID로 자리를 나눈다:
   banner = 페이지 맨 아래 다이내믹 배너(2026-10-28부터 subId), 테마별 상품 상자 = data/coupang.yaml 검색어 하위 ID, 그 밖 = 하위 ID 없음·사이트 밖 링크
-환경변수: COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY. PROBE=1이면 응답 모양(필드 이름·첫 줄)만 주석으로 보여 준다.
+환경변수: COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY, ROWS_OUT, SEAL_OUT. PROBE=1이면 응답 필드 이름을 봉인 요약에 넣는다(주석에는 안 씀).
 """
-import csv
 import datetime as dt
 import json
 import os
@@ -17,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coupang_sync as cs  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-CSV = ROOT / "data" / "coupang_daily.csv"
 BASE = "/v2/providers/affiliate_open_api/apis/openapi/v1/reports/"
 COLS = ["day", "clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other", "click_addtags"]
 
@@ -85,7 +86,7 @@ def main() -> None:
         s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()
         return "banner" if s == "banner" else "boxes" if s in boxes else "other"
 
-    data, seen_orders, tags = {}, set(), {}
+    data, seen_orders, tags, probe = {}, set(), {}, {}
     for kind in ("clicks", "orders", "commission"):
         try:
             rs = fetch(kind, start, end, access, secret)
@@ -93,8 +94,7 @@ def main() -> None:
             print(f"::warning title=쿠팡 {kind}::받기 실패 {type(e).__name__}: {str(e)[:200]}")
             continue
         if os.environ.get("PROBE") == "1":
-            keys = sorted({k for x in rs for k in x})
-            print(f"::notice title=PROBE {kind}::{len(rs)}줄, 필드 {keys}, 첫 줄 {json.dumps(rs[:1], ensure_ascii=False)[:600]}")
+            probe[kind] = sorted({k for x in rs for k in x})
         for x in rs:
             d = day_of(x)
             if not d:
@@ -115,22 +115,18 @@ def main() -> None:
                 r["commission"] += c; r["commission_" + w] += c
     if not data:
         print("::notice title=쿠팡 일별::받은 자료 없음"); return
-    old = {}
-    if CSV.exists():
-        with CSV.open(encoding="utf-8", newline="") as f:
-            old = {r["day"]: r for r in csv.DictReader(f)}
-    for d, r in data.items():
-        old[d] = {"day": d, **{k: str(v) for k, v in r.items()}, "click_addtags": ";".join(f"{k}:{v}" for k, v in sorted((tags.get(d) or {}).items()))}
-    with CSV.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLS); w.writeheader()
-        for d in sorted(old):
-            w.writerow({c: old[d].get(c, "") for c in COLS})
+    rows = []
+    for d in sorted(data):
+        rows.append({"day": d, **data[d], "click_addtags": ";".join(f"{k}:{v}" for k, v in sorted((tags.get(d) or {}).items()))})
+    Path(os.environ.get("ROWS_OUT") or ROOT / ".cache" / "coupang_rows.json").write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
     tot = {k: sum(int(float(r.get(k) or 0)) for r in data.values()) for k in ("clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission")}
     allt = {}
     for t in tags.values():
         for k, v in t.items():
             allt[k] = allt.get(k, 0) + v
-    print(f"::notice title=쿠팡 30일::{json.dumps({**tot, 'click_addtags': allt}, ensure_ascii=False)}")
+    summ = {**tot, "click_addtags": allt, "days": len(rows), "range": [start, end], **({"probe_fields": probe} if probe else {})}
+    Path(os.environ.get("SEAL_OUT") or ROOT / ".cache" / "coupang_summary.json").write_text(json.dumps(summ, ensure_ascii=False), encoding="utf-8")
+    print(f"::notice title=쿠팡 일별::{len(rows)}일치 받음(숫자는 비공개 저장)")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 name: Coupang stats (쿠팡 일별 클릭·주문·수수료)
 
-# 쿠팡 파트너스 API 보고서를 매일 받아 data/coupang_daily.csv에 쓴다. 운영 통계 화면 '쿠팡 파트너스 실적'이 그린다.
+# 쿠팡 파트너스 API 보고서를 매일 받아 워커 비공개 D1(coupang_daily)에 넣고 요약은 비공개 저장소 stats/coupang.json(OPS_PUSH_TOKEN 있을 때). 운영 통계 화면 '쿠팡 파트너스 실적'이 그린다.
 # 쿠팡이 센 숫자라 사이트가 못 세는 다이내믹 배너(iframe) 클릭도 들어 있다. 운영자 요청 2026-10-28
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       probe:
-        description: "1이면 응답 모양(필드 이름)도 주석으로"
+        description: "1이면 응답 필드 이름을 봉인 요약에 넣음"
         required: false
 
 permissions:
@@ -25,6 +25,10 @@ jobs:
     env:
       COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
       COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_IN: ${{ secrets.KIMWORLD_ADMIN_TOKEN }}
+      OPS_PUSH_TOKEN: ${{ secrets.OPS_PUSH_TOKEN }}
       PROBE: ${{ inputs.probe }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,16 +41,26 @@ jobs:
       - name: Fetch
         run: |
           pip install -q pyyaml
-          python3 scripts/coupang_daily.py
-      - name: Commit
+          mkdir -p .cache
+          ROWS_OUT=.cache/coupang_rows.json SEAL_OUT=.cache/coupang_summary.json python3 scripts/coupang_daily.py
+      - name: Store (private D1)
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/coupang_daily.csv 2>/dev/null || true
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -q -m "쿠팡 일별 실적 $(TZ=Asia/Seoul date '+%Y-%m-%d') KST"
-          for i in 1 2 3 4; do
-            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
-            sleep $((i * 5))
-          done
-          exit 1
+          if [ ! -f .cache/coupang_rows.json ]; then exit 0; fi
+          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
+          echo "::add-mask::$ADMIN"
+          SUB=$(curl -sS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+          BASE=${SUB:+https://kimworld-api.$SUB.workers.dev}; BASE=${BASE:-https://api.drkimworld.com}
+          python3 -c "import json;print(json.dumps({'coupang':json.load(open('.cache/coupang_rows.json'))}))" > .cache/cp_import.json
+          CODE=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" --data @.cache/cp_import.json "$BASE/v1/admin/revenue-import")
+          echo "::notice title=COUPANG STORE::HTTP $CODE"
+          test "$CODE" = "200"
+          scripts/ops_publish.sh .cache/coupang_summary.json coupang || true
+          # 예전에 공개 저장소에 두던 CSV는 지운다(한 번)
+          if [ -f data/coupang_daily.csv ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -q data/coupang_daily.csv
+            git commit -q -m "쿠팡 일별 기록을 비공개 D1로 옮기고 공개 파일 삭제"
+            for i in 1 2 3 4; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep $((i * 5)); done
+            exit 1
+          fi

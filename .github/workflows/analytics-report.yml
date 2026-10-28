@@ -1,10 +1,10 @@
 name: Analytics report (운영 통계 요약)
 
 # 매일 클로드 예약 작업이 실행해 지난 7일 운영 통계 요약을 주석으로 받아 보고 개선점을 찾는다.
-# 저장소가 공개라 주석도 공개된다: 스크립트는 집계 숫자만 내보낸다(닉네임·검색어 원문 없음).
+# 저장소가 공개라 주석도 공개된다: OPS_PUSH_TOKEN이 있으면 요약을 비공개 저장소 phdkimworld/kimworld(ops-data) stats/analytics.json 에만 둔다. 없으면 공개 주석(수익 제외). 2026-10-28
 on:
   schedule:
-    - cron: "40 3 * * *"   # 매일 03:40 UTC(한국 12:40). 애드핏 데일리 리포트(오전 11시 카톡)가 서버에 들어온 뒤 CSV에 합친다
+    - cron: "40 3 * * *"   # 매일 03:40 UTC(한국 12:40). 최신 요약을 비공개 저장소에 둔다(애드핏 기록은 서버 D1에만)
   workflow_dispatch:
     inputs:
       days:
@@ -12,7 +12,7 @@ on:
         required: false
 
 permissions:
-  contents: write   # data/adfit_daily.csv 갱신 커밋
+  contents: write   # 옛 애드핏 CSV 삭제 커밋(한 번)
 
 jobs:
   report:
@@ -37,18 +37,32 @@ jobs:
           CODE=$(curl -sS --max-time 60 -o .cache/an.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" "$BASE/v1/admin/analytics?days=$DAYS")
           echo "::notice title=AN HTTP::$CODE $(wc -c < .cache/an.json) bytes · ${BASE}"
           if [ "$CODE" != "200" ]; then echo "::notice title=AN BODY::$(head -c 300 .cache/an.json | tr -d '\r\n%')"; fi
-      - name: Report
-        run: python3 scripts/analytics_report.py
-      - name: Sync AdFit
+      - name: Import old AdFit CSV (one time)
+        # 공개 저장소에 있던 data/adfit_daily.csv 를 비공개 D1로 옮기고 파일을 지운다(2026-10-28 비공개 전환)
         run: |
-          python3 scripts/adfit_sync.py
+          if [ ! -f data/adfit_daily.csv ]; then exit 0; fi
+          ADMIN=${ADMIN_IN:-$(printf '%s' "$CLOUDFLARE_API_TOKEN:admin" | sha256sum | cut -c1-40)}
+          echo "::add-mask::$ADMIN"
+          SUB=$(curl -sS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty')
+          BASE=${SUB:+https://kimworld-api.$SUB.workers.dev}; BASE=${BASE:-https://api.drkimworld.com}
+          python3 -c "import csv,json;print(json.dumps({'adfit':list(csv.DictReader(open('data/adfit_daily.csv',encoding='utf-8')))},ensure_ascii=False))" > .cache/af_import.json
+          CODE=$(curl -sS --max-time 60 -o .cache/af_imp_res.json -w '%{http_code}' -A "kimworld-ops-report" -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" --data @.cache/af_import.json "$BASE/v1/admin/revenue-import")
+          echo "::notice title=ADFIT IMPORT::HTTP $CODE"
+          test "$CODE" = "200"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/adfit_daily.csv
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -q -m "애드핏 기록 동기화 $(TZ=Asia/Seoul date '+%Y-%m-%d') KST"
-          for i in 1 2 3 4; do
-            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
-            sleep $((i * 5))
-          done
+          git rm -q data/adfit_daily.csv
+          git commit -q -m "애드핏 기록을 비공개 D1로 옮기고 공개 파일 삭제"
+          for i in 1 2 3 4; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep $((i * 5)); done
           exit 1
+      - name: Report
+        # 비공개 저장소 토큰(OPS_PUSH_TOKEN)이 있으면 전체 요약을 비공개 저장소에만 올리고 공개 주석은 남기지 않는다. 없으면 공개 주석(수익 제외)
+        env:
+          OPS_PUSH_TOKEN: ${{ secrets.OPS_PUSH_TOKEN }}
+        run: |
+          if [ -n "$OPS_PUSH_TOKEN" ]; then
+            JSON_OUT=.cache/analytics.json NO_ANNOTATIONS=1 python3 scripts/analytics_report.py
+            scripts/ops_publish.sh .cache/analytics.json analytics
+          else
+            python3 scripts/analytics_report.py
+          fi
