@@ -98,8 +98,7 @@ const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
 
 // ---------- 애드핏 데일리 리포트 받기 ----------
 // 운영자 휴대폰(MacroDroid 등)이 카카오톡 '카카오애드핏' 알림 글을 POST /v1/ingest/adfit 로 보낸다.
-// 열쇠는 운영자에게만 준 무작위 값이고, 코드에는 그 SHA-256만 둔다(공개 저장소). 이 열쇠로는 애드핏 숫자만 넣을 수 있다
-const ADFIT_KEY_SHA = "4e47b701b7b75c64d4744f44af08464ef08ea64dc751ad954b63caea76199f30";
+// 열쇠는 운영자가 정해 GitHub 비밀값 ADFIT_INGEST_KEY에 넣은 값(api.yml이 워커 비밀값으로 넣음). 없으면 이 기능은 꺼진다. 이 열쇠로는 애드핏 숫자만 넣을 수 있다
 export function parseAdfit(text) {
   const t = String(text || "").replace(/\r/g, "");
   const m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
@@ -1304,7 +1303,8 @@ export default {
       if (p === "/v1/ingest/adfit" && req.method === "POST") {
         const key = req.headers.get("X-Ingest-Key") || url.searchParams.get("k") || "";
         if (!(await allow(db, `adfit:${ip}`, 30, 3600e3, now))) return json(req, { error: "rate" }, 429);
-        if (!key || !safeEqual(await sha256hex(key), env.ADFIT_KEY_SHA || ADFIT_KEY_SHA)) return json(req, { error: "key" }, 401);
+        const want = env.ADFIT_KEY_SHA || (env.ADFIT_INGEST_KEY ? await sha256hex(env.ADFIT_INGEST_KEY) : "");
+        if (!want || !key || !safeEqual(await sha256hex(key), want)) return json(req, { error: "key" }, 401);
         const raw = (await req.text()).slice(0, 4000);
         let text = raw; try { const j = JSON.parse(raw); if (j && typeof j.text === "string") text = j.text; } catch {}
         const row = parseAdfit(text);
