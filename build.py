@@ -1117,6 +1117,16 @@ def build(drafts=False, strict=False, out: Path = DIST):
         # 글 상세(종토방·라운지 글 하나와 답글). 답글 사이 광고는 종토방과 같은 리듬
         write("settings/index.html", "settings.html")  # 설정(푸시 알림·쪽지 받기·글자 크기·앱·계정). 아래 탭 줄 '설정'
         write("admin/index.html", "admin.html")  # 운영 통계(운영자 계정만 API가 자료를 준다, 검색 노출·링크 없음)
+        # 애드핏 일별 실적(운영자가 붙여 준 데일리 리포트 → data/adfit_daily.csv, scripts/adfit_add.py). 운영 통계 '애드핏 실적'이 읽는다
+        af = ROOT / "data" / "adfit_daily.csv"
+        if af.exists():
+            import csv as _csv
+            with af.open(encoding="utf-8", newline="") as f:
+                rows = []
+                for r in _csv.DictReader(f):
+                    rows.append({k: (int(v) if k != "day" and k != "note" and str(v).strip().lstrip("-").isdigit() else (v or "")) for k, v in r.items()})
+            (out / "admin").mkdir(parents=True, exist_ok=True)
+            (out / "admin" / "adfit.json").write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         pd_ctx = {"theme": "*"}
         ads.begin_page()
         write("p/index.html", "post.html", thread_ad=ads.render("thread_inline", {"theme": "*"}), rhythm=ads.rhythm["board"],

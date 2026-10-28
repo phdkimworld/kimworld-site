@@ -59,6 +59,36 @@
     card.appendChild(svg);
     return card;
   }
+  // ---------- 애드핏 실적: 운영자가 붙여 준 데일리 리포트(data/adfit_daily.csv → /admin/adfit.json). 기간 버튼과 상관없이 전체 기록 ----------
+  function adfitPanel(box) {
+    fetch(base + '/admin/adfit.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      if (!rows || !rows.length) return;
+      rows = rows.slice().sort(function (a, b) { return a.day < b.day ? -1 : 1; });
+      var vr = function (r) { return r.rendered ? r.impressions / r.rendered * 100 : 0; };
+      var sum = function (xs, k) { return xs.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
+      var last = rows[rows.length - 1], w1 = rows.slice(-7), w0 = rows.slice(-14, -7);
+      var e1 = sum(w1, 'earn'), e0 = sum(w0, 'earn'), i1 = sum(w1, 'impressions'), r1 = sum(w1, 'rendered');
+      box.appendChild(heading('애드핏 실적', '운영자가 붙여 준 데일리 리포트 · 한국 날짜 · ' + rows[0].day.slice(5).replace('-', '.') + '부터'));
+      var k = el('div', 'an-tiles');
+      k.appendChild(tile('전체 예상 적립금', nf(last.cum_earn || sum(rows, 'earn')) + '원', '확정 ' + nf(last.confirmed) + '원 · 다음 달 21일부터 지급 신청'));
+      k.appendChild(tile('최근 7일 적립금', nf(e1) + '원', '하루 ' + (e1 / w1.length).toFixed(1) + '원', w0.length === 7 ? delta(e1, e0) : null));
+      k.appendChild(tile('최근 7일 보이는 비율', r1 ? (i1 / r1 * 100).toFixed(0) + '%' : '–', '보인 노출 ' + nf(i1) + ' ÷ 렌더드 ' + nf(r1)));
+      k.appendChild(tile('최근 7일 eCPM', i1 ? nf(Math.round(e1 / i1 * 1000)) + '원' : '–', '적립금 ÷ 보인 노출 × 1000'));
+      k.appendChild(tile('최근 7일 클릭', nf(sum(w1, 'clicks')), '누적 ' + nf(sum(rows, 'clicks'))));
+      box.appendChild(k);
+      var dl = function (r) { return r.day.slice(5).replace('-', '.'); };
+      var g = el('div', 'an-grid2');
+      g.appendChild(bars('일별 애드핏 예상 적립금', rows, 'earn', function (v) { return nf(Math.round(v)) + '원'; }, { label: dl, sub: function (t) { return '합계 ' + nf(t) + '원 · 하루 평균 ' + (t / rows.length).toFixed(1) + '원'; } }));
+      g.appendChild(bars('일별 보인 노출(애드핏 집계)', rows, 'impressions', nf, { label: dl, sub: function (t) { return '합계 ' + nf(t) + ' · 렌더드 ' + nf(sum(rows, 'rendered')) + ' · 요청 ' + nf(sum(rows, 'requests')); } }));
+      var sv = rows.map(function (r) { return { day: r.day, v: vr(r) }; });
+      g.appendChild(bars('일별 보이는 비율(보인 노출 ÷ 렌더드)', sv, 'v', function (v) { return Math.round(v) + '%'; }, { label: dl, sub: function () { var a = sum(rows, 'rendered'); return '전체 ' + (a ? Math.round(sum(rows, 'impressions') / a * 100) : 0) + '% · 리포트 하단 광고 이동(10-19) 전 약 13%'; } }));
+      g.appendChild(bars('일별 eCPM', rows, 'ecpm', function (v) { return nf(Math.round(v)) + '원'; }, { label: dl, sub: function () { var im = sum(rows, 'impressions'); return '전체 ' + (im ? nf(Math.round(sum(rows, 'earn') / im * 1000)) : 0) + '원 · 광고주 단가에 따라 날마다 크게 달라짐'; } }));
+      box.appendChild(g);
+      box.appendChild(table('애드핏 일별 기록', ['날짜', '적립금', '요청', '렌더드', '보인 노출', '보이는 비율', '클릭', 'eCPM', '누적', '메모'], rows.slice().reverse().map(function (r) {
+        return [dl(r), nf(r.earn) + '원', nf(r.requests), nf(r.rendered), nf(r.impressions), Math.round(vr(r)) + '%', nf(r.clicks), nf(r.ecpm) + '원', r.cum_earn ? nf(r.cum_earn) + '원' : '', r.note || ''];
+      }), { note: '기록: data/adfit_daily.csv(scripts/adfit_add.py가 데일리 리포트 글을 읽어 넣음). 사이트 자체 집계(위 일별 광고 노출)와 기준이 달라 숫자가 다릅니다.' }));
+    }).catch(function () {});
+  }
   function table(title, head, rows, opt) {
     opt = opt || {};
     var card = el('section', 'an-card'); card.appendChild(el('h3', 'an-ct', title));
@@ -402,6 +432,7 @@
       g.appendChild(bars('시간대별 페이지뷰 (미국 동부시간)', hoursEt, 'pv', nf, { label: function (r) { return r.h + '시'; }, sub: function () { return '가장 많은 시간 ' + hoursEt.slice().sort(function (a, b) { return b.pv - a.pv; })[0].h + '시 (ET)'; } }));
     }
     body.appendChild(g);
+    var afBox = el('div'); body.appendChild(afBox); adfitPanel(afBox);
 
     var acq = acquisition(d, T); delta.short = false; if (acq) body.appendChild(acq);
 
