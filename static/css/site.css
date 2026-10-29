@@ -1547,3 +1547,12 @@ article.report .sent { margin-top: 14px; }
 .so-meta { font-size: .76rem; }
 .so-empty { font-size: .85rem; color: var(--muted); padding: 6px 0; }
 .an-key { width: 100%; max-width: 420px; font: inherit; font-family: ui-monospace, monospace; padding: 10px; margin: 10px 0 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
+/* 4열 이상 표: 휴대폰에서 행마다 카드(칸 이름 + 값)로 — 오른쪽 열 잘림 방지(v2.1 Master 2.2, 2026-10-29) */
+@media (max-width: 640px) {
+  .prose .table-cards { overflow-x: visible; }
+  .prose .table-cards thead { display: none; }
+  .prose .table-cards table, .prose .table-cards tbody { display: block; }
+  .prose .table-cards tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .prose .table-cards td { display: flex; gap: 10px; padding: 3px 0; border: 0; text-align: left !important; }
+  .prose .table-cards td::before { content: attr(data-label); flex: 0 0 38%; color: var(--muted); font-size: .82rem; }
+}

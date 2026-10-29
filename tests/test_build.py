@@ -393,6 +393,9 @@ check(f.count('<details class="fold"') == 2 and "카드 2장" in f and "카드 1
 check('<h3 id="같은-호재인데-왜-반응이-달랐나">' in f or "같은 호재인데" in f.split("</details>")[-1], "비교 소절과 다른 부는 접지 않음")
 w = B.wrap_tables("<table><thead><tr><th>구분</th><th>목적</th></tr></thead><tbody><tr><td>가</td><td>나</td></tr></tbody></table>", "table-text")
 check('class="table-wrap table-text"' in w and 'data-label="목적"' in w, "글 위주 표는 감싸고 칸마다 머리글 이름")
+w4 = B.wrap_tables("<table><thead><tr><th>a</th><th>b</th><th>c</th><th>d</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody></table>")
+w3 = B.wrap_tables("<table><thead><tr><th>a</th><th>b</th><th>c</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>")
+check('table-cards' in w4 and 'data-label="d"' in w4 and 'table-cards' not in w3 and 'class="table-wrap"' in w3, "4열 이상 표는 휴대폰 카드(칸 이름), 3열 표는 그대로")
 pv = (SRC / "dist/privacy/index.html")
 if pv.exists():
     pvt = pv.read_text(encoding="utf-8")
