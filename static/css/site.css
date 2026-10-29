@@ -988,6 +988,10 @@ body:has(.dm-app:not([hidden])) .site-footer { display: none; }
   .home-grid .home-side { display: none !important; }   /* 휴대폰: 인사이트·테마 목록·팔로우 추천은 피드에 끼우지 않는다 */
 }
 .home-grid { margin-top: 0; }
+.home-pop { margin: 10px 0 12px; }
+.home-pop .section-title { margin: 0 0 8px; font-size: .95rem; }
+.home-pop .rank-item { padding: 10px 12px; }
+@media (min-width: 1000px) { .home-pop { display: none !important; } }
 .home-grid .feed-list { gap: 0; }
 .home-grid .feed-list > .post, .home-grid .feed-list > .install-card, .home-grid .feed-list > .feed-skel, .home-grid .feed-list > .feed-note {
   background: none; border: 0; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); }

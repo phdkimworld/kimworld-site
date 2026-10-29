@@ -640,6 +640,8 @@
         else ins.querySelector('.ins-tabs').hidden = true;
         pick(7);
         show('[data-popular]');
+        var hp = document.querySelector('[data-home-pop]');
+        if (hp) { rankList(hp.querySelector('[data-home-pop-list]'), p7.slice(0, 3), I, 7); hp.hidden = false; }
       }
 
       // 2) 관심 많은 종목: 7일 조회 + 사이트 검색(검색은 의도가 뚜렷해 3배로 셈). 사이트에 있는 종목만

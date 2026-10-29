@@ -51,6 +51,13 @@
     </div>
     <button type="button" class="feed-new" data-feed-new hidden>새 글 보기</button>
     {% endif %}
+    {% if site.api_url %}
+    {# 휴대폰 첫 화면: 오른쪽 칸(많이 본 리포트)이 숨겨지므로 피드 위에 7일 인기 리포트 3개를 짧게 보인다(PC에서는 숨김) #}
+    <nav class="home-pop" data-home-pop hidden aria-labelledby="hp-h">
+      <h2 id="hp-h" class="section-title">많이 본 리포트 <span class="muted ins-sub">최근 7일</span></h2>
+      <ol class="rank" data-home-pop-list></ol>
+    </nav>
+    {% endif %}
     {% if rs %}
     <div class="feed-list">
       {%- for r in rs[:30] %}{{ card(r, base) }}
