@@ -96,6 +96,12 @@ IREN:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["아이리스 에너지", "Iris Energy", "IREN Limited"]
+SLNH:
+  name: "솔루나 홀딩스"
+  name_en: "Soluna Holdings, Inc."
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["솔루나", "Soluna", "메커니컬 테크놀로지"]
 GPUS:
   name: "하이퍼스케일 데이터"
   name_en: "Hyperscale Data, Inc."
