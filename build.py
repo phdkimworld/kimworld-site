@@ -972,12 +972,17 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],
             "chart": chart_info(slug),
             "youtube_id": str(meta.get("youtube_id") or "").strip(),
+            # 공유 미리보기 대비 숫자 2개(SNS 스레드 지침 6.2⑤, 2026-10-29): ["APLD +8.5%", "SLNH -2.8%"]
+            "share_numbers": [str(x).strip() for x in (meta.get("share_numbers") or [])],
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,
             "minutes": max(1, math.ceil(chars / 600)), "url": f"{base_path}/r/{slug}/",
             "body_md": body, "short_answer": short_answer(body),
         })
         reports[-1].update(seo_fields(reports[-1]))
+        sn = reports[-1]["share_numbers"]
+        if sn and (len(sn) != 2 or not all(re.search(r"\S\s+[+-−]?[$]?\d[\d,.]*\s*(%|배|달러)?$", x) for x in sn)):
+            log.err(f"{name}: share_numbers 는 '<라벨> <숫자>' 두 개(예: [\"APLD +8.5%\", \"SLNH -2.8%\"])")
         if reports[-1]["youtube_id"] and not re.fullmatch(r"[A-Za-z0-9_-]{11}", reports[-1]["youtube_id"]):
             log.err(f"{name}: youtube_id 는 11자리 영상 ID")
 
@@ -1397,7 +1402,7 @@ def _og_cta(d, font, x, y, text="무료 리포트 전문 보기 →"):
 
 def make_og(dest: Path, r: dict, site: dict, font_path) -> bool:
     """공유 미리보기 그림(1200×630, 카카오톡·쓰레드·X·페이스북 공통 1.91:1).
-    작은 화면에서도 읽히게 훅을 크게, 숫자는 강조색, 오른쪽에 리포트 차트 일부, 아래에 '무료 리포트 전문 보기' 버튼."""
+    작은 화면에서도 읽히게 훅을 크게, 숫자는 강조색, 오른쪽에 대비 숫자 2개(share_numbers, 없으면 훅만), 아래에 '무료 리포트 전문 보기' 버튼."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except Exception:
@@ -1408,27 +1413,23 @@ def make_og(dest: Path, r: dict, site: dict, font_path) -> bool:
     img, d = _og_base(W, H)
     F = lambda n: ImageFont.truetype(font_path, n, index=1)
     f_brand, f_meta, f_tick, f_cta = F(30), F(30), F(34), F(32)
-    chart = ROOT / "static" / "charts" / f"{r['slug']}.png"
-    has_chart = chart.exists()
-    left_w = 640 if has_chart else W - 128
-    # 오른쪽: 리포트 대표 차트의 윗부분을 카드처럼(아래는 흐리게 사라짐) — '자료로 쓴 리포트'라는 신호
-    if has_chart:
-        cx, cy, cw, ch = 764, 64, 372, 502
-        with Image.open(chart) as im:
-            im = im.convert("RGB")
-            sc = cw / im.width
-            im = im.resize((cw, int(im.height * sc)))
-            im = im.crop((0, 0, cw, min(ch, im.height)))
-        card = Image.new("RGB", (cw, ch), "#ffffff"); card.paste(im, (0, 0))
-        fade = Image.new("L", (cw, ch), 255)
-        fd = ImageDraw.Draw(fade)
-        for yy in range(ch - 150, ch):
-            fd.line([(0, yy), (cw, yy)], fill=int(255 * (ch - yy) / 150))
-        mask = Image.new("L", (cw, ch), 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=26, fill=255)
-        from PIL import ImageChops
-        mask = ImageChops.multiply(mask, fade)
-        img.paste(card, (cx, cy), mask)
+    # 오른쪽: 대비 숫자 2개(share_numbers)를 크게. 리포트 차트를 줄여 넣지 않는다 — 모바일 미리보기에서 글자가 읽히지 않는다(SNS 스레드 지침 6.2⑤, 2026-10-29)
+    nums = [x.rsplit(None, 1) for x in (r.get("share_numbers") or [])][:2]
+    has_nums = len(nums) == 2
+    left_w = 640 if has_nums else W - 128
+    if has_nums:
+        cx, cw = 764, 372
+        f_lab, f_vs = F(36), F(30)
+        for k, (lab, val) in enumerate(nums):
+            y0 = 64 + k * 268
+            col = "#4ade80" if val.startswith("+") else "#f87171" if val[:1] in "-−" else OG_AMBER
+            d.rounded_rectangle([cx, y0, cx + cw, y0 + 234], radius=26, fill="#111a2e", outline="#1e2a44", width=3)
+            d.text((cx + 32, y0 + 26), lab, font=f_lab, fill="#cbd5e1")
+            sz = 112
+            while sz > 60 and d.textlength(val, font=F(sz)) > cw - 64:
+                sz -= 6
+            d.text((cx + 32, y0 + 84), val, font=F(sz), fill=col)
+        d.text((cx + cw // 2 - d.textlength("vs", font=f_vs) / 2, 64 + 234 + 4), "vs", font=f_vs, fill="#64748b")
     _og_brand(img, d, f_brand, 64, 56)
     # 티커 배지 + 회사·테마
     tk = r["ticker"]; tw = d.textlength(tk, font=f_tick)
