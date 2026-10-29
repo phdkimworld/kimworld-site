@@ -1,13 +1,13 @@
 # 세로 전용 요약 쇼츠(1080×1920, 30fps) — 「김박사 월드 쇼츠 제작 개선 지침」(2026-10-14) 구현
 # 사용: python3 make_shorts.py shorts.json shorts_raw.wav 출력.mp4
 #   shorts_raw.wav 옆의 shorts_raw_timing.json(st_tts.py가 만든다)을 읽는다. 나레이션은 '한 줄 = 한 문장 = 한 장면'.
-#   문장 사이 무음은 0.15초로 잘라 다시 붙이고(지침: 0.2초 이하), 첫 목소리는 0.05초, 마지막 단어 뒤 0.25초에 끝낸다.
+#   문장 사이 무음은 0.15초로 잘라 다시 붙이고(지침: 0.2초 이하), 첫 목소리는 0.05초, 마지막 단어 뒤 0.4초에 끝낸다.
 # 화면 영역(세로 1920 기준): 0~154 비움 / 154~288 진행 바·단서 표시·채널 / 288~1056 핵심(장면 요소, 천천히 줌인)
 #   / 1056~1250 자막(어절 단위, 한 줄 12자, 최대 2줄) / 1270 면책(처음 2초·마지막 3초만) / 1344~1920 비움(쇼츠 UI 자리).
 #   오른쪽 15%(x>918)는 높이 45%(y>864) 아래에서 비운다. 모든 글자 40px 이상.
 # shorts.json 예:
 #  {"ticker":"LQDA","name":"리퀴디아","cta":"판결문 해석은 고정 댓글",
-#   "scenes":[{"progress":"","title":"","em":"57","els":[
+#   "scenes":[{"progress":"","title":"","em":"57","subtitle":"하루 -57%","els":[
 #      {"kind":"chart","pts":[50,62,70,71,30],"draw":[0,0.35],"y":40,"h":420,"labels":{"-1":"$30"}},
 #      {"kind":"num","text":"-57%","sub":"하루","at":0.35,"y":480,"color":"red","anim":"pop","sfx":"boom"},
 #      {"kind":"doc","text":"판결문 한 장","at":0.75,"until":0.95}]}, ...]}
@@ -231,7 +231,7 @@ def main(spec_p, raw, out):
         assert 2 <= len(el['opts']) <= 4 and all(len(o) <= 10 for o in el['opts']), f"POLL 보기는 2~4개, 각 10자 이하: {el['opts']}"
     wd = os.path.join(os.path.dirname(out), 'shorts_out'); os.makedirs(wd, exist_ok=True)
     # 1) 음성: 문장만 잘라 0.15초 간격으로 다시 붙인다
-    a, sr = read_wav(raw); GAP, LEAD, TAIL = 0.15, 0.05, 0.25
+    a, sr = read_wav(raw); GAP, LEAD, TAIL = 0.15, 0.05, 0.4  # 끝 0.4초 무음: 루프 문장 끝음절이 잘리지 않게(통합 제작·검수 지침 2026-10-29 4.3, 0.3~0.5초)
     parts, starts, t = [np.zeros(int(sr * LEAD))], [], LEAD
     for s in sents:
         seg = a[int(max(s['start'] - 0.02, 0) * sr):int((s['end'] + 0.05) * sr)]
@@ -258,7 +258,8 @@ def main(spec_p, raw, out):
     # 3) 자막 일정: 문장 길이에 비례해 어절 묶음을 나누고 0.1초 먼저 띄운다
     subs = []
     for i, s in enumerate(sents):
-        grp = chunks(s['text']); L = sum(len(''.join(g).replace(' ', '')) for g in grp) or 1
+        # 화면 자막은 scenes[i].subtitle(아라비아 숫자·기호), 없으면 음성 대본(지침 4.1 tts_script/subtitle_text 이원화)
+        grp = chunks(scenes[i].get('subtitle') or s['text']); L = sum(len(''.join(g).replace(' ', '')) for g in grp) or 1
         dur = s['end'] - s['start']; t0 = starts[i]
         for g in grp:
             d = dur * len(''.join(g).replace(' ', '')) / L
