@@ -223,9 +223,18 @@ document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll('[data-upd-req][data-ticker="' + t + '"]').forEach(function (box) {
         box.hidden = false;
         var b = box.querySelector('[data-ur-btn]'), ne = box.querySelector('[data-ur-n]');
+        // 최신 리포트 공개 후 7일 동안은 닫힘(운영자 지시 2026-10-30): 버튼을 끄고 열리는 날을 알린다
+        if (d.open === false) {
+          var od = new Date(d.opens), lab = (od.getMonth() + 1) + '월 ' + od.getDate() + '일';
+          b.disabled = true; b.setAttribute('aria-pressed', 'false'); b.classList.add('is-closed');
+          b.textContent = lab + '부터 요청 가능';
+          ne.textContent = '최신 리포트가 나온 지 7일이 안 됐어요. 먼저 읽어 보세요';
+          return;
+        }
+        b.disabled = false; b.classList.remove('is-closed');
         b.setAttribute('aria-pressed', d.mine ? 'true' : 'false');
         b.textContent = d.mine ? '✓ 요청함 (취소하려면 누르기)' : '🔔 업데이트 요청';
-        ne.textContent = d.n ? '최근 30일 ' + C.num(d.n) + '명이 새 리포트를 요청했어요' : '새 리포트가 필요하면 첫 요청을 남겨 주세요';
+        ne.textContent = d.n ? '요청 접수 후 ' + C.num(d.n) + '명이 새 리포트를 요청했어요' : '새 리포트가 필요하면 첫 요청을 남겨 주세요';
       });
     }
     C.api('/v1/requests/' + encodeURIComponent(t)).then(paintUr).catch(function () {});
@@ -233,6 +242,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (busy) return; busy = 1; btn.disabled = true;
       C.api('/v1/requests/' + encodeURIComponent(t), { method: 'POST', body: {} }).then(function (d) {
         busy = 0; btn.disabled = false;
+        if (d && d.error === 'closed') { paintUr({ n: 0, open: false, opens: d.opens }); C.flash(d.message); return; }
         if (d && d.n != null) { paintUr(d); if (d.changed === 'on') { if (window.kwEv) kwEv('update_request'); C.flash('요청했어요. 요청이 많은 종목은 새 리포트 제작 순서에 반영됩니다'); } else C.flash('요청을 취소했어요'); }
         else C.flash((d && d.message) || '요청하지 못했습니다');
       }).catch(function () { busy = 0; btn.disabled = false; C.flash('요청하지 못했습니다'); });

@@ -1208,6 +1208,14 @@ def build(drafts=False, strict=False, out: Path = DIST):
         "st": r.get("share_title") or "", "ch": (r.get("chart") or {}).get("src", ""),
     } for r in public]
     (out / "search.json").write_text(json.dumps(index, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    # 업데이트 요청 열림 시각(운영자 지시 2026-10-30): 종목별 최신 리포트 공개일 0시(미 동부) + 7일, 밀리초. 워커가 읽어 그 전엔 요청을 막고 이후 요청만 센다
+    _latest = {}
+    for r in public:
+        if r["ticker"] and (r["ticker"] not in _latest or r["date"] > _latest[r["ticker"]]):
+            _latest[r["ticker"]] = r["date"]
+    _et = __import__("zoneinfo").ZoneInfo("America/New_York")
+    (out / "req-open.json").write_text(json.dumps({t.upper(): int(dt.datetime.combine(d, dt.time(), _et).timestamp() * 1000) + 7 * 86400000
+                                                   for t, d in sorted(_latest.items())}, separators=(",", ":")), encoding="utf-8")
     (out / "ad-weights.json").write_text(json.dumps(ad_weights(ads), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     su = site["site_url"]

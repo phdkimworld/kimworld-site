@@ -244,6 +244,16 @@ function safeEqual(a, b) {
 
 // ---------- 소셜 로그인(구글·카카오·네이버). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
 const SITE = "https://drkimworld.com";
+// 종목별 업데이트 요청 열림 시각(사이트 빌드 산출물 /req-open.json). 워커 인스턴스마다 10분 기억, 실패하면 빈 표(제한 없음)
+let REQ_OPEN = null, REQ_OPEN_AT = 0;
+async function reqOpen(env) {
+  if (REQ_OPEN && Date.now() - REQ_OPEN_AT < 6e5) return REQ_OPEN;
+  try {
+    const r = await fetch((env && env.REQ_OPEN_URL) || SITE + "/req-open.json", { cf: { cacheTtl: 300 } });
+    if (r.ok) { const j = await r.json(); if (j && typeof j === "object") { REQ_OPEN = j; REQ_OPEN_AT = Date.now(); } }
+  } catch (e) {}
+  return REQ_OPEN || {};
+}
 const SESSION_DAYS = 180;
 // 네이버는 검수 전('개발 중')에는 등록한 사람만 로그인된다. NAVER_LIVE=1 이 되기 전에는 ?nt=1 로 연 화면(운영자 시험·검수 캡처)에만 버튼을 보인다
 function providers(env, naverTest = false) {
@@ -471,7 +481,11 @@ async function analytics(db, now, daysIn) {
   // 리포트 업데이트 요청(최근 30일, 종목별)
   ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
-  ext.updReq = await all("SELECT ticker, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC LIMIT 15", now - 30 * 864e5).catch(() => []);
+  { // 열린 뒤(최신 리포트 공개 7일 후) 요청만 센다(2026-10-30). 제작 대기 판정도 이 숫자를 쓴다
+    const op = await reqOpen(), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
+    for (const x of raw) if (x.created >= (op[x.ticker] || 0)) c[x.ticker] = (c[x.ticker] || 0) + 1;
+    ext.updReq = Object.keys(c).map((ticker) => ({ ticker, n: c[ticker] })).sort((a, b) => b.n - a.n).slice(0, 15);
+  }
   const botRows = await all("SELECT why, SUM(n) AS n FROM an_bot WHERE day >= ? GROUP BY why", since).catch(() => []);
   ext.bots = Object.fromEntries(botRows.map((x) => [x.why, x.n]));
   // 날짜 축을 빈 날 없이 채운다
@@ -1324,16 +1338,26 @@ export default {
         return json(req, { ok: true, day: row.day, earn: row.earn }, 200, { "Cache-Control": "no-store" });
       }
       // ---------- 종목 리포트 업데이트 요청(최근 30일 요청 수, 순위) ----------
+      // 운영자 지시 2026-10-30: 최신 리포트 공개 후 7일 동안은 요청을 막고, 열린 뒤의 요청만 센다(화면 숫자·순위 모두).
+      // 열림 시각은 사이트 빌드가 만든 /req-open.json(종목→밀리초). 못 읽으면 예전처럼 30일 기준으로 센다
       if (p === "/v1/requests/top" && req.method === "GET") {
-        const r = await db.prepare("SELECT ticker AS t, COUNT(*) AS n FROM upd_req WHERE created >= ? GROUP BY ticker ORDER BY n DESC, MAX(created) DESC LIMIT 10").bind(now - 30 * 864e5).all();
-        return json(req, { days: 30, items: r.results || [] }, 200, { "Cache-Control": "public, max-age=300" });
+        const op = await reqOpen(env);
+        const r = await db.prepare("SELECT ticker AS t, created FROM upd_req WHERE created >= ?").bind(now - 30 * 864e5).all();
+        const cnt = {}, last = {};
+        for (const x of r.results || []) {
+          if (x.created < (op[x.t] || 0)) continue;
+          cnt[x.t] = (cnt[x.t] || 0) + 1; last[x.t] = Math.max(last[x.t] || 0, x.created);
+        }
+        const items = Object.keys(cnt).map((t) => ({ t, n: cnt[t] })).sort((a, b) => b.n - a.n || last[b.t] - last[a.t]).slice(0, 10);
+        return json(req, { days: 30, items }, 200, { "Cache-Control": "public, max-age=300" });
       }
       const updm = p.match(/^\/v1\/requests\/([A-Za-z0-9.]{1,10})$/);
       if (updm && (req.method === "GET" || req.method === "POST")) {
-        const tk = updm[1].toUpperCase(), since = now - 30 * 864e5;
+        const tk = updm[1].toUpperCase(), opens = (await reqOpen(env))[tk] || 0, since = Math.max(now - 30 * 864e5, opens);
         let changed = null;
         if (req.method === "POST") {
           if (botWhy(req)) return json(req, { error: "bot" }, 403);
+          if (now < opens) return json(req, { error: "closed", opens, message: "최신 리포트가 나온 지 7일이 안 돼 아직 요청을 받지 않습니다." }, 409);
           const prev = await db.prepare("SELECT created FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).first();
           if (prev && prev.created >= since) { // 다시 누르면 요청 취소
             await db.prepare("DELETE FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).run(); changed = "off";
@@ -1348,7 +1372,7 @@ export default {
           db.prepare("SELECT COUNT(*) AS n FROM upd_req WHERE ticker = ? AND created >= ?").bind(tk, since).first(),
           db.prepare("SELECT 1 AS y FROM upd_req WHERE ticker = ? AND actor = ? AND created >= ?").bind(tk, actor, since).first(),
         ]);
-        return json(req, { n: cnt?.n || 0, mine: !!mine, changed }, 200, { "Cache-Control": "no-store" });
+        return json(req, { n: cnt?.n || 0, mine: !!mine, changed, open: now >= opens, opens }, 200, { "Cache-Control": "no-store" });
       }
       const sm = p.match(/^\/v1\/sentiment\/([A-Za-z0-9.]{1,10})$/);
       if (sm && (req.method === "GET" || req.method === "POST")) {
