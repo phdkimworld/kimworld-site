@@ -81,6 +81,42 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     url = shareUrl(url);
     kwShare({ title: title, url: url });
   }
+  // ---------- 인쇄 시트: 문서형(종이 A4) 또는 모바일 화면 그대로(운영자 요청 2026-10-29) ----------
+  // 모바일형은 종이 폭을 휴대폰 폭(105mm≈397px)으로 바꿔 화면용 모바일 배치(@media max-width)가 그대로 걸리게 하고,
+  // 다크·라이트 색과 배경을 유지한다(print-color-adjust). PDF로 저장하면 휴대폰에서 보던 모습 그대로 나온다.
+  var psEl = null;
+  function psClose() { if (psEl) psEl.hidden = true; }
+  function doPrint(mobile) {
+    var root = document.documentElement, st = null;
+    if (mobile) {
+      root.classList.add('pm');
+      st = document.createElement('style'); st.id = 'pm-page';
+      st.textContent = '@page { size: 105mm 228mm; margin: 0; }';
+      document.head.appendChild(st);
+    }
+    var done = function () { root.classList.remove('pm'); if (st && st.parentNode) st.parentNode.removeChild(st); window.removeEventListener('afterprint', done); };
+    if (mobile) window.addEventListener('afterprint', done);
+    track('print', { mode: mobile ? 'mobile' : 'doc' });
+    setTimeout(function () { window.print(); if (mobile) setTimeout(done, 1500); }, 60);
+  }
+  function printSheet() {
+    if (!psEl) {
+      psEl = document.createElement('div'); psEl.className = 'ksheet'; psEl.hidden = true;
+      psEl.innerHTML = '<div class="ks-in" role="dialog" aria-label="인쇄하기"><p class="ks-h">인쇄 · PDF 저장</p>' +
+        '<button type="button" class="ks-b" data-ps="doc">문서형 (A4 종이)</button>' +
+        '<button type="button" class="ks-b" data-ps="mobile">모바일 화면 그대로</button>' +
+        '<button type="button" class="ks-x" data-ps="x">닫기</button></div>';
+      psEl.addEventListener('click', function (e) {
+        if (e.target === psEl) return psClose();
+        var b = e.target.closest && e.target.closest('[data-ps]'); if (!b) return;
+        var k = b.getAttribute('data-ps'); psClose();
+        if (k !== 'x') doPrint(k === 'mobile');
+      });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') psClose(); });
+      document.body.appendChild(psEl);
+    }
+    psEl.hidden = false;
+  }
   // ---------- 공유 시트: 카카오톡 바로 보내기 + 다른 앱 + 링크 복사 ----------
   // site.yaml kakao_js_key(공개값)가 있을 때만 시트를 연다. 없으면 예전처럼 휴대폰 공유창 또는 복사.
   // 카카오 SDK는 시트를 열 때만 불러온다(평소 페이지 무게 그대로). 미리보기는 그 주소의 og 태그를 카카오가 긁어 간다(sendScrap)
@@ -245,7 +281,7 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     else if (a === 'theme') toggleTheme();
     else if (a === 'share') share(b);
     else if (a === 'save') toggleSave();
-    else if (a === 'print') window.print();
+    else if (a === 'print') printSheet();
     else if (a === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });
     else if (a === 'bottom') window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   });

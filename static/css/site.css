@@ -251,10 +251,15 @@ button { font: inherit; color: inherit; }
 
 @media print {
   .site-header, .site-footer, .report-actions, .ad, .to-top, .toc, .toc-side, .progress, .prevnext, .more, .yt, .newsletter { display: none !important; }
-  body { background: #fff; color: #000; }
+  html:not(.pm) body { background: #fff; color: #000; }
   .report-layout { display: block; }
-  a { color: #000; }
+  html:not(.pm) a { color: #000; }
+  /* 모바일 화면 그대로(site.js doPrint): 화면 색·배경 유지, 휴대폰 폭 종이 */
+  html.pm, html.pm body { background: var(--bg); color: var(--text); }
+  html.pm * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.pm .ksheet { display: none !important; }
 }
+@media print { .ksheet { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 
 /* ---------- 조회수·댓글·인기 ---------- */
