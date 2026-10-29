@@ -449,6 +449,9 @@ if (D / "index.html").exists():
     _rp = (D / "r/rgti-2026-10/index.html").read_text(encoding="utf-8") if (D / "r/rgti-2026-10/index.html").exists() else next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
     check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index('class="summary-box"') < _rp.index('class="prose"') < _rp.index("data-sent ") < _rp.index('class="disclaimer-box"'),
           "리포트 본문 끝(출처 위, SKILL R1.7 2026-10-28): 같은 종목 투자 심리 투표")
+    _ck = [p.read_text(encoding="utf-8") for p in (D / "r").glob("*/index.html")]
+    check(any('<ul class="checklist">' in h for h in _ck) and not any(re.search(r"<ul>\s*<li>[□☐]", h) for h in _ck),
+          "□ 체크리스트는 글머리 점 없는 checklist 목록(독자 검토 10-29)")
     _home = (D / "index.html").read_text(encoding="utf-8")
     _c1 = re.search(r'<article class="card post"[^>]*data-ticker="([A-Z0-9.]+)".*?</article>', _home, re.S)
     check(_c1 and 'data-fpoll data-ticker="' + _c1.group(1) + '"' in _c1.group(0) and 'data-fp-v="bull"' in _c1.group(0)

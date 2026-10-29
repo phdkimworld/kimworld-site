@@ -291,6 +291,8 @@ def wrap_tables(html_in: str, extra: str = "") -> str:
                 return re.sub(r"<td(\s[^>]*)?>", lambda m: f'<td data-label="{html.escape(next(i, ""))}"{m.group(1) or ""}>', rm.group(0))
             return re.sub(r"<tr>.*?</tr>", row, t, flags=re.S)
         html_in = re.sub(r"<table>.*?</table>", label, html_in, flags=re.S)
+    # '□ …' 항목만 있는 목록은 체크리스트: 글머리 점(•)과 □가 겹치지 않게 class를 단다(독자 검토 10-29)
+    html_in = re.sub(r"<ul>(\s*<li>[□☐].*?)</ul>", lambda m: m.group(0) if re.search(r"<li>(?![□☐])", m.group(1)) else f'<ul class="checklist">{m.group(1)}</ul>', html_in, flags=re.S)
     return html_in.replace("<table>", f'<div class="{cls}"><table>').replace("</table>", "</table></div>")
 
 
