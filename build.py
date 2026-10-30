@@ -1020,10 +1020,11 @@ def build(drafts=False, strict=False, out: Path = DIST):
         r["has_diag"] = 'id="diagnosis"' in r["body_html"]
         # 영상이 던진 질문(요약 끝 문장)과 답이 나오는 소제목: 유튜브 독자 바로가기 줄 맨 앞에
         r["yt_q"], r["yt_ans_id"] = video_question(r["summary"], r["body_html"]) if r["youtube_id"] else ("", "")
-        if r["yt_q"] and not r["yt_ans_id"]:
-            r["yt_ans_id"] = next((t["id"] for t in r["toc"] if t["name"].strip() == "짧은 답"), "")
         # SNS 글이 묻는 '몇 번?'의 답이 있는 3부 소제목(운영자 지시 2026-10-20 SNS 퍼널: 질문 → 답으로 바로)
         r["answer_id"] = next((t["id"] for t in flat if re.search(r"무너진 날|거래일 뒤|몇 번", t["name"])), "")
+        # 질문 문장으로 못 찾으면 '거래일 뒤' 답 소제목 → 그래도 없으면 '짧은 답'(2026-10-30: 88/109개가 바로 아래 '짧은 답'으로 가 버튼이 쓸모없었음)
+        if r["yt_q"] and not r["yt_ans_id"]:
+            r["yt_ans_id"] = r["answer_id"] or next((t["id"] for t in r["toc"] if t["name"].strip() == "짧은 답"), "")
         # SNS 바로가기 줄 제목도 고정 문구 대신 그 리포트 요약 끝 질문으로(2026-10-27: sns_jump 누름 0/16)
         r["sns_q"] = r["yt_q"] or (video_question(r["summary"], r["body_html"])[0] if r["answer_id"] else "")
         idx = public.index(r) if r in public else -1
