@@ -61,7 +61,7 @@ def card_html(c, i, total, spec):
     elif k == "bars":
         mx = max(abs(v) for _, v in c["rows"]) or 1
         rows = "".join(
-            f"""<div class="brow{' me' if lab == spec['name'] else ''}"><div class="blab">{esc(lab)}</div><div class="btrack"><div class="bfill" style="width:{abs(v) / mx * 100:.0f}%;background:{C['green'] if v >= 0 else C['red']}"></div></div><div class="bval">{v:+.1f}%</div></div>"""
+            f"""<div class="brow{' me' if lab == spec['name'] else ''}"><div class="blab">{esc(lab)}</div><div class="btrack"><div class="bfill" style="width:{abs(v) / mx * 100:.0f}%;background:{C['green'] if v >= 0 else C['red']}"></div></div><div class="bval">{(f'{v:,.0f}' + c['unit']) if c.get('unit') else f'{v:+.1f}%'}</div></div>"""
             for lab, v in c["rows"])
         inner = f"""<div class="label">{esc(c.get('label', ''))}</div><div class="ttitle">{esc(c['title'])}</div><div class="bars">{rows}</div><div class="text">{esc(c.get('body', ''))}</div>"""
     elif k == "record":

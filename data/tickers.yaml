@@ -594,3 +594,9 @@ SNDK:
   exchange: "NASDAQ"
   theme: "AI 반도체"
   aliases: ["샌디스크", "SanDisk", "Sandisk"]
+TNXP:
+  name: "토닉스 파마슈티컬스"
+  name_en: "Tonix Pharmaceuticals Holding Corp."
+  exchange: "NASDAQ"
+  theme: "바이오·헬스케어"
+  aliases: ["토닉스", "Tonix", "Tonix Pharmaceuticals", "톤미아", "TONMYA"]
