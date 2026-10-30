@@ -14,6 +14,9 @@ on:
       dry:
         description: "1이면 올리지 않고 제목·라벨·본문 앞부분만 주석으로 보여 준다"
         required: false
+      update:
+        description: "1이면 slug 의 이미 올린 글 본문·라벨을 새 틀로 바꾼다(주소는 그대로)"
+        required: false
 
 permissions:
   contents: write
@@ -35,6 +38,7 @@ jobs:
       BLOGGER_BLOG_ID: "7073807355015585186"
       SLUG: ${{ inputs.slug }}
       DRY: ${{ inputs.dry }}
+      UPDATE: ${{ inputs.update }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check secrets

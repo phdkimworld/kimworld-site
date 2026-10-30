@@ -22,7 +22,7 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     reels  → "path": MP4(세로 9:16, 3~90초 권장), 선택 "cover": 표지 이미지 경로
   path 는 저장소 기준 경로이며 static/social/ 아래에 둔다 → https://drkimworld.com/static/social/... 로 공개된다
   (사이트 배포가 끝나 주소가 200을 돌려줄 때까지 인스타 게시는 다음 실행으로 미룬다).
-  Threads 는 TEXT 게시만 한다(미디어는 쓰지 않음). 미디어가 없는 글은 인스타를 건너뛴다.
+  Threads 는 TEXT 게시가 기본이고, "threads_media": {"path"} 또는 {"paths": [...]}(카드뉴스 JPEG)를 주면 이미지·캐러셀 글로 올린다(poll 과 함께 못 씀). 미디어가 없는 글은 인스타를 건너뛴다.
   Facebook 페이지(운영자 지시 2026-10-15, Graph API v26.0):
     미디어 없음 → /{page}/feed 에 본문(text 또는 channel_text.facebook), replies[0] 은 첫 댓글로 단다
                   (링크의 utm_source=threads 는 facebook 으로 바꾼다). poll 은 본문 끝에 글로 붙인다
@@ -205,6 +205,13 @@ def load(path):
                         errs.append(f"poll[{i}] {len(o.encode('utf-8'))}바이트 > {POLL_OPTION_LIMIT}바이트 제한(한글 1자 = 3바이트)")
             if post.get("link_attachment"):
                 errs.append("poll 과 link_attachment 는 함께 쓸 수 없음(링크는 replies 에)")
+    tm = post.get("threads_media")
+    if tm:
+        tps = [tm["path"]] if tm.get("path") else (tm.get("paths") or [])
+        if not tps or any(not str(x).startswith("static/social/") or not (ROOT / x).exists() for x in tps):
+            errs.append("threads_media 경로는 static/social/ 아래 실제 파일")
+        if post.get("poll"):
+            errs.append("threads_media(이미지)와 poll 은 함께 쓸 수 없음 — 투표 글과 카드 글을 나눈다")
     m = post.get("media")
     if m is not None:
         typ = m.get("type") if isinstance(m, dict) else None
@@ -262,6 +269,14 @@ def url_ready(url):
 # ---------- Threads ----------
 def th_publish_one(part, uid, token, reply_to=None):
     params = {"media_type": "TEXT", "text": part["text"]}
+    # 이미지·카드뉴스 첨부(운영자 지시 2026-10-29 "쓰레드도 잘 나가는 채널 보고 배워": 카드 이미지 글을 따로 올린다). 투표는 글 전용이라 함께 못 쓴다
+    imgs = part.get("image_urls") or []
+    if len(imgs) == 1:
+        params = {"media_type": "IMAGE", "image_url": imgs[0], "text": part["text"]}
+    elif len(imgs) > 1:
+        kids = [call(TH_API, "POST", f"{uid}/threads", {"media_type": "IMAGE", "image_url": u, "is_carousel_item": "true"}, token)["id"] for u in imgs[:20]]
+        time.sleep(5)
+        params = {"media_type": "CAROUSEL", "children": ",".join(kids), "text": part["text"]}
     if part.get("link_attachment"):
         params["link_attachment"] = part["link_attachment"]
     if part.get("poll"):
@@ -295,7 +310,13 @@ def do_threads(post, res, save):
     uid = call(TH_API, "GET", "me", {"fields": "id"}, token)["id"]  # 토큰 주인 계정으로 게시
     # 주제 태그(운영자 지시 2026-10-20 'SNS 알고리즘 선택'): 팔로워가 거의 없는 계정은 주제 피드가 첫 노출 통로다
     tag = post.get("topic_tag", TH_TOPIC_DEFAULT)
-    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll"), "topic_tag": tag}] + list(post.get("replies", []) or [])
+    tm = post.get("threads_media") or {}
+    imgs = [public_url(p) for p in ([tm["path"]] if tm.get("path") else tm.get("paths") or [])]
+    if imgs and not all(url_ready(u) for u in imgs):
+        res["waiting"] = "Threads 이미지 주소 배포 대기"
+        return
+    res.pop("waiting", None)
+    parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll"), "topic_tag": tag, "image_urls": imgs}] + list(post.get("replies", []) or [])
     ids = res.setdefault("ids", [])
     for i in range(len(ids), len(parts)):
         ids.append(th_publish_one(parts[i], uid, token, reply_to=ids[-1] if ids else None))

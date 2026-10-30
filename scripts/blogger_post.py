@@ -54,33 +54,87 @@ def short_title(fm: dict) -> str:
     return f"{head} {kind} 분석 — {hook}"[:140]
 
 
+def tickers_yaml() -> dict:
+    p = ROOT / "data" / "tickers.yaml"
+    return (yaml.safe_load(p.read_text(encoding="utf-8")) or {}) if p.exists() else {}
+
+
+def slug_en(slug: str, fm: dict) -> str:
+    """영문 고유주소(블로그 SEO 지침 7.2①, 2026-10-29): 한글 제목을 그대로 넘기면 한글이 빠져 'slnh-85-28-19.html'이 된다.
+    처음 게시할 때 영문 제목으로 올려 주소를 만들고(블로거는 첫 제목으로 주소를 정한다) 곧바로 한글 제목으로 바꾼다."""
+    if fm.get("blog_slug"):
+        return re.sub(r"[^a-z0-9]+", " ", str(fm["blog_slug"]).lower()).strip()
+    tk = str(fm.get("ticker") or "").lower()
+    en = str((tickers_yaml().get(str(fm.get("ticker") or "")) or {}).get("name_en") or "")
+    words = [w for w in re.sub(r"[^a-z0-9 ]+", " ", en.lower()).split() if w not in ("inc", "corp", "corporation", "ltd", "plc", "co", "the", "holdings")][:3]
+    return " ".join([tk] + words + ["stock", "analysis"])
+
+
+def related(fm: dict) -> list:
+    """연관 종목 티커(파트너·비교 대상): related_tickers 또는 share_numbers 라벨 가운데 대문자 티커."""
+    tk = str(fm.get("ticker") or "")
+    out = [str(x) for x in (fm.get("related_tickers") or [])]
+    for x in fm.get("share_numbers") or []:
+        lab = str(x).rsplit(None, 1)[0]
+        if re.fullmatch(r"[A-Z]{1,5}", lab) and lab != tk:
+            out.append(lab)
+    return list(dict.fromkeys(out))
+
+
+def faq(fm: dict, slug: str) -> list:
+    """'이 리포트가 답하는 3가지 질문': blog_faq(제작 때 블로그 전용으로 쓴 질문·답)가 있으면 그것, 없으면 1~6부 '핵심' 콜아웃에서 셋."""
+    if fm.get("blog_faq"):
+        return [(str(x.get("q", "")), str(x.get("a", ""))) for x in fm["blog_faq"]][:3]
+    md = (REPORTS / f"{slug}.md").read_text(encoding="utf-8").split("---", 2)[-1]
+    out = []
+    for m in re.finditer(r"^## ([2-5])부\.\s*(.+?)\n+> \*\*핵심:\*\*\s*(.+)$", md, re.M):
+        out.append((m.group(2).strip().rstrip("?") + "?", m.group(3).strip()))
+    return out[:3]
+
+
 def body(slug: str, fm: dict) -> str:
     u = f"{BASE}/r/{slug}/?utm_source=blogger&utm_medium=post&utm_campaign={slug}"
     e = html.escape
     tk = e(str(fm.get("ticker") or ""))
+    name = e(str((tickers_yaml().get(str(fm.get("ticker") or "")) or {}).get("name") or tk))
+    hook = e(str(fm.get("title") or "").split(" | ")[0].split(",", 1)[-1].strip())
+    rel = related(fm)
+    rel_txt = f" · 연관 종목 {', '.join(rel)}" if rel else ""
+    # 대표 그림 alt: 종목명·티커·핵심 사건(지침 7.2③)
+    alt = f"{name}({tk}) 주가 분석 - {hook}{rel_txt}"
+    box = lambda label: (f'<div style="margin:22px 0;padding:18px;background:#fff7ed;border-left:5px solid #f59e0b;border-radius:8px">'
+                         f'<p style="margin:0 0 10px;font-weight:700">{label}</p>'
+                         f'<a href="{u}" style="display:inline-block;padding:11px 18px;background:#f59e0b;color:#111;border-radius:8px;font-weight:700;text-decoration:none">전체 분석 리포트 무료로 보기 →</a></div>')
+    intro = str(fm.get("blog_intro") or fm.get("summary") or "")
     parts = [
-        f'<p><a href="{u}"><img src="{BASE}/og/{slug}.png" alt="{tk} 리포트 대표 이미지" style="max-width:100%;height:auto;border-radius:8px"></a></p>',
-        f"<p>{e(str(fm.get('summary') or ''))}</p>",
+        f'<p><a href="{u}"><img src="{BASE}/og/{slug}.png" alt="{e(alt)}" style="max-width:100%;height:auto;border-radius:8px"></a></p>',
+        f"<p>{e(intro)}</p>",
     ]
     kp = [str(x) for x in (fm.get("key_points") or [])][:3]
     if kp:
-        parts.append("<h3>핵심 3줄</h3><ul>" + "".join(f"<li>{e(x)}</li>" for x in kp) + "</ul>")
-    parts.append(
-        f'<p style="margin:20px 0"><a href="{u}" style="display:inline-block;padding:12px 18px;background:#f59e0b;color:#111;'
-        f'border-radius:10px;font-weight:700;text-decoration:none">이벤트 카드·반복 패턴·체크리스트까지 전체 리포트 무료로 보기 →</a></p>'
-    )
+        parts.append(f"<h3>📊 {name}({tk}) 핵심 3줄 요약</h3><ul>" + "".join(f"<li>{e(x)}</li>" for x in kp) + "</ul>")
+    parts.append(box(f"📈 날짜별 기록표와 시나리오별 가능성은 리포트에서"))
+    qs = faq(fm, slug)
+    if qs:
+        parts.append("<h3>🔍 이 리포트가 답하는 3가지 질문</h3><ol>" + "".join(f"<li><strong>{e(q)}</strong> {e(a)}</li>" for q, a in qs) + "</ol>")
     yid = str(fm.get("youtube_id") or "").strip()
     if len(yid) == 11:
         parts.append(
-            f'<p>영상으로 먼저 보기:</p><iframe width="560" height="315" style="max-width:100%" '
-            f'src="https://www.youtube.com/embed/{yid}" title="{tk} 영상" frameborder="0" allowfullscreen></iframe>'
+            f"<h3>🎥 영상으로 먼저 보는 {name}({tk})</h3>"
+            f'<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin-bottom:20px">'
+            f'<iframe src="https://www.youtube.com/embed/{yid}" title="{name}({tk}) 주가 분석 영상" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen></iframe></div>'
         )
+    parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
-        "공개 자료를 정리한 교육용 글이며 특정 종목의 매매를 권하지 않습니다. "
-        f'다른 종목 리포트: <a href="{BASE}/?utm_source=blogger&utm_medium=post">김박사 월드</a></p>'
+        "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "
+        f'다른 미국주식 분석: <a href="{BASE}/?utm_source=blogger&utm_medium=post">김박사 월드 홈페이지</a></p>'
     )
-    return "\n".join(parts)
+    out = "\n".join(parts)
+    n = len(re.sub(r"<[^>]+>", "", html.unescape(out)))
+    if n < 700:
+        print(f"::warning title=블로그 본문 짧음::{slug} {n}자 < 700 — blog_intro·blog_faq를 머리말에 넣는다(지침 7.2②)")
+    return out
 
 
 def token() -> str:
@@ -108,15 +162,28 @@ def token() -> str:
     raise SystemExit("블로거 인증 실패(위 경고 참고)") if last is None else SystemExit(1)
 
 
-def publish(tok: str, title: str, content: str, labels: list) -> str:
+def api(tok: str, method: str, path: str, data=None) -> dict:
     bid = os.environ["BLOGGER_BLOG_ID"]
-    req = urllib.request.Request(
-        f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/",
-        data=json.dumps({"kind": "blogger#post", "title": title, "content": content, "labels": labels}).encode(),
-        headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
-    )
+    req = urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/{path}", method=method,
+                                 data=json.dumps(data).encode() if data is not None else None,
+                                 headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r).get("url", "")
+        return json.load(r)
+
+
+def publish(tok: str, title: str, content: str, labels: list, en: str = "") -> str:
+    """영문 제목(en)으로 먼저 올려 영문 주소를 만들고, 곧바로 한글 제목으로 바꾼다(주소는 그대로 남는다)."""
+    post = api(tok, "POST", "", {"kind": "blogger#post", "title": en or title, "content": content, "labels": labels})
+    if en and en != title:
+        post = api(tok, "PATCH", post["id"], {"title": title})
+    return post.get("url", "")
+
+
+def update(tok: str, url: str, title: str, content: str, labels: list) -> str:
+    """이미 올린 글의 본문·라벨만 새 틀로 바꾼다(주소는 못 바꾼다)."""
+    path = urllib.parse.urlparse(url).path
+    post = api(tok, "GET", "bypath?" + urllib.parse.urlencode({"path": path}))
+    return api(tok, "PATCH", post["id"], {"title": title, "content": content, "labels": labels}).get("url", url)
 
 
 def live(slug: str) -> bool:
@@ -141,7 +208,7 @@ def main() -> int:
     cands = []
     for p in sorted(REPORTS.glob("*.md")):
         slug = p.stem
-        if slug in state or (want and slug != want):
+        if (slug in state and not (os.environ.get("UPDATE") == "1" and slug == want)) or (want and slug != want):
             continue
         fm = front(p)
         if not fm or fm.get("draft"):
@@ -168,16 +235,22 @@ def main() -> int:
             print(f"{slug}: 아직 사이트에 안 열림, 건너뜀")
             continue
         title = short_title(fm)
-        labels = [x for x in [str(fm.get("ticker") or ""), str(fm.get("theme") or ""), "미국주식"] if x]
+        labels = [x for x in [str(fm.get("ticker") or ""), *related(fm), str(fm.get("theme") or ""), "미국주식"] if x]
         content = body(slug, fm)
         if dry:
-            print(f"::notice title=미리보기 {slug}::{title} | 라벨 {', '.join(labels)} | {html.unescape(content).replace(chr(10), " ")[:500]}")
+            print(f"::notice title=미리보기 {slug}::{title} | 주소 {slug_en(slug, fm).replace(' ', '-')} | 라벨 {', '.join(labels)} | {html.unescape(content).replace(chr(10), " ")[:500]}")
             n += 1
             continue
         if n:
             time.sleep(gap)
         try:
-            url = publish(tok, title, content, labels)
+            if os.environ.get("UPDATE") == "1" and slug in state:
+                url = update(tok, state[slug]["url"], title, content, labels)
+                state[slug]["updated"] = dt.datetime.now(ET).isoformat(timespec="minutes")
+                print(f"::notice title=블로거 갱신::{slug} → {url}")
+                n += 1
+                continue
+            url = publish(tok, title, content, labels, slug_en(slug, fm))
         except urllib.error.HTTPError as ex:
             if ex.code in (403, 429):  # 구글 게시 한도: 기록은 남기고 다음 실행에서 이어 간다
                 msg = ex.read().decode("utf-8", "replace")[:300].replace("\n", " ")

@@ -12,6 +12,7 @@
 | 블로그 이름 / 주소 | 김박사 월드 노트 / https://phdkimworld.blogspot.com |
 | 블로그 ID (공개값) | `7073807355015585186` |
 | 블로그 주인 계정 | 운영자 구글 계정 중 하나(운영자 휴대폰 크롬에서 `/u/2/`로 열리는 계정). 이메일은 문서에 적지 않는다 |
+| 본문 틀(2026-10-29 운영자 SEO 지침) | 영문 주소(영문 제목으로 올린 뒤 한글 제목으로 변경, 머리말 `blog_slug`) · 머리말 `blog_intro`·`blog_faq` 3개로 700자 이상 고유 본문 · 반응형 영상 · 상·하단 박스 버튼 · 구체적 alt · 연관 티커 라벨(`related_tickers`). 이미 올린 글은 `slug` + `update: 1`로 본문만 갱신 |
 | 게시 방법 | GitHub Actions 워크플로 `Blogger (새 리포트 소개 글)` (`.github/workflows/blogger.yml`) **만** 쓴다 |
 | 게시 코드 | `scripts/blogger_post.py` |
 | 게시 기록 | `social/blogger/posted.json` — `{slug: {"url": 글 주소, "at": ET 시각}}`, 워크플로가 커밋 |
