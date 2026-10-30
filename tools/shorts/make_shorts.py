@@ -192,10 +192,15 @@ def chunks(text, maxc=12):
 
 def sub_img(lines, em):
     d = ImageDraw.Draw(Image.new('RGBA', (1, 1)))
-    size = min(fit_size(l, FB, 68, 820) for l in lines); f = font(FB, max(size, 64) if size >= 64 else size)
+    size = min(fit_size(l.replace('**', ''), FB, 68, 820) for l in lines); f = font(FB, max(size, 64) if size >= 64 else size)
     im = Image.new('RGBA', (W, 200), (0, 0, 0, 0)); dd = ImageDraw.Draw(im)
     for li, line in enumerate(lines):  # 가운데 x=470: 오른쪽 15%(x>918) 버튼 자리를 피한다
-        tw = d.textlength(line, font=f); x = 470 - tw / 2; yy = li * 92
+        tw = d.textlength(line.replace('**', ''), font=f); x = 470 - tw / 2; yy = li * 92
+        if '**' in line:  # subtitle의 **강조** 구간은 노랑(지침 4.1 표의 굵은 숫자)
+            for k, seg in enumerate(line.split('**')):
+                if not seg: continue
+                dd.text((x, yy), seg, font=f, fill=COL['yellow'] if k % 2 else COL['white'], stroke_width=6, stroke_fill=(0, 0, 0)); x += d.textlength(seg, font=f)
+            continue
         if em and em in line:  # 핵심 단어 하나만 노랑
             a, b = line.split(em, 1)
             for seg, c in ((a, COL['white']), (em, COL['yellow']), (b, COL['white'])):
@@ -258,8 +263,12 @@ def main(spec_p, raw, out):
     # 3) 자막 일정: 문장 길이에 비례해 어절 묶음을 나누고 0.1초 먼저 띄운다
     subs = []
     for i, s in enumerate(sents):
-        # 화면 자막은 scenes[i].subtitle(아라비아 숫자·기호), 없으면 음성 대본(지침 4.1 tts_script/subtitle_text 이원화)
-        grp = chunks(scenes[i].get('subtitle') or s['text']); L = sum(len(''.join(g).replace(' ', '')) for g in grp) or 1
+        dur = s['end'] - s['start']; t0 = starts[i]
+        if scenes[i].get('subtitle'):
+            # 1문장 1프레임(지침 4.1, 2026-10-29): subtitle 한 화면(최대 2줄, \n으로 끊음)을 문장 내내 고정 — 줄 넘김(고아 단어)과 스탬프·자막 동시 변화를 없앤다
+            subs.append((t0 - 0.1, ends[i] - 0.05, scenes[i]['subtitle'].split('\n')[:2], scenes[i].get('em')))
+            continue
+        grp = chunks(s['text']); L = sum(len(''.join(g).replace(' ', '')) for g in grp) or 1
         dur = s['end'] - s['start']; t0 = starts[i]
         for g in grp:
             d = dur * len(''.join(g).replace(' ', '')) / L

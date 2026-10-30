@@ -6,6 +6,8 @@
 
 파일 이름은 겹치지 않게 `<slug>-<번호>.json` (예: `lhx-2026-10-reels.json`).
 
+**인스타그램은 카드뉴스만(운영자 지시 2026-10-29 "인스타는 릴스 폐기하고 카드뉴스로 완전히 전환")**: `tools/cardnews/make_cards.py cards.json static/social/<slug>/cards/`로 1080×1350 JPEG 7~10장을 만들고 `social/queue/<slug>-cards.json`(`"channels":["instagram"]`, `media:{type:"carousel",paths:[...]}`)으로 올린다. 쇼츠 영상(`<slug>-reels.json`)은 `"channels":["facebook"]`만. 기준은 미디어 저장소 SKILL K9.1.
+
 ```json
 {
   "text": "공통 본문",
