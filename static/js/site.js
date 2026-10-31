@@ -612,6 +612,36 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   });
 })();
 
+// ---------- 쿠팡 '오늘의 특가' 한 장(build.py coupang_deal): 방문마다 후보 하나를 고르고, 노출(절반 이상 1초)·클릭을 묶음 "deal"로 보낸다 ----------
+(function () {
+  var boxes = document.querySelectorAll('.ad-coupang-deal'); if (!boxes.length) return;
+  var KW = window.KW || {}, API = (KW.api || '').replace(/\/+$/, '');
+  var SEG = ((window.matchMedia && matchMedia('(max-width: 759px)').matches) ? 'm' : 'd') + '.' + (document.querySelector('article.report') ? 'r' : 'o');
+  var q = [];
+  function send() {
+    if (!q.length || !API) return;
+    var body = JSON.stringify({ seg: SEG, e: q.splice(0, 40) });
+    try { if (navigator.sendBeacon && navigator.sendBeacon(API + '/v1/ad/events', body)) return; } catch (e) {}
+    try { fetch(API + '/v1/ad/events', { method: 'POST', body: body, keepalive: true, credentials: 'include' }); } catch (e) {}
+  }
+  boxes.forEach(function (box) {
+    var alt = box.querySelector('template[data-cd-alt]');
+    if (alt) { var first = box.querySelector('[data-cd]'); first.parentNode.insertBefore(document.importNode(alt.content, true), first.nextSibling); alt.remove(); }
+    var cs = box.querySelectorAll('[data-cd]'), pick = Math.floor(Math.random() * cs.length);
+    cs.forEach(function (c, i) { c.hidden = i !== pick; });
+    var slot = box.getAttribute('data-slot') || '', seen = 0, t = 0;
+    box.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-cd]')) { q.push({ g: 'deal', s: slot, k: 'c' }); send(); } }, true);
+    if (window.IntersectionObserver) new IntersectionObserver(function (es) {
+      es.forEach(function (en) {
+        if (en.isIntersecting && en.intersectionRatio >= 0.5) { if (!seen) t = setTimeout(function () { seen = 1; q.push({ g: 'deal', s: slot, k: 'i' }); }, 1000); }
+        else clearTimeout(t);
+      });
+    }, { threshold: [0, 0.5] }).observe(box);
+  });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') send(); });
+  window.addEventListener('pagehide', send);
+})();
+
 // ---------- 방문 통계(운영자 애널리틱스): 페이지를 떠날 때 한 번만 보낸다 ----------
 // 보내는 것: 주소(쿼리 제외)·유입 경로 종류(유튜브·구글…)·휴대폰 여부·이 기기 첫 방문 여부·이번 방문의 몇 번째 페이지·
 // 실제로 보고 있던 시간(화면이 보이고 최근 30초 안에 움직임이 있던 초)·스크롤 깊이. 사람을 알아볼 정보는 없다.

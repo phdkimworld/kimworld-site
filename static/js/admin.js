@@ -123,8 +123,9 @@
       var k = el('div', 'an-tiles');
       k.appendChild(tile('30일 수익(수수료)', nf(sum(m, 'commission')) + '원', '구매 ' + nf(sum(m, 'orders')) + '건 · 합산 ' + nf(sum(m, 'gmv')) + '원'));
       k.appendChild(tile('최근 7일 수익', nf(sum(w1, 'commission')) + '원', '구매 ' + nf(sum(w1, 'orders')) + '건', w0.length === 7 ? delta(sum(w1, 'commission'), sum(w0, 'commission')) : null));
-      k.appendChild(tile('30일 클릭', nf(sum(m, 'clicks')), '배너 ' + nf(sum(m, 'clicks_banner')) + ' · 상품 상자 ' + nf(sum(m, 'clicks_boxes')) + ' · 기타 ' + nf(sum(m, 'clicks_other'))));
+      k.appendChild(tile('30일 클릭', nf(sum(m, 'clicks')), '배너 ' + nf(sum(m, 'clicks_banner')) + ' · 상품 상자 ' + nf(sum(m, 'clicks_boxes')) + ' · 오늘의 특가 ' + nf(sum(m, 'clicks_deal')) + ' · 기타 ' + nf(sum(m, 'clicks_other'))));
       k.appendChild(tile('구매 전환율', pct(sum(m, 'orders'), sum(m, 'clicks')), '구매 ÷ 클릭(30일)'));
+      k.appendChild(tile('특가 vs 상품 상자(30일)', '특가 ' + nf(sum(m, 'commission_deal')) + '원 · 상자 ' + nf(sum(m, 'commission_boxes')) + '원', '클릭 특가 ' + nf(sum(m, 'clicks_deal')) + ' · 상자 ' + nf(sum(m, 'clicks_boxes'))));
       k.appendChild(tile('클릭당 수익', sum(m, 'clicks') ? nf(Math.round(sum(m, 'commission') / sum(m, 'clicks'))) + '원' : '–', '애드핏과 비교용'));
       box.appendChild(k);
       var dl = function (r) { return r.day.slice(5).replace('-', '.'); };
@@ -132,9 +133,9 @@
       g.appendChild(bars('일별 쿠팡 클릭(쿠팡 집계)', full, 'clicks', nf, { label: dl, sub: function (t) { return '합계 ' + nf(t) + ' · 사이트 자체 집계(아래 쿠팡 상자 클릭)는 배너를 못 셉니다'; } }));
       g.appendChild(bars('일별 쿠팡 수익(수수료)', full, 'commission', function (v) { return nf(Math.round(v)) + '원'; }, { label: dl, sub: function (t) { return '합계 ' + nf(t) + '원 · 클릭 뒤 24시간 안에 산 모든 상품에 붙음'; } }));
       box.appendChild(g);
-      box.appendChild(table('쿠팡 일별 기록', ['날짜', '클릭', '배너', '상품 상자', '기타', '구매', '합산 금액', '수익', '링크 종류(addtag:클릭)'], rows.slice().reverse().map(function (r) {
-        return [dl(r), nf(r.clicks), nf(r.clicks_banner), nf(r.clicks_boxes), nf(r.clicks_other), nf(r.orders), nf(r.gmv) + '원', nf(r.commission) + '원', r.click_addtags || ''];
-      }), { note: '배너는 2026-10-28부터 하위 ID(banner)로 구분합니다. 그 전 배너 클릭은 기타에 들어 있습니다. 상품 상자 = 테마별 쿠팡 상품 카드.' }));
+      box.appendChild(table('쿠팡 일별 기록', ['날짜', '클릭', '배너', '상품 상자', '오늘의 특가', '기타', '구매', '합산 금액', '수익', '링크 종류(addtag:클릭)'], rows.slice().reverse().map(function (r) {
+        return [dl(r), nf(r.clicks), nf(r.clicks_banner), nf(r.clicks_boxes), nf(r.clicks_deal), nf(r.clicks_other), nf(r.orders), nf(r.gmv) + '원', nf(r.commission) + '원', r.click_addtags || ''];
+      }), { note: '배너는 2026-10-28부터 하위 ID(banner)로 구분합니다. 그 전 배너 클릭은 기타에 들어 있습니다. 상품 상자 = 테마별 쿠팡 상품 카드. 오늘의 특가 = 리포트 끝 골드박스 한 장(2026-10-30부터, 하위 ID deal).' }));
     }).catch(function () {});
   }
   function revenueChart(slot, series, revP, dayLabel) {

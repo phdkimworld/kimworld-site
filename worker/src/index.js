@@ -479,7 +479,7 @@ async function analytics(db, now, daysIn) {
     daily: Array.from({ length: days }, (_, i) => { const day = D(days - 1 - i); return { day, votes: svDay[day]?.votes || 0, voters: svDay[day]?.voters || 0 }; }),
   };
   // 리포트 업데이트 요청(최근 30일, 종목별)
-  ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
+  ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_deal, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_deal, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   { // 열린 뒤(최신 리포트 공개 7일 후) 요청만 센다(2026-10-30). 제작 대기 판정도 이 숫자를 쓴다
     const op = await reqOpen(), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
@@ -1773,7 +1773,7 @@ export default {
             clicks=COALESCE(excluded.clicks, clicks), ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
             .bind(x.day, int(x.earn), int(x.requests), int(x.impressions), int(x.rendered), int(x.clicks), int(x.ecpm), int(x.cum_earn), int(x.confirmed), now));
         }
-        const CK = ["clicks", "clicks_banner", "clicks_boxes", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_other"];
+        const CK = ["clicks", "clicks_banner", "clicks_boxes", "clicks_deal", "clicks_other", "orders", "gmv", "commission", "commission_banner", "commission_boxes", "commission_deal", "commission_other"];
         for (const x of (Array.isArray(b.coupang) ? b.coupang : []).slice(0, 400)) {
           if (!day(x)) continue;
           st.push(db.prepare(`INSERT INTO coupang_daily (day, ${CK.join(", ")}, click_addtags, updated) VALUES (?${",?".repeat(CK.length)},?,?)

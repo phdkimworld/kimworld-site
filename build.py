@@ -20,6 +20,7 @@ import math
 import re
 import shutil
 import sys
+import time
 from email.utils import format_datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -595,6 +596,17 @@ class Ads:
                     {"keyword": e.get("keyword"), "sub_id": e.get("sub_id"), "date": e.get("date", ""), "products": prods, "theme": str(e.get("theme"))})
         for groups in self.c_auto.values():
             groups.sort(key=lambda g: str(g.get("sub_id")))
+        # 골드박스(쿠팡 오늘의 특가, scripts/coupang_sync.py). 받은 지 24시간 안의 것만 쓴다(지난 특가를 '오늘'이라 하지 않게)
+        self.c_deals: list[dict] = []
+        try:
+            gb = json.loads(auto_path.read_text(encoding="utf-8")).get("goldbox") or {}
+        except Exception:
+            gb = {}
+        if time.time() - float(gb.get("fetched") or 0) < 24 * 3600:
+            self.c_deals = [x for x in (gb.get("items") or []) if str(x.get("url", "")).startswith("https://") and x.get("price")
+                            and not self.bad_hosts(str(x.get("url", "")) + " " + str(x.get("image", "")))
+                            and not any(w in str(x.get("name", "")).lower() for w in self.c_blocked)][:8]
+            self.c_deal_date = str(gb.get("date") or "").replace("-", ".")
         self._common_rot = 0  # 공통 묶음을 상자마다 돌려 넣는 순번
         self._all_rot = 0     # 모든 테마 상자에 싣는 묶음을 돌리는 순번
         self.theme_slug: dict[str, str] = {"_common": "common"}  # 테마 이름 → 주소용 이름(build 에서 채움). 맞춤형 광고 선택에 쓴다
@@ -608,7 +620,7 @@ class Ads:
                        "home_feed": _r("home_feed", (4, 6, 5))}
         if min(self.rhythm[k]["every"] for k in self.rhythm) < 1:
             log.err("ads.yaml rhythm: 광고 사이 간격(every)은 1 이상")
-        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom", "coupang_banner", "coupang_products", "dable_report", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
+        valid = {"adsense_in_article", "adsense_display", "adfit_report_mid", "adfit_report_end", "adfit_list", "adfit_feed", "adfit_feed2", "adfit_rail", "adfit_bottom", "coupang_banner", "coupang_products", "coupang_deal", "dable_report", "none", None}  # page_bottom: 페이지 맨 아래(리포트 면책 위·목록 끝)
         for k, v in self.place.items():
             for one in (v if isinstance(v, list) else [v]):
                 if one not in valid:
@@ -673,6 +685,8 @@ class Ads:
             return bool(self.c_banner)
         if kind == "coupang_products":
             return bool(self.c_products or self.c_auto)
+        if kind == "coupang_deal":
+            return bool(self.c_deals)
         return False
 
     def products_for(self, theme: str, exclude_words: list[str]) -> list[dict]:
@@ -774,6 +788,31 @@ class Ads:
                 f'<div class="cp-banner" data-w="{bw}" style="max-width:{bw}px;aspect-ratio:{bw}/{bh}">'
                 f'<div class="cp-banner-in" style="width:{bw}px;height:{bh}px">{guarded}</div></div></aside>'
             )
+        if kind == "coupang_deal":
+            # '오늘의 특가' 한 장(운영자 승인 2026-10-30): 리포트를 다 읽은 자리에서 쿠팡에 들어갈 이유(실제 할인)를 준다.
+            # 쿠팡은 클릭 뒤 24시간 안의 모든 구매에 수수료가 붙으므로 목표는 클릭. 문구는 쿠팡이 준 사실(이름·가격·할인·로켓)만 쓴다.
+            # 후보 여러 개를 넣고 방문마다 하나를 고른다(site.js). 하위 ID "deal"로 쿠팡 실적이 따로 집계된다
+            co = str(ctx.get("company") or "").strip()
+            hook = (f"{html.escape(co)} 리포트 끝까지 읽으셨네요. 쉬어 가는 김에 오늘 쿠팡 특가 하나 보고 가세요."
+                    if co else "오늘 쿠팡 골드박스 특가 하나 보고 가세요.")
+
+            def deal(it, vis):
+                img = (f'<span class="cd-img"><img src="{html.escape(it["image"])}" alt="" loading="lazy" width="230" height="230"></span>'
+                       if it.get("image") else "")
+                rate = f'<b class="cd-rate">{int(it["rate"])}%</b>' if it.get("rate") else ""
+                orig = f'<s class="cd-orig">{int(it["orig"]):,}원</s>' if it.get("orig") else ""
+                tags = ('<span class="cp-rocket">로켓배송</span>' if it.get("rocket") else "") + ('<span class="cd-free">무료배송</span>' if it.get("free") and not it.get("rocket") else "")
+                return (f'<a class="cp-card cd-card" href="{html.escape(it["url"])}" target="_blank" rel="sponsored noopener" data-cp-slot="{slot}" data-cp-sub="deal" data-cd{"" if vis else " hidden"}>'
+                        f'{img}<span class="cd-body"><span class="cd-name">{html.escape(it["name"])}</span>'
+                        f'<span class="cd-price">{orig}<span class="cd-now">{rate}<strong>{int(it["price"]):,}원</strong></span></span>'
+                        f'<span class="cd-tags">{tags}</span><span class="cd-go">특가 보러 가기 →</span></span></a>')
+            ds = self.c_deals
+            alts = "".join(deal(x, False) for x in ds[1:])
+            return (f'<aside class="ad ad-coupang-deal" data-slot="{slot}" aria-label="광고">{label}'
+                    f'<p class="ad-disclosure">{COUPANG_DISCLOSURE}</p>'
+                    f'<p class="cd-kicker"><span class="cd-badge">쿠팡 골드박스</span> 오늘의 특가</p><p class="cd-hook">{hook}</p>'
+                    f'{deal(ds[0], True)}' + (f'<template data-cd-alt>{alts}</template>' if alts else "") +
+                    f'<p class="cp-note">가격·할인은 {self.c_deal_date} 기준이며 특가는 수량·시간에 따라 끝날 수 있습니다.</p></aside>')
         if kind == "coupang_products":
             groups = self.auto_groups_for(ctx.get("theme", ""), ctx.get("exclude", []), ctx.get("skip_theme", ""))
             # 한 페이지 쿠팡 상자 상한(홈은 2개: 금융 리포트 사이트의 첫인상을 상품이 덮지 않게)
@@ -1073,7 +1112,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body, used_terms = apply_glossary(r["body_html"], glossary)
         body = insert_mid_next(body, *mid_next_pick(r))
         exclude = []  # 리포트에서 다룬 회사의 상품도 광고에 나올 수 있다(법적 제한 없음)
-        ad_ctx = {"theme": r["theme"], "exclude": exclude}
+        ad_ctx = {"theme": r["theme"], "exclude": exclude, "company": r.get("company") or ""}
         pieces = []
         mid_html = ads.render("report_mid", ad_ctx)
         prod_html = ads.render("report_products", ad_ctx)

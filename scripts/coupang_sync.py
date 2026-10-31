@@ -75,6 +75,59 @@ def search(keyword: str, sid: str, limit: int, access: str, secret: str) -> list
         return parse(json.loads(r.read().decode("utf-8")))
 
 
+# 골드박스(쿠팡 '오늘의 특가', 매일 바뀜). 리포트 끝 '오늘의 특가' 한 장 카드에 쓴다(운영자 승인 2026-10-30). 하위 ID "deal"
+GOLDBOX_PATH = "/v2/providers/affiliate_open_api/apis/openapi/products/goldbox"
+DEAL_SUB = "deal"
+
+
+def _num(x: dict, *keys) -> int:
+    for k in keys:
+        v = x.get(k)
+        try:
+            if v is not None and str(v).strip() != "":
+                return int(float(str(v).replace(",", "").replace("%", "")))
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
+def parse_deals(js: dict) -> tuple[list[dict], list[str]]:
+    """골드박스 응답 → 카드용 상품. 할인율·원래 가격은 응답에 있을 때만 쓴다(없으면 지어내지 않는다). 둘째 값은 받은 필드 이름(진단용)."""
+    data = js.get("data") if isinstance(js, dict) else None
+    items = data.get("productData") if isinstance(data, dict) else data
+    out, keys = [], set()
+    for x in items or []:
+        if not isinstance(x, dict):
+            continue
+        keys.update(x.keys())
+        name, url = str(x.get("productName") or "").strip(), str(x.get("productUrl") or "").strip()
+        img = str(x.get("productImage") or "").strip()
+        if not name or not url.startswith("https://"):
+            continue
+        price = _num(x, "productPrice", "salePrice")
+        orig = _num(x, "originalPrice", "basePrice", "productOriginalPrice", "listPrice")
+        rate = _num(x, "discountRate", "discountPercent", "discountRatio")
+        if not rate and orig > price > 0:
+            rate = round((orig - price) * 100 / orig)
+        if orig <= price:
+            orig = 0
+        out.append({"name": name, "url": url, "image": img if img.startswith("https://") else "", "price": price,
+                    "orig": orig, "rate": rate if 0 < rate < 100 else 0, "rocket": bool(x.get("isRocket")),
+                    "free": bool(x.get("isFreeShipping")), "id": str(x.get("productId") or "")})
+    return out, sorted(keys)
+
+
+def goldbox(access: str, secret: str) -> tuple[list[dict], list[str]]:
+    query = urllib.parse.urlencode({"subId": DEAL_SUB})
+    req = urllib.request.Request(
+        f"{DOMAIN}{GOLDBOX_PATH}?{query}",
+        headers={"Authorization": authorization("GET", GOLDBOX_PATH, query, access, secret, dt.datetime.now(dt.timezone.utc)),
+                 "Content-Type": "application/json;charset=UTF-8"},
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return parse_deals(json.loads(r.read().decode("utf-8")))
+
+
 REPORT_PATHS = ["/v2/providers/affiliate_open_api/apis/openapi/v1/reports/orders",
                 "/v2/providers/affiliate_open_api/apis/openapi/v1/reports/commission"]
 REPORTS = Path(os.environ.get("COUPANG_REPORTS") or ROOT / ".cache" / "coupang_reports.json")
@@ -158,7 +211,7 @@ def plan(cfg: dict, themes: list[dict]) -> list[dict]:
     return jobs
 
 
-def run(now: dt.datetime | None = None, searcher=search, reporter=report_get) -> int:
+def run(now: dt.datetime | None = None, searcher=search, reporter=report_get, dealer=None) -> int:
     now = now or dt.datetime.now(dt.timezone.utc)
     access, secret = os.environ.get("COUPANG_ACCESS_KEY", "").strip(), os.environ.get("COUPANG_SECRET_KEY", "").strip()
     if not access or not secret:
@@ -182,6 +235,19 @@ def run(now: dt.datetime | None = None, searcher=search, reporter=report_get) ->
     todo.sort(key=lambda j: (entries.get(f'{j["theme"]}|{j["keyword"]}', {}).get("ts", 0), j["idx"]))
     budget = min(int(cfg.get("max_calls_per_run", 8)), int(cfg.get("max_calls_per_hour", 8)) - len(calls))
     limit = max(1, min(10, int(cfg.get("results_per_keyword", 10))))
+    # 골드박스(하루 안에 바뀌므로 3시간마다 다시 받는다). 시간당 10회 상한은 검색 API 몫이라 여기 호출은 세지 않는다
+    gb = cache.get("goldbox") or {}
+    if now.timestamp() - float(gb.get("ts") or 0) > 3 * 3600:
+        gb = {**gb, "ts": now.timestamp() - 2 * 3600}  # 실패해도 매 실행마다 두드리지 않게(1시간 뒤 다시)
+        try:
+            deals, keys = (dealer or goldbox)(access, secret)
+            if deals:
+                gb = {"ts": now.timestamp(), "fetched": now.timestamp(), "date": now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat(), "items": deals[:20]}
+            print(f"::notice title=쿠팡 골드박스::상품 {len(deals)}개, 할인율 있는 상품 {sum(1 for d in deals if d['rate'])}개, 응답 필드 {', '.join(keys)}")
+        except urllib.error.HTTPError as e:
+            print(f"::warning title=쿠팡 골드박스::HTTP {e.code}")
+        except Exception as e:
+            print(f"::warning title=쿠팡 골드박스::{type(e).__name__}")
     done = 0
     for j in todo[: max(0, budget)]:
         calls.append(now.timestamp())
@@ -202,7 +268,7 @@ def run(now: dt.datetime | None = None, searcher=search, reporter=report_get) ->
     for _ in range(sync_reports(now, access, secret, min(2, left), reporter)):
         calls.append(now.timestamp())
     CACHE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE.write_text(json.dumps({"entries": entries, "calls": calls}, ensure_ascii=False), encoding="utf-8")
+    CACHE.write_text(json.dumps({"entries": entries, "calls": calls, "goldbox": gb}, ensure_ascii=False), encoding="utf-8")
     print(f"[coupang] 새로 받은 검색어 {done}개, 보관 중 {len(entries)}/{len(jobs)}개, 남은 대기 {max(0, len(todo) - done)}개")
     return 0
 

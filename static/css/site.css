@@ -1557,3 +1557,23 @@ article.report .sent { margin-top: 14px; }
   .prose .table-cards td::before { content: attr(data-label); color: var(--muted); font-size: .82rem; }
 }
 .ur-btn.is-closed, .ur-btn:disabled.is-closed { opacity: .55; cursor: not-allowed; }
+
+/* ---------- 쿠팡 '오늘의 특가' 한 장(build.py coupang_deal, 2026-10-30) ---------- */
+.ad-coupang-deal { margin: 28px 0; padding: 14px 14px 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.cd-kicker { margin: 4px 0 2px; font-size: .95rem; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.cd-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e11d48; color: #fff; font-size: .75rem; font-weight: 800; }
+.cd-hook { margin: 0 0 10px; font-size: .85rem; color: var(--muted); }
+.cd-card { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border-radius: 12px; background: var(--surface-2, rgba(127,127,127,.08)); color: var(--text); text-decoration: none; }
+.cd-card[hidden] { display: none; }
+.cd-img img { width: 116px; height: 116px; object-fit: contain; border-radius: 10px; background: #fff; display: block; }
+.cd-body { display: grid; gap: 4px; min-width: 0; }
+.cd-name { font-size: .9rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cd-price { display: grid; gap: 0; }
+.cd-orig { font-size: .78rem; color: var(--muted); }
+.cd-now { display: flex; align-items: baseline; gap: 6px; }
+.cd-rate { color: #e11d48; font-size: 1.15rem; font-weight: 900; }
+.cd-now strong { font-size: 1.15rem; font-weight: 900; }
+.cd-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.cd-free { font-size: .72rem; color: var(--muted); }
+.cd-go { margin-top: 4px; display: block; text-align: center; padding: 9px 10px; border-radius: 10px; background: #e11d48; color: #fff; font-weight: 800; font-size: .88rem; }
+@media (min-width: 640px) { .cd-card { grid-template-columns: 180px minmax(0, 1fr); } .cd-img img { width: 180px; height: 180px; } }

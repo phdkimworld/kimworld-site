@@ -72,7 +72,7 @@ coupang:
 # 값을 [가, 나] 목록으로 쓰면 앞에서부터 실제로 낼 수 있는 첫 광고를 낸다.
 placements:
   report_mid: [adfit_report_mid, coupang_products]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
-  report_products: coupang_products     # "운영자 판단" 섹션 뒤, 없으면 본문 끝
+  report_products: [coupang_deal, coupang_products]     # "운영자 판단" 섹션 뒤, 없으면 본문 끝(다 읽은 지점). 2026-10-30부터 쿠팡 골드박스 '오늘의 특가' 한 장(하위 ID deal), 특가가 없으면 상품 상자. 2주 뒤(11-13) 상자 대비 클릭·수익 비교
   report_recommend: dable_report        # 출처 목록 아래, 쿠팡 상자 바로 위: 데이블 '같이 볼 만한 글' 위젯(번호가 없으면 아무것도 없음)
   report_end: coupang_products          # 출처 목록 아래. 애드핏 승인 뒤 adfit_report_end 와 성과 비교
   report_bottom: [adfit_report_end, coupang_products]  # 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡

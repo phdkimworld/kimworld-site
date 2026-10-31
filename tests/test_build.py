@@ -156,12 +156,14 @@ print("7) 쿠팡 API 자동 상품")
 import json as _json, datetime as _dt
 sys.path.insert(0, str(SRC / "scripts"))
 import coupang_sync as cs
+import time as _time
 # 서명 형식(쿠팡 문서: yyMMdd'T'HHmmss'Z', 메시지 = 날짜+메서드+경로+쿼리)
 auth = cs.authorization("GET", "/p", "a=1", "AK", "SK", _dt.datetime(2026, 10, 11, 22, 5, 9, tzinfo=_dt.timezone.utc))
 check(auth.startswith("CEA algorithm=HmacSHA256, access-key=AK, signed-date=261011T220509Z, signature=") and "SK" not in auth, "서명 헤더 형식, 비밀키 노출 없음")
 tmpc = Path(tempfile.mkdtemp()) / "c.json"
 _os.environ["COUPANG_CACHE"] = str(tmpc); cs.CACHE = tmpc
 tmpr = tmpc.parent / "r.json"; _os.environ["COUPANG_REPORTS"] = str(tmpr); cs.REPORTS = tmpr
+cs.goldbox = lambda a, b: ([], [])  # 골드박스는 아래에서 따로 검사(네트워크 없이)
 rep_calls = []
 def fake_rep(path, q, a, b):
     rep_calls.append(path)
@@ -270,6 +272,31 @@ _h = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
 check("DAN-l1" in _h and "DAN-b1" in _h, "종목 페이지: 목록 + 맨 아래 애드핏")
 _h = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("DAN-b1" not in _h, "리포트 맨 아래는 바로 위 애드핏 하단 상자와 붙지 않게 애드핏 안 씀")
+# 쿠팡 '오늘의 특가'(골드박스) 한 장: 리포트 다 읽은 자리(report_products)에, 쿠팡이 준 사실만(2026-10-30)
+_d, _keys = cs.parse_deals({"data": [{"productName": "특가 무선청소기", "productUrl": "https://link.coupang.com/a/deal1", "productImage": "https://thumbnail.coupangcdn.com/d.jpg",
+                                       "productPrice": 89000, "originalPrice": 129000, "isRocket": True, "productId": 7},
+                                      {"productName": "할인율 없는 상품", "productUrl": "https://link.coupang.com/a/deal2", "productPrice": 5000},
+                                      {"productName": "주소 이상", "productUrl": "http://x"}]})
+check(len(_d) == 2 and _d[0]["rate"] == 31 and _d[0]["orig"] == 129000 and _d[1]["rate"] == 0 and _d[1]["orig"] == 0 and "originalPrice" in _keys,
+      "골드박스: 원래 가격이 있으면 할인율 계산, 없으면 지어내지 않음")
+_c = _json.loads(tmpc.read_text(encoding="utf-8"))
+_c["goldbox"] = {"ts": _time.time(), "fetched": _time.time(), "date": "2026-10-31", "items": _d}
+tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+_pd = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
+_db = re.search(r'<aside class="ad ad-coupang-deal" data-slot="([a-z_]+)".*?</aside>', _pd, flags=re.S)
+check(_db is not None and _db.group(1) == "report_products", "오늘의 특가 카드는 본문 끝(다 읽은 자리)")
+_dh = _db.group(0) if _db else ""
+check('data-cp-sub="deal"' in _dh and "쿠팡 파트너스 활동" in _dh and "31%" in _dh and "129,000원" in _dh and "89,000원" in _dh and "로켓배송" in _dh
+      and "리포트 끝까지 읽으셨네요" in _dh and "2026.10.31 기준" in _dh and "<template data-cd-alt>" in _dh, "특가 카드: 하위 ID deal·대가성 문구·할인·가격 기준일·후보")
+check(re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)"', _pd) == ["report_mid", "report_end"], "나머지 자리는 상품 상자 그대로")
+_c["goldbox"]["fetched"] = _time.time() - 30 * 3600
+tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})
+subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
+_pd = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check("ad-coupang-deal" not in _pd and 'ad-coupang-products" data-slot="report_products"' in _pd, "받은 지 하루 넘은 특가는 안 씀(상품 상자로)")
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
     _os.environ.pop(k, None)
 
