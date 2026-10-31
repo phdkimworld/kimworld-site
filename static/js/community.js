@@ -239,13 +239,22 @@
   var PNAME = { google: 'Google로 로그인', kakao: '카카오 로그인', naver: '네이버 로그인' };
   function loginUrl(prov) { return API + '/v1/auth/' + prov + '/start?return=' + encodeURIComponent(location.pathname + location.search.replace(/[?&]login=\w+/, '') + location.hash); }
 
+  // 처음 /v1/me 가 실패(느린 망·앱 복귀 직후 6초 초과 등)하면 로그인 창이 '준비 중'으로 막히던 문제(2026-10-31):
+  // 창을 열 때 한 번 더 불러오고, 그래도 안 되면 늘 켜져 있는 구글·카카오 버튼을 그대로 보인다(버튼은 API 주소로 바로 가는 링크라 동작한다)
+  function meAgain() {
+    if (PROVIDERS.length) return meReady;
+    return api('/v1/me' + (NT ? '?nt=1' : '')).then(function (d) {
+      ME = d.user || null; UNREAD = d.unread || 0; LOGGED = !!d.loggedIn; PROVIDERS = d.providers || [];
+      if (ME) seedAv(ME.id, ME.av);
+      paintHeader(); return ME;
+    }).catch(function () { return null; }).then(function (m) { if (!PROVIDERS.length) PROVIDERS = ['google', 'kakao']; return m; });
+  }
   function openAccount() {
-    meReady.then(function () {
+    meReady.then(meAgain).then(function () {
       var msg = el('p', 'kw-msg'); msg.setAttribute('role', 'status');
       if (!LOGGED) { // 로그인 전: 구글·카카오 버튼
         var body = dialog('로그인');
         body.appendChild(el('p', 'muted', '로그인하면 닉네임이 고정되고, 팔로우·답글 알림을 쓸 수 있습니다(글은 로그인 없이도 쓸 수 있어요). 로그인할 때 이메일·이름·전화번호는 받지 않고, 같은 사람인지 알아보는 회원 번호만 씁니다.'));
-        if (!PROVIDERS.length) body.appendChild(el('p', 'kw-warn', '로그인을 준비하고 있습니다. 잠시 뒤 다시 와 주세요.'));
         PROVIDERS.forEach(function (pv) { var a = el('a', 'btn kw-login kw-login-' + pv, PNAME[pv] || pv); a.href = loginUrl(pv); body.appendChild(a); });
         if (window.kwCanInstall && kwCanInstall()) body.appendChild(btn('📱 홈 화면에 앱으로 설치', 'btn kw-login', function () { dlg.close(); kwInstall(); }));
         var tl = el('p', 'muted kw-small'); tl.appendChild(document.createTextNode('로그인하면 ')); var ta = el('a', null, '이용약관'); ta.href = base + '/terms/'; ta.target = '_blank'; tl.appendChild(ta); tl.appendChild(document.createTextNode('에 동의한 것으로 봅니다.')); body.appendChild(tl);
