@@ -243,7 +243,8 @@ def run(now: dt.datetime | None = None, searcher=search, reporter=report_get, de
             deals, keys = (dealer or goldbox)(access, secret)
             if deals:
                 gb = {"ts": now.timestamp(), "fetched": now.timestamp(), "date": now.astimezone(dt.timezone(dt.timedelta(hours=9))).date().isoformat(), "items": deals[:20]}
-            print(f"::notice title=쿠팡 골드박스::상품 {len(deals)}개, 할인율 있는 상품 {sum(1 for d in deals if d['rate'])}개, 응답 필드 {', '.join(keys)}")
+            if keys:
+                print(f"::notice title=쿠팡 골드박스::상품 {len(deals)}개, 할인율 있는 상품 {sum(1 for d in deals if d['rate'])}개, 응답 필드 {', '.join(keys)}")
         except urllib.error.HTTPError as e:
             print(f"::warning title=쿠팡 골드박스::HTTP {e.code}")
         except Exception as e:
