@@ -12,6 +12,12 @@ IONQ:
   exchange: "NYSE"
   theme: "양자컴퓨팅"
   aliases: ["IonQ"]
+QNT.US:
+  name: "퀀티뉴엄"
+  name_en: "Quantinuum"
+  exchange: "NASDAQ"
+  theme: "양자컴퓨팅"
+  aliases: ["퀀티뉴엄", "퀀티넘", "Quantinuum", "퀀티뉴엄 QNT"]
 QBTS:
   name: "디웨이브 퀀텀"
   name_en: "D-Wave Quantum Inc."
