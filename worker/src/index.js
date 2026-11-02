@@ -101,7 +101,7 @@ const DEVICE_RE = /^[A-Za-z0-9_-]{22,64}$/;
 // 열쇠는 운영자가 정해 GitHub 비밀값 ADFIT_INGEST_KEY에 넣은 값(api.yml이 워커 비밀값으로 넣음). 없으면 이 기능은 꺼진다. 이 열쇠로는 애드핏 숫자만 넣을 수 있다
 export function parseAdfit(text) {
   const t = String(text || "").replace(/\r/g, "");
-  let m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
+  let m = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t) || /조회일[^\d\n]{0,6}(\d{4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/.exec(t);
   if (!m) { // 매체별 보고서는 '조회일: 10월 27일 (Tue)'처럼 연도가 없다 → 한국 날짜 기준 올해(앞으로의 달이면 작년)
     const md = /조회일\s*[:：]?\s*(\d{1,2})월\s*(\d{1,2})일/.exec(t);
     if (!md) return null;
@@ -121,7 +121,8 @@ export function parseAdfit(text) {
     cum_earn: n(/전체 예상 적립금\s*[:：]\s*([\d,]+)/),
     confirmed: n(/확정 적립금\s*[:：]\s*([\d,]+)/),
   };
-  if ([row.earn, row.requests, row.impressions, row.rendered].some((v) => v == null)) return null;
+  // 알림 미리보기가 잘려 뒤쪽 숫자가 빠져도 날짜와 적립금·요청수 중 하나만 있으면 받는다(빠진 값은 예전 값 유지, 2026-11-01)
+  if (row.earn == null && row.requests == null) return null;
   return row;
 }
 
@@ -481,6 +482,7 @@ async function analytics(db, now, daysIn) {
   // 리포트 업데이트 요청(최근 30일, 종목별)
   ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_deal, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_deal, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
+  ext.adfitFail = await all("SELECT at, text FROM adfit_fail ORDER BY id DESC LIMIT 5").catch(() => []);
   { // 열린 뒤(최신 리포트 공개 7일 후) 요청만 센다(2026-10-30). 제작 대기 판정도 이 숫자를 쓴다
     const op = await reqOpen(), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
     for (const x of raw) if (x.created >= (op[x.ticker] || 0)) c[x.ticker] = (c[x.ticker] || 0) + 1;
@@ -1330,9 +1332,14 @@ export default {
         const raw = (await req.text()).slice(0, 4000);
         let text = raw; try { const j = JSON.parse(raw); if (j && typeof j.text === "string") text = j.text; } catch {}
         const row = parseAdfit(text);
-        if (!row) return json(req, { error: "parse", message: "애드핏 데일리 리포트 형식이 아닙니다" }, 400);
+        if (!row) { // 못 읽은 글은 비공개 D1에 남겨(최근 20개) 운영 통계(비공개)로 원인을 본다. 앱 화면에도 앞부분을 보여 준다
+          await db.prepare("INSERT INTO adfit_fail (at, text) VALUES (?, ?)").bind(now, text.slice(0, 2000)).run().catch(() => {});
+          await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 20)").run().catch(() => {});
+          const head = text.replace(/\s+/g, " ").trim().slice(0, 70);
+          return json(req, { error: "parse", message: `형식 확인 실패(${text.length}자): ${head}` }, 400);
+        }
         await db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
-          ON CONFLICT(day) DO UPDATE SET earn=excluded.earn, requests=excluded.requests, impressions=excluded.impressions, rendered=excluded.rendered, clicks=COALESCE(excluded.clicks, clicks),
+          ON CONFLICT(day) DO UPDATE SET earn=COALESCE(excluded.earn, earn), requests=COALESCE(excluded.requests, requests), impressions=COALESCE(excluded.impressions, impressions), rendered=COALESCE(excluded.rendered, rendered), clicks=COALESCE(excluded.clicks, clicks),
           ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
           .bind(row.day, row.earn, row.requests, row.impressions, row.rendered, row.clicks, row.ecpm, row.cum_earn, row.confirmed, now).run();
         return json(req, { ok: true, day: row.day, earn: row.earn }, 200, { "Cache-Control": "no-store" });
