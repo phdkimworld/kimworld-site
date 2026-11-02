@@ -927,7 +927,9 @@ def seo_fields(r: dict) -> dict:
         desc = (desc + " " + x.strip()).strip()
     if len(desc) > 100:
         desc = desc[:98].rstrip() + "…"
-    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook}", "seo_hook": hook,
+    # 검색 결과 제목은 앞 30자 안팎만 보이므로 훅의 첫 마디만(' — ' 뒤 덧붙인 질문은 설명·공유 제목에 남김, 2026-11-02)
+    hook1 = hook.split(" — ")[0].strip() or hook
+    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook1}", "seo_hook": hook,
             "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기"}
 
 
@@ -1090,6 +1092,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html", "xml"]))
     env.filters["kdate"] = lambda d: f"{d.year}년 {d.month}월 {d.day}일" if d else ""
     env.filters["iso"] = lambda d: d.isoformat() if d else ""
+    # 검색엔진용 시각(구글·네이버는 시간대가 있는 ISO 8601을 권장): 날짜만 있으면 한국 시각 09:00 (RSS와 같게)
+    env.filters["isot"] = lambda d: (dt.datetime.combine(d, dt.time(9, 0), KST).isoformat() if isinstance(d, dt.date) and not isinstance(d, dt.datetime) else (d.isoformat() if d else ""))
     env.filters["seo_items"] = lambda slugs, su: [{"@type": "ListItem", "position": i + 1, "url": f"{su}/r/{x}/"} for i, x in enumerate(slugs)]
     asset_ver = str(int(dt.datetime.now().timestamp()))
     common = {

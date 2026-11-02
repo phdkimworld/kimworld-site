@@ -39,7 +39,9 @@
 {% if site.analytics.bing_site_verification %}<meta name="msvalidate.01" content="{{ site.analytics.bing_site_verification }}">{% endif %}
 {% if site.analytics.naver_site_verification %}<meta name="naver-site-verification" content="{{ site.analytics.naver_site_verification }}">{% endif %}
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+{# 글꼴 CSS는 첫 화면을 막지 않게 늦게 붙인다(구글 Core Web Vitals·네이버 페이지 속도, 2026-11-02). 그 전에는 시스템 글꼴 #}
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"></noscript>
 <link rel="stylesheet" href="{{ base }}/static/css/site.css?v={{ asset_ver }}">
 <script>
   // 글자 크기·화면 테마를 그리기 전에 적용(깜박임 방지)
