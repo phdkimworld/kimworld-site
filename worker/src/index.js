@@ -641,7 +641,7 @@ export default {
           agg.set(k, cur);
         }
         const rows = [...agg.values()].slice(0, 12);
-        if (Math.random() < 0.002) await db.prepare("DELETE FROM ad_stats WHERE day < ?").bind(kstDay(now - 90 * 864e5)).run(); // 90일 지난 기록 정리
+        // 광고 노출·클릭 합계는 영구 보관(운영자 지시 2026-11-02 "부피 작은 기록은 모두 영구히")
         if (rows.length) {
           await db.batch(rows.map((r) => db.prepare(`INSERT INTO ad_stats (day, g, slot, seg, imps, clicks) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, g, slot, seg) DO UPDATE SET imps = imps + excluded.imps, clicks = clicks + excluded.clicks`).bind(today, r.g, r.slot, seg, r.i, r.c)));
@@ -724,8 +724,7 @@ export default {
             ON CONFLICT(day, src, med, camp, cont) DO UPDATE SET sess = sess + excluded.sess, pv = pv + 1, secs = secs + excluded.secs, multi = multi + excluded.multi`)
           .bind(today, ut(U.s) || "-", ut(U.m) || "-", ut(U.c) || "-", ut(U.t) || "-", s === 1 ? 1 : 0, a, s === 2 ? 1 : 0));
         for (const e of evs) q.push(db.prepare("INSERT INTO an_srcev (day, src, ev, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, src, ev) DO UPDATE SET n = n + 1").bind(today, sd, e));
-        if (Math.random() < 0.003) q.push(db.prepare("DELETE FROM an_seen WHERE day < ?").bind(kstDay(now - 35 * 864e5)));
-        if (Math.random() < 0.001) for (const tb of ["an_ref", "an_land", "an_camp", "an_srcev"]) q.push(db.prepare(`DELETE FROM ${tb} WHERE day < ?`).bind(kstDay(now - 400 * 864e5)));
+        // 방문 통계(날짜별 합계·기기 번호를 바꾼 값)는 영구 보관(운영자 지시 2026-11-02, 개인정보 처리방침 함께 고침)
         await db.batch(q);
         return json(req, { ok: true });
       }
@@ -1334,13 +1333,13 @@ export default {
         const row = parseAdfit(text);
         if (!row) { // 못 읽은 글은 비공개 D1에 남겨(최근 20개) 운영 통계(비공개)로 원인을 본다. 앱 화면에도 앞부분을 보여 준다
           await db.prepare("INSERT INTO adfit_fail (at, text) VALUES (?, ?)").bind(now, text.slice(0, 2000)).run().catch(() => {});
-          await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 20)").run().catch(() => {});
+          await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 1000)").run().catch(() => {});
           const head = text.replace(/\s+/g, " ").trim().slice(0, 70);
           return json(req, { error: "parse", message: `형식 확인 실패(${text.length}자): ${head}` }, 400);
         }
         // 받은 글도 최근 20개까지 비공개로 남긴다(날짜를 잘못 읽는 경우 진단용, 2026-11-01)
         await db.prepare("INSERT INTO adfit_fail (at, text) VALUES (?, ?)").bind(now, `[읽음 ${row.day}] ` + text.slice(0, 2000)).run().catch(() => {});
-        await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 20)").run().catch(() => {});
+        await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 1000)").run().catch(() => {});
         await db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(day) DO UPDATE SET earn=COALESCE(excluded.earn, earn), requests=COALESCE(excluded.requests, requests), impressions=COALESCE(excluded.impressions, impressions), rendered=COALESCE(excluded.rendered, rendered), clicks=COALESCE(excluded.clicks, clicks),
           ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
@@ -1404,7 +1403,7 @@ export default {
               db.prepare(`INSERT INTO sent_daily (ticker, day, ${col}) VALUES (?, ?, 1) ON CONFLICT(ticker, day) DO UPDATE SET ${col} = ${col} + 1${old ? `, ${old} = MAX(0, ${old} - 1)` : ""}`).bind(tk, day),
             ]);
           }
-          if (Math.random() < 0.01) await db.prepare("DELETE FROM sent_votes WHERE day < ?").bind(kstDay(now - 120 * 864e5)).run();
+          // 투표 기록은 영구 보관(운영자 지시 2026-11-02): 장기 심리 추이·내 예측 기록에 쓸 수 있게
         }
         const mine = await db.prepare("SELECT v FROM sent_votes WHERE day = ? AND ticker = ? AND actor = ?").bind(day, tk, actor).first();
         const since30 = kstDay(now - 29 * 864e5);
