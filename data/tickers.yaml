@@ -12,6 +12,12 @@ IONQ:
   exchange: "NYSE"
   theme: "양자컴퓨팅"
   aliases: ["IonQ"]
+RZLV:
+  name: "리졸브 AI"
+  name_en: "Rezolve AI"
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["리졸브", "리졸브AI", "리졸브 에이아이", "Rezolve", "Rezolve AI"]
 QNT.US:
   name: "퀀티뉴엄"
   name_en: "Quantinuum"
