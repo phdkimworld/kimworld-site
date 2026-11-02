@@ -36,10 +36,19 @@ def esc(s):
 
 
 def frame(inner, i, total, spec, last=False):
-    swipe = "" if last else '<div class="swipe">넘겨 보기 →</div>'
-    return f"""<div class="top"><span class="brand">김박사 월드</span><span class="pg">{esc(spec['ticker'])} · {i}/{total}</span></div>
+    # 인스타 앱이 오른쪽 위에 'n/N' 배지를 얹어 그 자리 글자가 가려진다(운영자 TNXP 카드 검토 11-02) → 오른쪽 위는 비우고
+    # 티커는 왼쪽 위 브랜드 옆, 장 번호는 아래 '넘겨 보기 n/N →'로 옮긴다
+    swipe = "" if last else f'<div class="swipe">넘겨 보기 {i}/{total} →</div>'
+    return f"""<div class="top"><span class="brand">김박사 월드 · {esc(spec['ticker'])}</span></div>
 <div class="body">{inner}</div>
 <div class="bot"><span>@drkimworld</span>{swipe}</div>"""
+
+
+def cmp_box(c):
+    # 큰 숫자 하나 + 본문 두세 줄 카드는 아래 35~40%가 비었다(운영자 검토 11-02) → 한 줄 비교 상자 [라벨 값] → / vs [라벨 값]
+    if not c.get("cmp"): return ""
+    (l1, v1), (l2, v2) = c["cmp"][:2]
+    return f"""<div class="cmp"><div class="cb"><div class="cl">{esc(l1)}</div><div class="cv">{esc(v1)}</div></div><div class="cx">{esc(c.get('cmp_sep', '→'))}</div><div class="cb"><div class="cl">{esc(l2)}</div><div class="cv">{esc(v2)}</div></div></div>"""
 
 
 def card_html(c, i, total, spec):
@@ -55,9 +64,9 @@ def card_html(c, i, total, spec):
 <div class="ctitle">{esc(c['title'])}</div>{vs}<div class="csub">{esc(c.get('sub', ''))}</div>"""
     elif k == "point":
         inner = f"""<div class="label">{esc(c.get('label', ''))}</div><div class="num" style="color:{C.get(c.get('num_color', 'amber'))}">{esc(c['num'])}</div>
-<div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>"""
+<div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>{cmp_box(c)}"""
     elif k == "text":
-        inner = f"""<div class="label">{esc(c.get('label', ''))}</div><div class="ttitle">{esc(c['title'])}</div><div class="text">{esc(c.get('body', ''))}</div>"""
+        inner = f"""<div class="label">{esc(c.get('label', ''))}</div><div class="ttitle">{esc(c['title'])}</div><div class="text">{esc(c.get('body', ''))}</div>{cmp_box(c)}"""
     elif k == "bars":
         mx = max(abs(v) for _, v in c["rows"]) or 1
         rows = "".join(
@@ -67,15 +76,15 @@ def card_html(c, i, total, spec):
     elif k == "record":
         dots = "".join(f'<span class="dot{" on" if j < c["m"] else ""}"></span>' for j in range(c["n"]))
         inner = f"""<div class="label">{esc(c.get('label', '기록'))}</div><div class="ttitle">{esc(c['title'])}</div>
-<div class="big">{c['n']}번 중 <b class="hl">{c['m']}번</b></div><div class="dots">{dots}</div><div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>"""
+<div class="big">{c['n']}번 중 <b class="hl">{c['m']}번 {esc(c.get('dir', ''))}</b></div><div class="dots">{dots}</div><div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>"""
     elif k == "scenarios":
-        rows = "".join(f"""<div class="srow"><div class="sno">{esc(n)}</div><div class="sname">{esc(t)}</div><div class="slv">{esc(lv)}</div></div>""" for n, t, lv in c["rows"])
+        rows = "".join(f"""<div class="srow{' top' if '높음' in str(lv) else ''}"><div class="sno">{esc(n)}</div><div class="sname">{esc(t)}</div><div class="slv">{esc(lv)}</div></div>""" for n, t, lv in c["rows"])
         inner = f"""<div class="label">{esc(c.get('label', '앞으로'))}</div><div class="ttitle">{esc(c['title'])}</div><div class="srows">{rows}</div>
 <div class="note">가능성은 과거 기록과 지금 신호로 매긴 추정 구간입니다</div><div class="ask">{esc(c.get('ask', '댓글에 번호 하나만 남겨 주세요'))}</div>"""
     elif k == "cta":
         items = "".join(f"<li>{esc(x)}</li>" for x in c.get("items", []))
         inner = f"""<div class="ttitle">{esc(c['title'])}</div><ul class="items">{items}</ul>
-<div class="howto">프로필 링크 → <b>drkimworld.com</b><br>에서 <b class="hl">'{esc(c['search'])}'</b> 검색</div>
+<div class="howto">프로필 링크(<b>drkimworld.com</b>)<br>첫 화면에서 <b class="hl">'{esc(c['search'])}'</b> 바로 보기</div>
 <div class="save">🔖 {esc(c.get('save', '저장해 두고 다시 보기'))}</div>
 <div class="disc">공개 공시·시세를 정리한 교육용 자료이며 매수·매도 권유가 아닙니다</div>"""
     else:
@@ -130,6 +139,13 @@ body {{ width: {W}px; height: {H}px; background: {C['bg']}; color: {C['ink']}; f
 .items li::before {{ content: '✓ '; color: {C['green']}; font-weight: 900; }}
 .howto {{ margin-top: 48px; background: {C['card']}; border: 3px solid {C['amber']}; border-radius: 26px; padding: 30px 34px; font-size: 46px; line-height: 1.45; font-weight: 700; }}
 .save {{ margin-top: 34px; font-size: 42px; font-weight: 800; }}
+.cmp {{ margin-top: 44px; display: flex; align-items: center; gap: 18px; }}
+.cb {{ flex: 1; background: {C['card']}; border: 3px solid {C['line']}; border-radius: 22px; padding: 20px 24px; }}
+.cl {{ font-size: 30px; color: {C['muted']}; font-weight: 700; }}
+.cv {{ font-size: 50px; font-weight: 900; letter-spacing: -1px; }}
+.cx {{ font-size: 40px; color: {C['amber']}; font-weight: 900; }}
+.srow.top {{ border-color: {C['amber']}; background: #2a1f0a; }}
+.srow.top .slv {{ color: {C['amber']}; }}
 .disc {{ margin-top: 30px; font-size: 27px; color: {C['muted']}; }}
 """
 
@@ -148,6 +164,10 @@ def check(spec):
             if len(v) > lim: bad.append(f"{i}장 {key} {len(v)}자 > {lim}")
         if c["kind"] == "cover" and c["title"].count("\n") > 2: bad.append("표지 제목은 3줄 이하")
         blob = json.dumps(c, ensure_ascii=False)
+        if c["kind"] == "point" and not c.get("cmp"): bad.append(f"{i}장 point 카드에 한 줄 비교 상자 cmp [[라벨,값],[라벨,값]]가 없음(하단 여백, 11-02)")
+        if c["kind"] == "record":
+            if not c.get("dir"): bad.append(f"{i}장 record 카드에 방향 dir('하락'·'더 낮음' 등)이 없음 — 큰 숫자만 읽어도 방향이 보이게(11-02)")
+            if re.search(rf"{c['n']}번 중 {c['m']}번", str(c.get("caption", ""))): bad.append(f"{i}장 record 캡션이 큰 숫자를 되풀이 — 반대쪽 사실(예: 더 높았던 2번)을 적는다(11-02)")
         if "빚" in blob: bad.append(f"{i}장 '빚' 금지 → 부채·차입금(v2.1)")
         if re.search(r"\d\s*[만억조]\s*\$", blob): bad.append(f"{i}장 '억$' 혼합 표기 금지")
     return bad
