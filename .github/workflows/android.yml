@@ -24,6 +24,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      # 고정 서명(2026-11-01 운영자 요청): 운영자가 넣은 비밀값 ADFIT_SIGN_SEED 하나에서 매번 같은 열쇠를 만들어 서명한다
+      # (scripts/android_keystore.py, 열쇠 파일은 어디에도 보관하지 않음). 비밀값이 없으면 예전처럼 디버그 서명.
+      - name: Signing key from seed
+        env:
+          ADFIT_SIGN_SEED: ${{ secrets.ADFIT_SIGN_SEED }}
+        run: |
+          pip install -q cryptography >/dev/null 2>&1 || true
+          K="$RUNNER_TEMP/adfit.p12"
+          if python3 scripts/android_keystore.py "$K"; then
+            echo "::add-mask::$(cat "$K.pass")"
+            { echo "ADFIT_KS=$K"; echo "ADFIT_KS_PASS=$(cat "$K.pass")"; } >> "$GITHUB_ENV"
+            echo "::notice title=서명::고정 서명(덮어 설치 가능)"
+          else
+            echo "::warning title=서명::ADFIT_SIGN_SEED 없음 — 디버그 서명(새 버전은 지우고 다시 설치)"
+          fi
       - name: Build APK
         working-directory: android/adfit-forwarder
         run: |

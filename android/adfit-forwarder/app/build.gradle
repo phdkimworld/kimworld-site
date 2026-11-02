@@ -10,8 +10,19 @@ android {
         versionCode 3
         versionName '1.2'
     }
+    signingConfigs {
+        fixed { // CI가 운영자 비밀값에서 만든 고정 열쇠(.github/workflows/android.yml). 없으면 디버그 서명
+            if (System.getenv('ADFIT_KS')) {
+                storeFile file(System.getenv('ADFIT_KS'))
+                storeType 'pkcs12'
+                storePassword System.getenv('ADFIT_KS_PASS')
+                keyAlias 'adfit'
+                keyPassword System.getenv('ADFIT_KS_PASS')
+            }
+        }
+    }
     buildTypes {
-        release { minifyEnabled false; signingConfig signingConfigs.debug }
+        release { minifyEnabled false; signingConfig System.getenv('ADFIT_KS') ? signingConfigs.fixed : signingConfigs.debug }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
