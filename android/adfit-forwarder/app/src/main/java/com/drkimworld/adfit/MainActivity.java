@@ -58,6 +58,19 @@ public class MainActivity extends Activity {
             Sender.send(this, t, true, (code, body) -> runOnUiThread(() -> { Toast.makeText(this, code == 200 ? "보냈습니다" : "실패 " + code + " " + body, Toast.LENGTH_LONG).show(); refresh(); }));
         }));
 
+        box.addView(text("\n4. 직접 보내기 (카톡 챗봇에서 조회한 리포트나 놓친 리포트: 말풍선 길게 눌러 복사 → 아래에 붙여넣기)"));
+        final EditText paste = new EditText(this); paste.setMinLines(3); paste.setHint("리포트 글 붙여넣기");
+        box.addView(paste);
+        box.addView(button("붙여넣은 리포트 보내기", v -> {
+            String t = paste.getText().toString();
+            if (!t.contains("적립금")) { Toast.makeText(this, "애드핏 리포트 글이 아닙니다", Toast.LENGTH_SHORT).show(); return; }
+            Sender.send(this, t, true, (code, body) -> runOnUiThread(() -> {
+                Toast.makeText(this, code == 200 ? "보냈습니다 " + body : "실패 " + code + " " + body, Toast.LENGTH_LONG).show();
+                if (code == 200) paste.setText("");
+                refresh();
+            }));
+        }));
+
         box.addView(text("\n상태"));
         status = text(""); box.addView(status);
         last = text(""); box.addView(last);
