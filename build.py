@@ -1286,7 +1286,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     (out / "sitemap.xml").write_text("\n".join(sm), encoding="utf-8")
 
     items = []
-    for r in public[:50]:
+    for r in public[:300]:  # 다음·네이버는 RSS로 새 글을 모은다: 공개 리포트 전부(2026-11-02 카카오·다음 검색 유입 강화)
         pub = dt.datetime.combine(r["date"], dt.time(9, 0), KST)
         items.append(
             f"<item><title>{html.escape(r['seo_title'])}</title><link>{su}/r/{r['slug']}/</link>"

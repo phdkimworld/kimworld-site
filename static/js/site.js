@@ -170,6 +170,16 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     var f = ksEl.querySelector('.ks-kakao'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
   }
   window.kwShare = kwShare;
+  // ---------- 카카오톡 안에서 연 리포트: '카톡으로 보내기' 줄(운영자 지시 2026-11-02 "카카오 검색 쪽 트래픽 유도 강화") ----------
+  // 카카오톡 검색·카톡 공유로 들어온 사람은 이미 카톡 안에 있으므로, 핵심 요약 바로 아래에 친구·단톡방 보내기를 한 번에 누를 수 있게 둔다
+  (function () {
+    if (!/kakaotalk/i.test(navigator.userAgent) || !document.querySelector('article.report')) return;
+    var sb = document.querySelector('.summary-box'); if (!sb || !KKEY) return;
+    var bar = document.createElement('div'); bar.className = 'kk-bar';
+    bar.innerHTML = '<span class="kk-t">이 리포트, 같이 보는 사람에게도</span><button type="button" class="kk-b" data-action="share"><span aria-hidden="true">TALK</span> 카톡으로 보내기</button>';
+    sb.parentNode.insertBefore(bar, sb.nextSibling);
+    if (window.kwEv) kwEv('kk_bar');
+  })();
   function copy(text) {
     var done = function () { toast('링크를 복사했습니다. 카카오톡에 붙여 넣으세요'); track('share', { method: 'copy' }); };
     if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, function () { prompt('아래 주소를 복사하세요', text); }); }
@@ -726,7 +736,11 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       [/investing\.com$/, 'referral', 'investing'], [/tossinvest\.com$|toss\.im$/, 'referral', 'toss'], [/stibee\.com$|mail\./, 'email', 'email'],
       [/drkimworld\.com$/, 'internal', 'internal']
     ];
-    for (var i = 0; i < R.length; i++) if (R[i][0].test(h)) return [R[i][1], R[i][2]];
+    for (var i = 0; i < R.length; i++) if (R[i][0].test(h)) {
+      // 다음 검색은 카카오톡 안 검색(#검색·위쪽 검색창)·다음 앱·웹을 나눠 센다(운영자 요청 2026-11-02)
+      if (R[i][2] === 'daum-search' || R[i][2] === 'daum-etc') return [R[i][1], R[i][2] + (/kakaotalk/i.test(ua) ? '-kakaotalk' : /DaumApps/.test(ua) ? '-app' : '')];
+      return [R[i][1], R[i][2]];
+    }
     return ['referral', h.replace(/^www\./, '').replace(/^m\./, '').slice(0, 40)];
   }
   var active = 0, last = Date.now(), maxSc = 0, sent = false, human = false, quickSent = false;

@@ -1579,3 +1579,10 @@ article.report .sent { margin-top: 14px; }
 .cd-free { font-size: .72rem; color: var(--muted); }
 .cd-go { margin-top: 4px; display: block; text-align: center; padding: 9px 10px; border-radius: 10px; background: #e11d48; color: #fff; font-weight: 800; font-size: .88rem; }
 @media (min-width: 640px) { .cd-card { grid-template-columns: 180px minmax(0, 1fr); } .cd-img img { width: 180px; height: 180px; } }
+
+/* 카카오톡 안에서 연 리포트의 '카톡으로 보내기' 줄(site.js, 2026-11-02) */
+.kk-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 18px; padding: 10px 12px; border-radius: 12px; background: #fee500; color: #191919; }
+.kk-t { font-size: .85rem; font-weight: 700; }
+.kk-b { flex: none; border: 0; border-radius: 999px; padding: 8px 12px; background: #191919; color: #fee500; font-weight: 800; font-size: .82rem; cursor: pointer; }
+.kk-b span { font-size: .62rem; letter-spacing: .02em; margin-right: 2px; }
+@media print { .kk-bar { display: none !important; } }
