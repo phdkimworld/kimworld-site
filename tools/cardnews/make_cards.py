@@ -76,7 +76,7 @@ def card_html(c, i, total, spec):
     elif k == "record":
         dots = "".join(f'<span class="dot{" on" if j < c["m"] else ""}"></span>' for j in range(c["n"]))
         inner = f"""<div class="label">{esc(c.get('label', '기록'))}</div><div class="ttitle">{esc(c['title'])}</div>
-<div class="big">{c['n']}번 중 <b class="hl">{c['m']}번 {esc(c.get('dir', ''))}</b></div><div class="dots">{dots}</div><div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>"""
+<div class="big">{c['n']}번 중 <b class="hl">{c['m']}번 {esc(c.get('dir', ''))}</b></div><div class="dots{' many' if c['n'] > 30 else ''}">{dots}</div><div class="caption">{esc(c.get('caption', ''))}</div><div class="text">{esc(c.get('body', ''))}</div>"""
     elif k == "scenarios":
         rows = "".join(f"""<div class="srow{' top' if '높음' in str(lv) else ''}"><div class="sno">{esc(n)}</div><div class="sname">{esc(t)}</div><div class="slv">{esc(lv)}</div></div>""" for n, t, lv in c["rows"])
         inner = f"""<div class="label">{esc(c.get('label', '앞으로'))}</div><div class="ttitle">{esc(c['title'])}</div><div class="srows">{rows}</div>
@@ -128,6 +128,8 @@ body {{ width: {W}px; height: {H}px; background: {C['bg']}; color: {C['ink']}; f
 .dots {{ margin-top: 26px; display: flex; flex-wrap: wrap; gap: 18px; }}
 .dot {{ width: 74px; height: 74px; border-radius: 50%; border: 5px solid {C['line']}; }}
 .dot.on {{ background: {C['red']}; border-color: {C['red']}; }}
+.dots.many {{ gap: 10px; }}
+.dots.many .dot {{ width: 40px; height: 40px; border-width: 4px; }}  /* 30번 넘는 기록(51회차 LAES 64번)은 점을 줄여 한 화면에 */
 .srows {{ margin-top: 36px; display: flex; flex-direction: column; gap: 20px; }}
 .srow {{ display: flex; align-items: center; gap: 22px; background: {C['card']}; border: 3px solid {C['line']}; border-radius: 22px; padding: 22px 26px; }}
 .sno {{ width: 64px; height: 64px; border-radius: 50%; background: {C['amber']}; color: {C['bg']}; font-size: 38px; font-weight: 900; display: flex; align-items: center; justify-content: center; flex: none; }}
