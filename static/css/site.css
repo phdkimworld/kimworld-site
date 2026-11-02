@@ -184,6 +184,8 @@ button { font: inherit; color: inherit; }
 .prose th, .prose td { border-bottom: 1px solid var(--line); padding: 10px 12px; text-align: left; white-space: nowrap; }
 .prose th { background: var(--surface-2); font-weight: 700; }
 .prose td:not(:first-child), .prose th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+/* 휴대폰에서는 표 칸을 줄바꿈해 오른쪽 열이 화면 밖으로 밀리지 않게(운영자 TNXP 리포트 검토 v2.3, 2026-11-02) */
+@media (max-width: 640px) { .prose td, .prose th { white-space: normal; overflow-wrap: break-word; padding: 8px 8px; } .prose td:first-child { min-width: 6.5em; } }
 .prose img { border-radius: 10px; }
 .prose code { font-size: .88em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .term { border: 0; background: none; padding: 0; color: inherit; font: inherit; border-bottom: 2px dotted var(--accent); cursor: help; }
