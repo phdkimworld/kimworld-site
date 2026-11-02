@@ -445,6 +445,8 @@ sf = B.seo_fields
 check(sf({"title": "세레브라스 주가 내러티브와 패턴 투자전략: 일감이 쌓인 이유", "company": "세레브라스", "ticker": "CBRS", "theme": "AI 반도체"})["seo_title"] == "세레브라스(CBRS) 주가 분석 — 일감이 쌓인 이유", "검색 제목: 옛 제목 형식")
 check(sf({"title": "스택스, 왜 3배? | 가격 내러티브와 패턴 투자전략", "company": "스택스", "ticker": "STX", "theme": "코인·블록체인"})["seo_title"] == "스택스(STX) 가격 분석 — 왜 3배?", "검색 제목: 새 제목 형식·코인은 가격")
 check(sf({"title": "AMC 주가 내러티브와 패턴 투자전략: 이유", "company": "AMC", "ticker": "AMC", "theme": "x"})["seo_title"] == "AMC 주가 분석 — 이유", "검색 제목: 이름이 티커와 같으면 한 번만")
+_s2 = sf({"title": "BTQ 테크놀로지스, 바닥이 깨졌다 — 20거래일은? | 주가 내러티브와 패턴 투자전략", "company": "BTQ 테크놀로지스", "ticker": "BTQ", "theme": "x"})
+check(_s2["seo_title"] == "BTQ 테크놀로지스(BTQ) 주가 분석 — 바닥이 깨졌다" and "20거래일은?" in _s2["share_title"], "검색 제목: 훅의 첫 마디만(덧붙인 질문은 공유 제목에)")
 D = SRC / "dist"
 if (D / "sitemap.xml").exists():
     smx = (D / "sitemap.xml").read_text(encoding="utf-8"); rb = (D / "robots.txt").read_text(encoding="utf-8")
