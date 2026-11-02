@@ -102,9 +102,10 @@ def body(slug: str, fm: dict) -> str:
     rel_txt = f" · 연관 종목 {', '.join(rel)}" if rel else ""
     # 대표 그림 alt: 종목명·티커·핵심 사건(지침 7.2③)
     alt = f"{name}({tk}) 주가 분석 - {hook}{rel_txt}"
-    box = lambda label: (f'<div style="margin:22px 0;padding:18px;background:#fff7ed;border-left:5px solid #f59e0b;border-radius:8px">'
-                         f'<p style="margin:0 0 10px;font-weight:700">{label}</p>'
-                         f'<a href="{u}" style="display:inline-block;padding:11px 18px;background:#f59e0b;color:#111;border-radius:8px;font-weight:700;text-decoration:none">전체 분석 리포트 무료로 보기 →</a></div>')
+    # v2.9 2.5②(운영자 11-02 LAES 블로그 검수): 블로거 기본 테마에서도 본문과 구분되게 인라인 스타일 고정
+    box = lambda label: (f'<div style="margin:22px 0;padding:16px;background-color:#f8f9fa;border-left:4px solid #ff6b00;border-radius:6px">'
+                         f'<p style="margin:0 0 8px 0;font-weight:bold">{label}</p>'
+                         f'<a href="{u}" style="display:inline-block;padding:9px 16px;background-color:#ff6b00;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:4px">전체 분석 리포트 무료로 보기 →</a></div>')
     intro = str(fm.get("blog_intro") or fm.get("summary") or "")
     parts = [
         f'<p><a href="{u}"><img src="{BASE}/og/{slug}.png" alt="{e(alt)}" style="max-width:100%;height:auto;border-radius:8px"></a></p>',
@@ -120,7 +121,7 @@ def body(slug: str, fm: dict) -> str:
     yid = str(fm.get("youtube_id") or "").strip()
     if len(yid) == 11:
         parts.append(
-            f"<h3>🎥 영상으로 먼저 보는 {name}({tk})</h3>"
+            f"<h3>🎥 영상으로 보는 {name}({tk}) 주가 미스터리</h3>"
             f'<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin-bottom:20px">'
             f'<iframe src="https://www.youtube.com/embed/{yid}" title="{name}({tk}) 주가 분석 영상" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen></iframe></div>'
         )
@@ -218,6 +219,11 @@ def main() -> int:
         except ValueError:
             continue
         if d > today or (not want and (today - d).days > days):
+            continue
+        # v2.9 2.5③(11-02 LAES·RZLV): 새 리포트는 영상(youtube_id)이 연결된 뒤 올린다 — 영상 전에 자동 게시돼 임베드가 빠졌다.
+        # 이틀이 지나도 영상이 없으면 영상 없이 올린다(영상 없는 옛 리포트·글만 있는 회차).
+        if not want and len(str(fm.get("youtube_id") or "").strip()) != 11 and (today - d).days < 2:
+            print(f"{slug}: 영상 연결 전이라 미룸(youtube_id 없음)")
             continue
         cands.append((d, slug, fm))
     cands.sort(reverse=True)  # 최신 먼저
