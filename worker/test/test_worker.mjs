@@ -909,7 +909,7 @@ console.log("애드핏 데일리 리포트 받기");
   check(rM.status === 200 && /^\d{4}-10-26$/.test(rM.data.day) && rM.data.earn === 8, "애드핏: 매체별 보고서(연도 없는 날짜)도 읽음");
   const r3 = await call("POST", "/v1/ingest/adfit?k=af_test_key", { body: { text: "아무 글" }, ip: "94.0.0.1" });
   check(r3.status === 400 && r3.data.message.includes("아무 글"), "애드핏: 형식이 아니면 거절(앞부분을 보여 줌)");
-  check((await DB.prepare("SELECT COUNT(*) AS n FROM adfit_fail").first()).n === 1, "애드핏: 못 읽은 글은 비공개 진단용으로 남김");
+  check((await DB.prepare("SELECT COUNT(*) AS n FROM adfit_fail WHERE text NOT LIKE '[읽음%'").first()).n === 1, "애드핏: 못 읽은 글은 비공개 진단용으로 남김");
   const cut = txt.replace(/\n\+ 노출수[\s\S]*$/, "").replace("27일", "28일");
   const rC = await call("POST", "/v1/ingest/adfit?k=af_test_key", { body: { text: cut }, ip: "94.0.0.1" });
   check(rC.status === 200 && rC.data.day === "2026-10-28" && rC.data.earn === 5, "애드핏: 미리보기가 잘려 뒤 숫자가 없어도 받음");

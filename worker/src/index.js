@@ -1338,6 +1338,9 @@ export default {
           const head = text.replace(/\s+/g, " ").trim().slice(0, 70);
           return json(req, { error: "parse", message: `형식 확인 실패(${text.length}자): ${head}` }, 400);
         }
+        // 받은 글도 최근 20개까지 비공개로 남긴다(날짜를 잘못 읽는 경우 진단용, 2026-11-01)
+        await db.prepare("INSERT INTO adfit_fail (at, text) VALUES (?, ?)").bind(now, `[읽음 ${row.day}] ` + text.slice(0, 2000)).run().catch(() => {});
+        await db.prepare("DELETE FROM adfit_fail WHERE id NOT IN (SELECT id FROM adfit_fail ORDER BY id DESC LIMIT 20)").run().catch(() => {});
         await db.prepare(`INSERT INTO adfit_daily (day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed, updated) VALUES (?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(day) DO UPDATE SET earn=COALESCE(excluded.earn, earn), requests=COALESCE(excluded.requests, requests), impressions=COALESCE(excluded.impressions, impressions), rendered=COALESCE(excluded.rendered, rendered), clicks=COALESCE(excluded.clicks, clicks),
           ecpm=COALESCE(excluded.ecpm, ecpm), cum_earn=COALESCE(excluded.cum_earn, cum_earn), confirmed=COALESCE(excluded.confirmed, confirmed), updated=excluded.updated`)
