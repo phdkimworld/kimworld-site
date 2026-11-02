@@ -117,13 +117,27 @@ with tempfile.TemporaryDirectory() as d:
     W("g.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "channel_text": {"instagram": "릴스 캡션"},
                  "media": {"type": "reels", "path": "static/social/a.mp4"}})
     check("페이스북 릴스 게시 성공", sp.main([]) == 0)
-    ph = [l[2].get("upload_phase") for l in fblog if l[1] == "55/video_reels"]
+    ph = [l[2].get("upload_phase") for l in fblog if l[1] == "55/video_reels" and l[0] == "POST"]
     up = [l for l in fblog if l[3] == sp.FB_RUPLOAD]
     fin = [l for l in fblog if l[2].get("upload_phase") == "finish"]
     check("릴스 3단계(start→파일 직접 업로드→finish), 인스타 캡션(사이트 주소 403 회피)",
           ph == ["start", "finish"] and up and up[0][5] == b"x" and up[0][4]["file_size"] == "1" and up[0][4]["offset"] == "0"
           and "file_url" not in up[0][4] and fin[0][2]["description"] == "릴스 캡션")
     check("replies 없는 릴스는 첫 댓글 없음", not [l for l in fblog if l[1].endswith("/comments")])
+    # 11-02: 같은 캡션 첫 줄의 릴스가 이미 있으면 다시 올리지 않는다(SNDK·EU 중복 게시)
+    fblog.clear()
+    def fbdup(method, path, params, token, base=sp.FB_API, headers=None, body=None):
+        fblog.append((method, path, dict(params), base, dict(headers or {}), body))
+        if method == "GET" and path.endswith("/video_reels"): return {"data": [{"id": "888", "description": "릴스 캡션"}]}
+        if method == "GET": return {"permalink_url": "https://fb/" + path}
+        return {"id": "x"}
+    sp.fb_call = fbdup
+    W("h.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "channel_text": {"instagram": "릴스 캡션"},
+                 "media": {"type": "reels", "path": "static/social/a.mp4"}})
+    sp.main([])
+    hr = json.loads((sp.POSTED / "h.json").read_text())["results"]["facebook"]
+    check("이미 올라간 같은 릴스는 다시 올리지 않음(중복 방지)", hr.get("post_id") == "888" and not [l for l in fblog if l[2].get("upload_phase")])
+    sp.fb_call = fbfake
     fblog.clear()
     W("g2.json", {"text": "x", "publish_at": past, "channels": ["facebook"], "media": {"type": "reels", "path": "static/social/a.mp4"},
                   "replies": [{"text": "리포트 https://drkimworld.com/r/x/?utm_source=facebook&utm_content=reels_comment"}]})

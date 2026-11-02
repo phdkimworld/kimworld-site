@@ -12,6 +12,10 @@ language: "ko"
 operator:
   display_name: "김박사 월드 미스터리"   # 유튜브 채널 이름(공개 활동명)
   youtube_url: "https://www.youtube.com/@drkimworld_2026"   # 유튜브 채널 주소
+  # SNS 팔로우 링크(11-02 진단: 페이스북 페이지 팔로워 0명·릴스 30편 재생 9회 — 사이트에서 들어오는 길이 없었음)
+  threads_url: "https://www.threads.net/@phdkimworld"
+  instagram_url: "https://www.instagram.com/drkimworld"
+  facebook_url: ""   # 페이지 주소(사용자 이름)를 정하면 여기에. 비어 있으면 링크를 숨긴다
 
 # 문의 메일(도메인 역할 주소, 운영자 개인 메일 아님). Cloudflare 이메일 라우팅으로 운영자 메일함(라벨 '김박사월드')에 전달된다.
 # 비어 있으면 해당 페이지는 유튜브 댓글로 문의받는다. admin@ 은 서비스 가입용이라 공개하지 않는다

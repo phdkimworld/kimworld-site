@@ -487,24 +487,39 @@ def do_facebook(post, res, save, now, live_used):
             res["post_id"] = r["id"]
         elif m["type"] == "reels":
             if not res.get("video_id"):
-                st = fb_call("POST", f"{page}/video_reels", {"upload_phase": "start"}, token)
-                res["video_id"] = st["video_id"]
-                save()
-            f = local_file(m["path"])
-            try:
-                if f:
-                    data = f.read_bytes()
-                    fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD,
-                            headers={"offset": "0", "file_size": str(len(data)), "Content-Type": "application/octet-stream"}, body=data)
-                else:
-                    fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD, headers={"file_url": public_url(m["path"])})
-            except FbFatal:
-                res.pop("video_id", None)  # 실패한 업로드 세션은 버리고 다음 실행에서 새로 시작
-                save()
-                raise
-            fb_call("POST", f"{page}/video_reels", {"upload_phase": "finish", "video_id": res["video_id"],
-                                                    "video_state": "PUBLISHED", "description": msg}, token)
-            res["post_id"] = res["video_id"]
+                # 중복 게시 방지(11-02 진단: SNDK 10/27·EU 10/24 릴스가 3분 간격으로 두 번 올라감 — 실패 처리된 업로드가 실제로는
+                # 게시돼 있었음). 새 업로드 세션을 열기 전에 최근 릴스에 같은 캡션 첫 줄이 있으면 그것을 이 게시물로 삼는다.
+                try:
+                    head = msg.split("\n", 1)[0].strip()
+                    for v in fb_call("GET", f"{page}/video_reels", {"fields": "id,description,created_time", "limit": 10}, token).get("data", []):
+                        if head and (v.get("description") or "").split("\n", 1)[0].strip() == head:
+                            res["video_id"] = res["post_id"] = v["id"]
+                            res["dedup"] = "이미 올라간 같은 릴스를 찾아 다시 올리지 않음"
+                            break
+                except RuntimeError:
+                    pass
+                if res.get("post_id"):
+                    save()
+            if not res.get("post_id"):
+                if not res.get("video_id"):
+                    st = fb_call("POST", f"{page}/video_reels", {"upload_phase": "start"}, token)
+                    res["video_id"] = st["video_id"]
+                    save()
+                f = local_file(m["path"])
+                try:
+                    if f:
+                        data = f.read_bytes()
+                        fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD,
+                                headers={"offset": "0", "file_size": str(len(data)), "Content-Type": "application/octet-stream"}, body=data)
+                    else:
+                        fb_call("POST", res["video_id"], {}, token, base=FB_RUPLOAD, headers={"file_url": public_url(m["path"])})
+                except FbFatal:
+                    res.pop("video_id", None)  # 실패한 업로드 세션은 버리고 다음 실행에서 새로 시작
+                    save()
+                    raise
+                fb_call("POST", f"{page}/video_reels", {"upload_phase": "finish", "video_id": res["video_id"],
+                                                        "video_state": "PUBLISHED", "description": msg}, token)
+                res["post_id"] = res["video_id"]
         elif m["type"] == "image":
             r = fb_photo(page, m["path"], {"message": msg}, token)
             res["post_id"] = r.get("post_id") or r["id"]

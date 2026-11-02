@@ -91,7 +91,7 @@ def facebook(since):
         raise RuntimeError("FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음")
     f = lambda p, q: call(FB_API, "GET", p, q, tok)  # noqa: E731
     info = {}
-    for fields in ("name,fan_count,followers_count,is_published,link,category", "name,fan_count,link"):
+    for fields in ("name,username,fan_count,followers_count,is_published,link,category", "name,fan_count,link"):
         try:
             info = f(page, {"fields": fields}); break
         except RuntimeError as e:
@@ -140,7 +140,7 @@ def facebook(since):
     except RuntimeError as e:
         items.append({"error": "published_posts: " + str(e)[:200]})
     return {"ok": True, "me": info.get("name"), "followers": info.get("followers_count"), "fans": info.get("fan_count"),
-            "is_published": info.get("is_published"), "link": info.get("link"), "page_7d": day, "items": items,
+            "is_published": info.get("is_published"), "link": info.get("link"), "username": info.get("username"), "page_7d": day, "items": items,
             "info_error": info.get("error")}
 
 
