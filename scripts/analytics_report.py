@@ -97,6 +97,7 @@ def summarize(a: dict) -> dict:
     out["sections"]["reports"] = {p: curve(byp[p]) for p in top}
     out["adfit"] = (a.get("adfit") or [])[:31]  # 애드핏 일별(비공개 D1). 공개 주석으로 내보낼 때는 뺀다
     out["coupang"] = (a.get("coupang") or [])[:31]  # 쿠팡 일별(비공개 D1). 공개 주석으로 내보낼 때는 뺀다
+    out["adfitFail"] = a.get("adfitFail") or []  # 애드핏 알림 중 못 읽은 글(진단용, 비공개 저장소에만)
     out["updReq"] = a.get("updReq")  # 리포트 업데이트 요청(최근 30일, 종목별 합계)
     bots = a.get("bots") or {}
     out["bots"] = {k: v for k, v in bots.items() if not str(k).startswith("ql:")}
@@ -132,7 +133,7 @@ def main() -> None:
         print(f"::notice title=AN PRIVATE::항목 {len(out)}개 · 비공개 저장소 phdkimworld/kimworld(ops-data) stats/analytics.json")
         return
     # 공개 주석(비공개 저장소를 못 쓸 때만): 수익 숫자는 빼고 내보낸다
-    for k in ("adfit", "coupang"):
+    for k in ("adfit", "coupang", "adfitFail"):
         out.pop(k, None)
     for k, v in out.items():
         while isinstance(v, list) and len(v) > 3 and len(json.dumps({k: v}, ensure_ascii=False)) > 3200:
