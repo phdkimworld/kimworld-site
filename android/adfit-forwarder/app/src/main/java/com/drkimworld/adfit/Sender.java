@@ -31,7 +31,8 @@ public final class Sender {
         if (text == null) text = "";
         if (text.contains("적립금")) p.edit().putString("last_text", text).apply();
         final int h = text.hashCode();
-        if (!force && p.getInt("last_hash", 0) == h && p.getInt("last_code", 0) == 200) return;
+        final String sentKey = "," + h + ",";
+        if (!force && p.getString("sent_hashes", "").contains(sentKey)) return;
         final String body = text;
         new Thread(() -> {
             int code = -1; String resp;
@@ -41,7 +42,7 @@ public final class Sender {
                 con.setConnectTimeout(15000); con.setReadTimeout(20000);
                 con.setRequestMethod("POST"); con.setDoOutput(true);
                 con.setRequestProperty("Content-Type", "text/plain; charset=utf-8");
-                con.setRequestProperty("User-Agent", "kimworld-adfit-forwarder/1.1");
+                con.setRequestProperty("User-Agent", "kimworld-adfit-forwarder/1.2");
                 byte[] b = body.getBytes(StandardCharsets.UTF_8);
                 try (OutputStream os = con.getOutputStream()) { os.write(b); }
                 code = con.getResponseCode();
@@ -53,7 +54,11 @@ public final class Sender {
             }
             String when = new SimpleDateFormat("MM-dd HH:mm", Locale.KOREA).format(new Date());
             SharedPreferences.Editor ed = p.edit().putString("last_result", when + " · " + code + " · " + (resp.length() > 160 ? resp.substring(0, 160) : resp)).putInt("last_code", code);
-            if (code == 200) ed.putInt("last_hash", h);
+            if (code == 200) { // 보낸 글 기록(최근 60개)
+                String hs = p.getString("sent_hashes", "") + sentKey.substring(1);
+                if (hs.length() > 800) hs = hs.substring(hs.indexOf(',', hs.length() - 800));
+                ed.putString("sent_hashes", hs.startsWith(",") ? hs : "," + hs);
+            }
             ed.apply();
             if (done != null) done.run(code, resp);
         }).start();

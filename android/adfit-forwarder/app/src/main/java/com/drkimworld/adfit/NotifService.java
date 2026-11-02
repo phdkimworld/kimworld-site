@@ -13,8 +13,26 @@ public class NotifService extends NotificationListenerService {
         if (sbn == null || !"com.kakao.talk".equals(sbn.getPackageName())) return;
         Bundle ex = sbn.getNotification().extras;
         if (ex == null) return;
-        String text = pick(ex);
-        if (text != null) Sender.send(this, text, false, null);
+        // 카톡은 안 읽은 메시지를 한 알림에 겹쳐 담는다(예전 리포트 + 새 리포트). 그 안의 애드핏 리포트를 모두 오래된 것부터 보낸다(1.2).
+        // 서버가 날짜별로 저장하고, 같은 글은 앱이 한 번만 보낸다. 마지막(가장 새) 글이 '다시 보내기' 대상
+        for (String t : picks(ex)) Sender.send(this, t, false, null);
+    }
+
+    static java.util.List<String> picks(Bundle ex) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        String title = str(ex.getCharSequence(Notification.EXTRA_TITLE)) + " " + str(ex.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE));
+        Parcelable[] msgs = ex.getParcelableArray(Notification.EXTRA_MESSAGES);
+        if (msgs != null) {
+            for (Parcelable m : msgs) {
+                if (m instanceof Bundle) {
+                    String t = str(((Bundle) m).getCharSequence("text"));
+                    String who = str(((Bundle) m).getCharSequence("sender"));
+                    if (isReport(title + " " + who, t) && !out.contains(t)) out.add(t);
+                }
+            }
+        }
+        if (out.isEmpty()) { String t = pick(ex); if (t != null) out.add(t); }
+        return out;
     }
 
     /** 애드핏 실적 글인지: 데일리 리포트 표시가 있거나, 보낸 이가 카카오애드핏이고 적립금·요청수가 들어 있음 */
