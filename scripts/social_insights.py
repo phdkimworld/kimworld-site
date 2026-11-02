@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SNS 게시물 성과(조회·도달·저장·공유) 수집 — 인스타그램·Threads.
+"""SNS 게시물 성과(조회·도달·저장·공유) 수집 — 인스타그램·Threads·페이스북 페이지.
 
 운영자 지시(2026-10-16 "인스타그램 뷰가 전혀 안 나오는데 신경 좀 써줘"): 게시물마다 숫자를 모아
 무엇이 안 보이는지(도달 0 = 배포 문제 / 도달은 있는데 조회 낮음 = 첫 화면 문제)를 가른다.
@@ -7,7 +7,7 @@
   python scripts/social_insights.py --log [--days 14]
     작업 로그에 "INSIGHTS_JSON:" 한 줄을 낸다(세션이 읽는다).
 
-비밀값(환경변수): IG_ACCESS_TOKEN, THREADS_ACCESS_TOKEN. 값은 출력하지 않는다.
+비밀값(환경변수): IG_ACCESS_TOKEN, THREADS_ACCESS_TOKEN, FB_PAGE_ID, FB_PAGE_TOKEN. 값은 출력하지 않는다.
 권한이 없어 지표를 못 읽으면 그 오류 문구를 그대로 담는다(권한 확인용).
 """
 import datetime
@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from social_publish import IG_API, TH_API, call  # noqa: E402
+from social_publish import FB_API, IG_API, TH_API, call  # noqa: E402
 
 IG_REEL = "views,reach,likes,comments,shares,saved,total_interactions,ig_reels_avg_watch_time,ig_reels_video_view_total_time"
 IG_POST = "views,reach,likes,comments,shares,saved,total_interactions"
@@ -83,11 +83,72 @@ def threads(since):
     return {"ok": True, "me": me.get("username"), "items": items}
 
 
+def facebook(since):
+    """운영자 지시(2026-11-02 "페이스북 페이지도 트래픽이 전혀 없는데 진단후 조치"): 페이지 팔로워·공개 여부와
+    릴스·글마다 재생·도달을 모아 '도달 0(배포 문제)'과 '도달은 있는데 클릭 0(링크 문제)'을 가른다."""
+    tok, page = os.environ.get("FB_PAGE_TOKEN", ""), os.environ.get("FB_PAGE_ID", "")
+    if not tok or not page:
+        raise RuntimeError("FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음")
+    f = lambda p, q: call(FB_API, "GET", p, q, tok)  # noqa: E731
+    info = {}
+    for fields in ("name,fan_count,followers_count,is_published,link,category", "name,fan_count,link"):
+        try:
+            info = f(page, {"fields": fields}); break
+        except RuntimeError as e:
+            info = {"error": str(e)[:200]}
+    day = {}
+    for m in ("page_impressions_unique", "page_views_total", "page_post_engagements", "page_video_views", "page_follows"):
+        try:
+            r = f(f"{page}/insights", {"metric": m, "period": "day", "date_preset": "last_7d"})
+            for d in r.get("data", []):
+                day[d["name"]] = sum((v.get("value") or 0) for v in d.get("values", []) if isinstance(v.get("value"), (int, float)))
+        except RuntimeError as e:
+            day[m] = "error: " + str(e)[:120]
+    items = []
+    try:
+        r = f(f"{page}/video_reels", {"fields": "id,created_time,permalink_url,description", "limit": 30})
+        for v in r.get("data", []):
+            if v.get("created_time", "") < since:
+                continue
+            it = {"id": v["id"], "type": "reel", "time": v.get("created_time"), "permalink": v.get("permalink_url"),
+                  "caption": (v.get("description") or "")[:60]}
+            try:
+                q = f(f"{v['id']}/video_insights", {})
+                for m in q.get("data", []):
+                    val = (m.get("values") or [{}])[0].get("value")
+                    if isinstance(val, (int, float)):
+                        it[m["name"]] = val
+            except RuntimeError as e:
+                it["error"] = str(e)[:150]
+            items.append(it)
+    except RuntimeError as e:
+        items.append({"error": "video_reels: " + str(e)[:200]})
+    try:
+        r = f(f"{page}/published_posts", {"fields": "id,created_time,permalink_url,message,is_published,shares", "limit": 30})
+        for p_ in r.get("data", []):
+            if p_.get("created_time", "") < since:
+                continue
+            it = {"id": p_["id"], "type": "post", "time": p_.get("created_time"), "permalink": p_.get("permalink_url"),
+                  "caption": (p_.get("message") or "")[:60], "is_published": p_.get("is_published")}
+            try:
+                q = f(f"{p_['id']}/insights", {"metric": "post_impressions_unique,post_clicks"})
+                for m in q.get("data", []):
+                    it[m["name"]] = (m.get("values") or [{}])[0].get("value")
+            except RuntimeError as e:
+                it["error"] = str(e)[:150]
+            items.append(it)
+    except RuntimeError as e:
+        items.append({"error": "published_posts: " + str(e)[:200]})
+    return {"ok": True, "me": info.get("name"), "followers": info.get("followers_count"), "fans": info.get("fan_count"),
+            "is_published": info.get("is_published"), "link": info.get("link"), "page_7d": day, "items": items,
+            "info_error": info.get("error")}
+
+
 def collect(days):
     now = datetime.datetime.now(datetime.timezone.utc)
     since = (now - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
     res = {}
-    for name, fn in (("instagram", instagram), ("threads", threads)):
+    for name, fn in (("instagram", instagram), ("threads", threads), ("facebook", facebook)):
         try:
             res[name] = fn(since)
         except RuntimeError as e:
