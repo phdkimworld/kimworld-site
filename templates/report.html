@@ -99,11 +99,11 @@
 
     {# 유튜브·SNS에서 온 독자용 바로가기 줄은 투표·요약·영상보다 위(첫 화면)에 둔다(2026-10-26: 누름 4/120=3%, 빠른 이탈 17%) #}
     {% if r.yt_jump %}
-    {% if r.answer_id %}
+    {% if r.sns_ans_id %}
     <nav class="yt-jump sns-jump" data-sns-jump hidden aria-label="SNS 질문의 답">
       {% if r.sns_q %}<p class="yt-jump-t">💬 글이 물은 질문: {{ r.sns_q }}</p>
       {%- else %}<p class="yt-jump-t">💬 Threads·인스타에서 오셨나요? 글이 물은 '몇 번?'의 답부터 보세요</p>{% endif %}
-      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.answer_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}{% if r.youtube_id %}<a class="chip" href="https://youtu.be/{{ r.youtube_id }}" rel="noopener">풀영상</a>{% endif %}</div>
+      <div class="chip-row"><a class="chip chip-hot" href="#{{ r.sns_ans_id }}">답 바로 보기</a>{% if r.has_diag %}<a class="chip" href="#diagnosis">지금 국면 진단</a>{% endif %}{% if r.youtube_id %}<a class="chip" href="https://youtu.be/{{ r.youtube_id }}" rel="noopener">풀영상</a>{% endif %}</div>
     </nav>
     {% endif %}
     <nav class="yt-jump" data-yt-jump hidden aria-label="영상에서 다 못 다룬 내용">
@@ -133,6 +133,8 @@
       {% endif %}
       {% if r.has_diag %}<p class="sum-jump sum-diag"><a href="#diagnosis">➜ 결론부터: 지금 어느 국면인지 진단 바로 보기</a></p>{% endif %}
       {% if r.check_id %}<p class="sum-jump"><a href="#{{ r.check_id }}">✓ 리스크와 매매 전 체크리스트 바로 보기</a></p>{% endif %}
+      {# 투표 실험 2026-11-02: 투표 상자를 본문 끝으로 옮긴 10-28 뒤 7일 참여자 51→15명. 상자 자리는 그대로 두고 요약에서 바로 가는 줄만 #}
+      {% if site.api_url %}<p class="sum-jump sum-vote"><a href="#sent-h">🗳 {{ r.company }}, 앞으로 어떻게 보세요? 한 번 눌러 투표하고 다른 투자자 의견 보기</a></p>{% endif %}
       <div class="disclosure">
         {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
         <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>

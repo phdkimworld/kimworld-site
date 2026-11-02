@@ -1066,6 +1066,14 @@ def build(drafts=False, strict=False, out: Path = DIST):
             r["yt_ans_id"] = r["answer_id"] or next((t["id"] for t in r["toc"] if t["name"].strip() == "짧은 답"), "")
         # SNS 바로가기 줄 제목도 고정 문구 대신 그 리포트 요약 끝 질문으로(2026-10-27: sns_jump 누름 0/16)
         r["sns_q"] = r["yt_q"] or (video_question(r["summary"], r["body_html"])[0] if r["answer_id"] else "")
+        # SNS 바로가기 줄의 답 자리: '몇 번' 소제목이 없으면 요약 질문이 가리키는 소제목 → 3부(기록) 순서로(2026-11-02:
+        # Threads 랜딩 27세션이 몰린 iren-2026-10-4는 '며칠째' 소제목이라 줄이 아예 안 나왔음, sns_jump_shown 4/33)
+        r["sns_ans_id"] = r["answer_id"]
+        if not r["sns_ans_id"]:
+            q2, qid = video_question(r["summary"], r["body_html"])
+            r["sns_ans_id"] = qid or next((t["id"] for t in r["toc"] if re.match(r"^3부", t["name"])), "")
+            if r["sns_ans_id"] and not r["sns_q"]:
+                r["sns_q"] = q2
         idx = public.index(r) if r in public else -1
         r["prev"] = public[idx + 1] if idx >= 0 and idx + 1 < len(public) else None
         r["next"] = public[idx - 1] if idx > 0 else None
