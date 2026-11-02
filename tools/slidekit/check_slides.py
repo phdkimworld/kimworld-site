@@ -28,6 +28,11 @@ for i,p in enumerate(s['paras']):
     for a in p.get('ad',[]):
         if a>=n: print('ADBAD',i+1,a,n);ok=False
         else: print('ad p%d[%d]'%(i+1,a),tm[i]['sents'][a]['text'][:45])
+# AD: 사이트 안내 문장('고정 댓글'·'홈페이지·무료')에는 "ad" 표시가 있어야 미드롤이 뜬다(2026-11-02 BTQ 49회차: "ad"를 빠뜨려 미드롤 0회·안내 문단 16초 정지로 합성 다시)
+for i,(p,t) in enumerate(zip(s['paras'],tm)):
+    for k,st in enumerate(t['sents']):
+        if re.search(r'고정 댓글|홈페이지[^.]*무료|무료로 열려', st['text']) and k not in p.get('ad',[]): print('ADMISS p%d[%d] 사이트 안내 문장에 "ad" 표시 없음(미드롤 안 뜸):'%(i+1,k),st['text'][:40]);ok=False
+if not any(p.get('ad') for p in s['paras']): print('ADMISS 미드롤 문단이 하나도 없음');ok=False
 # POLL: 롱폼 끝(마지막 두 문단 안)에 Threads 같은 투표 화면 1장(운영자 지시 2026-10-16). 보기 2~4개, 각 12자 이하
 pl=[x for p in s['paras'][-2:] for x in p['slides'] if x.get('layout')=='poll']
 if not pl: print('POLL 마지막 두 문단에 poll 화면이 없음: 끝에서 두 번째 문단에 투표(question·options·foot_at)를 넣는다');ok=False
