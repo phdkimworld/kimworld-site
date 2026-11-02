@@ -8,6 +8,6 @@ jobs:
       - run: |
           body='<?xml version="1.0"?><methodCall><methodName>blogger.getUsersBlogs</methodName><params><param><value><string>x</string></value></param><param><value><string>kimworld_probe_nouser</string></value></param><param><value><string>wrong</string></value></param></params></methodCall>'
           for u in https://api.blog.naver.com/xmlrpc http://api.blog.naver.com/xmlrpc; do
-            r=$(curl -s -m 20 -X POST "$u" -H 'Content-Type: text/xml' --data "$body" -w ' HTTP%{http_code}' | tr '\n' ' ' | cut -c1-600)
+            r=$(curl -s -m 20 -X POST "$u" -H 'Content-Type: text/xml' --data "$body" -w ' HTTP%{http_code}' | tr -d '\r\n\t' | cut -c1-600)
             echo "::notice title=probe $u::$r"
           done
