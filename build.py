@@ -305,6 +305,9 @@ def wrap_tables(html_in: str, extra: str = "") -> str:
                 i = iter(heads)
                 return re.sub(r"<td(\s[^>]*)?>", lambda m: f'<td data-label="{html.escape(next(i, ""))}"{m.group(1) or ""}>', rm.group(0))
             return f'<div class="{cls} table-cards">' + re.sub(r"<tr>.*?</tr>", row, t, flags=re.S) + "</div>"
+        # 3열 표는 1열 설명이 길어도 2·3열 숫자가 화면 밖으로 밀리지 않게 56:22:22로 고정(v3.0 Patch 1.1, 운영자 11-03 PLUG 검수)
+        if len(re.findall(r"<th(?:\s[^>]*)?>", t.split("</tr>", 1)[0])) == 3:
+            return f'<div class="{cls} table-3">{t}</div>'
         return f'<div class="{cls}">{t}</div>'
     return re.sub(r"<table>.*?</table>", wrap, html_in, flags=re.S)
 

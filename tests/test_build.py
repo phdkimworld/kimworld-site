@@ -422,7 +422,7 @@ w = B.wrap_tables("<table><thead><tr><th>구분</th><th>목적</th></tr></thead>
 check('class="table-wrap table-text"' in w and 'data-label="목적"' in w, "글 위주 표는 감싸고 칸마다 머리글 이름")
 w4 = B.wrap_tables("<table><thead><tr><th>a</th><th>b</th><th>c</th><th>d</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody></table>")
 w3 = B.wrap_tables("<table><thead><tr><th>a</th><th>b</th><th>c</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td></tr></tbody></table>")
-check('table-cards' in w4 and 'data-label="d"' in w4 and 'table-cards' not in w3 and 'class="table-wrap"' in w3, "4열 이상 표는 휴대폰 카드(칸 이름), 3열 표는 그대로")
+check('table-cards' in w4 and 'data-label="d"' in w4 and 'table-cards' not in w3 and 'class="table-wrap table-3"' in w3, "4열 이상 표는 휴대폰 카드(칸 이름), 3열 표는 56:22:22 고정(table-3, v3.0)")
 pv = (SRC / "dist/privacy/index.html")
 if pv.exists():
     pvt = pv.read_text(encoding="utf-8")

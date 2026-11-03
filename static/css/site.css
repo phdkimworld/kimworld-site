@@ -160,6 +160,10 @@ button { font: inherit; color: inherit; }
 .table-wrap { overflow-x: auto; margin: 1.3em 0; -webkit-overflow-scrolling: touch; border-radius: 8px; }
 .prose table { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .prose td, .prose th { word-break: keep-all; overflow-wrap: anywhere; }
+.prose .table-3 table { table-layout: fixed; }
+.prose .table-3 th:nth-child(1) { width: 56%; }
+.prose .table-3 th:nth-child(2), .prose .table-3 th:nth-child(3) { width: 22%; }
+.prose .table-3 td:nth-child(2), .prose .table-3 td:nth-child(3) { overflow-wrap: anywhere; }
 .prose ul.checklist { list-style: none; padding-left: 0; }
 .prose ul.checklist li { padding-left: 1.3em; text-indent: -1.3em; }
 @media print { .table-wrap { overflow: visible; } .prose table, .prose tr { page-break-inside: avoid; break-inside: avoid; } }
