@@ -915,7 +915,9 @@ def seo_fields(r: dict) -> dict:
         if m:
             name, hook = m.group(1).strip(), m.group(2).strip()
     name = name or r["company"] or r["ticker"]
-    head = name if name.upper() == r["ticker"].upper() else f"{name}({r['ticker']})"
+    # 코인 제목 '<이름>(<티커>) 코인 시세, 훅'(R1.2): 이름에 티커가 이미 있으면 '(티커)'·'가격'을 겹쳐 붙이지 않는다
+    tick_in = f"({r['ticker'].upper()})" in name.upper()
+    head = name if name.upper() == r["ticker"].upper() or tick_in else f"{name}({r['ticker']})"
     # 공유 미리보기(카카오톡·쓰레드·X)용: 검색 제목처럼 길게 쓰지 않고 '이름, 훅' 한 줄. 설명은 요약 앞 문장 + 무료 안내
     share_title = hook if hook.startswith(name) else f"{name}, {hook}"
     summ = re.sub(r"\s+", " ", str(r.get("summary") or "")).strip()
@@ -929,7 +931,7 @@ def seo_fields(r: dict) -> dict:
         desc = desc[:98].rstrip() + "…"
     # 검색 결과 제목은 앞 30자 안팎만 보이므로 훅의 첫 마디만(' — ' 뒤 덧붙인 질문은 설명·공유 제목에 남김, 2026-11-02)
     hook1 = hook.split(" — ")[0].strip() or hook
-    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} {kind} 분석 — {hook1}", "seo_hook": hook,
+    return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} 분석 — {hook1}" if tick_in else f"{head} {kind} 분석 — {hook1}", "seo_hook": hook,
             "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기"}
 
 
@@ -1037,7 +1039,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         })
         reports[-1].update(seo_fields(reports[-1]))
         sn = reports[-1]["share_numbers"]
-        if sn and (len(sn) != 2 or not all(re.search(r"\S\s+[+-−]?[$]?\d[\d,.]*\s*(%|배|달러)?$", x) for x in sn)):
+        if sn and (len(sn) != 2 or not all(re.search(r"\S\s+[+-−]?[$]?\d[\d,.]*\s*(%|배|달러|원)?$", x) for x in sn)):
             log.err(f"{name}: share_numbers 는 '<라벨> <숫자>' 두 개(예: [\"APLD +8.5%\", \"SLNH -2.8%\"])")
         if reports[-1]["youtube_id"] and not re.fullmatch(r"[A-Za-z0-9_-]{11}", reports[-1]["youtube_id"]):
             log.err(f"{name}: youtube_id 는 11자리 영상 ID")
