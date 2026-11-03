@@ -44,7 +44,9 @@
 {% if r.short_answer %}
 {# AI 답변 엔진·검색 요약용: 제목의 질문과 리포트 '짧은 답'을 묶은 FAQ(2026-10-15) #}
 <script type="application/ld+json">
-{{ {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": r.share_title or r.title, "acceptedAnswer": {"@type": "Answer", "text": r.short_answer ~ " (자세한 이벤트·패턴 분석: " ~ page_url ~ ")"}}]}|tojson }}
+{%- set faq_q = [{"@type": "Question", "name": r.share_title or r.title, "acceptedAnswer": {"@type": "Answer", "text": r.short_answer ~ " (자세한 이벤트·패턴 분석: " ~ page_url ~ ")"}}] -%}
+{%- for f in r.faq or [] %}{% set _ = faq_q.append({"@type": "Question", "name": f.q, "acceptedAnswer": {"@type": "Answer", "text": f.a}}) %}{% endfor -%}
+{{ {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": faq_q}|tojson }}
 </script>
 {% endif %}
 <link rel="alternate" type="text/markdown" href="{{ base }}/r/{{ r.slug }}.md" title="마크다운 원문">
@@ -166,6 +168,15 @@
 
     {# 투자 심리 투표: 본문을 다 읽은 뒤(6부 뒤, 출처 위). 2026-10-14 '맨 위' 결정을 2026-10-28 운영자 지시(SKILL R1.7)로 바꿈 #}
     {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
+
+    {% if r.faq %}
+    {# 검색 유입(2026-11-03): 사람들이 검색창에 치는 질문 꼴. FAQPage 구조화 데이터와 같은 내용 #}
+    <section class="faq" aria-labelledby="faq-h">
+      <h2 id="faq-h">자주 묻는 질문</h2>
+      {% for f in r.faq %}<details class="faq-i"{% if loop.first %} open{% endif %}><summary>{{ f.q }}</summary><p>{{ f.a }}</p></details>
+      {% endfor %}
+    </section>
+    {% endif %}
 
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">

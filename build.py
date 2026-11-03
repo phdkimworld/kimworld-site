@@ -1023,6 +1023,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "title": str(meta["title"]), "theme": meta["theme"], "theme_slug": theme_by_name[meta["theme"]]["slug"],
             "date": d, "updated": upd, "data_as_of": asof, "summary": str(meta["summary"]).strip(),
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],
+            # 검색 유입(2026-11-03): 제작 때 블로그용으로 쓴 질문·답(blog_faq)을 리포트에도 '자주 묻는 질문'으로 보이고 FAQPage에 넣는다
+            "faq": [{"q": str(x.get("q") or "").strip(), "a": str(x.get("a") or "").strip()}
+                    for x in (meta.get("blog_faq") or []) if isinstance(x, dict) and x.get("q") and x.get("a")][:5],
             "chart": chart_info(slug),
             "youtube_id": str(meta.get("youtube_id") or "").strip(),
             # 공유 미리보기 대비 숫자 2개(SNS 스레드 지침 6.2⑤, 2026-10-29): ["APLD +8.5%", "SLNH -2.8%"]

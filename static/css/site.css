@@ -192,6 +192,11 @@ button { font: inherit; color: inherit; }
 .term-pop { position: absolute; z-index: 50; max-width: min(340px, calc(100vw - 32px)); background: var(--text); color: var(--bg); padding: 12px 14px; border-radius: 10px; font-size: .85rem; line-height: 1.6; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
 .term-pop strong { display: block; margin-bottom: 2px; }
 
+.faq { margin-top: 2.4em; }
+.faq h2 { font-size: 1.05rem; }
+.faq-i { border-top: 1px solid var(--line, #e5e5e5); padding: .7em 0; }
+.faq-i summary { cursor: pointer; font-weight: 700; line-height: 1.5; }
+.faq-i p { margin: .5em 0 0; line-height: 1.7; }
 .sources { margin-top: 2.4em; font-size: .85rem; }
 .sources h2 { font-size: 1.05rem; }
 .sources ol { padding-left: 1.4em; }
