@@ -618,3 +618,9 @@ SAND:
   exchange: "Upbit"
   theme: "코인·블록체인"
   aliases: ["샌드박스", "더 샌드박스", "더샌드박스", "The Sandbox", "SAND", "샌드박스 코인", "샌드"]
+ZS:
+  name: "지스케일러"
+  name_en: "Zscaler, Inc."
+  exchange: "NASDAQ"
+  theme: "AI 소프트웨어"
+  aliases: ["Zscaler", "지스케일러 주가", "제트스케일러"]
