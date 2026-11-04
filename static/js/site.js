@@ -79,7 +79,10 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
       title = btn.getAttribute('data-share-title') || title;
     }
     url = shareUrl(url);
-    kwShare({ title: title, url: url });
+    // 리포트 화면의 공유: 받는 사람이 링크만 보고 지나치지 않게 미리보기 설명(요약 앞 문장 + 무료 안내)을 글로 함께 보낸다(다른 앱 공유·링크 복사, 2026-11-04)
+    var ogd = !su && document.querySelector('article.report') && document.querySelector('meta[property="og:description"]');
+    var text = ogd && ogd.content ? ogd.content.slice(0, 140) : '';
+    kwShare(text ? { title: title, text: text, url: url } : { title: title, url: url });
   }
   // ---------- 인쇄 시트: 문서형(종이 A4) 또는 모바일 화면 그대로(운영자 요청 2026-10-29) ----------
   // 모바일형은 종이 폭을 휴대폰 폭(105mm≈397px)으로 바꿔 화면용 모바일 배치(@media max-width)가 그대로 걸리게 하고,
