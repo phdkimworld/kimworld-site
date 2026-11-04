@@ -588,6 +588,26 @@ def main(argv):
     if "--delete" in argv:
         i = argv.index("--delete")
         ch, target = (argv[i + 1:i + 3] + ["", ""])[:2]
+        tok = os.environ.get("THREADS_ACCESS_TOKEN", "")
+        # 주소(…/post/<코드>)나 코드로 주면 내 글 목록에서 숫자 ID를 찾고, 그 글에 내가 단 답글(2/2)까지 함께 지운다
+        # (2026-11-04: 예약 실행과 수동 실행이 겹쳐 SLDP·ZS 글이 두 번 게시됨. 웹 주소의 코드는 API ID와 다르다)
+        if ch == "threads" and target and not target.isdigit():
+            code = target.rstrip("/").split("/")[-1]
+            try:
+                posts = call(TH_API, "GET", "me/threads", {"fields": "id,permalink", "limit": 50}, tok).get("data", [])
+                hit = [x["id"] for x in posts if x.get("permalink", "").rstrip("/").endswith("/" + code)]
+                if not hit:
+                    print(f"::error::최근 글 50개에서 {code} 를 찾지 못함")
+                    return 1
+                conv = call(TH_API, "GET", f"{hit[0]}/conversation", {"fields": "id,is_reply_owned_by_me", "limit": 100}, tok).get("data", [])
+                for x in conv:
+                    if x.get("is_reply_owned_by_me"):
+                        call(TH_API, "DELETE", x["id"], {}, tok)
+                        print(f"::notice::답글 삭제함 {x['id']}")
+                target = hit[0]
+            except RuntimeError as e:
+                print(f"::error::삭제 준비 실패: {e}")
+                return 1
         if ch != "threads" or not target.isdigit():
             print("::error::사용: --delete threads <숫자 글 ID> (인스타 API는 게시물 삭제를 지원하지 않음)")
             return 1
