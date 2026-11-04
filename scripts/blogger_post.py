@@ -93,6 +93,22 @@ def faq(fm: dict, slug: str) -> list:
     return out[:3]
 
 
+CPAS_MARK = "<!--kw-cpas-->"
+CPAS_DISCLOSURE = "이 영역은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+
+
+def cpas_block() -> str:
+    """쿠팡 파트너스 다이내믹 배너 한 칸(운영자 지시 2026-11-04 "쿠파스만 해서 일단 여기도 관리").
+    사이트로 가는 버튼·영상 뒤, 면책 문구 앞에 하나만. 하위 ID "blogger"로 쿠팡 실적을 따로 센다.
+    블로거 글 본문에서는 스크립트 대신 쿠팡이 만드는 iframe 주소를 바로 넣는다(피드·앱 보기에서도 같게)."""
+    src = ("https://ads-partners.coupang.com/widgets.html?id=1038868&template=carousel&trackingCode=AF4489672"
+           "&subId=blogger&width=680&height=140&tsource=")
+    return (f'{CPAS_MARK}<div style="margin:22px 0 8px">'
+            f'<iframe src="{src}" width="680" height="140" frameborder="0" scrolling="no" referrerpolicy="unsafe-url" '
+            f'style="max-width:100%;border:0" title="쿠팡 추천 상품"></iframe>'
+            f'<p style="color:#888;font-size:12px;margin:4px 0 0">{CPAS_DISCLOSURE}</p></div>')
+
+
 def body(slug: str, fm: dict) -> str:
     u = f"{BASE}/r/{slug}/?utm_source=blogger&utm_medium=post&utm_campaign={slug}"
     e = html.escape
@@ -127,6 +143,7 @@ def body(slug: str, fm: dict) -> str:
             f'<iframe src="https://www.youtube.com/embed/{yid}" title="{name}({tk}) 주가 분석 영상" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen></iframe></div>'
         )
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
+    parts.append(cpas_block())
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
         "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "
@@ -188,6 +205,41 @@ def update(tok: str, url: str, title: str, content: str, labels: list) -> str:
     return api(tok, "PATCH", post["id"], {"title": title, "content": content, "labels": labels}).get("url", url)
 
 
+def backfill_ads(tok: str, limit: int) -> int:
+    """이미 올린 글에 쿠팡 칸이 없으면 면책 문구 앞(없으면 맨 끝)에 넣는다. 한 번에 limit개."""
+    bid = os.environ["BLOGGER_BLOG_ID"]
+    H = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+    done, page = 0, ""
+    while done < limit:
+        q = urllib.parse.urlencode({"maxResults": 50, "fetchBodies": "true", "status": "live", **({"pageToken": page} if page else {})})
+        with urllib.request.urlopen(urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts?{q}", headers=H), timeout=60) as r:
+            js = json.load(r)
+        for it in js.get("items") or []:
+            c = it.get("content") or ""
+            if CPAS_MARK in c or "drkimworld.com" not in c:
+                continue
+            i = c.rfind('<p style="color:#888;font-size:13px">')
+            nc = (c[:i] + cpas_block() + c[i:]) if i >= 0 else (c + cpas_block())
+            req = urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/{it['id']}", data=json.dumps({"content": nc}).encode(), headers=H, method="PATCH")
+            try:
+                with urllib.request.urlopen(req, timeout=60):
+                    pass
+            except urllib.error.HTTPError as ex:
+                if ex.code in (403, 429):
+                    print(f"::warning title=블로거 쿠팡 칸::한도 {ex.code}, {done}건에서 멈춤(다음 실행에서 이어 감)")
+                    return done
+                raise
+            done += 1
+            time.sleep(2)
+            if done >= limit:
+                break
+        page = js.get("nextPageToken") or ""
+        if not page:
+            break
+    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건에 넣음")
+    return done
+
+
 def live(slug: str) -> bool:
     try:
         req = urllib.request.Request(f"{BASE}/r/{slug}/", method="HEAD", headers={"User-Agent": "kimworld-blogger"})
@@ -198,6 +250,9 @@ def live(slug: str) -> bool:
 
 
 def main() -> int:
+    if os.environ.get("ADS_BACKFILL") == "1":
+        backfill_ads(token(), int(os.environ.get("ADS_BACKFILL_N") or 40))
+        return 0
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     now = dt.datetime.now(ET)
     today = now.date()
