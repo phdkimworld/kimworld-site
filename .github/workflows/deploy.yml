@@ -84,7 +84,7 @@ jobs:
       - name: Build
         run: python build.py --strict
       - name: Board notices
-        # 새 종목 종토방에 첫 글(종목 소개 + 규칙 공지)을 올리고, 새로 공개된 리포트를 그 종목·테마 팔로워에게 한 번 알린다(여러 번 돌려도 안전)
+        # 새 종목 종토방에 첫 글(종목 소개 + 규칙 공지)을 올리고, social/site_replies의 운영자 대댓글을 넣고, 새로 공개된 리포트를 그 종목·테마 팔로워에게 한 번 알린다(여러 번 돌려도 안전)
         if: github.event_name != 'pull_request'
         continue-on-error: true
         env:
@@ -94,6 +94,7 @@ jobs:
         run: |
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Cloudflare 비밀값 없음 → 건너뜀"; exit 0; }
           python ../scripts/board_notices.py > /tmp/notices.sql
+          python ../scripts/site_replies.py >> /tmp/notices.sql   # 사이트 댓글 운영자 대댓글(social/site_replies)
           ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
           test -n "$ID"
           sed -i "s/__D1_ID__/$ID/" wrangler.toml || true
