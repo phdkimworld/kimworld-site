@@ -1,3 +1,4 @@
+import re
 """매주 '미국주식 투자자 투표 결산'(옛 '개미 심리 순위') Threads 글을 social/queue/ 에 만든다(mood-post.yml 에서 실행).
 
 입력: .cache/mood.json (API /v1/sentiment/top 응답: 지난 30일 종목별 합계만, 개인정보 없음)
@@ -40,7 +41,7 @@ def latest_reports() -> dict:
         if not txt.startswith("---"):
             continue
         try:
-            fm = yaml.safe_load(txt.split("---", 2)[1]) or {}
+            fm = yaml.safe_load(re.split(r"^---\s*$", txt, maxsplit=2, flags=re.M)[1]) or {}
         except Exception:
             continue
         t = str(fm.get("ticker") or "").upper()

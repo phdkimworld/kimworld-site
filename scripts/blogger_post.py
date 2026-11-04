@@ -37,7 +37,7 @@ def front(p: Path) -> dict:
     t = p.read_text(encoding="utf-8")
     if not t.startswith("---"):
         return {}
-    return yaml.safe_load(t.split("---", 2)[1]) or {}
+    return yaml.safe_load(re.split(r"^---\s*$", t, maxsplit=2, flags=re.M)[1]) or {}
 
 
 def short_title(fm: dict) -> str:
@@ -85,7 +85,8 @@ def faq(fm: dict, slug: str) -> list:
     """'이 리포트가 답하는 3가지 질문': blog_faq(제작 때 블로그 전용으로 쓴 질문·답)가 있으면 그것, 없으면 1~6부 '핵심' 콜아웃에서 셋."""
     if fm.get("blog_faq"):
         return [(str(x.get("q", "")), str(x.get("a", ""))) for x in fm["blog_faq"]][:3]
-    md = (REPORTS / f"{slug}.md").read_text(encoding="utf-8").split("---", 2)[-1]
+    md = (REPORTS / f"{slug}.md").read_text(encoding="utf-8")
+    md = re.split(r"^---\s*$", md, maxsplit=2, flags=re.M)[-1]
     out = []
     for m in re.finditer(r"^## ([2-5])부\.\s*(.+?)\n+> \*\*핵심:\*\*\s*(.+)$", md, re.M):
         out.append((m.group(2).strip().rstrip("?") + "?", m.group(3).strip()))
