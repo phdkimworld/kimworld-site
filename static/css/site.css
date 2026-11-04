@@ -1595,3 +1595,11 @@ article.report .sent { margin-top: 14px; }
 .kk-b { flex: none; border: 0; border-radius: 999px; padding: 8px 12px; background: #191919; color: #fee500; font-weight: 800; font-size: .82rem; cursor: pointer; }
 .kk-b span { font-size: .62rem; letter-spacing: .02em; margin-right: 2px; }
 @media print { .kk-bar { display: none !important; } }
+
+/* PC 홈 오른쪽 칸 '종목 순위'(2026-11-05) */
+.side-mood { margin-bottom: 20px; }
+.side-mood .mood-tabs { margin: 6px 0 4px; }
+.side-mood .rank-item { padding: 8px 10px; }
+.side-mood-h3 { font-size: .9rem; margin: 14px 0 4px; }
+.side-mood-more { margin: 8px 0 0; text-align: right; font-size: .85rem; }
+.side-mood-more a { color: var(--accent); text-decoration: none; }

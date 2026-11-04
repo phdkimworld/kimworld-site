@@ -436,6 +436,43 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
 
 })();
 
+// PC 홈 오른쪽 칸 '종목 순위'(검색 화면 종목 순위와 같은 자료, 2026-11-05)
+(function () {
+  var box = document.querySelector('[data-side-mood]'); if (!box) return;
+  if (window.matchMedia && !matchMedia('(min-width: 1000px)').matches) return; // 휴대폰은 검색 탭에서 본다(오른쪽 칸이 숨겨짐)
+  var KW = window.KW || {}, API = (KW.api || '').replace(/\/+$/, ''), base = KW.base || ''; if (!API) return;
+  var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var jget = function (u) { return fetch(u).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); };
+  Promise.all([jget(API + '/v1/sentiment/top'), jget(API + '/v1/requests/top'), jget(base + '/search.json')]).then(function (res) {
+    var d = res[0], rq = (res[1] && res[1].items) || [], names = {};
+    if (!d && !rq.length) return;
+    d = d || { top: [], bull: [], bear: [] };
+    (res[2] || []).forEach(function (r) { if (r.k && !names[r.k]) names[r.k] = r.c; });
+    var list = box.querySelector('[data-smood-list]'), empty = box.querySelector('[data-smood-empty]'), btns = box.querySelectorAll('[data-smood]');
+    function li(i, t, right) {
+      return '<li class="rank-item"><span class="rank-no">' + (i + 1) + '</span><a class="rank-link" href="' + base + '/t/' + esc(t.toLowerCase()) + '/"><span class="rank-tick">' + esc(t) + '</span><span class="rank-title">' + esc(names[t] || '') + '</span></a>' + right + '</li>';
+    }
+    function show(k) {
+      btns.forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-smood') === k ? 'true' : 'false'); });
+      var items = (d[k] || []).slice(0, 5);
+      list.innerHTML = items.map(function (x, i) {
+        var up = x.bull >= 50, pct = up ? x.bull : 100 - x.bull;
+        var lab = k === 'top' ? (x.bull > 50 ? '불리시 ' + x.bull + '%' : x.bull < 50 ? '베어리시 ' + (100 - x.bull) + '%' : '반반') : (k === 'bull' ? '불리시 ' + pct + '%' : '베어리시 ' + pct + '%');
+        return li(i, x.t, '<span class="mood-v mood-' + (x.bull === 50 ? 'even' : up ? 'up' : 'down') + '">' + lab + '</span><span class="rank-n muted">' + x.n + '표</span>');
+      }).join('');
+      list.hidden = !items.length; empty.hidden = !!items.length;
+    }
+    btns.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-smood')); if (window.kwEv) kwEv('mood_rank'); }); });
+    show('top');
+    var rl = box.querySelector('[data-sreq-list]');
+    if (rq.length) {
+      rl.innerHTML = rq.slice(0, 3).map(function (x, i) { return li(i, x.t, '<span class="mood-v mood-even">🔔 ' + x.n + '명</span>'); }).join('');
+      rl.hidden = false; box.querySelector('[data-sreq-h]').hidden = false;
+    }
+    box.hidden = false;
+  });
+})();
+
 // 접힌 상자(이벤트 카드·출처): 주소의 #앵커가 상자 안을 가리키면 펼치고, 인쇄할 때는 모두 펼친다
 (function () {
   function openFor(hash) {

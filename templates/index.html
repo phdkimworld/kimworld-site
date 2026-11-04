@@ -85,6 +85,22 @@
     <input id="q-home" name="q" type="search" placeholder="종목명이나 티커 검색" autocomplete="off" enterkeyhint="search">
   </form>
   {% if site.api_url %}
+  {# PC 홈 오른쪽 칸에도 휴대폰 검색 화면의 '종목 순위'(투표·업데이트 요청)를 그대로(운영자 요청 2026-11-05) #}
+  <section class="ins-card side-mood" data-side-mood hidden aria-labelledby="smood-h">
+    <div class="ins-head">
+      <h2 id="smood-h" class="section-title">종목 순위 <span class="muted ins-sub">최근 30일 투표</span></h2>
+    </div>
+    <div class="mood-tabs" role="tablist" aria-label="순위 종류">
+      <button type="button" role="tab" data-smood="top" aria-selected="true">참여 많은</button>
+      <button type="button" role="tab" data-smood="bull" aria-selected="false">불리시</button>
+      <button type="button" role="tab" data-smood="bear" aria-selected="false">베어리시</button>
+    </div>
+    <ol class="rank mood-list" data-smood-list></ol>
+    <p class="muted mood-empty" data-smood-empty hidden>아직 순위에 오를 만큼 투표가 모이지 않았습니다.</p>
+    <h3 class="section-title side-mood-h3" data-sreq-h hidden>새 리포트 요청 많은 종목</h3>
+    <ol class="rank mood-list" data-sreq-list hidden></ol>
+    <p class="side-mood-more"><a href="{{ base }}/search/#tab=mood">전체 순위 보기 ›</a></p>
+  </section>
   <section class="ins-card suggest" data-suggest hidden aria-labelledby="sg-h">
     <h2 id="sg-h" class="section-title">팔로우 추천 <span class="muted ins-sub">최근 30일 활발한 사람</span></h2>
     <ul class="sg-list" data-suggest-list></ul>
