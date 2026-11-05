@@ -624,3 +624,9 @@ ZS:
   exchange: "NASDAQ"
   theme: "AI 소프트웨어"
   aliases: ["Zscaler", "지스케일러 주가", "제트스케일러"]
+AEVA:
+  name: "에이바 테크놀로지스"
+  name_en: "Aeva Technologies, Inc."
+  exchange: "NASDAQ"
+  theme: "로봇·자율주행"
+  aliases: ["Aeva", "에이바", "에바 테크놀로지스", "에이바 라이다"]
