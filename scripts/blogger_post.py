@@ -93,6 +93,33 @@ def faq(fm: dict, slug: str) -> list:
     return out[:3]
 
 
+def more_reports(slug: str, fm: dict, n: int = 3) -> list:
+    """블로그 → 사이트 입구 늘리기(유입 실험 2026-11-05, 블로거 글 130개인데 7일 유입 0):
+    같은 종목의 다른 리포트, 그다음 같은 테마 리포트를 최신순으로 n개(공개된 것만)."""
+    tk, th = str(fm.get("ticker") or ""), str(fm.get("theme") or "")
+    today = dt.datetime.now(ET).date()
+    same, theme = [], []
+    for p in REPORTS.glob("*.md"):
+        if p.stem == slug:
+            continue
+        f = front(p)
+        if not f or f.get("draft"):
+            continue
+        try:
+            d = dt.date.fromisoformat(str(f.get("date"))[:10])
+        except ValueError:
+            continue
+        if d > today:
+            continue
+        if tk and str(f.get("ticker") or "") == tk:
+            same.append((d, p.stem, f))
+        elif th and str(f.get("theme") or "") == th:
+            theme.append((d, p.stem, f))
+    same.sort(key=lambda x: x[0], reverse=True)
+    theme.sort(key=lambda x: x[0], reverse=True)
+    return [(s, short_title(f)) for _, s, f in (same + theme)[:n]]
+
+
 CPAS_MARK = "<!--kw-cpas-->"
 CPAS_DISCLOSURE = "이 영역은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
 
@@ -142,6 +169,11 @@ def body(slug: str, fm: dict) -> str:
             f'<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin-bottom:20px">'
             f'<iframe src="https://www.youtube.com/embed/{yid}" title="{name}({tk}) 주가 분석 영상" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen></iframe></div>'
         )
+    more = more_reports(slug, fm)
+    if more:
+        parts.append(f"<h3>📚 함께 보면 좋은 {name}·{e(str(fm.get('theme') or '같은 테마'))} 리포트</h3><ul>" + "".join(
+            f'<li><a href="{BASE}/r/{s}/?utm_source=blogger&amp;utm_medium=post&amp;utm_campaign={slug}&amp;utm_content=related">{e(t)}</a></li>'
+            for s, t in more) + "</ul>")
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
     parts.append(cpas_block())
     parts.append(
