@@ -366,7 +366,27 @@ def post_files():
     return 1 if bad else 0
 
 
+def inspect(ids):
+    """답글이 실제로 보이는지 확인(운영자 11-06 'Threads 답장 안 된 걸로 나온다'): Threads 글 ID마다 상태·부모·숨김 여부·주소를 낸다."""
+    tok = os.environ["THREADS_ACCESS_TOKEN"]
+    out = {}
+    for i in ids:
+        try:
+            out[i] = call(TH_API, "GET", i, {"fields": "id,text,username,permalink,timestamp,is_reply,replied_to,root_post,hide_status,reply_audience,media_type"}, tok)
+        except RuntimeError as e:
+            out[i] = {"error": str(e)[:300]}
+        try:
+            out[i]["replies"] = [{k: c.get(k) for k in ("id", "username", "text", "hide_status", "timestamp")}
+                                 for c in call(TH_API, "GET", f"{i}/replies", {"fields": "id,text,username,timestamp,hide_status"}, tok).get("data", [])]
+        except RuntimeError as e:
+            out[i]["replies_error"] = str(e)[:300]
+    print("INSPECT_JSON:" + json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    return 0
+
+
 def main(argv):
+    if "--inspect" in argv:
+        return inspect(argv[argv.index("--inspect") + 1].split(","))
     if "--probe" in argv:
         return probe()
     if "--post" in argv:

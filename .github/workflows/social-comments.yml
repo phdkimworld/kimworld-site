@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "list(기본) / probe / insights(인스타·Threads 게시물 성과) / profile(프로필 바이오 읽기) / profile_set(페이스북 소개 고치기)"
+        description: "list(기본) / probe / inspect(days 칸에 Threads 글 ID — 답글 상태 확인) / insights(인스타·Threads 게시물 성과) / profile(프로필 바이오 읽기) / profile_set(페이스북 소개 고치기)"
         required: false
         default: "list"
       days:
@@ -52,6 +52,7 @@ jobs:
           case "$MODE" in
             post) python scripts/social_comments.py --post ;;
             probe) python scripts/social_comments.py --probe ;;
+            inspect) python scripts/social_comments.py --inspect "$DAYS" ;;  # days 칸에 Threads 글 ID(쉼표로 여럿)
             insights) python scripts/social_insights.py --log --days "$DAYS" ;;
             profile) python scripts/social_profile.py ;;
             profile_set) python scripts/social_profile.py --set social/profile/set.json ;;
