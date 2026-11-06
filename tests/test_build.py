@@ -25,11 +25,20 @@ def check(cond, msg):
         FAILS.append(msg)
 
 
+_PREV: list[Path] = []
+
+
 def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None) -> Path:
+    while _PREV:  # 테스트는 늘 마지막 프로젝트(t)만 쓰므로 이전 임시 폴더는 바로 지운다(끝날 때까지 쌓이면 디스크가 찬다)
+        shutil.rmtree(_PREV.pop(), True)
     tmp = Path(tempfile.mkdtemp(prefix="kws-"))
+    _PREV.append(tmp)
     atexit.register(shutil.rmtree, tmp, True)  # 임시 빌드 폴더(약 90MB씩)가 쌓여 디스크를 채우지 않게 끝나면 지운다
     for name in ["build.py", "report_figures.py", "chart_dark.py", "site.yaml", "ads.yaml", "data", "content", "templates", "static"]:
         p = SRC / name
+        if name == "static":  # 쇼츠 영상·카드 이미지(수백 MB)는 빌드 검사에 필요 없어 빼고 복사한다(디스크 부족 방지)
+            shutil.copytree(p, tmp / name, ignore=shutil.ignore_patterns("*.mp4", "card-*.jpg", "ig_*.jpg", "cover.jpg"))
+            continue
         (shutil.copytree if p.is_dir() else shutil.copy)(p, tmp / name)
     tick = yaml.safe_load((tmp / "data/tickers.yaml").read_text(encoding="utf-8"))
     tick["ZZZZ"] = {"name": "제트테스트", "name_en": "Zeta Test", "exchange": "TEST", "theme": "양자컴퓨팅", "aliases": ["제트"]}
