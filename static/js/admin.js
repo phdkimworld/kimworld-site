@@ -261,7 +261,23 @@
   function stacked(title, days, byDay, keys, sub) {
     var card = el('section', 'an-card an-chart'); card.appendChild(el('h3', 'an-ct', title));
     if (sub) card.appendChild(el('p', 'an-sub muted', sub));
-    card.appendChild(legend(keys));
+    // 채널 고르기(운영자 요청 2026-11-05): '전체'는 쌓은 막대, 채널을 누르면 그 채널만 따로(세로 눈금도 그 채널 기준)
+    var allKeys = keys, chips = el('div', 'an-legend an-chfilter'), holder = el('div', 'an-chholder');
+    function chip(k) {
+      var b = el('button', 'an-li an-chip'); b.type = 'button'; b.setAttribute('aria-pressed', k === '' ? 'true' : 'false');
+      if (k) b.appendChild(swatch(k)); b.appendChild(document.createTextNode(k ? (CHN[k] || k) : '전체'));
+      b.addEventListener('click', function () {
+        chips.querySelectorAll('.an-chip').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        holder.innerHTML = ''; holder.appendChild(draw(k ? [k] : allKeys, k));
+      });
+      return b;
+    }
+    chips.appendChild(chip('')); allKeys.forEach(function (k) { chips.appendChild(chip(k)); });
+    card.appendChild(chips); card.appendChild(holder);
+    holder.appendChild(draw(allKeys, ''));
+    return card;
+    function draw(keys, one) {
+    var frag = document.createDocumentFragment();
     var W = 600, H = 170, pad = 18, totals = days.map(function (d) { return keys.reduce(function (a, k) { return a + ((byDay[d] || {})[k] || 0); }, 0); });
     var max = Math.max(1, Math.max.apply(null, totals));
     var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
@@ -282,14 +298,18 @@
       });
       var label = d.slice(5).replace('-', '.') + ' · 합계 ' + nf(totals[i]) + (parts.length ? '\n' + parts.join(' · ') : '');
       g.addEventListener('mousemove', function (e) { tip.textContent = label; tip.hidden = false; tip.style.left = (e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 34) + 'px'; });
+      g.addEventListener('click', function (e) { tip.textContent = label; tip.hidden = false; tip.style.left = Math.min(e.clientX + 12, innerWidth - 180) + 'px'; tip.style.top = (e.clientY - 44) + 'px'; }); // 휴대폰: 눌러서 보기
       g.addEventListener('mouseleave', function () { tip.hidden = true; });
       svg.appendChild(g);
     });
     var lt = document.createElementNS(ns, 'text'), rt = document.createElementNS(ns, 'text');
     lt.setAttribute('x', 0); lt.setAttribute('y', H + 14); lt.setAttribute('class', 'an-axis'); lt.textContent = days[0].slice(5).replace('-', '.');
     rt.setAttribute('x', W); rt.setAttribute('y', H + 14); rt.setAttribute('text-anchor', 'end'); rt.setAttribute('class', 'an-axis'); rt.textContent = days[days.length - 1].slice(5).replace('-', '.');
-    svg.appendChild(lt); svg.appendChild(rt); card.appendChild(svg);
-    return card;
+    svg.appendChild(lt); svg.appendChild(rt); frag.appendChild(svg);
+    if (one) { var sum = totals.reduce(function (a, b) { return a + b; }, 0), last7 = totals.slice(-7).reduce(function (a, b) { return a + b; }, 0), prev7 = totals.slice(-14, -7).reduce(function (a, b) { return a + b; }, 0);
+      frag.appendChild(el('p', 'an-sub muted', (CHN[one] || one) + ' · 기간 합계 ' + nf(sum) + '회 · 최근 7일 ' + nf(last7) + '회(그 전 7일 ' + nf(prev7) + '회)')); }
+    return frag;
+    }
   }
   // 유입 분석 섹션 전체
   function acquisition(d, T) {

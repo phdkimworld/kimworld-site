@@ -1603,3 +1603,8 @@ article.report .sent { margin-top: 14px; }
 .side-mood-h3 { font-size: .9rem; margin: 14px 0 4px; }
 .side-mood-more { margin: 8px 0 0; text-align: right; font-size: .85rem; }
 .side-mood-more a { color: var(--accent); text-decoration: none; }
+
+/* 운영 통계: 일별 채널 그래프 채널 고르기(2026-11-05) */
+.an-chfilter { gap: 6px; }
+.an-chip { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: .82rem; cursor: pointer; }
+.an-chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
