@@ -136,6 +136,20 @@ def cpas_block() -> str:
             f'<p style="color:#888;font-size:12px;margin:4px 0 0">{CPAS_DISCLOSURE}</p></div>')
 
 
+ADFIT_MARK = "<!--kw-adfit-->"
+# 애드핏 매체 '김박사 월드 블로그'(phdkimworld.blogspot.com)의 300x250 단위(운영자 생성 2026-11-06). 비우면 넣지 않는다
+BLOGGER_ADFIT_UNIT = os.environ.get("BLOGGER_ADFIT_UNIT") or "DAN-djnM2vIZK3qhEHJR"
+
+
+def adfit_block() -> str:
+    """애드핏 300x250 한 칸: 사이트로 가는 버튼·영상 뒤, 쿠팡 배너 앞. 한 글에 한 번(애드핏 단위는 한 페이지 한 번)."""
+    if not BLOGGER_ADFIT_UNIT:
+        return ""
+    return (f'{ADFIT_MARK}<div style="margin:22px 0 0;text-align:center">'
+            f'<ins class="kakao_ad_area" style="display:none;" data-ad-unit="{BLOGGER_ADFIT_UNIT}" data-ad-width="300" data-ad-height="250"></ins>'
+            f'<script type="text/javascript" src="//t1.daumcdn.net/kas/static/ba.min.js" async></script></div>')
+
+
 def body(slug: str, fm: dict) -> str:
     u = f"{BASE}/r/{slug}/?utm_source=blogger&utm_medium=post&utm_campaign={slug}"
     e = html.escape
@@ -175,6 +189,7 @@ def body(slug: str, fm: dict) -> str:
             f'<li><a href="{BASE}/r/{s}/?utm_source=blogger&amp;utm_medium=post&amp;utm_campaign={slug}&amp;utm_content=related">{e(t)}</a></li>'
             for s, t in more) + "</ul>")
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
+    parts.append(adfit_block())
     parts.append(cpas_block())
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
@@ -248,10 +263,17 @@ def backfill_ads(tok: str, limit: int) -> int:
             js = json.load(r)
         for it in js.get("items") or []:
             c = it.get("content") or ""
-            if CPAS_MARK in c or "drkimworld.com" not in c:
+            if "drkimworld.com" not in c:
                 continue
-            i = c.rfind('<p style="color:#888;font-size:13px">')
-            nc = (c[:i] + cpas_block() + c[i:]) if i >= 0 else (c + cpas_block())
+            nc = c
+            if CPAS_MARK not in nc:
+                i = nc.rfind('<p style="color:#888;font-size:13px">')
+                nc = (nc[:i] + cpas_block() + nc[i:]) if i >= 0 else (nc + cpas_block())
+            if BLOGGER_ADFIT_UNIT and ADFIT_MARK not in nc:  # 애드핏은 쿠팡 칸 바로 앞(2026-11-06)
+                i = nc.find(CPAS_MARK)
+                nc = nc[:i] + adfit_block() + nc[i:]
+            if nc == c:
+                continue
             req = urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/{it['id']}", data=json.dumps({"content": nc}).encode(), headers=H, method="PATCH")
             try:
                 with urllib.request.urlopen(req, timeout=60):
@@ -268,7 +290,7 @@ def backfill_ads(tok: str, limit: int) -> int:
         page = js.get("nextPageToken") or ""
         if not page:
             break
-    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건에 넣음")
+    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건에 넣음(쿠팡·애드핏)")
     return done
 
 

@@ -18,7 +18,10 @@ on:
         description: "1이면 slug 의 이미 올린 글 본문·라벨을 새 틀로 바꾼다(주소는 그대로)"
         required: false
       ads_backfill:
-        description: "1이면 이미 올린 글에 쿠팡 파트너스 칸을 넣는다(없는 글만, 한 번에 40건)"
+        description: "1이면 이미 올린 글에 쿠팡·애드핏 칸을 넣는다(없는 글만)"
+        required: false
+      ads_backfill_n:
+        description: "한 번에 고칠 글 수(기본 40)"
         required: false
 
 permissions:
@@ -43,6 +46,7 @@ jobs:
       DRY: ${{ inputs.dry }}
       UPDATE: ${{ inputs.update }}
       ADS_BACKFILL: ${{ inputs.ads_backfill }}
+      ADS_BACKFILL_N: ${{ inputs.ads_backfill_n }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check secrets
