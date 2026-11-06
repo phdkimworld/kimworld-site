@@ -73,7 +73,8 @@
         <span class="report-company">{{ r.company }} <span class="muted">{{ r.company_en }} · {{ r.exchange }}</span></span>
         {% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="t" data-key="{{ r.ticker }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}
       </div>
-      <h1>{{ r.title }}</h1>
+      {#- 2026-11-06: 화면 제목은 검색용 꼬리말(| 주가 내러티브와 패턴 투자전략) 없이 — 휴대폰 첫 화면에서 한 줄 아끼기. <title>·구조화 데이터는 seo_title 그대로 #}
+      <h1>{{ r.share_title or r.title }}</h1>
       <p class="report-meta">
         <span>공개 <time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time></span>
         {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
@@ -94,7 +95,7 @@
     </header>
 
     {% if r.newer %}
-    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}">{{ r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
+    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}">{{ r.newer.share_title or r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
     {% endif %}
     {% if stale %}
     <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>
@@ -219,15 +220,15 @@
     <section class="more" aria-labelledby="more-t">
       <h2 id="more-t">{{ r.ticker }} 다른 리포트</h2>
       <ol class="timeline">
-        {% for x in r.ticker_reports %}<li><time datetime="{{ x.date|iso }}">{{ x.date|kdate }}</time> <a href="{{ x.url }}">{{ x.title }}</a></li>{% endfor %}
+        {% for x in r.ticker_reports %}<li><time datetime="{{ x.date|iso }}">{{ x.date|kdate }}</time> <a href="{{ x.url }}">{{ x.share_title or x.title }}</a></li>{% endfor %}
       </ol>
     </section>
     {% endif %}
 
 
     <nav class="prevnext" aria-label="이전·다음 리포트">
-      {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 최근 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.title }}</strong></a>{% else %}<span></span>{% endif %}
-      {% if r.prev %}<a class="pn pn-prev" href="{{ r.prev.url }}"><span class="muted">지난 리포트 →</span><strong>{{ r.prev.ticker }} · {{ r.prev.title }}</strong></a>{% endif %}
+      {% if r.next %}<a class="pn pn-next" href="{{ r.next.url }}"><span class="muted">← 더 최근 리포트</span><strong>{{ r.next.ticker }} · {{ r.next.share_title or r.next.title }}</strong></a>{% else %}<span></span>{% endif %}
+      {% if r.prev %}<a class="pn pn-prev" href="{{ r.prev.url }}"><span class="muted">지난 리포트 →</span><strong>{{ r.prev.ticker }} · {{ r.prev.share_title or r.prev.title }}</strong></a>{% endif %}
     </nav>
 
     {{ bottom_ad|safe }}
