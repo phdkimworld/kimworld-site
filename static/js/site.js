@@ -962,7 +962,9 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   function reportCard() { // 리포트 본문을 다 읽은 자리(출처 바로 위). 다 읽은 독자가 가장 잘 설치한다
     var prose = document.querySelector('article.report > .prose');
     if (!prose || document.querySelector('.install-card') || snoozed('kw-install-x', 14)) return;
-    var c = makeCard('report', '다음 리포트도 한 번에 보기', '홈 화면에 김박사 월드를 추가하세요. 무료이고, 아이콘 한 번으로 바로 열려요.');
+    // 2026-11-07 재방문 실험: 다 읽은 종목 이름으로 다음 리포트를 이어 보게(ic_report 0/카드 34 → 판정 11-21)
+    var tk = prose.parentNode.getAttribute('data-ticker') || '';
+    var c = makeCard('report', tk ? tk + ' 다음 리포트, 홈 화면에서 바로' : '다음 리포트도 한 번에 보기', '김박사 월드를 홈 화면에 추가하면 아이콘 한 번으로 최신 리포트 피드가 열려요. 무료예요.');
     c.classList.add('install-card-report'); prose.after(c);
     if (window.IntersectionObserver) { var io = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { kwEv('install_card'); io.disconnect(); } }); io.observe(c); }
   }
