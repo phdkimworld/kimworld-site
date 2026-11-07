@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{# 투자 용어 한 개 페이지(2026-11-06 트래픽 확대): '○○ 뜻' 검색에 답하고, 실제 리포트 속 쓰임새 문장과 리포트로 잇는다 #}
+{% block title %}{{ g.term }} 뜻 — 주식 용어 쉽게 풀이 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ g.term }} 뜻: {{ g.def|truncate(110, True, '…') }} 실제 미국 주식 리포트 {{ g.uses|length }}곳에서 어떻게 쓰였는지 예문과 함께.{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "DefinedTerm", "name": g.term, "description": g.def, "url": page_url, "inDefinedTermSet": {"@type": "DefinedTermSet", "name": site.site_name ~ " 투자 용어 사전", "url": site.site_url ~ "/glossary/"}}|tojson }}</script>{% endblock %}
+{% block main %}
+<div class="wrap narrow">
+  <nav class="crumbs muted"><a href="{{ base }}/glossary/">투자 용어 사전</a> ›</nav>
+  <header class="page-head"><h1>{{ g.term }} 뜻</h1></header>
+  <div class="prose">
+    <p class="gl-def"><strong>{{ g.term }}</strong>: {{ g.def }}</p>
+    {% if g.uses %}
+    <h2>리포트 속 실제 쓰임새</h2>
+    <p class="muted">이 용어가 실제 종목 분석에서 어떻게 쓰였는지 보면 뜻이 더 잘 잡힙니다.</p>
+    <ul class="gl-uses">
+      {% for u in g.uses %}<li><a href="{{ base }}/r/{{ u.slug }}/?utm_source=glossary&amp;utm_medium=internal">{{ u.name }}</a> — “{{ u.snip }}”</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if g.related %}
+    <h2>같이 보면 좋은 용어</h2>
+    <p>{% for t in g.related %}<a href="{{ base }}/glossary/{{ t.path }}/">{{ t.term }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+    {% endif %}
+  </div>
+  {{ page_bottom|safe }}
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}투자 용어 사전 — 주식 용어 {{ terms|length }}개 쉽게 풀이 | {{ site.site_name }}{% endblock %}
+{% block description %}PER·유상증자·공매도·보호예수 등 미국 주식 리포트에 나오는 투자 용어 {{ terms|length }}개를 쉬운 말로 풀고, 실제 리포트 예문과 함께 보여 줍니다.{% endblock %}
+{% block main %}
+<div class="wrap narrow">
+  <header class="page-head"><h1>투자 용어 사전</h1><p class="muted">리포트에 나오는 용어 {{ terms|length }}개. 누르면 뜻과 실제 쓰임새가 나옵니다.</p></header>
+  <div class="prose">
+    <ul class="gl-list">
+      {% for g in terms %}<li><a href="{{ base }}/glossary/{{ g.path }}/">{{ g.term }}</a> <span class="muted">— {{ g.def|truncate(60, True, '…') }}</span></li>{% endfor %}
+    </ul>
+  </div>
+  {{ page_bottom|safe }}
+</div>
+{% endblock %}

@@ -179,6 +179,9 @@
     </section>
     {% endif %}
 
+    {% if gl_links %}
+    <p class="gl-inline muted">이 리포트의 용어 뜻: {% for t in gl_links %}<a href="{{ base }}/glossary/{{ t.path }}/">{{ t.term }}</a>{% if not loop.last %} · {% endif %}{% endfor %} · <a href="{{ base }}/glossary/">용어 사전 전체</a></p>
+    {% endif %}
     {% if r.sources %}
     <section class="sources" aria-labelledby="src-h">
       <h2 id="src-h">출처</h2>

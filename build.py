@@ -21,6 +21,7 @@ import re
 import shutil
 import sys
 import time
+import urllib.parse
 from email.utils import format_datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -1123,6 +1124,33 @@ def build(drafts=False, strict=False, out: Path = DIST):
                               r"\1" + base_path + "/", html_out)
         dest.write_text(html_out, encoding="utf-8")
 
+    # ---- 투자 용어 사전(2026-11-06 운영자 "트래픽을 극대화할 수 있는 모든 시도"): '○○ 뜻' 검색 유입용.
+    # 리포트 두 곳 이상에서 실제로 쓰인 용어만 페이지로 만든다(뜻 + 리포트 속 예문 + 리포트 링크 → 얇은 페이지 방지)
+    def gl_path(t: str) -> str:
+        return urllib.parse.quote(re.sub(r"[\s/]+", "-", t.strip()), safe="")
+    def plain(htm: str) -> str:
+        htm = re.sub(r"(?s)<h2[^>]*>[^<]*(?:먼저 알아둘 용어|용어)[^<]*</h2>.*?(?=<h2)", " ", htm)  # 용어 풀이 절은 예문이 아님
+        htm = re.sub(r"(?s)<(h[1-6]|table|figure|blockquote)[^>]*>.*?</\1>", " ", htm)
+        return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", htm)))
+    gl_uses: dict[str, list] = {}
+    texts = []
+    for r in public:
+        sents = [x.strip() for x in re.split(r"(?<=[.?!])\s+", plain(r["body_html"]))]
+        texts.append((r, [x for x in sents if 25 <= len(x) <= 160 and x.endswith(("다.", "다?", "까?")) and not re.search(r"[▲▼]|\d{4}\.\d{2}\.\d{2}.*\d{4}\.\d{2}\.\d{2}", x) and ":" not in x[:25]]))
+    for g in glossary:
+        t = str(g["term"])
+        pat = re.compile(r"(?<![A-Za-z])" + re.escape(t) + r"(?![A-Za-z])") if re.fullmatch(r"[A-Za-z0-9/\-.]+", t) else re.compile(re.escape(t))
+        for r, sents in texts:
+            snip = next((x for x in sents if pat.search(x)), None)
+            if snip:
+                gl_uses.setdefault(t, []).append({"slug": r["slug"], "name": (tickers.get(r["ticker"]) or {}).get("name") or r["ticker"], "snip": snip})
+    gl_terms, gl_pages = [], {}
+    for g in glossary:
+        t = str(g["term"]); uses = gl_uses.get(t) or []
+        if len(uses) < 2:
+            continue
+        gl_terms.append({"term": t, "def": str(g["def"]), "path": gl_path(t), "uses": uses[:8]})
+        gl_pages[t] = gl_terms[-1]
     # ---- 리포트 페이지
     og_dir = out / "og"
     og_dir.mkdir()
@@ -1158,6 +1186,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         thread_ad = ads.render("thread_inline", {"theme": "*", "skip_theme": r["theme"], "exclude": exclude})
         write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad, rail_ad=rail_html,
               bottom_ad=bottom_html, page_bottom=page_bottom, has_coupang=has_coupang, terms=used_terms, today=today,
+              gl_links=[gl_pages[t["term"]] for t in used_terms if t["term"] in gl_pages][:12],
               stale=(today - r["data_as_of"]).days > int(site.get("stale_days", 180)))
 
     # ---- 종목·테마·홈·검색
@@ -1283,12 +1312,29 @@ def build(drafts=False, strict=False, out: Path = DIST):
     theme_last = {}
     for r in public:
         theme_last.setdefault(r["theme"], r["updated"] or r["date"])
+    if gl_terms:
+        by_name = {x["term"]: x for x in gl_terms}
+        for x in gl_terms:  # 같은 리포트에 함께 나온 용어 5개
+            co = {}
+            mine = {u["slug"] for u in x["uses"]}
+            for y in gl_terms:
+                if y is not x:
+                    k = len(mine & {u["slug"] for u in y["uses"]})
+                    if k:
+                        co[y["term"]] = k
+            x["related"] = [by_name[t] for t, _ in sorted(co.items(), key=lambda kv: -kv[1])[:5]]
+            ads.begin_page()
+            write(f"glossary/{urllib.parse.unquote(x['path'])}/index.html", "glossary_term.html", g=x, page_bottom=ads.render("page_bottom", {"theme": "*"}))
+
+    ads.begin_page()  # 용어 사전 첫 화면은 늘 만든다(바닥 메뉴 링크가 깨지지 않게)
+    write("glossary/index.html", "glossary.html", terms=sorted(gl_terms, key=lambda x: x["term"]), page_bottom="")
     # (주소, 마지막 수정일, 대표 이미지). 리포트가 없는 테마 페이지는 내용이 없으므로 넣지 않는다(noindex)
     urls = [(f"{su}/", today, None)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"], r.get("og_image")) for r in public]
     # 종목 화면은 리포트가 2개 이상일 때만(1개면 리포트와 거의 같은 내용이라 noindex, ticker.html)
     urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items() if len([x for x in rs if not x["draft"]]) >= 2]
     urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
     urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
+    urls += ([(f"{su}/glossary/", today, None)] + [(f"{su}/glossary/{x['path']}/", today, None) for x in gl_terms]) if gl_terms else []
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
     for u, lm, img in urls:
