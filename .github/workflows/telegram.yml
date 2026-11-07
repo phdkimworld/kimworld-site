@@ -1,0 +1,50 @@
+name: Telegram (채널에 새 리포트)
+
+# 새 리포트를 텔레그램 채널 @drkimworld 에 올린다(운영자 요청 2026-11-06). 새 글 먼저, 지난 글은 하루 3건까지.
+# 필요한 비밀값: TELEGRAM_BOT_TOKEN(봇이 채널 관리자 '메시지 게시' 권한이어야 함). 사용법: scripts/telegram_post.py 머리말
+on:
+  schedule:
+    - cron: "40 * * * *"   # 매시간(한 번에 최대 2건)
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "이 리포트 하나만 올리기(비우면 자동)"
+        required: false
+      dry:
+        description: "1이면 올리지 않고 내용만 주석으로"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: social
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT: "@drkimworld"
+      SLUG: ${{ inputs.slug }}
+      DRY: ${{ inputs.dry }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Post
+        run: |
+          pip install -q pyyaml
+          python3 scripts/telegram_post.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A social/telegram
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "텔레그램 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
