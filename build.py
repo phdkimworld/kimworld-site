@@ -266,6 +266,28 @@ def ad_weights(ads) -> dict:
             "prior": {"ctr": round(ctr, 5), "n": 40}, "epc": round(epc, 2), "explore": 0.1, "g": g}
 
 
+def chart_img_attrs(tag: str, src: str) -> str:
+    """본문 차트 그림에 크기·지연 로딩을 붙인다(2026-11-09 첫 화면 속도·레이아웃 밀림).
+    차트는 늘 세 번째 소제목 뒤라 첫 화면 밖이므로 lazy 가 안전하다. 이미 있는 속성은 그대로 둔다."""
+    f = ROOT / src.lstrip("/")
+    add = []
+    if " width=" not in tag and f.exists():
+        try:
+            from PIL import Image
+            with Image.open(f) as im:
+                w, h = im.size
+            add.append(f'width="{w}" height="{h}"')
+        except Exception:
+            pass
+    if " loading=" not in tag:
+        add.append('loading="lazy"')
+    if " decoding=" not in tag:
+        add.append('decoding="async"')
+    if not add:
+        return tag
+    return re.sub(r"\s*/?>$", "", tag) + " " + " ".join(add) + " />"
+
+
 def chart_info(slug: str) -> dict | None:
     """피드 카드에 붙일 대표 차트(static/charts/<slug>.png)와 크기(레이아웃 밀림 방지)."""
     f = ROOT / "static" / "charts" / f"{slug}.png"
@@ -1014,7 +1036,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body_html = shape_for_reading(fold_event_cards(body_html))
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
-                           lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{m.group(1)}</a>', body_html)
+                           lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2))}</a>', body_html)
         toc = [t for t in md.toc_tokens]
         chars = plain_len(body_html)
         min_chars = int(site.get("lint", {}).get("min_chars", 0))
