@@ -8,6 +8,8 @@ const sqlite = new DatabaseSync(":memory:");
 import { readdirSync } from "node:fs";
 for (const f of readdirSync(new URL("../migrations/", import.meta.url)).filter((x) => x.endsWith(".sql")).sort())
   sqlite.exec(readFileSync(new URL("../migrations/" + f, import.meta.url), "utf8"));
+// 사이트 배포가 넣는 업데이트 요청 기준 시각 흉내(0029): RGTI는 이틀 전 리포트, MSTR은 닷새 뒤 공개 예약
+sqlite.prepare("INSERT INTO req_open (ticker, opens) VALUES (?, ?), (?, ?)").run("RGTI", Date.now() - 2 * 864e5, "MSTR", Date.now() + 5 * 864e5);
 function stmt(sql, args = []) {
   return {
     bind: (...a) => stmt(sql, a),
@@ -40,8 +42,6 @@ globalThis.fetch = async (u, opt = {}) => {
     PUSHED.push({ u, headers: opt.headers, body: new Uint8Array(opt.body) });
     return new Response("", { status: u.includes("/gone") ? 410 : 201 });
   }
-  if (u === "https://drkimworld.com/req-open.json") // 사이트 빌드 산출물 흉내: RGTI는 이틀 전 열림, MSTR은 닷새 뒤 열림
-    return new Response(JSON.stringify({ RGTI: Date.now() - 2 * 864e5, MSTR: Date.now() + 5 * 864e5 }));
   throw new Error("unexpected fetch " + u);
 };
 
@@ -863,7 +863,7 @@ console.log("투자 심리 투표");
   check((await call("POST", "/v1/requests/RGTI", { body: {}, ip: "77.0.0.5", ua: "facebookexternalhit/1.1" })).status === 403, "업데이트 요청: 봇 거절");
   // 최신 리포트 공개 후 7일 동안은 닫힘, 열린 뒤 요청만 센다(2026-10-30)
   r = await call("GET", "/v1/requests/MSTR", { ip: "77.0.0.6" });
-  check(r.data.open === false && r.data.opens > Date.now(), "업데이트 요청: 최신 리포트 7일 전엔 닫힘 표시");
+  check(r.data.open === false && r.data.opens > Date.now(), "업데이트 요청: 공개 예약 리포트 전엔 닫힘 표시");
   r = await call("POST", "/v1/requests/MSTR", { body: {}, ip: "77.0.0.6" });
   check(r.status === 409 && r.data.error === "closed", "업데이트 요청: 닫힌 동안 요청 거절");
   await env.DB.prepare("INSERT INTO upd_req (ticker, actor, ih, created) VALUES ('RGTI', 'before-open', 'y', ?)").bind(Date.now() - 5 * 864e5).run();

@@ -95,6 +95,8 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Cloudflare 비밀값 없음 → 건너뜀"; exit 0; }
           python ../scripts/board_notices.py > /tmp/notices.sql
           python ../scripts/site_replies.py >> /tmp/notices.sql   # 사이트 댓글 운영자 대댓글(social/site_replies)
+          # 업데이트 요청 기준 시각(종목별 최신 리포트 공개일) → D1 req_open (워커가 읽음, 2026-11-08)
+          python3 -c "import json,re;d=json.load(open('../dist/req-open.json'));print('CREATE TABLE IF NOT EXISTS req_open (ticker TEXT PRIMARY KEY, opens INTEGER NOT NULL);\\n' + ''.join(\"INSERT INTO req_open (ticker, opens) VALUES ('%s', %d) ON CONFLICT(ticker) DO UPDATE SET opens=excluded.opens;\n\" % (k, int(v)) for k, v in d.items() if re.fullmatch(r'[A-Z0-9.\-]{1,12}', k)))" >> /tmp/notices.sql
           ID=$(npx --yes wrangler@3.99.0 d1 list --json | jq -r '.[] | select(.name=="kimworld") | .uuid' | head -1)
           test -n "$ID"
           sed -i "s/__D1_ID__/$ID/" wrangler.toml || true

@@ -245,13 +245,16 @@ function safeEqual(a, b) {
 
 // ---------- 소셜 로그인(구글·카카오·네이버). 받는 것은 회원 번호(sub/id)뿐이고, 그 번호도 되돌릴 수 없게 바꿔 저장한다 ----------
 const SITE = "https://drkimworld.com";
-// 종목별 업데이트 요청 열림 시각(사이트 빌드 산출물 /req-open.json). 워커 인스턴스마다 10분 기억, 실패하면 빈 표(제한 없음)
+// 종목별 업데이트 요청 기준 시각(최신 리포트 공개일 0시 ET, 밀리초). 사이트 배포가 D1 req_open 표에 넣는다(0029).
+// 예전에는 사이트의 /req-open.json 을 가져왔지만 사이트 앞단 봇 차단('Just a moment')에 막혀 빈 표가 되던 문제(2026-11-08 STX 요청이 안 지워짐)로 바꿈.
+// 워커 인스턴스마다 5분 기억, 실패하면 빈 표(30일 기준)
 let REQ_OPEN = null, REQ_OPEN_AT = 0;
-async function reqOpen(env) {
-  if (REQ_OPEN && Date.now() - REQ_OPEN_AT < 6e5) return REQ_OPEN;
+async function reqOpen(db) {
+  if (REQ_OPEN && Date.now() - REQ_OPEN_AT < 3e5) return REQ_OPEN;
   try {
-    const r = await fetch((env && env.REQ_OPEN_URL) || SITE + "/req-open.json", { cf: { cacheTtl: 300 } });
-    if (r.ok) { const j = await r.json(); if (j && typeof j === "object") { REQ_OPEN = j; REQ_OPEN_AT = Date.now(); } }
+    const r = await db.prepare("SELECT ticker, opens FROM req_open").all();
+    const m = {}; for (const x of r.results || []) m[String(x.ticker).toUpperCase()] = +x.opens || 0;
+    REQ_OPEN = m; REQ_OPEN_AT = Date.now();
   } catch (e) {}
   return REQ_OPEN || {};
 }
@@ -484,7 +487,7 @@ async function analytics(db, now, daysIn) {
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfitFail = await all("SELECT at, text FROM adfit_fail ORDER BY id DESC LIMIT 5").catch(() => []);
   { // 열린 뒤(최신 리포트 공개 7일 후) 요청만 센다(2026-10-30). 제작 대기 판정도 이 숫자를 쓴다
-    const op = await reqOpen(), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
+    const op = await reqOpen(db), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
     for (const x of raw) if (x.created >= (op[x.ticker] || 0)) c[x.ticker] = (c[x.ticker] || 0) + 1;
     ext.updReq = Object.keys(c).map((ticker) => ({ ticker, n: c[ticker] })).sort((a, b) => b.n - a.n).slice(0, 15);
   }
@@ -1350,7 +1353,7 @@ export default {
       // 운영자 지시 2026-10-30·11-08: 새 리포트가 공개되면 요청을 0부터 다시 센다(화면 숫자·순위 모두). 공개 예약 전에는 막는다.
       // 열림 시각은 사이트 빌드가 만든 /req-open.json(종목→밀리초). 못 읽으면 예전처럼 30일 기준으로 센다
       if (p === "/v1/requests/top" && req.method === "GET") {
-        const op = await reqOpen(env);
+        const op = await reqOpen(db);
         const r = await db.prepare("SELECT ticker AS t, created FROM upd_req WHERE created >= ?").bind(now - 30 * 864e5).all();
         const cnt = {}, last = {};
         for (const x of r.results || []) {
@@ -1362,7 +1365,7 @@ export default {
       }
       const updm = p.match(/^\/v1\/requests\/([A-Za-z0-9.]{1,10})$/);
       if (updm && (req.method === "GET" || req.method === "POST")) {
-        const tk = updm[1].toUpperCase(), opens = (await reqOpen(env))[tk] || 0, since = Math.max(now - 30 * 864e5, opens);
+        const tk = updm[1].toUpperCase(), opens = (await reqOpen(db))[tk] || 0, since = Math.max(now - 30 * 864e5, opens);
         let changed = null;
         if (req.method === "POST") {
           if (botWhy(req)) return json(req, { error: "bot" }, 403);
