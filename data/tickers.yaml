@@ -630,3 +630,9 @@ AEVA:
   exchange: "NASDAQ"
   theme: "로봇·자율주행"
   aliases: ["Aeva", "에이바", "에바 테크놀로지스", "에이바 라이다"]
+EOSE:
+  name: "이오스 에너지"
+  name_en: "Eos Energy Enterprises"
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["이오스에너지", "이오스 에너지 엔터프라이즈", "Eos Energy", "Eos Energy Enterprises"]
