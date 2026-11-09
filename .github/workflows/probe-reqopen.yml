@@ -1,0 +1,11 @@
+name: probe req-open (일회성)
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          r=$(curl -s -m 20 -w ' HTTP%{http_code} %{content_type}' https://drkimworld.com/req-open.json | tr -d '\n' | cut -c1-200)
+          echo "::notice title=reqopen::$r"
+          s=$(curl -s -m 20 https://drkimworld.com/req-open.json | python3 -c "import sys,json;d=json.load(sys.stdin);print({k:d.get(k) for k in ('STX','LAES','SLDP')})" 2>&1 | tail -1)
+          echo "::notice title=reqopen keys::$s"
