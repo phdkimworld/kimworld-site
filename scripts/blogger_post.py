@@ -138,7 +138,7 @@ def cpas_block() -> str:
 
 ADFIT_MARK = "<!--kw-adfit-->"
 # 애드핏 매체 '김박사 월드 블로그'(phdkimworld.blogspot.com)의 300x250 단위(운영자 생성 2026-11-06). 비우면 넣지 않는다
-BLOGGER_ADFIT_UNIT = os.environ.get("BLOGGER_ADFIT_UNIT") or "DAN-djnM2vIZK3qhEHJR"
+BLOGGER_ADFIT_UNIT = os.environ.get("BLOGGER_ADFIT_UNIT") or "DAN-oEExd9h6z1Zbc6qF"  # blogspot.com 매체 재등록(2026-11-09)
 
 
 def adfit_block() -> str:
@@ -272,6 +272,8 @@ def backfill_ads(tok: str, limit: int) -> int:
             if BLOGGER_ADFIT_UNIT and ADFIT_MARK not in nc:  # 애드핏은 쿠팡 칸 바로 앞(2026-11-06)
                 i = nc.find(CPAS_MARK)
                 nc = nc[:i] + adfit_block() + nc[i:]
+            elif BLOGGER_ADFIT_UNIT:  # 이미 있는 칸은 단위 코드만 새 것으로(2026-11-09)
+                nc = re.sub(r'(class="kakao_ad_area"[^>]*data-ad-unit=")DAN-[A-Za-z0-9]+(")', rf"\g<1>{BLOGGER_ADFIT_UNIT}\g<2>", nc)
             if nc == c:
                 continue
             req = urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/{it['id']}", data=json.dumps({"content": nc}).encode(), headers=H, method="PATCH")
