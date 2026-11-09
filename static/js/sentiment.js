@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var od = new Date(d.opens), lab = (od.getMonth() + 1) + '월 ' + od.getDate() + '일';
           b.disabled = true; b.setAttribute('aria-pressed', 'false'); b.classList.add('is-closed');
           b.textContent = lab + '부터 요청 가능';
-          ne.textContent = '최신 리포트가 나온 지 7일이 안 됐어요. 먼저 읽어 보세요';
+          ne.textContent = '새 리포트가 곧 공개돼요. 공개된 뒤 요청할 수 있어요';
           return;
         }
         b.disabled = false; b.classList.remove('is-closed');

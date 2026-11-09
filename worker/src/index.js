@@ -1347,7 +1347,7 @@ export default {
         return json(req, { ok: true, day: row.day, earn: row.earn }, 200, { "Cache-Control": "no-store" });
       }
       // ---------- 종목 리포트 업데이트 요청(최근 30일 요청 수, 순위) ----------
-      // 운영자 지시 2026-10-30: 최신 리포트 공개 후 7일 동안은 요청을 막고, 열린 뒤의 요청만 센다(화면 숫자·순위 모두).
+      // 운영자 지시 2026-10-30·11-08: 새 리포트가 공개되면 요청을 0부터 다시 센다(화면 숫자·순위 모두). 공개 예약 전에는 막는다.
       // 열림 시각은 사이트 빌드가 만든 /req-open.json(종목→밀리초). 못 읽으면 예전처럼 30일 기준으로 센다
       if (p === "/v1/requests/top" && req.method === "GET") {
         const op = await reqOpen(env);
@@ -1366,7 +1366,7 @@ export default {
         let changed = null;
         if (req.method === "POST") {
           if (botWhy(req)) return json(req, { error: "bot" }, 403);
-          if (now < opens) return json(req, { error: "closed", opens, message: "최신 리포트가 나온 지 7일이 안 돼 아직 요청을 받지 않습니다." }, 409);
+          if (now < opens) return json(req, { error: "closed", opens, message: "새 리포트 공개 전이라 아직 요청을 받지 않습니다." }, 409);
           const prev = await db.prepare("SELECT created FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).first();
           if (prev && prev.created >= since) { // 다시 누르면 요청 취소
             await db.prepare("DELETE FROM upd_req WHERE ticker = ? AND actor = ?").bind(tk, actor).run(); changed = "off";
