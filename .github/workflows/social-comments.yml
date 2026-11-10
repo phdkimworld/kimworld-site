@@ -11,6 +11,8 @@ on:
   push:
     branches: [main]
     paths: ["social/replies/*.json"]
+  schedule:
+    - cron: "12 * * * *"   # 매시 12분: 답할 차례인 SNS 댓글을 social/open/latest.json 으로 커밋(세션은 이 파일만 읽어 토큰 절약, 2026-11-10)
   workflow_dispatch:
     inputs:
       mode:
@@ -56,7 +58,7 @@ jobs:
             insights) python scripts/social_insights.py --log --days "$DAYS" ;;
             profile) python scripts/social_profile.py ;;
             profile_set) python scripts/social_profile.py --set social/profile/set.json ;;
-            *) python scripts/social_comments.py --list --days "$DAYS" --log ;;
+            *) python scripts/social_comments.py --list --days "$DAYS" --log | tee /tmp/list.txt ;;
           esac
       - name: Commit results
         # 일부 답글이 실패해도 이미 단 결과는 반드시 커밋한다(중복 답글 방지)
@@ -72,3 +74,20 @@ jobs:
             sleep $((i * 5))
           done
           echo "::error::답글 기록 커밋을 올리지 못함"; exit 1
+      - name: Save open list
+        # 정기 실행(schedule)이면 OPEN_JSON 을 파일로 남긴다. 세션은 워크플로 실행·로그 대기 없이 이 파일만 읽는다
+        if: github.event_name == 'schedule'
+        run: |
+          mkdir -p social/open
+          line=$(grep -h "OPEN_JSON:" /tmp/list.txt | tail -1 | sed 's/^.*OPEN_JSON: *//')
+          [ -n "$line" ] || { echo "OPEN_JSON 없음"; exit 0; }
+          python -c "import json,sys,datetime;d=json.loads(sys.argv[1]);d['saved_utc']=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ');json.dump(d,open('social/open/latest.json','w'),ensure_ascii=False,indent=1)" "$line"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add social/open/latest.json
+          if git diff --cached --quiet; then echo "바뀐 목록 없음"; exit 0; fi
+          git commit -q -m "SNS 답할 댓글 목록 $(TZ=America/New_York date '+%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
