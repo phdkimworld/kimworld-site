@@ -75,8 +75,8 @@ jobs:
           done
           echo "::error::답글 기록 커밋을 올리지 못함"; exit 1
       - name: Save open list
-        # 정기 실행(schedule)이면 OPEN_JSON 을 파일로 남긴다. 세션은 워크플로 실행·로그 대기 없이 이 파일만 읽는다
-        if: github.event_name == 'schedule'
+        # 정기 실행·수동 list 실행이면 OPEN_JSON 을 파일로 남긴다. 세션은 워크플로 실행·로그 대기 없이 이 파일만 읽는다
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (env.MODE == 'list' || env.MODE == ''))
         run: |
           mkdir -p social/open
           line=$(grep -h "OPEN_JSON:" /tmp/list.txt | tail -1 | sed 's/^.*OPEN_JSON: *//')
