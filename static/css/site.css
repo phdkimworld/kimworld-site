@@ -1518,7 +1518,9 @@ article.report .sent { margin-top: 14px; }
 .quote-poll .fpoll { margin: 0; padding: 0; border: 0; background: none; }
 .quote-poll .fpoll .fp-q { display: none; }
 
-.rdock .rd-next { color: var(--accent); font-weight: 700; }
+.rdock .rd-next { color: var(--accent); font-weight: 700; background: rgba(245,158,11,.14); box-shadow: inset 0 0 0 1px rgba(245,158,11,.35); }
+/* 2026-11-10 운영 점검: 여러 쪽 세션 23%→11%, 하단 줄 '다음' 누름(next_bar) 7일 0 — 회색 작은 글이라 다른 버튼과 구분이 안 됐음. 칸을 옅은 주황으로 채우고 글도 주황 굵게 */
+.rdock .rd-next .rd-t { color: var(--accent); font-weight: 700; }
 .rdock .rd-next .ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* 종목 화면: 리포트 업데이트 요청 */
