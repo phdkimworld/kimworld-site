@@ -1,12 +1,37 @@
 {
- "generated": "2026-11-10T17:25:52+00:00",
- "since": "2026-11-03T17:25:52+00:00",
+ "generated": "2026-11-10T20:26:19+00:00",
+ "since": "2026-11-03T20:26:19+00:00",
  "platforms": {
   "threads": {
    "ok": true,
    "me": "phdkimworld",
    "my_replies_24h": 0,
-   "open": []
+   "open": [
+    {
+     "platform": "threads",
+     "kind": "top",
+     "replyTo": "18039228974910610",
+     "commentId": "18039228974910610",
+     "postId": "18090230813302050",
+     "postPermalink": "https://www.threads.com/@phdkimworld/post/Dfj9xAgG8LU",
+     "postText": "아이렌(IREN), 실적 다음 날 +20.0%. 그런데 다음 거래일 업종이 모두 오를 때 혼자 -1.1%.\n\n숫자로 보면:\n· 2거래일 합계 아이렌 +18.7%, NBIS +17.5%\n· 실적 없는 테라울프(WULF)는 +22.8%\n· 연환산 40억 달러 매출 목표는 연말 → 2027년 1월\n\n지난 예측(11월 5일): 적중 2 · 빗나감 1 · 진행 중 ",
+     "slug": "iren-2026-11",
+     "author": "kollectips",
+     "text": "테라울프가 실적 없이 +22.8% 오른 점이랑 같이 보니, 아이렌 움직임이 실적보다 업종 수급 쪽에 더 끌린 느낌이 들었습니다. 12월 4일 20거래일째 기록이 어떻게 나오는지 그때 다시 볼게요.",
+     "publishedAt": "2026-11-10T19:17:37+0000",
+     "likeCount": 0,
+     "followups": [],
+     "context": [
+      {
+       "author": "kollectips",
+       "isMe": false,
+       "text": "테라울프가 실적 없이 +22.8% 오른 점이랑 같이 보니, 아이렌 움직임이 실적보다 업종 수급 쪽에 더 끌린 느낌이 들었습니다. 12월 4일 20거래일째 기록이 어떻게 나오는지 그때 다시 볼게요.",
+       "publishedAt": "2026-11-10T19:17:37+0000"
+      }
+     ],
+     "my_replies_in_thread_24h": 0
+    }
+   ]
   },
   "instagram": {
    "ok": true,
@@ -21,5 +46,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-10T17:27Z"
+ "saved_utc": "2026-11-10T20:28Z"
 }
