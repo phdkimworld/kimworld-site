@@ -25,7 +25,13 @@
   "publish_at": "2026-11-10T05:31:15-05:00",
   "results": {
     "threads": {
-      "waiting": "Threads 이미지 주소 배포 대기"
+      "ids": [
+        "18133105829511687",
+        "17904189030607540"
+      ],
+      "permalink": "https://www.threads.com/@phdkimworld/post/DfkxZGDFLeR",
+      "done": true
     }
-  }
+  },
+  "posted_at": "2026-11-10T15:32:28-05:00"
 }
