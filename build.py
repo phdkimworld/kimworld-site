@@ -30,7 +30,7 @@ import markdown
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown.extensions.toc import slugify_unicode
-from report_figures import add_figures
+from report_figures import add_figures, add_reading_aids
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
@@ -1033,6 +1033,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
                 log.err(f"{name}: 금지 표현 '{ph}'")
         md = md_renderer()
         body_html, n_figs = add_figures(wrap_tables(md.convert(fix_list_breaks(body))))  # 본문 그림(report_figures.py)
+        # v3.8(2026-11-11 운영자 NBIS 가독성 분석): 핵심 콜아웃 강조·부호 퍼센트 칸 색·'한눈에' 큰 숫자 칸, 공개일 11-11~는 기록표·업종표 그림
+        body_html, n_aids = add_reading_aids(body_html, figures=str(d) >= "2026-11-11")
+        n_figs += n_aids
         body_html = shape_for_reading(fold_event_cards(body_html))
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',

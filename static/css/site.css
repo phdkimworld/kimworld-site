@@ -1610,3 +1610,28 @@ article.report .sent { margin-top: 14px; }
 .an-chfilter { gap: 6px; }
 .an-chip { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: .82rem; cursor: pointer; }
 .an-chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* v3.8 읽기 보조(2026-11-11 운영자 NBIS 가독성 분석 8.2/10: 모바일 본문이 빽빽함·핵심 문장과 보조 설명 구분 약함·숫자가 묻힘). 모든 리포트 공통 */
+.prose { --kf-up: #f2555a; --kf-down: #3b82f6; }
+.prose > p, .prose > ul > li, .prose > ol > li, .prose > blockquote { font-size: 1.1rem; line-height: 1.8; }
+.prose > p { margin: 0 0 1.5em; }
+.prose > ul, .prose > ol { margin-bottom: 1.5em; }
+.prose > ul > li, .prose > ol > li { margin: .55em 0; }
+.prose blockquote.core { color: var(--text); font-weight: 600; background: var(--surface); border-left-color: var(--accent); border-radius: 0 10px 10px 0; padding: 10px 16px; }
+.prose blockquote.core p { margin: 0; }
+.prose .pct.up { color: var(--kf-up); } .prose .pct.down { color: var(--kf-down); }
+.knum-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; }
+.knum-t { display: grid; gap: 4px; align-content: start; padding: 12px 8px; border-radius: 12px; background: var(--surface-2); text-align: center; min-width: 0; }
+.knum-v { white-space: nowrap; font-size: 1.7rem; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.knum-v.up { color: var(--kf-up); } .knum-v.down { color: var(--kf-down); }
+.knum-l { font-size: .78rem; line-height: 1.4; color: var(--text); word-break: keep-all; }
+.knum .kfig-note { font-size: .82rem; }
+.kfp { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.kfp-row { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 2fr); gap: 10px; align-items: center; padding: 6px; border-bottom: 1px solid var(--line); }
+.kfp-row:last-child { border-bottom: 0; }
+.kfp-bars { display: grid; gap: 3px; min-width: 0; }
+.kfp-line { display: grid; grid-template-columns: 5.4em minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.kfp-k { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+.kfp-line .kfb-v { min-width: 58px; }
+.kfp-line.up .kfb-v { color: var(--kf-up); } .kfp-line.down .kfb-v { color: var(--kf-down); }
+@media (max-width: 420px) { .kfp-row { grid-template-columns: 1fr; gap: 4px; } .knum-v { font-size: 1.3rem; } }

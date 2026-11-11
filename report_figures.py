@@ -374,3 +374,128 @@ def add_figures(body: str) -> tuple[str, int]:
     for a, b, h in sorted(edits, key=lambda x: (x[0], x[1]), reverse=True):
         body = body[:a] + h + body[b:]
     return body, len(inserts)
+
+
+# ---------- v3.8 읽기 보조(2026-11-11 운영자 NBIS 가독성 분석 8.2/10) ----------
+# 말로 이어 쓰는 리포트(1~6부)에서 숫자가 문단·표에 묻히지 않게 화면에서만 돕는다. 원고 형식이 안 맞으면 그대로 둔다.
+_PCT_CELL = re.compile(r"<td([^>]*)>\s*(<strong>)?\s*([+\-−])(\d+(?:\.\d+)?)%\s*(</strong>)?\s*</td>")
+_SIGNED = re.compile(r"([+\-−])\s*(\d+(?:\.\d+)?)%")
+
+
+def _signed(s: str) -> float | None:
+    m = _SIGNED.search(_txt(s))
+    return None if not m else (-1 if m.group(1) in "-−" else 1) * float(m.group(2))
+
+
+def mark_core(body: str) -> str:
+    """'> **핵심:** …' 콜아웃을 보조 설명(회색 인용)과 구분되게 class="core"(본문색·굵게·강조 선)."""
+    return re.sub(r"<blockquote>(\s*<p><strong>핵심:?</strong>)", r'<blockquote class="core">\1', body)
+
+
+def color_pct_cells(body: str) -> str:
+    """표 칸이 부호 붙은 퍼센트 하나뿐이면 상승 빨강·하락 파랑(한국 관례, 부호·글자는 그대로)."""
+    def rep(m):
+        sign = "up" if m.group(3) == "+" else "down"
+        return f'<td{m.group(1)}>{m.group(2) or ""}<span class="pct {sign}">{m.group(3)}{m.group(4)}%</span>{m.group(5) or ""}</td>'
+    return _PCT_CELL.sub(rep, body)
+
+
+_KNUM = re.compile(r"<p><strong>한눈에:</strong>\s*((?:<strong>[^<]{1,14}</strong>\s*[^<·.]+?\s*·\s*){1,3}<strong>[^<]{1,14}</strong>\s*[^<·.]+?)(?:\.\s*(.*?))?</p>", re.S)
+
+
+def key_numbers(body: str) -> str:
+    """'**한눈에:** **6/8** 첫날 상승 · **7/8** … · **+18.0%** …. 나머지 문장' → 큰 숫자 칸 2~4개 + 작은 주석.
+    숫자를 굵게 쓴 '한눈에'만 바꾼다(옛 리포트의 평문 '한눈에'는 그대로)."""
+    def rep(m):
+        items = re.findall(r"<strong>([^<]{1,14})</strong>\s*([^<·]+?)\s*(?:·|$)", m.group(1).strip())
+        if not 2 <= len(items) <= 4:
+            return m.group(0)
+        tiles = []
+        for v, lab in items:
+            cls = "up" if v.strip().startswith("+") else "down" if v.strip()[:1] in "-−" else ""
+            tiles.append(f'<div class="knum-t"><b class="knum-v {cls}">{v.strip()}</b><span class="knum-l">{lab.strip()}</span></div>')
+        note = f'<p class="kfig-note">{m.group(2).strip()}</p>' if m.group(2) and m.group(2).strip() else ""
+        return (f'<figure class="kfig knum" role="group" aria-label="한눈에"><figcaption class="kfig-t">한눈에</figcaption>'
+                f'<div class="knum-row">{"".join(tiles)}</div>{note}</figure>')
+    return _KNUM.sub(rep, body)
+
+
+def _tables(body: str):
+    for m in re.finditer(r"<table>.*?</table>(?:\s*</div>)?", body, flags=re.S):
+        t = m.group(0)
+        heads = [_txt(h) for h in re.findall(r"<th[^>]*>(.*?)</th>", t, flags=re.S)]
+        rows = [re.findall(r"<td[^>]*>(.*?)</td>", r, flags=re.S) for r in re.findall(r"<tr>(.*?)</tr>", t, flags=re.S)[1:]]
+        yield m.end(), heads, rows
+
+
+def fig_record_pairs(body: str):
+    """기록표(발표일 · 내용 | 첫날 | N거래일 뒤) → 사건마다 첫날과 N거래일 뒤 막대 두 줄."""
+    for end, heads, rows in _tables(body):
+        if len(heads) != 3 or not re.search(r"첫날|다음 날|당일", heads[1]) or not re.search(r"\d+거래일", heads[2]):
+            continue
+        items = []
+        for r in rows:
+            if len(r) != 3:
+                continue
+            dm = re.search(r"(20\d\d\.\d\d\.\d\d)", _txt(r[0]))
+            a, b = _signed(r[1]), _signed(r[2])
+            if dm and a is not None and b is not None:
+                parts = [p for p in (_txt(x) for x in re.split(r"<br\s*/?>", r[0])) if p]
+                items.append((dm.group(1), parts[1] if len(parts) > 1 else "", a, b))
+        if len(items) < 4:
+            continue
+        mx = max(max(abs(a), abs(b)) for _, _, a, b in items) or 1
+        def line(k, v):
+            w = max(2.0, abs(v) / mx * 100)
+            return (f'<span class="kfp-line {_sign_cls(v)}"><span class="kfp-k">{html.escape(k)}</span>'
+                    f'<span class="kfb-track"><span class="kfb-half kfb-neg">{f"<i style=\"width:{w:.1f}%\"></i>" if v < 0 else ""}</span>'
+                    f'<span class="kfb-half kfb-pos">{f"<i style=\"width:{w:.1f}%\"></i>" if v > 0 else ""}</span></span>'
+                    f'<span class="kfb-v">{"▲ " if v > 0 else "▼ " if v < 0 else ""}{_fmt(v)}</span></span>')
+        same = sum(1 for _, _, a, b in items if (a > 0) == (b > 0))
+        out = [f'<figure class="kfig kfig-pairs" role="group" aria-label="{html.escape(heads[1])}와 {html.escape(heads[2])}">',
+               f'<figcaption class="kfig-t">{html.escape(heads[1])} vs {html.escape(heads[2])}</figcaption>',
+               '<div class="kfig-legend" aria-hidden="true"><span class="kf-down">▼ 하락</span><span class="kf-up">상승 ▲</span></div><ol class="kfp">']
+        for d, sub, a, b in items:
+            out.append(f'<li class="kfp-row"><span class="kfb-l"><span class="kfb-name">{d}</span>'
+                       f'{f"<span class=\"kfb-sub\">{html.escape(sub)}</span>" if sub else ""}</span>'
+                       f'<span class="kfp-bars">{line(heads[1], a)}{line(heads[2], b)}</span></li>')
+        out.append(f'</ol><p class="kfig-note">위 표를 그림으로 옮긴 것 · 방향이 같은 사건 {len(items)}번 중 {same}번 · 작은 표본이라 규칙이 아닙니다.</p></figure>')
+        return end, "".join(out)
+    return None
+
+
+def fig_peer_drop(body: str):
+    """업종 비교표(종목 | 고점 뒤 … | …) → 첫 숫자 열 막대(같은 기준일 종가 비교)."""
+    for end, heads, rows in _tables(body):
+        if len(heads) < 2 or "고점" not in heads[1]:
+            continue
+        items = []
+        for r in rows:
+            if len(r) < 2:
+                continue
+            v = _signed(r[1])
+            name = _txt(re.split(r"<br\s*/?>", r[0])[0])
+            if v is not None and name:
+                items.append({"label": name, "value": v})
+        if len(items) >= 3:
+            return end, bars(f"{heads[1]} 등락", items, note="위 표의 같은 기준일 종가 비교를 막대로 옮긴 것입니다.", cls="kfig-peer")
+    return None
+
+
+def add_reading_aids(body: str, figures: bool = False) -> tuple[str, int]:
+    """v3.8 읽기 보조. figures=True(공개일 2026-11-11~)면 기록표·업종 비교표 그림을 표 바로 뒤에 붙인다."""
+    n = 0
+    if figures:
+        ins = []
+        for fn in (fig_peer_drop, fig_record_pairs):
+            try:
+                r = fn(body)
+            except Exception:
+                r = None
+            if r:
+                ins.append(r)
+        for at, h in sorted(ins, reverse=True):
+            body = body[:at] + "\n" + h + "\n" + body[at:]
+        n = len(ins)
+    body = key_numbers(color_pct_cells(mark_core(body)))
+    return body, n
