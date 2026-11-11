@@ -65,6 +65,7 @@ if s.get('shop'):
     if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침: 1/3·2/3·카드 직전 6초씩)');ok=False
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
+else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')
