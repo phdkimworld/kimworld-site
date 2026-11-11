@@ -61,6 +61,9 @@ if s.get('shop'):
         if st['end']-st['start']>12: print('SHOP p%d[%d] 카드 문장이 12초를 넘음(%.1f초)'%(i+1,k,st['end']-st['start']));ok=False
         if i>=len(s['paras'])-1: print('SHOP 마지막 문단(outro)에는 넣지 않음');ok=False
         else: print('shop p%d[%d]'%(i+1,k),st['text'][:45])
+    st_txt=str(s.get('shop_strip') or '')
+    if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침: 1/3·2/3·카드 직전 6초씩)');ok=False
+    elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
