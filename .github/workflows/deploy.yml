@@ -44,6 +44,13 @@ jobs:
             sudo apt-get install -y -q fonts-noto-cjk >/dev/null && break
             echo "글꼴 설치 실패 $i회 — 패키지 목록 갱신 후 다시"; sleep $((i * 20)); sudo apt-get update -q >/dev/null || true
           done
+          # 미러 장애가 계속되면 npm(@expo-google-fonts/noto-sans-kr)의 같은 글꼴(Noto Sans KR)로 대신한다(11-11 RUM 배포 실패, 76회차)
+          if [ ! -f /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc ]; then
+            echo "apt 글꼴 실패 — npm 글꼴로 대체"; mkdir -p /tmp/fnt && (cd /tmp/fnt && npm pack -q @expo-google-fonts/noto-sans-kr@0.4.4 && tar xzf *.tgz)
+            pip install -q fonttools && sudo mkdir -p /usr/share/fonts/opentype/noto && sudo "$(which python3)" -c "from fontTools.ttLib import TTFont, TTCollection
+          for w,f in [('Regular','400Regular/NotoSansKR_400Regular'),('Medium','500Medium/NotoSansKR_500Medium'),('Bold','700Bold/NotoSansKR_700Bold'),('Black','900Black/NotoSansKR_900Black')]:
+              c=TTCollection(); src='/tmp/fnt/package/'+f+'.ttf'; c.fonts=[TTFont(src),TTFont(src)]; c.save('/usr/share/fonts/opentype/noto/NotoSansCJK-'+w+'.ttc')"
+          fi
           test -f /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc
       - name: Test
         run: python tests/test_build.py
