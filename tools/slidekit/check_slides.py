@@ -33,6 +33,15 @@ for i,(p,t) in enumerate(zip(s['paras'],tm)):
     for k,st in enumerate(t['sents']):
         if re.search(r'고정 댓글|홈페이지[^.]*무료|무료로 열려', st['text']) and k not in p.get('ad',[]) and k not in p.get('shop',[]): print('ADMISS p%d[%d] 사이트 안내 문장에 "ad" 표시 없음(미드롤 안 뜸):'%(i+1,k),st['text'][:40]);ok=False
 if not any(p.get('ad') for p in s['paras']): print('ADMISS 미드롤 문단이 하나도 없음');ok=False
+# ADTEXT: "ad" 표시 문장은 실제 안내 문장이어야 한다(운영자 지시 2026-11-11: AGNC 75회차에서 본문 문장 '직전 배수는 1.18배'에 ad가 붙어 음성 안내 없이 미드롤 전체 화면이 5초 뜸)
+GUIDE=r'리포트|홈페이지|고정 댓글|설명란|무료|앱|팔로우|사이트'
+for i,(p,t) in enumerate(zip(s['paras'],tm)):
+    for a in p.get('ad',[]):
+        if a<len(t['sents']) and not re.search(GUIDE,t['sents'][a]['text']): print('ADTEXT p%d[%d] ad 표시 문장에 안내(리포트·홈페이지·고정 댓글·설명란) 말이 없음 → 미드롤이 본문 위에 뜸:'%(i+1,a),t['sents'][a]['text'][:45]);ok=False
+# ADMID: 영상 중반(35~75%)에 음성 안내 문장(ad)이 하나 이상(운영자 지시 2026-11-11: AGNC 안내가 21%·78%·93%뿐이라 중반 6분 공백)
+dur=tm[-1]['sents'][-1]['end'] if tm[-1]['sents'] else 1
+mid=[(i,a) for i,(p,t) in enumerate(zip(s['paras'],tm)) for a in p.get('ad',[]) if a<len(t['sents']) and 0.35<=t['sents'][a]['start']/dur<=0.75 and re.search(GUIDE,t['sents'][a]['text'])]
+if not mid: print('ADMID 영상 35~75%% 구간(%d~%d초)에 사이트 안내 문장(ad)이 없음: 중반 반전 직전에 리포트 안내 한 문장을 넣는다'%(dur*0.35,dur*0.75));ok=False
 # POLL: 롱폼 끝(마지막 두 문단 안)에 Threads 같은 투표 화면 1장(운영자 지시 2026-10-16). 보기 2~4개, 각 12자 이하
 pl=[x for p in s['paras'][-2:] for x in p['slides'] if x.get('layout')=='poll']
 if not pl: print('POLL 마지막 두 문단에 poll 화면이 없음: 끝에서 두 번째 문단에 투표(question·options·foot_at)를 넣는다');ok=False
