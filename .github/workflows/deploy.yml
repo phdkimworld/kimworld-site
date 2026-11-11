@@ -39,7 +39,12 @@ jobs:
       - name: Install
         run: |
           pip install -r requirements.txt
-          sudo apt-get install -y -q fonts-noto-cjk >/dev/null   # 공유 이미지(카카오톡 미리보기)용 한글 글꼴
+          # 공유 이미지(카카오톡 미리보기)용 한글 글꼴. 우분투 미러 DNS 일시 장애(11-11 배포 3번 실패)에 대비해 update 후 세 번까지 다시 시도
+          for i in 1 2 3; do
+            sudo apt-get install -y -q fonts-noto-cjk >/dev/null && break
+            echo "글꼴 설치 실패 $i회 — 패키지 목록 갱신 후 다시"; sleep $((i * 20)); sudo apt-get update -q >/dev/null || true
+          done
+          test -f /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc
       - name: Test
         run: python tests/test_build.py
       - name: Restore Coupang products
