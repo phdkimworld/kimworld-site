@@ -195,3 +195,11 @@
 - 하지 않는 것: 리포트 삭제·slug 변경, 6장의 금지 사항, 매수·매도 지시 문구, 비밀값 출력, 권한·안전 검사 우회, 개인정보 수집 추가, 표본이 너무 작은(세션 30 미만) 지표만 보고 큰 구조 변경.
 - 변경 후 `python3 build.py --strict`·`python3 tests/test_build.py`(워커를 고쳤으면 `cd worker && node test/test_worker.mjs`)를 통과시키고, `git pull --rebase` 뒤 올려 배포 성공을 확인한다. 개선할 게 없으면 로그에 "변경 없음"과 관찰만 적는다.
 - 광고 신청 시점 알림: 7일 하루 평균 페이지뷰가 2,500을 넘으면(데이블 기준 3,000·방문자 1,500에 근접) 보고 첫 줄에 "데이블 신청 가능 시점"을 알린다.
+
+## 9. 모델 API 자동화 (운영자 지시 2026-11-11, 월 크레딧)
+
+- 공통 도우미 `scripts/llm.py`(표준 라이브러리만): `ANTHROPIC_API_KEY`가 없으면 `no_key`, 크레딧이 없으면 `no_credit`, 예산을 넘으면 `budget`으로 건너뛴다(실패 아님). 장부 `social/llm/usage.json`(월별·기능별 토큰·추정 달러). 월 예산 comments 40·judge 25·weekly 10달러, 전체 상한 120달러(나머지는 워커의 사이트 Q&A 몫). 상태: `python3 scripts/llm.py status`. 키·토큰 값은 출력하지 않는다.
+- `comment-ai.yml`(매시 15분): 유튜브·Threads·페이스북 첫 댓글 질문·의견에 리포트 본문을 근거로 답하고, 검사(150자·금지어·숫자와 날짜가 리포트에 있는지·링크)를 통과한 것만 게시. 장부 `social/llm/comments/state.json`을 미디어 `tools/hourly.py`가 읽어 중복을 피한다. 유튜브 비밀값은 미디어 저장소와 같은 이름 `YT_CLIENT_ID`·`YT_CLIENT_SECRET`·`YT_REFRESH_TOKEN`(없으면 유튜브만 건너뜀).
+- `judge.yml`: 새 리포트 push 때 가독성·'AI 느낌' 심사 결과를 `social/llm/judge/<slug>.md`로 커밋(경고만, 빌드와 무관).
+- `weekly-ai.yml`(월요일): 지난 7일 요약·개선안을 `social/llm/weekly/<날짜>.md`에. 공개 저장소라 수익·광고 실적·검색어 원문은 입력·출력 모두에서 뺀다.
+- 검사: `python3 tests/test_llm.py`(네트워크·키 없이, `LLM_MOCK_RESPONSE`로 모의 응답).

@@ -1,0 +1,65 @@
+name: Report judge (발행 전 가독성·AI 느낌 심사)
+
+# 운영자 지시 2026-11-11: content/reports 에 새 리포트가 올라오면 판단용 모델로 심사해 social/llm/judge/<slug>.md 로 커밋한다.
+# 심사: 스킬 R1.5 중 기계가 못 보는 넷(정의 전 사용·결론에 이유·공시 표현과 다른 풀이·주장 크기)과 8.0.2 'AI 느낌', 최대 10개.
+# 경고뿐이다. 사이트 빌드·배포(deploy.yml)와 따로 돌고 실패로 끝나지 않는다. 제작 에이전트가 이 파일을 읽어 고친다.
+# 키가 없거나(no_key) 크레딧이 없거나(no_credit) 월 예산(judge 25달러)을 넘으면 경고만 남기고 건너뛴다.
+on:
+  push:
+    branches: [main]
+    paths: ["content/reports/*.md"]
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "심사할 리포트 파일 이름(확장자 빼고, 예: agnc-2026-11). 이미 결과가 있어도 다시 심사"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: report-judge
+  cancel-in-progress: false
+
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BEFORE: ${{ github.event.before }}
+      SLUG: ${{ github.event.inputs.slug }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Pick new reports
+        run: |
+          : > /tmp/todo.txt
+          if [ -n "$SLUG" ]; then
+            S=$(echo "$SLUG" | tr -cd 'a-z0-9-')
+            [ -f "content/reports/$S.md" ] && echo "content/reports/$S.md" > /tmp/todo.txt
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            git fetch -q --depth=1 origin "$BEFORE" || true
+            git diff --name-only --diff-filter=A "$BEFORE" HEAD -- 'content/reports/*.md' | grep -v '/_' | while read -r f; do
+              s=$(basename "$f" .md); [ -f "social/llm/judge/$s.md" ] || echo "$f"
+            done > /tmp/todo.txt || true
+          fi
+          echo "심사할 리포트: $(wc -l < /tmp/todo.txt)개"; cat /tmp/todo.txt
+      - name: Judge
+        run: |
+          [ -s /tmp/todo.txt ] || exit 0
+          if [ -z "$ANTHROPIC_API_KEY" ]; then echo "::warning::STATUS=no_key — 심사 건너뜀(발행은 막지 않음)"; exit 0; fi
+          : > /tmp/changed.txt
+          while read -r f; do
+            s=$(basename "$f" .md)
+            python scripts/llm_judge.py "$f" --out "social/llm/judge/$s.md" || echo "::warning::$s 심사 오류(발행은 막지 않음)"
+            [ -f "social/llm/judge/$s.md" ] && echo "social/llm/judge/$s.md" >> /tmp/changed.txt
+          done < /tmp/todo.txt
+          python scripts/llm.py status >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        if: always()
+        run: |
+          [ -s /tmp/changed.txt ] || { echo "바뀐 기록 없음"; exit 0; }
+          python scripts/llm.py commit -m "발행 전 심사 결과 $(TZ=America/New_York date '+%m-%d %H:%M') ET" $(cat /tmp/changed.txt) || echo "::warning::심사 결과 커밋 실패"
