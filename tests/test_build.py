@@ -209,7 +209,7 @@ check(all(_re.fullmatch(r"[a-z0-9]+", sid) for _, sid in seen), "하위 ID는 �
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"][f'양자컴퓨팅|{_kw0["양자컴퓨팅"][1]}']["date"] = "2026-10-09"
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
-t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})  # 애드핏 중간 번호가 없을 때(쿠팡 3개)
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}, "placements": {"report_end": "coupang_products"}})  # 애드핏 중간 번호가 없을 때(쿠팡 3개)
 r = subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page_full = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 tpl = re.search(r"<template data-thread-ad>(.*?)</template>", page_full, flags=re.S)
@@ -250,7 +250,7 @@ sp = (t / "dist").rglob("*.html")
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["entries"] = {k: v for k, v in _c["entries"].items() if not k.endswith(_kw0["양자컴퓨팅"][2]) and not k.startswith("_common|")}
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
-t = make_project()
+t = make_project({"placements": {"report_end": "coupang_products"}})
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 page2 = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
 check(page2.count("ad-coupang-products") == 2, "묶음이 2개뿐이면 상자도 2개(중복 노출 없음)")
@@ -282,6 +282,7 @@ _h = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
 check("DAN-l1" in _h and "DAN-b1" in _h, "종목 페이지: 목록 + 맨 아래 애드핏")
 _h = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("DAN-b1" not in _h, "리포트 맨 아래는 바로 위 애드핏 하단 상자와 붙지 않게 애드핏 안 씀")
+check(re.search(r'data-slot="report_end"[^>]*>(?:(?!</aside>).)*DAN-l1', _h, flags=re.S) is not None, "리포트 출처 아래(report_end)는 애드핏 목록 단위(2026-11-11 자동 판정)")
 # 쿠팡 '오늘의 특가'(골드박스) 한 장: 리포트 다 읽은 자리(report_products)에, 쿠팡이 준 사실만(2026-10-30)
 _d, _keys = cs.parse_deals({"data": [{"productName": "특가 무선청소기", "productUrl": "https://link.coupang.com/a/deal1", "productImage": "https://thumbnail.coupangcdn.com/d.jpg",
                                        "productPrice": 89000, "originalPrice": 129000, "isRocket": True, "productId": 7},
@@ -292,7 +293,7 @@ check(len(_d) == 2 and _d[0]["rate"] == 31 and _d[0]["orig"] == 129000 and _d[1]
 _c = _json.loads(tmpc.read_text(encoding="utf-8"))
 _c["goldbox"] = {"ts": _time.time(), "fetched": _time.time(), "date": "2026-10-31", "items": _d}
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
-t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}, "placements": {"report_end": "coupang_products"}})
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 _pd = notpl((t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"))
 _db = re.search(r'<aside class="ad ad-coupang-deal" data-slot="([a-z_]+)".*?</aside>', _pd, flags=re.S)
@@ -303,7 +304,7 @@ check('data-cp-sub="deal"' in _dh and "쿠팡 파트너스 활동" in _dh and "3
 check(re.findall(r'<aside class="ad ad-coupang-products" data-slot="([a-z_]+)"', _pd) == ["report_mid", "report_end"], "나머지 자리는 상품 상자 그대로")
 _c["goldbox"]["fetched"] = _time.time() - 30 * 3600
 tmpc.write_text(_json.dumps(_c, ensure_ascii=False), encoding="utf-8")
-t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}})
+t = make_project({"adfit": {"units": {"report_mid": "", "report_end": "DAN-endtest1", "list": ""}}, "placements": {"report_end": "coupang_products"}})
 subprocess.run([sys.executable, "build.py"], cwd=t, capture_output=True, text=True, env={**_os.environ})
 _pd = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("ad-coupang-deal" not in _pd and 'ad-coupang-products" data-slot="report_products"' in _pd, "받은 지 하루 넘은 특가는 안 씀(상품 상자로)")
