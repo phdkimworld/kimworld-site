@@ -1,6 +1,6 @@
 # 유튜브 영상 쿠팡 카테고리 실험(2026-11-10 운영자 지시): 카테고리를 고르고(data/yt_shop.yaml) 상품 후보를 찾아
-# 아티팩트 yt-shop-<티커>(candidates.json + 사진, 3일 보관)로 내보내고, 영상별 카테고리 기록 social/youtube/shop.json을 남긴다.
-# 제작 세션이 workflow_dispatch로 부른다. 공개 로그·주석·기록에는 실적 숫자·상품 이름을 남기지 않는다.
+# social/youtube/shop/<티커>/(candidates.json + 사진, 덮어씀)와 아티팩트로 내보내고, 영상별 카테고리 기록 social/youtube/shop.json을 남긴다.
+# 제작 세션이 workflow_dispatch로 부른다. 공개 로그·주석·기록에는 실적 숫자를 남기지 않는다(상품 후보는 영상 설명란에 공개될 광고 재료라 후보 폴더에만 둔다).
 name: YouTube shop
 
 on:
@@ -48,14 +48,20 @@ jobs:
           path: yt_shop/
           retention-days: 3
           if-no-files-found: ignore
-      - name: Commit log
-        if: success() && inputs.dry != '1'
+      - name: Commit candidates and log
+        # 아티팩트는 제작 세션 네트워크에서 못 받으므로(Azure blob 차단) 후보 파일을 social/youtube/shop/<티커>/에 덮어써 둔다.
+        # 제작 세션은 contents API(gh api repos/phdkimworld/kimworld-site/contents/social/youtube/shop/<T>/...)로 읽는다. 사이트 배포는 이 경로를 건너뛴다.
+        if: success()
+        env:
+          T: ${{ inputs.ticker }}
         run: |
+          T=$(echo "$T" | tr -cd 'A-Za-z0-9.-' | tr a-z A-Z)
+          rm -rf "social/youtube/shop/$T"; mkdir -p "social/youtube/shop/$T"; cp yt_shop/* "social/youtube/shop/$T/"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A social/youtube
           if git diff --cached --quiet; then exit 0; fi
-          git commit -q -m "유튜브 쿠팡 카테고리 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          git commit -q -m "유튜브 쿠팡 후보·기록 $T $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
           for i in 1 2 3 4; do
             git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
             sleep $((i * 5))
