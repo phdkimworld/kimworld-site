@@ -188,17 +188,18 @@ def fake(kw, sid, limit, a, b):
              "price": 12800 + i, "rocket": i == 2, "rank": i + 1} for i in range(4)]
 now = _dt.datetime(2026, 10, 11, 15, 0, tzinfo=_dt.timezone.utc)
 cs.run(now, fake, fake_rep)
-check(len(seen) == 5, f"한 번에 5번까지만 호출({len(seen)})")
-_kw0 = yaml.safe_load((SRC / "data/coupang.yaml").read_text(encoding="utf-8"))["keywords"]
-_first = [cs.sub_id(sl, _kw0[nm][0]) for nm, sl in (("양자컴퓨팅", "quantum"), ("AI 반도체", "ai-chips"), ("우주항공·방산", "space-defense"), ("휴머노이드", "humanoids"), ("AI 소프트웨어", "ai-software"))]
+_cpc = yaml.safe_load((SRC / "data/coupang.yaml").read_text(encoding="utf-8")); _R, _H = int(_cpc["max_calls_per_run"]), int(_cpc["max_calls_per_hour"])
+check(len(seen) == _R, f"한 번에 {_R}번까지만 호출({len(seen)})")
+_kw0 = _cpc["keywords"]
+_first = [cs.sub_id(sl, _kw0[nm][0]) for nm, sl in (("양자컴퓨팅", "quantum"), ("AI 반도체", "ai-chips"), ("우주항공·방산", "space-defense"), ("휴머노이드", "humanoids"), ("AI 소프트웨어", "ai-software"))][:_R]
 check([s for _, s in seen] == _first, f"아직 안 받은 테마의 첫 검색어부터 ({[s for _, s in seen]})")
 cs.run(now + _dt.timedelta(minutes=10), fake, fake_rep)
-check(len(seen) == 9, "1시간 안에 다시 돌면 시간당 9번까지만(5+4)")
+check(len(seen) == _H, f"1시간 안에 다시 돌면 시간당 {_H}번까지만({_R}+{_H - _R})")
 cs.run(now + _dt.timedelta(minutes=20), fake, fake_rep)
-check(len(seen) == 9, "시간당 상한에 닿으면 더 부르지 않음")
+check(len(seen) == _H, "시간당 상한에 닿으면 더 부르지 않음")
 cs.run(now + _dt.timedelta(minutes=69), fake, fake_rep)
-check(len(seen) == 14, "두 번째 실행 59분 뒤에도 시간당 상한 안에서 5번을 받음")
-for h in range(2, 12):
+check(len(seen) == _H + _R, f"두 번째 실행 59분 뒤에도 시간당 상한 안에서 {_R}번을 받음")
+for h in range(2, 17):  # 실행당 4회(2026-11-10, 유튜브 몫 3회 남김)여도 20시간 안에 63개를 모두 받고 실적까지
     cs.run(now + _dt.timedelta(hours=h), fake, fake_rep)
 check(len(set(seen)) == len(seen) and all(cs.sub_id("quantum", k) in {s for _, s in seen} for k in _kw0["양자컴퓨팅"]), "같은 검색어를 20시간 안에 다시 받지 않고 결국 모두 받음")
 _rep = _json.loads(tmpr.read_text(encoding="utf-8")) if tmpr.exists() else {}

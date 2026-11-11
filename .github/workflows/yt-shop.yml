@@ -1,0 +1,63 @@
+# 유튜브 영상 쿠팡 카테고리 실험(2026-11-10 운영자 지시): 카테고리를 고르고(data/yt_shop.yaml) 상품 후보를 찾아
+# 아티팩트 yt-shop-<티커>(candidates.json + 사진, 3일 보관)로 내보내고, 영상별 카테고리 기록 social/youtube/shop.json을 남긴다.
+# 제작 세션이 workflow_dispatch로 부른다. 공개 로그·주석·기록에는 실적 숫자·상품 이름을 남기지 않는다.
+name: YouTube shop
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "영상 종목 티커(예: LAES)"
+        required: true
+      force:
+        description: "카테고리 코드를 직접 정할 때(bk·th·it·hl·lf·hb). 비우면 자동"
+        required: false
+      dry:
+        description: "1이면 기록을 남기지 않는다(시험용)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yt-shop
+  cancel-in-progress: false
+
+jobs:
+  pick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pick category and products
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+          YT_TICKER: ${{ inputs.ticker }}
+          YT_FORCE: ${{ inputs.force }}
+          DRY: ${{ inputs.dry }}
+          OUT_DIR: yt_shop
+        run: |
+          pip install -q pyyaml
+          python3 tests/test_yt_shop.py > /dev/null
+          python3 scripts/yt_shop.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: yt-shop-${{ inputs.ticker }}
+          path: yt_shop/
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Commit log
+        if: success() && inputs.dry != '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A social/youtube
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "유튜브 쿠팡 카테고리 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

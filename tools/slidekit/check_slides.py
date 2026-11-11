@@ -31,7 +31,7 @@ for i,p in enumerate(s['paras']):
 # AD: 사이트 안내 문장('고정 댓글'·'홈페이지·무료')에는 "ad" 표시가 있어야 미드롤이 뜬다(2026-11-02 BTQ 49회차: "ad"를 빠뜨려 미드롤 0회·안내 문단 16초 정지로 합성 다시)
 for i,(p,t) in enumerate(zip(s['paras'],tm)):
     for k,st in enumerate(t['sents']):
-        if re.search(r'고정 댓글|홈페이지[^.]*무료|무료로 열려', st['text']) and k not in p.get('ad',[]): print('ADMISS p%d[%d] 사이트 안내 문장에 "ad" 표시 없음(미드롤 안 뜸):'%(i+1,k),st['text'][:40]);ok=False
+        if re.search(r'고정 댓글|홈페이지[^.]*무료|무료로 열려', st['text']) and k not in p.get('ad',[]) and k not in p.get('shop',[]): print('ADMISS p%d[%d] 사이트 안내 문장에 "ad" 표시 없음(미드롤 안 뜸):'%(i+1,k),st['text'][:40]);ok=False
 if not any(p.get('ad') for p in s['paras']): print('ADMISS 미드롤 문단이 하나도 없음');ok=False
 # POLL: 롱폼 끝(마지막 두 문단 안)에 Threads 같은 투표 화면 1장(운영자 지시 2026-10-16). 보기 2~4개, 각 12자 이하
 pl=[x for p in s['paras'][-2:] for x in p['slides'] if x.get('layout')=='poll']
@@ -39,6 +39,20 @@ if not pl: print('POLL 마지막 두 문단에 poll 화면이 없음: 끝에서 
 for x in pl:
     o=x.get('options',[])
     if not 2<=len(o)<=4 or any(len(str(i.get('text','')))>12 for i in o): print('POLL 보기는 2~4개, 각 12자 이하:',[i.get('text') for i in o]);ok=False
+# SHOP: 쿠팡 상품 카드(운영자 지시 2026-11-10). deck에 "shop"이 있으면 정확히 한 문장에 표시, 그 문장은 '설명란'이나 '고정 댓글'을 말하고 사이트 안내(ad)와 겹치지 않으며 12초 이하
+if s.get('shop'):
+    sh=[(i,k) for i,p in enumerate(s['paras']) for k in p.get('shop',[])]
+    if len(sh)!=1: print('SHOP 쿠팡 카드 문장은 영상 전체에 정확히 1개:',sh);ok=False
+    for i,k in sh:
+        n=len(tm[i]['sents'])
+        if k>=n: print('SHOP 문장 번호가 범위 밖 p%d[%d]'%(i+1,k));ok=False;continue
+        st=tm[i]['sents'][k]
+        if not re.search(r'설명란|고정 댓글',st['text']): print('SHOP p%d[%d] 카드 문장에 설명란·고정 댓글 안내가 없음:'%(i+1,k),st['text'][:40]);ok=False
+        if k in s['paras'][i].get('ad',[]): print('SHOP p%d[%d] 사이트 안내(ad) 문장과 겹침'%(i+1,k));ok=False
+        if st['end']-st['start']>12: print('SHOP p%d[%d] 카드 문장이 12초를 넘음(%.1f초)'%(i+1,k,st['end']-st['start']));ok=False
+        if i>=len(s['paras'])-1: print('SHOP 마지막 문단(outro)에는 넣지 않음');ok=False
+        else: print('shop p%d[%d]'%(i+1,k),st['text'][:45])
+elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')

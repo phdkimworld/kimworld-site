@@ -19,6 +19,9 @@ midroll = absp(deck['midroll'])
 # 운영자 지시 2026-10-21: 미드롤에서 리포트 말고 사이트·앱 기능도 광고한다.
 # deck에 'midroll_app'(사이트·앱 기능 이미지)이 있으면 마지막 전체 화면 안내(닫기)에 그 이미지를 띄운다
 midroll_app = absp(deck['midroll_app']) if deck.get('midroll_app') else None
+# 운영자 지시 2026-11-10: 쿠팡 상품 카드(tools/midroll/make_shop_card.py). deck 'shop' = 카드 이미지, 문단 'shop' = [문장 번호]. 그 문장 동안 전체 화면
+# (미드롤 30초 상한과 따로 센다. 한 영상에 한 문장, 10초 이하 권장 — check_slides.py SHOP)
+shop_img = absp(deck['shop']) if deck.get('shop') else None
 isad = lambda k: k[0] == 'AD'
 wd = os.path.join(os.path.dirname(out), 'slides_out'); os.makedirs(wd, exist_ok=True)
 
@@ -39,7 +42,8 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         t0 = 0.0 if (pi == 0 and si == 0) else (pt['start'] if si == 0 else s['start'])
         k = max(i for i, x in enumerate(sl) if x.get('from', 0) <= si) if any(x.get('from', 0) <= si for x in sl) else 0
         sdur = s['end'] - s['start']
-        if si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
+        if shop_img and si in set(pd.get('shop', [])): key = ('AD', 'shop')
+        elif si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
             key = ('AD', 'app' if midroll_app and pi == ad_paras[-1] else 'rep'); full_used += sdur
         elif si in ads: key = (pi, k, si, 'B')
         else: key = (pi, k, si)
@@ -58,7 +62,7 @@ async def render():
         await pg.goto('file://' + os.path.join(KIT, 'slide.html')); await pg.wait_for_timeout(300)
         for _, key, _, sl in segs:
             if key in files: continue
-            if isad(key): files[key] = midroll_app if key[1] == 'app' else midroll; continue
+            if isad(key): files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll; continue
             pi, k, si = key[:3]; ban = len(key) == 4; d = dict(sl[k])
             if d.get('bg'): d['bg'] = 'file://' + absp(d['bg'])
             f = os.path.join(wd, f'p{pi+1:02d}_s{k}_{si}{"_b" if ban else ""}.png')
@@ -119,7 +123,8 @@ sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-i', mixed,
     '-vf', 'scale=1920:1080,fps=30,format=yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-crf', '20', '-r', '30',
     '-af', 'alimiter=limit=0.95,apad', '-t', f'{total:.3f}', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', out], check=True)
-ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if isad(k)]
+ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if isad(k) and k[1] != 'shop']
+shop_sec = round(sum(b - a for a, k, b, _ in segs if isad(k) and k[1] == 'shop'), 1)
 # 지침 A4·A6 지표: 같은 그림이 이어지는 최장 시간(미드롤·outro 제외), 전체 화면 미드롤 합계, 배너 횟수
 import hashlib
 hv = {}
@@ -134,8 +139,8 @@ for a, k, b, _ in segs:
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
-json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners,
+json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)], 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
-print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners,
+print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초',
       '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))
