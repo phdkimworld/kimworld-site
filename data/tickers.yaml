@@ -432,6 +432,12 @@ NBIS:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["네비우스", "네비우스 그룹", "Nebius", "Nebius Group", "NBIS", "얀덱스"]
+RUM:
+  name: "럼블"
+  name_en: "RUM Group Inc."
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["럼블", "Rumble", "럼 그룹", "RUM Group", "퀘이크 AI", "Quake AI", "RUM"]
 CRWV:
   name: "코어위브"
   name_en: "CoreWeave"
