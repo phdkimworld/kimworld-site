@@ -26,6 +26,7 @@ const env = { DB, SALT: "test-salt", ADMIN_TOKEN: "adm", GOOGLE_CLIENT_ID: "gid"
 // 구글·카카오 서버 흉내
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const PUSHED = [];
+const ASKED = { report: 0, calls: [] };
 globalThis.fetch = async (u, opt = {}) => {
   u = String(u);
   if (u.startsWith("https://oauth2.googleapis.com/token")) {
@@ -41,6 +42,19 @@ globalThis.fetch = async (u, opt = {}) => {
   if (u.startsWith("https://fcm.googleapis.com/") || u.startsWith("https://web.push.apple.com/")) { // 푸시 서비스 흉내: 받은 요청을 모은다
     PUSHED.push({ u, headers: opt.headers, body: new Uint8Array(opt.body) });
     return new Response("", { status: u.includes("/gone") ? 410 : 201 });
+  }
+  if (u.startsWith("https://drkimworld.com/r/")) { // 사이트가 내보낸 리포트 원문 흉내
+    ASKED.report++;
+    return u.endsWith("/askt-2026-11.md") ? new Response("# 시험 리포트\n\n## 1부\n\n현금은 12억 달러입니다(2026-11-01 기준).\n") : new Response("not found", { status: 404 });
+  }
+  if (u === "https://api.anthropic.com/v1/messages") { // 메시지 API 흉내: 받은 요청을 모으고 질문에 따라 답한다
+    const b = JSON.parse(opt.body); ASKED.calls.push({ headers: opt.headers, body: b });
+    const q = b.messages[0].content;
+    if (q.includes("크레딧")) return new Response(JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "Your credit balance is too low to access the Anthropic API." } }), { status: 400 });
+    if (q.includes("고장")) return new Response(JSON.stringify({ type: "error", error: { type: "overloaded_error" } }), { status: 529 });
+    const text = q.includes("인공지능") ? "저는 AI라서 잘 모릅니다." : "1부에 따르면 현금은 12억 달러입니다(2026-11-01 기준).";
+    return new Response(JSON.stringify({ content: [{ type: "thinking", thinking: "" }, { type: "text", text }], stop_reason: "end_turn",
+      usage: { input_tokens: 100, output_tokens: 200, cache_creation_input_tokens: 40000, cache_read_input_tokens: 0 } }));
   }
   throw new Error("unexpected fetch " + u);
 };
@@ -929,6 +943,60 @@ console.log("애드핏 데일리 리포트 받기");
   check(rev.status === 200 && rev.data.coupang[0].commission === 3861 && rev.data.adfit.some((x) => x.day === "2026-10-20" && x.cum_earn === 350), "수익 기록 보기");
   const revNo = await call("GET", "/v1/admin/revenue", { ip: "94.0.0.5" });
   check(revNo.status === 403, "수익 기록: 운영자 아니면 못 봄");
+}
+console.log("리포트에 질문하기");
+{
+  const { costUsd, ASK } = await import("../src/ask.js");
+  let a = await call("GET", "/v1/ask");
+  check(a.data.on === false, "질문하기: 키가 없으면 꺼짐");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "현금은 얼마인가요?" }, ip: "95.0.0.1" });
+  check(a.status === 503 && a.data.error === "unavailable" && ASKED.calls.length === 0, "질문하기: 키가 없으면 unavailable, 외부 호출 없음");
+  env.ANTHROPIC_API_KEY = "sk-test";
+  a = await call("GET", "/v1/ask");
+  check(a.data.on === true, "질문하기: 키가 있으면 켜짐");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "현금은 얼마인가요?" }, ip: "95.0.0.1", ua: "python-requests/2.31" });
+  check(a.status === 403, "질문하기: 봇은 거절");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "가".repeat(301) }, ip: "95.0.0.1" });
+  check(a.status === 400 && a.data.error === "long", "질문하기: 300자 넘으면 거절");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "현금은 얼마인가요?" }, ip: "95.0.0.1" });
+  check(a.status === 200 && a.data.answer.includes("1부") && a.data.cached === false && a.data.left === 4, "질문하기: 리포트 근거 답, 남은 횟수");
+  const sent = ASKED.calls[0];
+  check(sent.headers["x-api-key"] === "sk-test" && sent.body.model === ASK.model && sent.body.system[1].text.includes("12억") && sent.body.system[1].cache_control, "질문하기: 리포트 본문을 시스템에 넣고 캐시 표시");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "  현금은   얼마인가요 " }, ip: "95.0.0.2" });
+  check(a.status === 200 && a.data.cached === true && ASKED.calls.length === 1, "질문하기: 같은 리포트 같은 질문은 저장한 답");
+  a = await call("POST", "/v1/ask", { body: { slug: "none-2026-01", q: "현금은 얼마인가요?" }, ip: "95.0.0.1" });
+  check(a.status === 404, "질문하기: 없는 리포트는 거절");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "인공지능이세요?" }, ip: "95.0.0.3" });
+  check(a.status === 200 && !/AI/.test(a.data.answer) && (await DB.prepare("SELECT COUNT(*) AS n FROM ask_cache WHERE q LIKE '%인공지능%'").first()).n === 0, "질문하기: 규칙 어긴 답은 바꾸고 저장 안 함");
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "고장 시험" }, ip: "95.0.0.4" });
+  check(a.status === 502 && (await DB.prepare("SELECT n FROM rate WHERE k LIKE 'ask|%' ORDER BY n LIMIT 1").first()).n === 0, "질문하기: 외부 오류면 횟수 돌려줌");
+  const nCalls = ASKED.calls.length;
+  a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "크레딧 없음 시험" }, ip: "95.0.0.8" });
+  check(a.status === 503 && a.data.error === "unavailable", "질문하기: 크레딧이 없으면 unavailable");
+  a = await call("GET", "/v1/ask");
+  const a2 = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "그 뒤 다른 질문" }, ip: "95.0.0.9" });
+  check(a.data.on === false && a2.status === 503 && ASKED.calls.length === nCalls + 1, "질문하기: 그 뒤 10분은 꺼짐(버튼 숨김, 외부 호출 안 함)");
+  check(!(await DB.prepare("SELECT 1 AS x FROM ask_usage WHERE usd IS NULL").first()), "질문하기: 크레딧 오류는 비용 0");
+  await DB.prepare("DELETE FROM rate WHERE k = 'askoff'").run();
+  let last;
+  for (let i = 0; i < 6; i++) { last = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: `질문 ${i}번 현금` }, ip: "95.0.0.5", dev: "askdev_" + "x".repeat(20) }); if (i % 3 === 2) await DB.prepare("DELETE FROM rate WHERE k LIKE 'askmin|%'").run(); }
+  check(last.status === 429 && last.data.error === "limit", "질문하기: 한 사람 하루 5회");
+  last = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "다른 IP 같은 기기" }, ip: "95.0.0.6", dev: "askdev_" + "x".repeat(20) });
+  check(last.status === 429 && last.data.error === "limit", "질문하기: 같은 기기는 IP가 바뀌어도 5회");
+  const day = (await DB.prepare("SELECT * FROM ask_usage").first());
+  check(day.n >= 7 && day.hits === 1 && day.cache_w > 0 && day.usd > 0, "질문하기: 사용량 장부(토큰·달러)");
+  await DB.prepare("UPDATE ask_usage SET usd = ?").bind(ASK.monthUsd).run();
+  last = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "예산 시험 질문" }, ip: "95.0.0.7" });
+  check(last.status === 429 && last.data.error === "cap" && /한도가 찼습니다/.test(last.data.message), "질문하기: 월 예산이면 '오늘 질문 한도가 찼습니다'");
+  check(Math.abs(costUsd({ input_tokens: 50000, output_tokens: 1000 }) - (50000 * 0.10 + 1000 * 0.50) / 1e6) < 1e-12 && Math.abs(costUsd({ input_tokens: 50000, cache_read_input_tokens: 60000 }) - 5 * (50000 + 6000) * 0.10 / 1e6) < 1e-9, "질문하기: 비용 계산(10만 토큰 넘으면 비싼 요금표)");
+  const logs = (await DB.prepare("SELECT * FROM ask_log").all()).results;
+  check(logs.length > 0 && !JSON.stringify(logs).includes("95.0.0"), "질문하기: 기록에 IP 원문 없음");
+  await DB.prepare("UPDATE ask_log SET created = ?").bind(Date.now() - 31 * 864e5).run();
+  const keepRandom = Math.random; Math.random = () => 0; await call("GET", "/v1/health"); Math.random = keepRandom;
+  check((await DB.prepare("SELECT COUNT(*) AS n FROM ask_log").first()).n === 0, "질문하기: 30일 지난 질문은 지움");
+  const an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+  check(Array.isArray(an.data.ask) && an.data.ask[0].usd > 0 && !JSON.stringify(an.data.ask).includes("현금"), "질문하기: 운영 통계에 사용량(질문 원문 없음)");
+  delete env.ANTHROPIC_API_KEY;
 }
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);

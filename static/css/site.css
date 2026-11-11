@@ -1635,3 +1635,16 @@ article.report .sent { margin-top: 14px; }
 .kfp-line .kfb-v { min-width: 58px; }
 .kfp-line.up .kfb-v { color: var(--kf-up); } .kfp-line.down .kfb-v { color: var(--kf-down); }
 @media (max-width: 420px) { .kfp-row { grid-template-columns: 1fr; gap: 4px; } .knum-v { font-size: 1.3rem; } }
+/* 이 리포트에 질문하기(2026-11-11, static/js/ask.js) */
+.ask-box { margin: 28px 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.ask-box[hidden] { display: none; }
+.ask-title { margin: 0 0 4px; font-size: 1.05rem; }
+.ask-sub { margin: 0 0 10px; font-size: .8rem; }
+.ask-form textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: inherit; font-size: .92rem; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); resize: vertical; }
+.ask-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.ask-n { font-size: .75rem; }
+.ask-out { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+.ask-out[hidden] { display: none; }
+.ask-a { margin: 0; font-size: .95rem; white-space: pre-line; }
+.ask-a.is-err { color: var(--muted); }
+.ask-note { margin: 8px 0 0; font-size: .72rem; }

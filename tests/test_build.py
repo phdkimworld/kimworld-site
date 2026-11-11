@@ -348,11 +348,13 @@ check("data-feed-tabs" not in home and 'value="b-talk"' in home and "data-compos
 check("social.js" in home and '"tk": [' in home.replace("tk: [", '"tk": ['), "홈에 피드 스크립트와 종목 목록($티커 링크용)")
 check((t / "dist/terms/index.html").exists() and "data-open-account" in home, "이용약관·계정 버튼")
 check('name="website" class="hp"' in home, "로봇 막는 숨은 칸(글쓰기 상자)")
+_rp = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+check('data-ask data-slug="zzzz-test-2026-01"' in _rp and "static/js/ask.js" in _rp and "투자 권유 아님" in _rp and (t / "dist/r/zzzz-test-2026-01.md").exists(), "리포트에 질문하기 상자(키 없으면 숨김)와 워커가 읽을 원문 /r/<slug>.md")
 sy = yaml.safe_load((t / "site.yaml").read_text(encoding="utf-8")); sy["api_url"] = ""
 (t / "site.yaml").write_text(yaml.safe_dump(sy, allow_unicode=True), encoding="utf-8")
 run(t)
 pg = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
-check("community.js" not in pg and "data-community" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
+check("community.js" not in pg and "data-community" not in pg and "ask.js" not in pg, "api_url을 비우면 기능이 통째로 꺼짐")
 w = subprocess.run(["node", str(SRC / "worker/test/test_worker.mjs")], capture_output=True, text=True)
 check(w.returncode == 0, "API(worker) 검사 " + ("통과" if w.returncode == 0 else w.stdout[-600:]))
 

@@ -170,6 +170,23 @@
     {# 투자 심리 투표: 본문을 다 읽은 뒤(6부 뒤, 출처 위). 2026-10-14 '맨 위' 결정을 2026-10-28 운영자 지시(SKILL R1.7)로 바꿈 #}
     {% if site.api_url %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
 
+    {# 이 리포트에 질문하기(2026-11-11 운영자 지시): 리포트 본문만 근거로 답하는 리포트 도우미. 서버에 키가 없으면 숨김(static/js/ask.js) #}
+    {% if site.api_url and not r.draft %}
+    <section class="ask-box" data-ask data-slug="{{ r.slug }}" aria-labelledby="ask-h" hidden>
+      <h2 id="ask-h" class="ask-title">이 리포트에 질문하기</h2>
+      <p class="muted ask-sub">리포트 도우미가 이 리포트 본문에서 찾아 짧게 답합니다. 하루 <span data-ask-per>5</span>회.</p>
+      <form class="ask-form" data-ask-form>
+        <label class="sr-only" for="ask-q">질문</label>
+        <textarea id="ask-q" name="q" rows="2" maxlength="300" placeholder="예: 3부 기록표에서 첫날 가장 크게 오른 사건은?" required></textarea>
+        <div class="ask-row"><span class="muted ask-n" data-ask-n>0/300</span><button type="submit" class="btn btn-primary btn-small" data-ask-btn>질문하기</button></div>
+      </form>
+      <div class="ask-out" data-ask-out aria-live="polite" hidden>
+        <p class="ask-a" data-ask-a></p>
+        <p class="muted ask-note">리포트 본문 기준 · 투자 권유 아님</p>
+      </div>
+    </section>
+    {% endif %}
+
     {% if r.faq %}
     {# 검색 유입(2026-11-03): 사람들이 검색창에 치는 질문 꼴. FAQPage 구조화 데이터와 같은 내용 #}
     <section class="faq" aria-labelledby="faq-h">
@@ -272,4 +289,5 @@
 </nav>
 <a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
 <div class="term-pop" role="tooltip" hidden></div>
+{% if site.api_url and not r.draft %}<script src="{{ base }}/static/js/ask.js?v={{ asset_ver }}" defer></script>{% endif %}
 {% endblock %}

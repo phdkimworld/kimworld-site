@@ -1,3 +1,4 @@
+import { ASK, SAFE_ANSWER, answerProblem, normQ, reportText, callModel, costUsd } from "./ask.js";
 import { queuePush, prefsOf, cleanPrefs, vapidKeys, pushToUser, drainPush, PUSH_HOST, pushMessage } from "./push.js";
 // 김박사 월드 API (Cloudflare Worker + D1)
 // - 조회수: 같은 사람(해시)·같은 글은 하루 한 번만 센다
@@ -132,6 +133,11 @@ async function allow(db, key, limit, ttlMs, now) {
     .bind(key, now + ttlMs, now, now).run();
   const r = await db.prepare("SELECT n FROM rate WHERE k = ?").bind(key).first();
   return (r?.n || 0) <= limit;
+}
+
+// 리포트 질문하기가 잠시 꺼졌는지(크레딧 없음·키 문제 응답을 받은 뒤 10분)
+async function askOff(db, now) {
+  return !!(await db.prepare("SELECT 1 AS x FROM rate WHERE k = 'askoff' AND exp > ?").bind(now).first());
 }
 
 // 종토방: 댓글과 같은 저장소를 쓰고 slug가 "b-티커"인 묶음. 글쓰기는 계정이 있어야 한다
@@ -485,6 +491,8 @@ async function analytics(db, now, daysIn) {
   // 리포트 업데이트 요청(최근 30일, 종목별)
   ext.coupang = await all("SELECT day, clicks, clicks_banner, clicks_boxes, clicks_deal, clicks_blogger, clicks_youtube, clicks_other, orders, gmv, commission, commission_banner, commission_boxes, commission_deal, commission_blogger, commission_youtube, commission_other, click_addtags FROM coupang_daily ORDER BY day DESC LIMIT 120").catch(() => []);
   ext.adfit = await all("SELECT day, earn, requests, impressions, rendered, clicks, ecpm, cum_earn, confirmed FROM adfit_daily ORDER BY day DESC LIMIT 120").catch(() => []);
+  // 리포트 질문하기 사용량(하루 합계·추정 달러). 질문 원문은 보내지 않는다
+  ext.ask = await all("SELECT day, n, hits, in_tok, out_tok, cache_w, cache_r, usd FROM ask_usage ORDER BY day DESC LIMIT 62").catch(() => []);
   ext.adfitFail = await all("SELECT at, text FROM adfit_fail ORDER BY id DESC LIMIT 5").catch(() => []);
   { // 열린 뒤(최신 리포트 공개 7일 후) 요청만 센다(2026-10-30). 제작 대기 판정도 이 숫자를 쓴다
     const op = await reqOpen(db), raw = await all("SELECT ticker, created FROM upd_req WHERE created >= ?", now - 30 * 864e5).catch(() => []), c = {};
@@ -543,6 +551,9 @@ export default {
       await db.batch([
         db.prepare("DELETE FROM peppers WHERE day < ?").bind(kstDay(now - 2 * 864e5)),
         db.prepare("DELETE FROM rate WHERE exp < ?").bind(now),
+        // 리포트 질문 원문은 30일만 둔다(사용량 합계 ask_usage는 사람 정보가 없어 영구 보관)
+        db.prepare("DELETE FROM ask_log WHERE created < ?").bind(now - ASK.keepMs),
+        db.prepare("DELETE FROM ask_cache WHERE created < ?").bind(now - ASK.keepMs),
       ]);
     }
     const p = url.pathname.replace(/\/+$/, "");
@@ -667,7 +678,7 @@ export default {
         const EV = new Set(["install_prompt", "install_card", "install_click", "install_accept", "install_dismiss", "installed", "ios_help", "login_start", "compose_open", "post_submit",
           "share", "save", "repost", "quote_open", "quote_submit", "follow_user", "follow_topic", "yt_play", "search", "notif_open", "like",
           "yt_jump_shown", "yt_jump_click", "sns_jump_shown", "sns_jump_click", "featured_click",
-          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share", "next_bar", "update_request", "share_kakao", "poll_comment", "poll_op_open", "kk_bar"]);
+          "install_bar", "install_inapp", "ic_header", "ic_footer", "ic_bar", "ic_report", "ic_feed", "signup", "dm_send", "dm_open", "avatar_set", "block", "quote_share", "quote_card", "fig_click", "home_report", "home_post", "push_on", "sent_vote", "sent_vote_feed", "mid_next_click", "mood_rank", "poll_share", "next_bar", "update_request", "share_kakao", "poll_comment", "poll_op_open", "kk_bar", "ask"]);
         const evs = [...new Set(Array.isArray(b.ev) ? b.ev.slice(0, 30).map(String) : [])].filter((x) => EV.has(x));
         const a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
         // 봇은 빼고 이유별 합계만 남긴다. ③ 화면을 한 번도 만지지 않고 2초도 안 본 방문(링크 검사기가 열었다 닫는 모양)도 뺀다
@@ -1899,6 +1910,76 @@ export default {
           const r = await db.prepare("UPDATE comments SET status = ?, reviewed = 1, reports = CASE WHEN ? = 'ok' THEN 0 ELSE reports END WHERE id = ?").bind(status, status, parseInt(am[1], 10)).run();
           return json(req, { ok: !!r.meta?.changes });
         }
+      }
+      // ---------- 리포트에 질문하기 ----------
+      // 화면은 먼저 켜졌는지 묻는다(키가 없으면 버튼을 숨김)
+      if (p === "/v1/ask" && req.method === "GET") {
+        return json(req, { on: !!env.ANTHROPIC_API_KEY && !(await askOff(db, now)), max: ASK.qMax, per_day: ASK.perDay }, 200, { "Cache-Control": "public, max-age=300" });
+      }
+      if (p === "/v1/ask" && req.method === "POST") {
+        if (!env.ANTHROPIC_API_KEY || (await askOff(db, now))) return json(req, { error: "unavailable" }, 503);
+        if (botWhy(req)) return json(req, { error: "bot" }, 403);
+        const b = await readJson(req);
+        const slug = String(b.slug || "");
+        if (!SLUG_RE.test(slug) || isBoard(slug)) return json(req, { error: "slug" }, 400);
+        const raw = String(b.q ?? "");
+        const q = cleanText(raw, ASK.qMax + 1);
+        if (q.length > ASK.qMax) return json(req, { error: "long", message: `질문은 ${ASK.qMax}자까지 쓸 수 있습니다.` }, 400);
+        if (q.replace(/\s/g, "").length < 2) return json(req, { error: "short", message: "질문을 조금 더 자세히 써 주세요." }, 400);
+        const full = { error: "cap", message: "오늘 질문 한도가 찼습니다. 내일 다시 이용해 주세요." };
+        const mine = { error: "limit", message: `오늘 질문 한도(${ASK.perDay}회)를 다 쓰셨습니다. 내일 다시 이용해 주세요.` };
+        // 긁어 가기 막기: 캐시 답까지 합친 하루 요청 수, 1분 연속 요청
+        if (!(await allow(db, `askall|${ih}`, ASK.perDayAll, 864e5, now))) return json(req, mine, 429);
+        if (!(await allow(db, `askmin|${ih}`, ASK.perMinute, 60e3, now))) return json(req, { error: "rate", message: "잠시 뒤에 다시 질문해 주세요." }, 429);
+        let report;
+        try { report = await reportText(SITE, slug, now); } catch { return json(req, { error: "upstream", message: "잠시 뒤에 다시 시도해 주세요." }, 502); }
+        if (!report) return json(req, { error: "slug" }, 404);
+        if (report.length > ASK.reportMax) return json(req, { error: "unavailable" }, 503);
+        const ver = (await sha256hex(report)).slice(0, 16);
+        const ck = await sha256hex(`${ver}|${normQ(q)}`);
+        const log = (cached, ok, usd) => db.prepare("INSERT INTO ask_log (created, day, slug, q, ih, cached, ok, usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(now, today, slug, q, ih, cached, ok, usd).run().catch(() => {});
+        const hit = await db.prepare("SELECT answer FROM ask_cache WHERE k = ? AND created > ?").bind(ck, now - ASK.keepMs).first();
+        if (hit) {
+          await db.prepare("INSERT INTO ask_usage (day, hits) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET hits = hits + 1").bind(today).run();
+          await log(1, 1, 0);
+          return json(req, { answer: hit.answer, cached: true }, 200, { "Cache-Control": "no-store" });
+        }
+        // 사이트 전체 하루 상한·월 예산(한국 날짜 기준 달)
+        const dayRow = await db.prepare("SELECT n, usd FROM ask_usage WHERE day = ?").bind(today).first();
+        const mon = await db.prepare("SELECT COALESCE(SUM(usd), 0) AS usd FROM ask_usage WHERE day >= ? AND day <= ?").bind(today.slice(0, 8) + "01", today.slice(0, 8) + "31").first();
+        if ((dayRow?.n || 0) >= ASK.dayMax || (dayRow?.usd || 0) >= ASK.dayUsd || (mon?.usd || 0) >= ASK.monthUsd) return json(req, full, 429);
+        // 한 사람(그날 IP 해시)·한 기기 하루 횟수
+        const devKey = DEVICE_RE.test(dev) ? `askd|${devActor}` : "";
+        if (!(await allow(db, `ask|${ih}`, ASK.perDay, 864e5, now))) return json(req, mine, 429);
+        if (devKey && !(await allow(db, devKey, ASK.perDay, 864e5, now))) return json(req, mine, 429);
+        const refund = () => db.batch([db.prepare("UPDATE rate SET n = n - 1 WHERE k = ? AND n > 0").bind(`ask|${ih}`)].concat(devKey ? [db.prepare("UPDATE rate SET n = n - 1 WHERE k = ? AND n > 0").bind(devKey)] : [])).catch(() => {});
+        let out;
+        try { out = await callModel(env, report, q); } catch { out = { error: "fetch" }; }
+        const u = out.usage || {};
+        const usd = out.usage ? costUsd(u) : 0;
+        if (out.usage || !out.error) {
+          await db.prepare(`INSERT INTO ask_usage (day, n, in_tok, out_tok, cache_w, cache_r, usd) VALUES (?, 1, ?, ?, ?, ?, ?)
+              ON CONFLICT(day) DO UPDATE SET n = n + 1, in_tok = in_tok + excluded.in_tok, out_tok = out_tok + excluded.out_tok,
+              cache_w = cache_w + excluded.cache_w, cache_r = cache_r + excluded.cache_r, usd = usd + excluded.usd`)
+            .bind(today, u.input_tokens || 0, u.output_tokens || 0, u.cache_creation_input_tokens || 0, u.cache_read_input_tokens || 0, usd).run();
+        }
+        if (out.error || !out.text) {
+          await refund();
+          if (out.off) { // 크레딧 없음·키 문제: 10분 동안 꺼 두고(외부 호출 안 함) 화면은 버튼을 숨긴다
+            await db.prepare("INSERT OR REPLACE INTO rate (k, n, exp) VALUES ('askoff', 1, ?)").bind(now + ASK.offMs).run();
+            await log(0, 0, 0);
+            return json(req, { error: "unavailable" }, 503);
+          }
+          await log(0, 0, usd);
+          return json(req, { error: "upstream", message: "답을 만들지 못했습니다. 잠시 뒤에 다시 시도해 주세요." }, 502);
+        }
+        let answer = out.text.length > 700 ? out.text.slice(0, 700).replace(/\s+\S*$/, "") + "…" : out.text;
+        const ok = out.stop !== "refusal" && !answerProblem(answer);
+        if (!ok) answer = SAFE_ANSWER;
+        else await db.prepare("INSERT OR REPLACE INTO ask_cache (k, slug, q, answer, created) VALUES (?, ?, ?, ?, ?)").bind(ck, slug, q, answer, now).run();
+        await log(0, ok ? 1 : 0, usd);
+        const left = await db.prepare("SELECT n FROM rate WHERE k = ?").bind(`ask|${ih}`).first();
+        return json(req, { answer, cached: false, left: Math.max(0, ASK.perDay - (left?.n || 0)) }, 200, { "Cache-Control": "no-store" });
       }
       if (p === "/v1/health") return json(req, { ok: true });
       return json(req, { error: "not_found" }, 404);
