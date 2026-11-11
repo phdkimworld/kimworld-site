@@ -1,35 +1,54 @@
 {
- "generated": "2026-11-10T23:55:38+00:00",
- "since": "2026-10-11T23:55:38+00:00",
+ "generated": "2026-11-11T01:02:43+00:00",
+ "since": "2026-10-12T01:02:43+00:00",
  "platforms": {
   "threads": {
    "ok": true,
    "me": "phdkimworld",
-   "my_replies_24h": 0,
+   "my_replies_24h": 1,
    "open": [
     {
      "platform": "threads",
-     "kind": "top",
-     "replyTo": "18039228974910610",
-     "commentId": "18039228974910610",
+     "kind": "followup",
+     "replyTo": "18509517931096129",
+     "commentId": "18509517931096129",
      "postId": "18090230813302050",
      "postPermalink": "https://www.threads.com/@phdkimworld/post/Dfj9xAgG8LU",
      "postText": "아이렌(IREN), 실적 다음 날 +20.0%. 그런데 다음 거래일 업종이 모두 오를 때 혼자 -1.1%.\n\n숫자로 보면:\n· 2거래일 합계 아이렌 +18.7%, NBIS +17.5%\n· 실적 없는 테라울프(WULF)는 +22.8%\n· 연환산 40억 달러 매출 목표는 연말 → 2027년 1월\n\n지난 예측(11월 5일): 적중 2 · 빗나감 1 · 진행 중 ",
      "slug": "iren-2026-11",
      "author": "kollectips",
-     "text": "테라울프가 실적 없이 +22.8% 오른 점이랑 같이 보니, 아이렌 움직임이 실적보다 업종 수급 쪽에 더 끌린 느낌이 들었습니다. 12월 4일 20거래일째 기록이 어떻게 나오는지 그때 다시 볼게요.",
-     "publishedAt": "2026-11-10T19:17:37+0000",
+     "text": "업종 쪽에 무게를 두는 편이 지금 흐름과는 더 맞아 보여요. 12월 4일에는 아이렌과 NBIS·테라울프의 같은 날 움직임을 나란히 놓고 판단해 보려고 해요.",
+     "publishedAt": "2026-11-11T00:26:21+0000",
      "likeCount": 0,
-     "followups": [],
+     "followups": [
+      {
+       "author": "kollectips",
+       "isMe": false,
+       "text": "업종 쪽에 무게를 두는 편이 지금 흐름과는 더 맞아 보여요. 12월 4일에는 아이렌과 NBIS·테라울프의 같은 날 움직임을 나란히 놓고 판단해 보려고 해요.",
+       "publishedAt": "2026-11-11T00:26:21+0000"
+      }
+     ],
      "context": [
       {
        "author": "kollectips",
        "isMe": false,
        "text": "테라울프가 실적 없이 +22.8% 오른 점이랑 같이 보니, 아이렌 움직임이 실적보다 업종 수급 쪽에 더 끌린 느낌이 들었습니다. 12월 4일 20거래일째 기록이 어떻게 나오는지 그때 다시 볼게요.",
        "publishedAt": "2026-11-10T19:17:37+0000"
+      },
+      {
+       "author": "phdkimworld",
+       "isMe": true,
+       "text": "@kollectips 꼼꼼히 봐 주셔서 감사합니다. 실적 없는 테라울프와 2거래일 흐름이 비슷했다는 점은 리포트 2부 '실적 앞뒤, 아이렌과 같은 업종' 표에 정리했습니다. 12월 4일엔 업종 쪽이 맞을까요? https://drkimworld.com/r/iren-2026-11-2/?utm_source=threads&utm_medium=comment&utm_campaign=iren-2026-11-2&utm_content=reply",
+       "publishedAt": "2026-11-10T23:58:02+0000"
+      },
+      {
+       "author": "kollectips",
+       "isMe": false,
+       "text": "업종 쪽에 무게를 두는 편이 지금 흐름과는 더 맞아 보여요. 12월 4일에는 아이렌과 NBIS·테라울프의 같은 날 움직임을 나란히 놓고 판단해 보려고 해요.",
+       "publishedAt": "2026-11-11T00:26:21+0000"
       }
      ],
-     "my_replies_in_thread_24h": 0
+     "my_replies_in_thread_24h": 1
     }
    ]
   },
@@ -46,5 +65,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-10T23:56Z"
+ "saved_utc": "2026-11-11T01:06Z"
 }
