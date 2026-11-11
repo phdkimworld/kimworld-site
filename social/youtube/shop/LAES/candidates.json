@@ -1,0 +1,49 @@
+{
+ "ticker": "LAES",
+ "date": "2026-11-11",
+ "cat": "bk",
+ "cat_name": "투자서",
+ "line": "영상 속 산업을 더 깊이 이해하고 싶다면",
+ "reason": "explore",
+ "keyword": "양자컴퓨팅 책",
+ "sub_id": "ytbklaes",
+ "disclosure": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
+ "candidates": [
+  {
+   "name": "파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2/e (양자 컴퓨팅) (리노베이트 전용 사 은 품 증 정)",
+   "url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9811790861&itemId=29384462252&vendorItemId=96296042800&traceid=V0-153-5ea0df2a7785b25e&requestid=20261111142032483284729315&token=31850C%7CGM&pt=0&slot=1",
+   "price": 36000,
+   "image": "https://ads-partners.coupang.com/image1/up7xA_S4-4XkQQ59uljcCCcD4TkYe2SnDrYVxdterpaZUnWoJ226ihzlcQEq7WOWGE3elUp_GohNfUyWvQPKoiplu3mo0qAVqzfOm4qn240CuCwKIupACmHAdrXgXS6uwWJ4SPXR6OzoVS78xuplCsvWlyn_qgI4dnkq5iAcTUoJD9MuY8N-HKzLPObuIXJ9dT5ZQ5Si6bBjbNrcgb8l8hqSLhTN7IPq1fXS_tj8YizjGCELOmzPSkyTC1aQUAEmYI1WJaVJhP-C9OalhfmCUSCi5lUzsvl9wYtSke0Wh8VJqxuUKiZshLeI_h8veHuCyyN85moUStSIUDYs0UMdizOvifxLMcEPmEdhIi-R2tB53RS4Rouyc6pByD3uY4LGvrmZzwy1xG0pu-aZgl4jf4O4nAkz8BVv6R6fUBpWcJw_9Y-lSF5_-zNi8-_ih89CF3ZATJYusUBasdh04Li9MyFQ-puHn23NxBJaUlngFeaJ7hqeqFPl-fVSQt8fICa11OyHMyz_r8iWaFSOfMWHE_mRK-DZAIlxFdMga_OeVRVQ2hiryT_CGw==",
+   "category": "도서/음반",
+   "rocket": false,
+   "img": "img_0.jpg"
+  },
+  {
+   "name": "파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2/e : 양자 알고리듬 구현의 기본서",
+   "url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9801651619&itemId=29350443588&vendorItemId=96263624206&traceid=V0-153-b1e5349f34330b85&requestid=20261111142032483284729315&token=31850C%7CGM&pt=0&slot=2",
+   "price": 36000,
+   "image": "https://ads-partners.coupang.com/image1/q6YFMc5XurOT-Yrqq7xtAonSR3cdlkHqithQnh094fBi2unmaYgKlL6XY5jgM3-b1_N2KwNldGmJ4V_c3GvuZvnzP1yGXYG5hToc5mkTSZpeG41IKayXs2hHn1WaYgAZ3D4S8S7p9Qeqo4HmnwEAkDd3230dzBWUQmXjz7P2OnVAmbUnyn1w6wroYPN_ntD9mCwdb1qityld4cHFLdAAh2mBnLdup-m2fQ4BCfKzJF2cdcb9XEa9jW8i-F47cwERftnJ3PhG_ubL5tmfKOZDkldtYbfHnABKLY3AfhDboMyOGGF_4G4nqVnIzetMkjMAmWDzYCEWjB1MK2fxI2gbtGRUwqMJHbM6G-LQ7WKjPFTTv2U09Gl6bxq4u6MAAC4VxWkpxPJ4p_uKvWwKfb3y7rW_u3kcrrTKNkyqPKLewdrcEH0dyHnjsT9kVueHO9vor9OYnpOKo9zwzHwX9wShabz52813VUX0Yo7Ozf2HqptedF6Ya53xipR71Deq6jlp4OuYiTud7UVhbgWWYYxQ4j5uNX_ylgKyu1NgC3cWIDycCCrN5YZS0g==",
+   "category": "도서/음반",
+   "rocket": false,
+   "img": "img_1.jpg"
+  },
+  {
+   "name": "미래 양자기술 동향과 생태계분석:컴퓨팅/센서/양자암호 통신/양자점",
+   "url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=6422868507&itemId=13826507534&vendorItemId=91099813288&traceid=V0-153-2d23a9153f560acf&requestid=20261111142032483284729315&token=31850C%7CGM&pt=0&slot=3",
+   "price": 342000,
+   "image": "https://ads-partners.coupang.com/image1/576w-Q6PfySn2Me25_aj3SIWINSZDK_O4x4HbDWD8aQGwuXIjo344MZN4-AAN_z_-WqHoW5Vy3dM0Fi8Y79bR2Xo-urlnowBEmNBm6TusNLCRa4UePnjAgGfy0kVp8d3iEPLR56qbtwSKEay76NnDAdUJlbcmlaNsG0fKM5_9kGl5F4uy3sPWxwmbEAHlM61MM6iwlPbKqgHq-90hdoyQIjTc_mG_heHarM3pHpkb6eNPTZc1tRgFXjKvP3HEAAnQ8e6eEF3KOHmKTOjL3n23BVQhZ8TJq8hCSmL5ocy57keKNcBHmrgXKwPa6H6VQrHiCAWxRPBhiCJzveqi1a2OXCn6xjFuzGEeKzoId6goHKCQ2rMI5vE1t7bd6G5Ooc229QB4fZLL-QHRqSufCWYQX1zEWeiV85jm1QPZV7sHOpJbOsSsRAAzhaRk-NSfYvYO342nHYi8EQf-bTaaZhKoGZmDF3pGXKGI5zdEZ4FiqrlmeMPf_ZDnjOKzLW6bx_Xe0ZkAvUvjQrcrIu0Z8_SEDSuo7_6rMGG3rvbXiZN9N2Lby0t6LUDHQ==",
+   "category": "도서/음반",
+   "rocket": false,
+   "img": "img_2.jpg"
+  },
+  {
+   "name": "(예약 11/13 발송) 파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2e 로버트 로레도 에이콘출판사",
+   "url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9803312968&itemId=29355968327&vendorItemId=96268921607&traceid=V0-153-2c56b808dc61a1f8&requestid=20261111142032483284729315&token=31850C%7CGM&pt=0&slot=4",
+   "price": 37800,
+   "image": "https://ads-partners.coupang.com/image1/0VBNu-A1xSANvkWt0ZYaY030YZx-7qwVaXjM85LW6-GK013KyqjnIDVZSG9lEAb9umrd5kaeusSEvoyCzs9xroG4NyhnN4rh3xnMifrzaAgw4igwbQeUnoBNUfbBv1C7sSBvKfmSeYH7RWyrXw-X14S2-JEokeonWZV-xgbDozG9JkIhHWqFofilm-2BiQu-xX_v21tK8FjD7alt5v9KOzGUkCCcV7QiWpis1ZUXEZUZmuWbJ_9MxLI9lM5Pc2tFV_gAYwdTBtfhjdKGKIQHgy3PzI7HePBbOO93dcxXnjXA2oLfZv5b1Fps2Zvoj7tpCFs7_a0svdkO36fQiYK81vhqBPBYNZGTGrwJZMKrqFd6Q_TRI-c0GJRi-B8hcfsPSqsbEb5ZYVETQ2HMkBsOUosEIfdQ1YHuJseAycSDoCfyERgSDd_xlk1qsIc2xabHHmwrF96V0nJ-Q3qPWKdsumKPHy4gVJw22NaxUEIzzD1vIMhU_OJJJQtRdKjwozJdWg6M5WIB6rr9IJSPfuERjwg4Tlq4crSnkoak8S5IdfUmRlF3_L7g-w==",
+   "category": "도서/음반",
+   "rocket": false,
+   "img": "img_3.jpg"
+  }
+ ]
+}
