@@ -124,7 +124,7 @@ def pick(items: list[dict], books_only: bool, n: int = 6) -> list[dict]:
         url, name = str(x.get("productUrl") or ""), str(x.get("productName") or "").strip()
         if not url.startswith("https://") or not name or (books_only and not is_book(x)):
             continue
-        key = re.sub(r"\W", "", name)[:24]
+        key = re.sub(r"\W", "", re.sub(r"[(\[][^)\]]*[)\]]", "", name))[:14]  # 같은 책·상품의 판매처별 중복(괄호 속 사은품·예약 문구 차이)은 하나로
         if key in seen:
             continue
         seen.add(key)
@@ -132,11 +132,35 @@ def pick(items: list[dict], books_only: bool, n: int = 6) -> list[dict]:
             price = int(float(x.get("productPrice") or 0))
         except (TypeError, ValueError):
             price = 0
-        out.append({"name": name, "url": url, "price": price, "image": str(x.get("productImage") or ""),
+        out.append({"name": name, "url": url, "pid": str(x.get("productId") or ""), "price": price, "image": str(x.get("productImage") or ""),
                     "category": str(x.get("categoryName") or ""), "rocket": bool(x.get("isRocket"))})
         if len(out) >= n:
             break
     return out
+
+
+DEEPLINK = "/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink"
+
+
+def shorten(cands: list[dict], sid: str, access: str, secret: str) -> None:
+    """상품 페이지 주소를 쿠팡 단축 링크(link.coupang.com/a/…, 같은 하위 ID)로 바꾼다. 실패하면 검색 결과 링크를 그대로 둔다."""
+    src = [f"https://www.coupang.com/vp/products/{c['pid']}" for c in cands if c.get("pid")]
+    if not src:
+        return
+    body = json.dumps({"coupangUrls": src, "subId": sid}).encode()
+    req = urllib.request.Request(cs.DOMAIN + DEEPLINK, data=body, method="POST", headers={
+        "Authorization": cs.authorization("POST", DEEPLINK, "", access, secret, dt.datetime.now(dt.timezone.utc)),
+        "Content-Type": "application/json;charset=UTF-8"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        js = json.loads(r.read().decode("utf-8"))
+    short = {}
+    for x in js.get("data") or []:
+        m = re.search(r"/products/(\d+)", str(x.get("originalUrl") or ""))
+        if m and str(x.get("shortenUrl") or "").startswith("https://"):
+            short[m.group(1)] = x["shortenUrl"]
+    for c in cands:
+        if c.get("pid") in short:
+            c["long_url"], c["url"] = c["url"], short[c["pid"]]
 
 
 def report_rows(kind: str, start: str, end: str, access: str, secret: str) -> list[dict]:
@@ -191,6 +215,10 @@ def main() -> int:
     except Exception as e:
         print(f"::warning title=유튜브 쿠팡::검색 실패 {type(e).__name__}")
     cands = pick(items, bool(cc.get("books_only")))
+    try:
+        shorten(cands, sid, access, secret)
+    except Exception as e:
+        print(f"::warning title=유튜브 쿠팡::단축 링크 실패 {type(e).__name__}(긴 링크 그대로)")
     for i, c in enumerate(cands):
         if c["image"].startswith("https://"):
             try:

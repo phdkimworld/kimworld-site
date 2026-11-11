@@ -39,6 +39,9 @@ check("실적을 카테고리로 묶음", p["bk"] == {"clicks": 3, "commission":
 check("책만: 책 아닌 상품 제외", [x["name"] for x in ys.pick([
     {"productName": "양자컴퓨터 입문", "productUrl": "https://link.coupang.com/a/1", "categoryName": "도서/음반/DVD"},
     {"productName": "태블릿 거치대", "productUrl": "https://link.coupang.com/a/2", "categoryName": "가전디지털"}], True)] == ["양자컴퓨터 입문"])
+_dup = ys.pick([{"productName": n, "productUrl": f"https://link.coupang.com/a/{i}", "categoryName": "도서/음반"} for i, n in enumerate(
+    ["파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2/e (사은품 증정)", "(예약 11/13 발송) 파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2e", "미래 양자기술 동향"])], True)
+check("판매처만 다른 같은 상품은 하나로", len(_dup) == 2)
 log2 = [{"cat": "bk", "kw": "{0} 책".format("양자컴퓨팅")}]
 check("검색어는 덜 쓴 것부터", ys.keyword_for(cfg, "bk", log2, "양자컴퓨팅") == "미국 주식 투자 책")
 check("테마 연관은 coupang.yaml 테마 검색어", ys.keyword_for(cfg, "th", [], "양자컴퓨팅") == "노트북")
