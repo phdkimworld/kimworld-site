@@ -1,0 +1,56 @@
+name: Instagram permission check
+
+# 인스타 자동 DM(댓글 키워드 → 리포트 링크 DM, Private Replies)을 쓸 수 있는지 IG_ACCESS_TOKEN 권한을 확인한다(11-12 운영자 "권한 확인해 봐").
+# 읽기 전용: DM을 보내지 않는다. 응답 코드와 오류 문구만 남기고 토큰은 출력하지 않는다. 손으로만 실행.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          tok = os.environ.get("IG_ACCESS_TOKEN", "")
+          if not tok:
+              print("::notice::NO_TOKEN"); raise SystemExit(0)
+          base = "https://graph.instagram.com/v23.0"
+          def get(path, q):
+              url = f"{base}/{path}?{q}&access_token={tok}"
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as r:
+                      return r.status, json.load(r)
+              except urllib.error.HTTPError as e:
+                  try: body = json.load(e)
+                  except Exception: body = {}
+                  return e.code, body
+          out = []
+          for name, path, q in [
+              ("account", "me", "fields=user_id,username,account_type"),
+              ("permissions", "me/permissions", "x=1"),
+              ("conversations(DM 읽기)", "me/conversations", "platform=instagram&limit=1"),
+          ]:
+              code, body = get(path, q)
+              err = (body.get("error") or {}) if isinstance(body, dict) else {}
+              if code == 200:
+                  if name == "account":
+                      msg = f"account_type={body.get('account_type')} username={body.get('username')}"
+                  elif name == "permissions":
+                      msg = ", ".join(f"{p.get('permission')}:{p.get('status')}" for p in body.get("data", [])) or json.dumps(body)[:300]
+                  else:
+                      msg = f"ok (대화 {len(body.get('data', []))}건 읽힘)"
+              else:
+                  msg = f"code={err.get('code')} sub={err.get('error_subcode')} {str(err.get('message',''))[:200]}"
+              line = f"{name}: HTTP {code} — {msg}"
+              print(f"::notice::{line}"); out.append(line)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join("- " + l for l in out) + "\n")
+          PY
