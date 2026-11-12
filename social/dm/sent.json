@@ -1,0 +1,20 @@
+{
+ "comments": {},
+ "daily": {},
+ "errors": {},
+ "messages": {},
+ "reply_rot": 0,
+ "summary": {
+  "comment_dm": 0,
+  "daily_cap": 100,
+  "dm_reply": 0,
+  "errors": {},
+  "failed": 0,
+  "public_reply": 0,
+  "run_at": "2026-11-12T02:12:14Z",
+  "same_user": 0,
+  "skipped": 0,
+  "stopped": false,
+  "today": 0
+ }
+}
