@@ -212,4 +212,110 @@ n0 = datetime(2026, 10, 20, 20, 10, tzinfo=KST)
 check("다음 칸: KST 20:10 → 21:10", sp.next_slot(n0).strftime("%H:%M") == "21:10")
 check("3시간 안에 잡힌 글이 있으면 그다음 칸", sp.next_slot(n0, [datetime(2026, 10, 20, 21, 0, tzinfo=KST)]).strftime("%d %H:%M") == "21 07:40")
 check("밤 23시 뒤에는 다음 날 아침 칸", sp.next_slot(datetime(2026, 10, 20, 23, 30, tzinfo=KST)).strftime("%d %H:%M") == "21 07:40")
+
+# ---------- 인스타 DM 자동 응답(scripts/ig_dm.py, 네트워크 없이 모의 응답) ----------
+import ig_dm as dm
+from datetime import date as _date
+DN = datetime(2026, 11, 12, 15, 0, tzinfo=timezone.utc)
+DT = lambda hrs: (DN - timedelta(hours=hrs)).isoformat().replace("+00:00", "Z")
+TICK = {"IONQ": {"name": "아이온큐", "name_en": "IonQ", "aliases": ["IonQ"]},
+        "QBTS": {"name": "디웨이브 퀀텀", "name_en": "D-Wave Quantum Inc.", "aliases": ["디웨이브", "D-Wave"]},
+        "ON": {"name": "온 세미컨덕터", "aliases": []}, "NVDA": {"name": "엔비디아", "aliases": ["NVIDIA"]}}
+REPS = [{"slug": "ionq-2026-11", "ticker": "IONQ", "title": "아이온큐, 실적 다음 날 +23.4% | 주가 내러티브와 패턴 투자전략", "date": "2026-11-10"},
+        {"slug": "qbts-2026-10", "ticker": "QBTS", "title": "디웨이브 지금 매수하세요", "date": "2026-10-15"},
+        {"slug": "ionq-2026-10", "ticker": "IONQ", "title": "아이온큐 지난 리포트", "date": "2026-10-01"},
+        {"slug": "on-2026-09", "ticker": "ON", "title": "온 세미", "date": "2026-09-01"}]
+LATEST = dm.latest_by_ticker(REPS)
+IDX = dm.build_index(TICK, REPS)
+check("DM 종목 찾기: 한글 이름", dm.find_tickers("아이온큐 리포트 보내 주세요", IDX) == ["IONQ"])
+check("DM 종목 찾기: 별칭·공백 무시", dm.find_tickers("디 웨이브 궁금해요", IDX) == ["QBTS"])
+check("DM 종목 찾기: 티커(조사 붙어도)", dm.find_tickers("ionq랑 QBTS", IDX) == ["IONQ", "QBTS"])
+check("DM 종목 찾기: 짧은 티커는 대문자·$만", dm.find_tickers("on 리포트", IDX) == [] and dm.find_tickers("$on", IDX) == ["ON"] and dm.find_tickers("ON 리포트", IDX) == ["ON"])
+check("DM 종목 찾기: 공개 리포트 없는 종목은 뺌", dm.find_tickers("엔비디아", IDX) == [])
+check("DM 종목 찾기: 최신 리포트", LATEST["IONQ"]["slug"] == "ionq-2026-11")
+u = dm.link("ionq-2026-11", "reply")
+check("DM 링크 utm(명세 12-2)", u == "https://drkimworld.com/r/ionq-2026-11/?utm_source=ig&utm_medium=dm&utm_campaign=ionq-2026-11&utm_content=reply")
+check("dm.url 덮어쓰기에도 utm", dm.link("x", "comment", "https://drkimworld.com/glossary/dilution/?utm_source=a") == "https://drkimworld.com/glossary/dilution/?utm_source=ig&utm_medium=dm&utm_campaign=x&utm_content=comment")
+t1, s1 = dm.compose_for_tickers(["IONQ"], LATEST, REPS, TICK, "reply")
+check("한 종목 답장: 제목(꼬리 뺌)·링크·면책 끝줄", "주가 내러티브와 패턴" not in t1 and "ionq-2026-11" in t1 and t1.endswith(dm.DISCLAIMER) and s1 == ["ionq-2026-11"])
+t2, _ = dm.compose_for_tickers(["QBTS"], LATEST, REPS, TICK, "reply")
+check("금지어 든 제목은 종목 이름으로 바꿈", "매수하" not in t2 and "디웨이브 퀀텀" in t2 and dm.text_ok(t2))
+t3, s3 = dm.compose_for_tickers([], LATEST, REPS, TICK, "reply")
+check("못 찾으면 최근 3개 + 종목 이름 안내, 장부 말 없음", len(s3) == 3 and dm.ASK_NAME in t3 and "장부" not in t3 and "요청 목록" not in t3)
+check("문구 검사: 금지어 없음·1000바이트 이하", all(dm.text_ok(t) for t in (t1, t3)) and dm.problems("목표가 50달러, AI가 골랐어요, 회원 가입 후, 보유 중이세요?, 베팅") != [])
+check("고정 문구에는 금지어 없음(면책 줄 제외)", not dm.problems("\n".join([dm.GREETING, dm.PARTS_LINE, dm.TELEGRAM_LINE, dm.ASK_NAME] + list(dm.PUBLIC_REPLIES))) and not dm.problems(dm.DISCLAIMER))
+long = [("가" * 80, dm.link(f"slug-{i}-" + "x" * 30, "reply")) for i in range(3)]
+check("긴 목록도 1000바이트 안으로 줄임", len(dm.list_text(long, True).encode()) <= dm.BYTE_LIMIT)
+post = {"media": "M1", "slug": "ionq-2026-11", "camp": "ionq-2026-11", "url": None, "title": REPS[0]["title"], "keywords": None}
+ct = dm.comment_text(post)
+check("댓글 DM 문구: 400자 이내·명세 문구", len(ct) <= dm.COMMENT_DM_CHARS and ct.startswith("안녕하세요, 김박사 월드입니다. 요청하신 무료 리포트예요") and "utm_content=comment" in ct and dm.text_ok(ct, 400))
+check("결산 글(리포트 없음)은 검색 화면으로", "/search/?utm_source=ig" in dm.comment_text({**post, "slug": "", "camp": "mood-20261108", "title": ""}))
+check("키워드: 공백 지우고 리포트·링크·보내·dm", dm.keyword_hit("리 포 트 부탁") and dm.keyword_hit("DM 주세요") and dm.keyword_hit("보내주세요") and not dm.keyword_hit("좋은 글이네요"))
+check("게시물별 키워드", dm.keyword_hit("자료 주세요", ("자료",)) and not dm.keyword_hit("리포트", ("자료",)))
+st = dm.load_state(Path("/nonexistent/x.json"))
+C2 = lambda i, u, hrs, text="리포트 주세요": {"id": i, "text": text, "user": u, "name": "n" + u, "ts": DT(hrs)}
+cm = {"M1": [C2("c1", "u1", 2), C2("c2", "u2", 3, "멋져요"), C2("c3", "me1", 1), C2("c4", "u3", 24 * 8), C2("c5", "u1", 1), C2("c6", "u4", 5)]}
+st["comments"]["c6"] = {"media": "M1", "at": DT(4), "result": "err:10/2534022"}
+pl = {a["comment"]: a["action"] for a in dm.plan_comments([post], cm, st, DN, {"me1", "drkimworld"})}
+check("댓글 계획: 키워드만·우리 댓글 뺌·7일 지남 기록·같은 사용자 공개 답글만·실패는 재시도 안 함",
+      pl == {"c1": "dm", "c4": "expired", "c5": "reply_only"})
+st["comments"]["c1"] = {"media": "M1", "at": DT(1), "result": "sent"}
+pl = {a["comment"]: a["action"] for a in dm.plan_comments([post], cm, st, DN, {"me1"})}
+check("이미 보낸 댓글 건너뜀, 24시간 안 보낸 사용자는 공개 답글만", "c1" not in pl and pl.get("c5") == "reply_only")
+many = {"M1": [C2(f"k{i}", f"user{i}", 1 + i / 100) for i in range(40)]}
+check("실행당 30통 상한", sum(1 for a in dm.plan_comments([post], many, dm.load_state(Path("/x")), DN, set()) if a["action"] == "dm") == dm.PER_RUN_COMMENT)
+ME = {"111", "drkimworld"}
+M = lambda i, mine, hrs, text: {"id": i, "created_time": DT(hrs), "from": {"id": "111" if mine else "999", "username": "drkimworld" if mine else "x"}, "message": text}
+pc = lambda msgs, s=None: dm.plan_conversation(msgs, ME, s or dm.load_state(Path("/x")), DN, IDX, LATEST, REPS, TICK)
+p = pc([M("m1", False, 2, "아이온큐 리포트 있나요?")])
+check("DM 답장: 종목 찾으면 최신 리포트", p["send"] and "ionq-2026-11" in p["send"] and p["to"] == "999" and p["result"] == "sent:ionq-2026-11")
+p = pc([M("m1", False, 2, "안녕하세요")])
+check("DM 답장: 못 찾으면 최근 3개", p["send"] and p["result"] == "sent:recent" and dm.ASK_NAME in p["send"])
+check("DM 답장: 24시간 지난 메시지는 답하지 않음", pc([M("m1", False, 25, "아이온큐")]) is None)
+check("DM 답장: 우리가 이미 답했으면 없음", pc([M("m1", False, 3, "아이온큐"), M("m2", True, 2, "답")]) is None)
+s_ = dm.load_state(Path("/x")); s_["messages"][dm.h("m1")] = {"at": DT(1), "result": "sent:recent"}
+check("DM 답장: 기록된 메시지 ID(해시)는 다시 보내지 않음", pc([M("m1", False, 2, "아이온큐")], s_) is None)
+auto = M("a1", True, 3, "https://drkimworld.com/r/ionq-2026-11/?x\n" + dm.DISCLAIMER)
+p = pc([M("m0", False, 4, "아이온큐"), auto, M("m2", False, 1, "감사합니다")])
+check("DM 답장: 이야기 중 감사 인사엔 최근 목록 다시 안 보냄", p["send"] is None and p["result"] == "skip:no_match_in_talk")
+p = pc([M("m0", False, 4, "아이온큐"), auto, M("m2", False, 1, "아이온큐 또")])
+check("DM 답장: 24시간 안 이미 보낸 리포트는 다시 안 보냄", p["send"] is None and p["result"] == "skip:already_sent")
+p = pc([M("m0", False, 4, "아이온큐"), auto, M("m2", False, 1, "디웨이브도요")])
+check("DM 답장: 새 종목이면 그 리포트", p["send"] and "qbts-2026-10" in p["send"])
+caps = [x for i in range(3) for x in (M(f"q{i}", False, 10 - i, "?"), {**auto, "id": f"a{i}", "created_time": DT(9.5 - i)})]
+check("DM 답장: 대화당 24시간 3통 상한", pc(caps + [M("z", False, 1, "디웨이브")])["result"] == "skip:conv_cap")
+check("DM 답장: 글 없는 메시지(사진 등)는 건너뜀", pc([M("m1", False, 1, "")])["result"] == "skip:no_text")
+# 실행(모의 API): 하루 상한·오류 3연속 중단·기록에 사용자 정보 없음
+calls = []
+def fake_ig(method, path, params):
+    calls.append((method, path, params))
+    if method == "POST" and path == "me/messages":
+        raise RuntimeError('HTTP 400: {"error":{"message":"x","code":10,"error_subcode":2534022}}')
+    return {"id": "r"}
+dm.ig = fake_ig
+st = dm.load_state(Path("/x")); run = dm.Runner(st, DN, dry=False)
+run.comments([post], many, set())
+check("오류 3번 연속이면 그 실행 멈춤, 실패 코드 기록", run.stopped and sum(1 for c in calls if c[1] == "me/messages") == 3
+      and sorted(v["result"] for v in st["comments"].values()) == ["err:10/2534022"] * 3 and st["errors"] == {"10/2534022": 3})
+check("실패하면 공개 답글 안 담", not any(c[1].endswith("/replies") for c in calls))
+calls.clear(); dm.ig = lambda m, p_, q: calls.append((m, p_, q)) or {"id": "ok"}
+st = dm.load_state(Path("/x")); st["daily"][dm.today_kst(DN)] = dm.DAILY_CAP - 2
+run = dm.Runner(st, DN, dry=False); run.comments([post], many, set())
+sent = [c for c in calls if c[1] == "me/messages"]
+check("하루 상한(100통)에서 멈춤", len(sent) == 2 and st["daily"][dm.today_kst(DN)] == dm.DAILY_CAP)
+check("Private Reply 요청 형식(recipient.comment_id) + 공개 답글 순환",
+      list(json.loads(sent[0][2]["recipient"])) == ["comment_id"] and json.loads(sent[0][2]["message"])["text"] == ct and [c[2]["message"] for c in calls if c[1].endswith("/replies")] == list(dm.PUBLIC_REPLIES[:2]))
+calls.clear(); st = dm.load_state(Path("/x")); run = dm.Runner(st, DN, dry=False)
+run.dms([[M("mid-raw-1", False, 2, "아이온큐 보내 주세요")]], ME, IDX, LATEST, REPS, TICK)
+with tempfile.TemporaryDirectory() as d:
+    dm.save_state(st, Path(d) / "s.json"); saved = (Path(d) / "s.json").read_text(encoding="utf-8")
+check("DM 답장 요청 형식(recipient.id) + 기록에 사용자 ID·메시지 원문·원래 ID 없음",
+      json.loads(calls[0][2]["recipient"]) == {"id": "999"} and "999" not in saved and "아이온큐" not in saved and "mid-raw-1" not in saved and dm.h("mid-raw-1") in saved)
+calls.clear(); st = dm.load_state(Path("/x")); run = dm.Runner(st, DN, dry=True)
+run.dms([[M("m1", False, 2, "아이온큐")]], ME, IDX, LATEST, REPS, TICK); run.comments([post], cm, set())
+check("dry 모드: 보내지 않고 기록도 안 바꿈", not calls and not st["messages"] and not st["comments"])
+st = dm.load_state(Path("/x")); st["comments"] = {"old": {"at": DT(24 * 20)}, "new": {"at": DT(1)}}; st["messages"] = {"o": {"at": DT(24 * 4)}}
+dm.prune(st, DN)
+check("오래된 기록 정리", list(st["comments"]) == ["new"] and not st["messages"])
+check("오류 코드 요약", dm.err_code(RuntimeError('HTTP 403: {"error":{"code":200,"message":"perm"}}')) == "200" and dm.err_code(RuntimeError("연결 실패: x")) == "x")
 print(f"\n모두 통과 ({ok})")

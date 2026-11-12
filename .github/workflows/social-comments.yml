@@ -5,6 +5,8 @@ name: Social comments (Threads·Instagram·Facebook 댓글)
 #  - 수동 실행 mode=probe: 채널마다 댓글 읽기 권한을 확인한다.
 #  - 수동 실행 mode=profile: 채널마다 프로필(바이오) 읽기 결과를 "PROFILE_JSON:" 한 줄로 낸다(운영자 지시 2026-10-27).
 #  - 수동 실행 mode=insights: 인스타그램·Threads 게시물 성과를 "INSIGHTS_JSON:" 한 줄로 낸다(운영자 지시 2026-10-16).
+#  - 정기 실행·mode=list·mode=dm: 인스타 DM 자동 응답(scripts/ig_dm.py — 댓글 키워드 → DM, 먼저 온 DM 답장)을 먼저 돌리고
+#    기록 social/dm/sent.json 을 커밋한다. mode=dm_dry 는 보내지 않고 보낼 문구만 로그에 낸다(운영자 지시 2026-11-12).
 #  - social/replies/*.json 이 올라오면 답글을 게시하고 결과를 social/replies/done/ 에 커밋한다.
 # 필요한 GitHub 비밀값: THREADS_ACCESS_TOKEN, IG_ACCESS_TOKEN, FB_PAGE_ID, FB_PAGE_TOKEN
 on:
@@ -16,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "list(기본) / probe / inspect(days 칸에 Threads 글 ID — 답글 상태 확인) / insights(인스타·Threads 게시물 성과) / profile(프로필 바이오 읽기) / profile_set(페이스북 소개 고치기)"
+        description: "list(기본, 인스타 DM 자동 응답 포함) / dm(DM 자동 응답만) / dm_dry(보내지 않고 출력) / probe / inspect(days 칸에 Threads 글 ID — 답글 상태 확인) / insights(인스타·Threads 게시물 성과) / profile(프로필 바이오 읽기) / profile_set(페이스북 소개 고치기)"
         required: false
         default: "list"
       days:
@@ -49,7 +51,27 @@ jobs:
           python-version: "3.12"
       - name: Test
         run: python tests/test_comments.py > /dev/null
+      - name: Instagram DM auto-reply
+        # 댓글 키워드 → DM(Private Replies)과 먼저 온 DM 답장. 실패해도 댓글 목록 단계는 계속한다
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (env.MODE == 'list' || env.MODE == '' || env.MODE == 'dm' || env.MODE == 'dm_dry'))
+        continue-on-error: true
+        run: |
+          pip install -q pyyaml
+          python tests/test_social.py > /dev/null
+          if [ "$MODE" = "dm_dry" ]; then python scripts/ig_dm.py --dry; exit 0; fi
+          python scripts/ig_dm.py || echo "::warning::인스타 DM 실행 중 오류 — 보낸 기록은 그대로 커밋"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A social/dm
+          if git diff --cached --quiet; then echo "바뀐 DM 기록 없음"; exit 0; fi
+          git commit -q -m "인스타 DM 자동 응답 기록 $(TZ=America/New_York date '+%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error::DM 기록 커밋을 올리지 못함(다음 실행에서 중복 발송 위험)"; exit 1
       - name: Run
+        if: env.MODE != 'dm' && env.MODE != 'dm_dry'
         run: |
           case "$MODE" in
             post) python scripts/social_comments.py --post ;;

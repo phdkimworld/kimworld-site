@@ -101,3 +101,7 @@ gh secret set IG_ACCESS_TOKEN -R phdkimworld/kimworld-site
 - Threads는 답글이 나무 구조라, 우리 글(본문·우리 답글)에 직접 단 시청자 댓글만 고르고 시청자끼리 대화는 뺀다. 인스타·페이스북은 '댓글 + 한 단계 답글'이라 유튜브와 같이 판정한다.
 - 필요한 권한: Threads `threads_read_replies`·`threads_manage_replies`, Instagram `instagram_business_manage_comments`, Facebook `pages_read_engagement`·`pages_read_user_content`·`pages_manage_engagement`. `mode=probe`로 읽기 권한을 확인한다. 없는 채널은 목록에 `ok:false`와 오류가 나오고 그 채널만 건너뛴다.
 - 검사: `python3 tests/test_comments.py`.
+
+## 인스타 DM 자동 응답 (운영자 지시 2026-11-12)
+
+`scripts/ig_dm.py`가 댓글 모니터링 정기 실행에 붙어 돈다. 댓글 키워드(`리포트`·`링크`·`보내`·`dm`) → 그 게시물 리포트 링크 DM(Private Reply) + 공개 답글, 먼저 온 DM → 종목을 찾아 최신 리포트 링크(못 찾으면 최근 3개). 게시물마다 키워드·주소를 바꾸려면 대기열 파일에 `"dm": {"keyword": "리포트", "url": "https://drkimworld.com/glossary/…/"}`. 보내지 않고 확인: Actions → Social comments → mode `dm_dry`. 기록·오류 요약: `social/dm/sent.json`(사용자 정보 없음).
