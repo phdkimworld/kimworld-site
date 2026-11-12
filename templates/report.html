@@ -95,7 +95,7 @@
     </header>
 
     {% if r.newer %}
-    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}">{{ r.newer.share_title or r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
+    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}" data-newer>{{ r.newer.share_title or r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
     {% endif %}
     {% if stale %}
     <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>

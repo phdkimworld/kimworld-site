@@ -505,6 +505,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
   });
   // 읽는 중 아래 줄의 '다음 리포트' 누름(방문당 페이지 수 개선 효과 측정)
   document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-next-bar]') && window.kwEv) kwEv('next_bar'); }, true);
+  // 첫 화면 '이 종목의 더 최근 리포트' 알림 링크 누름(오래된 리포트로 들어온 SNS·검색 방문이 후속편으로 넘어가는지)
+  document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-newer]') && window.kwEv) kwEv('newer_click'); }, true);
   if (/^#ev-\d+$/.test(location.hash)) setTimeout(function () { openTo(location.hash.slice(1)); }, 50);
 })();
 
