@@ -53,7 +53,8 @@ jobs:
         run: python tests/test_comments.py > /dev/null
       - name: Instagram DM auto-reply
         # 댓글 키워드 → DM(Private Replies)과 먼저 온 DM 답장. 실패해도 댓글 목록 단계는 계속한다
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (env.MODE == 'list' || env.MODE == '' || env.MODE == 'dm' || env.MODE == 'dm_dry'))
+        # 보류(11-12 운영자 "일단 보류"): Meta 앱이 개발 모드라 일반 사용자 DM이 API에 안 보임. 앱 검수(메시지 고급 액세스) 뒤 저장소 변수 IG_DM_ON=1로 다시 켠다. dm·dm_dry 손 실행은 시험용으로 남김
+        if: (vars.IG_DM_ON == '1' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (env.MODE == 'list' || env.MODE == '')))) || (github.event_name == 'workflow_dispatch' && (env.MODE == 'dm' || env.MODE == 'dm_dry'))
         continue-on-error: true
         run: |
           pip install -q pyyaml
