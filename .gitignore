@@ -5,3 +5,4 @@ __pycache__/
 .cache/
 android/**/build/
 android/**/.gradle/
+tools/tts/sherpa-onnx-*
