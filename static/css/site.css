@@ -516,6 +516,8 @@ button { font: inherit; color: inherit; }
 /* 종목: 칩 한 덩어리로(길게 늘어선 카드 대신) */
 .tick-cloud .chip-list { gap: 6px; }
 .tick-cloud .chip { font-size: .82rem; padding: 6px 12px; }
+.theme-ticks { margin: 28px 0 8px; }
+.theme-stat { font-size: .85rem; margin-top: 4px; }
 /* 테마: 휴대폰에서는 2열 작은 카드 */
 @media (max-width: 599px) {
   .theme-grid { grid-template-columns: 1fr 1fr; gap: 8px; }

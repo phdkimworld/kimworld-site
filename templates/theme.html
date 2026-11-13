@@ -23,9 +23,16 @@
   <header class="page-head">
     <div class="theme-head"><h1>{{ th.name }} 관련주</h1>{% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="th" data-key="{{ th.slug }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}</div>
     <p class="muted">{{ th.description }}</p>
+    {% if rs %}{% set uniq = rs|unique(attribute="ticker")|list %}<p class="muted theme-stat">무료 리포트 {{ rs|length }}개 · 종목 {{ uniq|length }}개 · 최근 리포트 <time datetime="{{ rs[0].date|iso }}">{{ rs[0].date|kdate }}</time></p>{% endif %}
   </header>
   {% if rs %}
   <div class="cards">{% for r in rs %}{{ card(r, base, false) }}{% endfor %}</div>
+  <section aria-labelledby="th-tick-h" class="tick-cloud theme-ticks">
+    <h2 id="th-tick-h" class="section-title">{{ th.name }} 종목별로 보기 <span class="muted ins-sub">{{ uniq|length }}개 종목</span></h2>
+    <ul class="chip-list">
+      {% for x in uniq %}{% set n = rs|selectattr("ticker", "equalto", x.ticker)|list|length %}<li><a class="chip" href="{{ base }}/t/{{ x.ticker|lower }}/"><strong>{{ x.ticker }}</strong> {{ x.seo_name or x.company }}{% if n > 1 %} <span class="muted">· {{ n }}편</span>{% endif %}</a></li>{% endfor %}
+    </ul>
+  </section>
   {{ list_ad|safe }}
   {{ page_bottom|safe }}
   {% else %}
