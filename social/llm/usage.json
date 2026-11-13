@@ -1,0 +1,17 @@
+{
+ "months": {
+  "2026-11": {
+   "features": {
+    "judge": {
+     "cache_read": 0,
+     "cache_write": 0,
+     "calls": 2,
+     "in": 27094,
+     "out": 4984,
+     "usd": 0.104028
+    }
+   },
+   "usd": 0.104028
+  }
+ }
+}
