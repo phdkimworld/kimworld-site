@@ -553,6 +553,10 @@ check('<blockquote id="diagnosis">' in _o and '<details class="fold" id="q2">' i
 _parts = _b.split_for_ads(_o, True, False)
 _first_ad = next(i for i, (k, v) in enumerate(_parts) if k == "ad")
 check("2부. 연대기" in _parts[_first_ad + 1][1][:200], "가운데 광고는 2부 제목 앞")
+check(_b.fix_chart_src('<img alt="a" src="/charts/wimi-2026-10.png" />') == '<img alt="a" src="/static/charts/wimi-2026-10.png" />'
+      and _b.fix_chart_src('<img src="/charts/없는그림.png" />') == '<img src="/charts/없는그림.png" />', "차트 경로 /charts/ → /static/charts/(파일 있을 때만)")
+if (D / "r/wimi-2026-10/index.html").exists():
+    check('src="/charts/' not in (D / "r/wimi-2026-10/index.html").read_text(encoding="utf-8"), "실제 리포트: 깨진 차트 경로 없음")
 if (D / "r/ntla-2026-10/index.html").exists():
     h = (D / "r/ntla-2026-10/index.html").read_text(encoding="utf-8")
     check('href="#diagnosis"' in h and 'data-read-pill' in h and h.count('class="next-part"') >= 4, "실제 리포트: 진단 바로가기·읽기 위치·다음 부 예고")

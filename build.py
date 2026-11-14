@@ -288,6 +288,14 @@ def chart_img_attrs(tag: str, src: str) -> str:
     return re.sub(r"\s*/?>$", "", tag) + " " + " ".join(add) + " />"
 
 
+def fix_chart_src(html_in: str) -> str:
+    """본문 그림 src="/charts/x.png"(static 빠짐)를 static/charts 에 그 파일이 있을 때만 /static/charts/ 로 고친다."""
+    def fix(m: re.Match) -> str:
+        name = m.group(2)
+        return f'{m.group(1)}/static/charts/{name}"' if (ROOT / "static" / "charts" / name).exists() else m.group(0)
+    return re.sub(r'(<img [^>]*src=")/charts/([^"/]+)"', fix, html_in)
+
+
 def chart_info(slug: str) -> dict | None:
     """피드 카드에 붙일 대표 차트(static/charts/<slug>.png)와 크기(레이아웃 밀림 방지)."""
     f = ROOT / "static" / "charts" / f"{slug}.png"
@@ -1037,6 +1045,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body_html, n_aids = add_reading_aids(body_html, figures=str(d) >= "2026-11-11")
         n_figs += n_aids
         body_html = shape_for_reading(fold_event_cards(body_html))
+        # 차트 경로를 '/charts/x.png'로 쓴 리포트는 그림이 깨진다(2026-11-14 점검: sldp-2026-10-3·wimi-2026-10) → 실제 위치로
+        body_html = fix_chart_src(body_html)
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
                            lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2))}</a>', body_html)
