@@ -46,5 +46,13 @@
 "kw": "골프공",
 "sub_id": "ythbqs",
 "why": "explore"
+},
+{
+"date": "2026-11-13",
+"ticker": "ASST",
+"cat": "it",
+"kw": "태블릿PC",
+"sub_id": "ytitasst",
+"why": "force"
 }
 ]
