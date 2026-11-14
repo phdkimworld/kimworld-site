@@ -54,5 +54,13 @@
 "kw": "태블릿PC",
 "sub_id": "ytitasst",
 "why": "force"
+},
+{
+"date": "2026-11-13",
+"ticker": "LAES",
+"cat": "bk",
+"kw": "양자컴퓨팅 책",
+"sub_id": "ytbklaes",
+"why": "explore"
 }
 ]
