@@ -129,6 +129,30 @@ page = (t / "dist/r/zzzz-short-2026-02/index.html").read_text(encoding="utf-8")
 check('data-slot="report_mid"' not in page, "중간 광고 없음")
 check(notpl(page).count('<aside class="ad ') <= 4, "짧은 글은 본문 광고 4개 이하")
 
+print("3-2) 이야기형 리포트(style: story, 2026-11-14 운영자 지시)")
+_para = "이 문단은 이야기형 리포트의 화면을 보려고 만든 테스트 문장입니다. 앞 문단에서 이어지는 두 번째 문장도 함께 둡니다. 세 번째 문장으로 길이를 채웁니다. "
+_story_body = "\n\n".join(f"{i + 1}번째 장면입니다. " + _para * 3 for i in range(14))
+_story_body += "\n\n## 숫자로 다시 보기\n\n### 2부 표 · 교환 값\n\n| 항목 | 값 |\n| --- | --- |\n| 가 | 1 |\n"
+_sh = head.replace("draft:", "style: story\ndraft:", 1) if "draft:" in head else head + "style: story\n"
+_story = "---\n" + _sh + "---\n\n" + _story_body
+_story_bad = "---\n" + _sh + "---\n\n## 소제목\n\n" + _story_body
+t = make_project(FULL_ADS, {"zzzz-story-2026-02.md": _story.replace("2026-01-15", "2026-02-02"),
+                            "zzzz-storybad-2026-02.md": _story_bad.replace("2026-01-15", "2026-02-03")})
+r = run(t)
+check(r.returncode == 0, "이야기형: 부록 ## 하나만 있어도 빌드 성공 " + r.stdout[-300:])
+page = (t / "dist/r/zzzz-story-2026-02/index.html").read_text(encoding="utf-8")
+_bp = notpl(page)
+check('class="toc-chips"' not in page and 'toc-side-title' not in page and 'class="summary-box"' not in page, "이야기형: 목차·핵심 요약 상자 없음")
+check('story-disclosure' in page and "투자 권유가 아니며" in page, "이야기형: 투자 권유 아님 고지는 남음")
+check('data-yt-jump' not in page and 'class="rail-ad"' in page, "이야기형: 영상 바로가기 줄 없음, 오른쪽 칸 광고는 남음")
+_appx = _bp.find('id="숫자로-다시-보기"')
+_m, _pr = _bp.find('data-slot="report_mid"'), _bp.find('data-slot="report_products"')
+check(0 < _m < _pr < _appx, f"이야기형: 가운데·상품 광고는 부록 앞 문단 사이(문단 수 기준) {_m},{_pr},{_appx}")
+check(re.search(r"</p>\s*<aside class=\"ad[^>]*data-slot=\"report_mid\"", _bp) is not None, "이야기형: 가운데 광고는 문단 끝 바로 뒤")
+check("zzzz-storybad-2026-02" in r.stdout and "이야기형은 본문에 소제목" in r.stdout, "이야기형 본문에 소제목이 있으면 경고")
+sys.path.insert(0, str(SRC)); import build as _bs
+check(_bs.split_for_ads("<p>a</p><p>b</p>", True, True, story=True) == [("html", "<p>a</p><p>b</p>")], "이야기형: 문단이 적으면 광고 자리 없음")
+
 print("4) 쿠팡 배너에 다른 도메인")
 bad = {"coupang": {"banner_html": '<script src="https://evil.example.com/x.js"></script>'}}
 t = make_project(bad)

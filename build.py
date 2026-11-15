@@ -452,9 +452,51 @@ def shape_for_reading(body_html: str) -> str:
     return out
 
 
-def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late: bool = False) -> list[tuple[str, str]]:
+def _story_ad_cuts(body_html: str, want_mid: bool, want_products: bool, want_late: bool) -> list[tuple[int, str]]:
+    """이야기형(소제목 없는 본문) 광고 자리: 부록 '숫자로 다시 보기' 앞까지의 바깥 문단 사이를 문단 개수로 나눈다.
+    가운데 광고는 문단 3분의 1, 상품 광고는 3분의 2 지점, 긴 리포트의 추가 자리는 부록 제목 앞. 함께 읽기 줄 옆·인용·목록·표 안은 피한다."""
+    h2 = re.search(r"<h2[\s>]", body_html)
+    end = h2.start() if h2 else len(body_html)
+    gaps = []
+    for m in re.finditer(r"</p>\s*(?=<p[\s>])", body_html[:end]):
+        pos = m.end()
+        before = body_html[:pos]
+        if any(before.count(f"<{t}") != before.count(f"</{t}>") for t in ("blockquote", "details", "table", "li", "aside", "figure")):
+            continue
+        prev_p = before.rfind("<p")
+        if body_html.startswith('<p class="mid-next"', pos) or body_html.startswith('<p class="mid-next"', prev_p):
+            continue
+        gaps.append(pos)
+    n = len(gaps) + 1  # 바깥 문단 수(대략)
+    cuts: list[tuple[int, str]] = []
+    if n >= 4:
+        if want_mid:
+            cuts.append((gaps[max(0, round(len(gaps) / 3) - 1)], "report_mid"))
+        if want_products and n >= 7:
+            p = gaps[min(len(gaps) - 1, round(len(gaps) * 2 / 3))]
+            if all(p != c for c, _ in cuts):
+                cuts.append((p, "report_products"))
+    elif want_mid and h2:
+        cuts.append((end, "report_mid"))
+    if want_late and h2 and all(end != c for c, _ in cuts):
+        cuts.append((end, "report_late"))
+    return cuts
+
+
+def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late: bool = False, story: bool = False) -> list[tuple[str, str]]:
     """본문을 광고 자리에서 나눈다. 반환: [("html", 조각) | ("ad", 자리이름)]
-    want_late: 긴 리포트에서 본문 4분의 3쯤 소제목 앞에 한 자리 더(가운데 광고와 끝 광고 사이가 너무 멀지 않게)."""
+    want_late: 긴 리포트에서 본문 4분의 3쯤 소제목 앞에 한 자리 더(가운데 광고와 끝 광고 사이가 너무 멀지 않게).
+    story: 이야기형은 소제목이 부록 하나뿐이라 문단 개수로 자리를 고른다(_story_ad_cuts)."""
+    if story:
+        out, last = [], 0
+        for p, n in sorted(_story_ad_cuts(body_html, want_mid, want_products, want_late)):
+            if p > last:
+                out.append(("html", body_html[last:p]))
+            out.append(("ad", n))
+            last = p
+        if last < len(body_html):
+            out.append(("html", body_html[last:]))
+        return out
     h2 = [m.start() for m in re.finditer(r"<h2[\s>]", body_html)]
     # 가운데 광고: 첫머리(훅·같은 뉴스) 안이 아니라 1부와 대표 차트를 지난 '2부' 제목 앞에 둔다(2026-10-14, 첫머리 이탈 줄이기)
     part2 = [p for p in h2 if re.match(r"<h2[^>]*>\s*2부", body_html[p:p + 80])]
@@ -1051,6 +1093,16 @@ def build(drafts=False, strict=False, out: Path = DIST):
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
                            lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2))}</a>', body_html)
         toc = [t for t in md.toc_tokens]
+        # 이야기형(운영자 지시 2026-11-14 "섹션이니 목차니 너무 끼어들어서 뚝뚝 끊기는데 그냥 썰 풀듯이 줄줄"): 머리말 style: story.
+        # 본문은 소제목 없이 이어지는 문단 + 끝 부록 '## 숫자로 다시 보기' 하나. 화면에서 목차·핵심 요약 상자·바로가기 줄을 뺀다
+        style = str(meta.get("style") or "").strip().lower()
+        if style not in ("", "story"):
+            log.err(f"{name}: style 은 story 만 씁니다(기존 형식은 비워 둠)")
+        is_story = style == "story"
+        if is_story:
+            toc = []  # 목차·영상/SNS 바로가기·체크리스트 바로가기는 모두 목차에서 나오므로 함께 빠진다
+            if re.search(r"^#{2,3}\s", body.split("\n## 숫자로 다시 보기", 1)[0], flags=re.M):
+                log.warn(f"{name}: 이야기형은 본문에 소제목(##·###)을 쓰지 않습니다(끝 부록 '## 숫자로 다시 보기'만)")
         chars = plain_len(body_html)
         min_chars = int(site.get("lint", {}).get("min_chars", 0))
         if not is_draft and chars < min_chars:
@@ -1072,7 +1124,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             # 공유 미리보기 대비 숫자 2개(SNS 스레드 지침 6.2⑤, 2026-10-29): ["APLD +8.5%", "SLNH -2.8%"]
             "share_numbers": [str(x).strip() for x in (meta.get("share_numbers") or [])],
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
-            "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars,
+            "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars, "story": is_story,
             "minutes": max(1, math.ceil(chars / 600)), "url": f"{base_path}/r/{slug}/",
             "body_md": body, "short_answer": short_answer(body),
         })
@@ -1203,7 +1255,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         far_ctx = {"theme": "*", "skip_theme": r["theme"], "exclude": exclude}
         late_html = ads.render("report_late", far_ctx) if r["chars"] >= 15000 else ""
         slot_html = {"report_mid": mid_html, "report_products": prod_html, "report_late": late_html}
-        for kind, val in split_for_ads(body, bool(mid_html), bool(prod_html), bool(late_html)):
+        for kind, val in split_for_ads(body, bool(mid_html), bool(prod_html), bool(late_html), story=r["story"]):
             if kind == "html":
                 pieces.append(val)
             else:

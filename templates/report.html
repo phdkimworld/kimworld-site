@@ -128,6 +128,13 @@
     </section>
     {% endif %}
 
+    {# 이야기형(style: story, 2026-11-14 운영자 지시): 맨 위 핵심 요약 상자·목차를 빼고 고지 문구만 남긴다. key_points는 메타·공유용으로만 #}
+    {% if r.story %}
+    <div class="disclosure story-disclosure">
+      {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
+      <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>
+    </div>
+    {% else %}
     <section class="summary-box" aria-label="핵심 요약">
       <h2 class="summary-title">핵심 요약</h2>
       {% if r.key_points %}
@@ -144,6 +151,7 @@
         <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>
       </div>
     </section>
+    {% endif %}
 
 
     {% if r.youtube_id %}
@@ -260,11 +268,13 @@
     </section>
   </article>
 
-  {% if r.toc %}
-  <aside class="toc-side" aria-label="목차">
+  {% if r.toc or (r.story and rail_ad) %}
+  <aside class="toc-side" aria-label="{{ '목차' if r.toc else '맨 위로' }}">
     <div class="toc-sticky">
+      {% if r.toc %}
       <p class="toc-side-title">목차</p>
       <ol>{% for t in r.toc %}<li><a href="#{{ t.id }}">{{ t.name }}</a></li>{% endfor %}</ol>
+      {% endif %}
       <button type="button" class="btn btn-small" data-action="top">맨 위로</button>
       {% if rail_ad %}<div class="rail-ad">{{ rail_ad|safe }}</div>{% endif %}
     </div>

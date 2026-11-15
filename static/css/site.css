@@ -131,6 +131,7 @@ button { font: inherit; color: inherit; }
 .disclosure { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: .82rem; color: var(--muted); }
 .disclosure p { margin: 4px 0; }
 .disclosure strong { color: var(--text); margin-right: 4px; }
+.story-disclosure { margin: 4px 0 20px; }
 
 .toc { background: var(--surface-2); border-radius: 12px; padding: 12px 18px; margin: 20px 0; }
 .toc summary { font-weight: 700; cursor: pointer; min-height: 32px; }
