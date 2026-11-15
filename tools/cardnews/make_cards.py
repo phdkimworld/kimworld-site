@@ -168,6 +168,7 @@ def check(spec):
         blob = json.dumps(c, ensure_ascii=False)
         if c["kind"] == "point" and not c.get("cmp"): bad.append(f"{i}장 point 카드에 한 줄 비교 상자 cmp [[라벨,값],[라벨,값]]가 없음(하단 여백, 11-02)")
         if c["kind"] == "record":
+            if int(c["m"]) > int(c["n"]): bad.append(f"{i}장 record m({c['m']})이 n({c['n']})보다 큼 — n=전체, m=해당 횟수('n번 중 m번', 92회차 LCID '5번 중 6번' 교훈)")
             if not c.get("dir"): bad.append(f"{i}장 record 카드에 방향 dir('하락'·'더 낮음' 등)이 없음 — 큰 숫자만 읽어도 방향이 보이게(11-02)")
             if re.search(rf"{c['n']}번 중 {c['m']}번", str(c.get("caption", ""))): bad.append(f"{i}장 record 캡션이 큰 숫자를 되풀이 — 반대쪽 사실(예: 더 높았던 2번)을 적는다(11-02)")
         if "빚" in blob: bad.append(f"{i}장 '빚' 금지 → 부채·차입금(v2.1)")
