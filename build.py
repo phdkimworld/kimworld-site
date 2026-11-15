@@ -63,6 +63,22 @@ class Log:
 # ---------------------------------------------------------------- 읽기
 
 
+
+def move_notice_to_end(body: str) -> str:
+    """본문 앞쪽의 '> **유의사항** …' 인용 블록을 본문 맨 끝으로 옮긴다(내용은 그대로, 위치만)."""
+    lines = body.split("\n")
+    for i, ln in enumerate(lines):
+        if re.match(r"^>\s*\*\*유의사항", ln):
+            j = i
+            while j < len(lines) and lines[j].startswith(">"):
+                j += 1
+            block = lines[i:j]
+            rest = lines[:i] + lines[j:]
+            while rest and not rest[-1].strip():
+                rest.pop()
+            return "\n".join(rest + ["", *block, ""])
+    return body
+
 def short_answer(body: str) -> str:
     """리포트의 '## 짧은 답' 절을 꾸밈 없는 글로(AI 답변·검색 요약용 FAQ 구조화 데이터). 없으면 빈 글자."""
     m = re.search(r"^##\s*짧은 답\s*\n(.*?)(?=^##\s|\Z)", body, flags=re.S | re.M)
@@ -1093,6 +1109,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             if ph in body or ph in str(meta.get("title")) or ph in str(meta.get("summary")):
                 log.err(f"{name}: 금지 표현 '{ph}'")
         md = md_renderer()
+        body = move_notice_to_end(body)  # 운영자 11-15 "유의사항 블럭 너무 거슬려 밑으로 보내던가 해"
         body_html, n_figs = add_figures(wrap_tables(md.convert(fix_list_breaks(body))))  # 본문 그림(report_figures.py)
         # v3.8(2026-11-11 운영자 NBIS 가독성 분석): 핵심 콜아웃 강조·부호 퍼센트 칸 색·'한눈에' 큰 숫자 칸, 공개일 11-11~는 기록표·업종표 그림
         body_html, n_aids = add_reading_aids(body_html, figures=str(d) >= "2026-11-11")
