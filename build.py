@@ -1220,6 +1220,13 @@ def build(drafts=False, strict=False, out: Path = DIST):
     chart_dark.convert_all(ROOT / "static" / "charts", out / "static" / "charts")
 
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html", "xml"]))
+    def _groupby_month(rs):  # 리포트 전체 목록(reports.html): 달별 묶음(최신 달 먼저)
+        out = {}
+        for r in rs:
+            k = f"{r['date'].year}-{r['date'].month:02d}"
+            out.setdefault(k, {"key": k, "label": f"{r['date'].year}년 {r['date'].month}월", "rows": []})["rows"].append(r)
+        return sorted(out.values(), key=lambda g: g["key"], reverse=True)
+    env.filters["groupby_month"] = _groupby_month
     env.filters["kdate"] = lambda d: f"{d.year}년 {d.month}월 {d.day}일" if d else ""
     env.filters["iso"] = lambda d: d.isoformat() if d else ""
     # 검색엔진용 시각(구글·네이버는 시간대가 있는 ISO 8601을 권장): 날짜만 있으면 한국 시각 09:00 (RSS와 같게)
@@ -1332,8 +1339,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
     home_rail = ads.render("rail", home_ctx)
     write("index.html", "index.html", rs=public, ticker_list=ticker_list, list_ad=home_list, feed_ads=feed_ads,
           feed_first=hf["first"], feed_every=hf["every"], rail_ad=home_rail,
-          page_bottom=ads.render("page_bottom", home_ctx), is_home=True,
+          page_bottom=ads.render("page_bottom", home_ctx), is_home=True, gl_count=len(gl_pages),
           feed_more_ad=ads.render("thread_inline", {"theme": "*"}))  # '글 더 보기'로 이어 불러온 글 사이(애드센스·쿠팡만, 애드핏은 정책상 불가)
+    ads.begin_page()
+    write("reports/index.html", "reports.html", rs=public, page_bottom=ads.render("page_bottom", {}))  # 2026-11-16 개편: 리포트 전체 목록
     ads.begin_page()
     ex_ctx = {"theme": "*"}
     write("search/index.html", "search.html", rs=public, ticker_list=ticker_list, explore_ad=ads.render("explore", ex_ctx),
@@ -1456,6 +1465,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items() if len([x for x in rs if not x["draft"]]) >= 2]
     urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
     urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
+    urls += [(f"{su}/reports/", today, None)]  # 2026-11-16 리포트 전체 목록
     urls += ([(f"{su}/glossary/", today, None)] + [(f"{su}/glossary/{x['path']}/", today, None) for x in gl_terms]) if gl_terms else []
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']

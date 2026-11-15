@@ -71,22 +71,24 @@ coupang:
 # 같은 위치에 두 광고가 붙으면 아래쪽을 끈다. 광고 개수 상한은 법적 의무가 아니므로 빌드가 막지 않는다(광고 네트워크 정책은 따로 지킨다).
 # 값을 [가, 나] 목록으로 쓰면 앞에서부터 실제로 낼 수 있는 첫 광고를 낸다.
 placements:
-  report_mid: [adfit_report_mid, coupang_products]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
-  report_products: [coupang_deal, coupang_products]     # "운영자 판단" 섹션 뒤, 없으면 본문 끝(다 읽은 지점). 2026-10-30부터 쿠팡 골드박스 '오늘의 특가' 한 장(하위 ID deal), 특가가 없으면 상품 상자. 2주 뒤(11-13) 상자 대비 클릭·수익 비교
+  # 2026-11-16 운영자 지시 "사이트 개편"(검색 자료실 중심): 사이트 칸의 쿠팡(상품 상자·오늘의 특가·다이내믹 배너)을 모두 뺐다.
+  # 근거: 10-28 이후 사이트 칸 쿠팡 클릭 0(쿠팡 수수료는 전부 '기타' 링크), 읽기 방해만 남음. 쿠팡은 유튜브 영상(yt-shop)과 블로거에만. 아래 주석의 '없으면 쿠팡'은 옛 설명
+  report_mid: [adfit_report_mid]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
+  report_products: [none]     # "운영자 판단" 섹션 뒤, 없으면 본문 끝(다 읽은 지점). 2026-10-30부터 쿠팡 골드박스 '오늘의 특가' 한 장(하위 ID deal), 특가가 없으면 상품 상자. 2주 뒤(11-13) 상자 대비 클릭·수익 비교
   report_recommend: dable_report        # 출처 목록 아래, 쿠팡 상자 바로 위: 데이블 '같이 볼 만한 글' 위젯(번호가 없으면 아무것도 없음)
-  report_end: [adfit_list, coupang_products]   # 출처 목록 아래. 2026-11-11 광고 배치 자동 판정: 쿠팡 상품 상자(14일 클릭 0) → 애드핏 '홈·목록'(320x100) 단위. 한 페이지 4개·단위 한 번을 넘으면 쿠팡 상자. 11-25 재판정
-  report_bottom: [adfit_report_end, coupang_products]  # 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡
-  list: [adfit_list, coupang_products]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
-  report_late: [adfit_report_end, coupang_products]  # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 2026-10-19 애드핏 '리포트 하단'을 맨 아래(보이는 비율 1%)에서 이 자리로 올림. 단위는 한 페이지 한 번이라 이 자리에 쓰면 맨 아래는 쿠팡
-  rail: [adfit_rail, coupang_products]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
-  feed_inline: [adfit_feed, adfit_feed2, adsense_in_article, coupang_products]   # 홈 피드 사이(처음 HTML의 고정 자리, 아래 rhythm.home_feed): 애드핏 피드 → 애드핏 피드2 → 애드센스 → 쿠팡. 목록 광고(list)가 첫 자리
-  page_bottom: [adfit_bottom, coupang_banner]   # (애드핏 '하단' 단위가 있고 그 페이지 애드핏이 4개 미만이면 애드핏) 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
-  explore: [adfit_list, coupang_products]   # 검색·탐색: 첫 탭(인기 종목)의 '요즘 많이 찾는 종목' 아래, 전체 종목 목록 위(한 개)
-  explore_inline: [adsense_in_article, coupang_products]      # 검색·탐색의 다른 탭 목록 6번째 줄 뒤 + 검색 결과 3번째 뒤(화면에서 끼워 넣는 자리)
-  profile_inline: [adsense_in_article, coupang_products]      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
-  dm_list: [adfit_list, coupang_products]   # 쪽지함 대화 목록 아래(대화 화면에는 없음)
-  post_detail: [adfit_list, coupang_products]   # 글 상세: 원글과 답글 사이(한 개)
-  thread_inline: [adsense_in_article, coupang_products]   # 커뮤니티 목록·답글 사이(글이 쌓였을 때만, 아래 rhythm). 화면에서 끼워 넣고 더 보기로 계속 채우는 자리라 애드핏 불가(운영정책) → 애드센스 인피드/인아티클, 없으면 쿠팡
+  report_end: [adfit_list]   # 출처 목록 아래. 2026-11-11 광고 배치 자동 판정: 쿠팡 상품 상자(14일 클릭 0) → 애드핏 '홈·목록'(320x100) 단위. 한 페이지 4개·단위 한 번을 넘으면 쿠팡 상자. 11-25 재판정
+  report_bottom: [adfit_report_end]  # 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡
+  list: [adfit_list]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
+  report_late: [adfit_report_end]  # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 2026-10-19 애드핏 '리포트 하단'을 맨 아래(보이는 비율 1%)에서 이 자리로 올림. 단위는 한 페이지 한 번이라 이 자리에 쓰면 맨 아래는 쿠팡
+  rail: [adfit_rail]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
+  feed_inline: [adfit_feed, adfit_feed2, adsense_in_article]   # 홈 피드 사이(처음 HTML의 고정 자리, 아래 rhythm.home_feed): 애드핏 피드 → 애드핏 피드2 → 애드센스 → 쿠팡. 목록 광고(list)가 첫 자리
+  page_bottom: [adfit_bottom]   # (애드핏 '하단' 단위가 있고 그 페이지 애드핏이 4개 미만이면 애드핏) 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
+  explore: [adfit_list]   # 검색·탐색: 첫 탭(인기 종목)의 '요즘 많이 찾는 종목' 아래, 전체 종목 목록 위(한 개)
+  explore_inline: [adsense_in_article]      # 검색·탐색의 다른 탭 목록 6번째 줄 뒤 + 검색 결과 3번째 뒤(화면에서 끼워 넣는 자리)
+  profile_inline: [adsense_in_article]      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
+  dm_list: [adfit_list]   # 쪽지함 대화 목록 아래(대화 화면에는 없음)
+  post_detail: [adfit_list]   # 글 상세: 원글과 답글 사이(한 개)
+  thread_inline: [adsense_in_article]   # 커뮤니티 목록·답글 사이(글이 쌓였을 때만, 아래 rhythm). 화면에서 끼워 넣고 더 보기로 계속 채우는 자리라 애드핏 불가(운영정책) → 애드센스 인피드/인아티클, 없으면 쿠팡
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).
 # 간격은 5개 이상, 최대 개수는 아래 값이 상한(빌드가 검사).

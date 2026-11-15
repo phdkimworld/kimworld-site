@@ -56,7 +56,7 @@
 {{ ads_head|safe }}
 {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if not site.community %} class="no-cmty"{% endif %}>
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header class="site-header">
   <div class="wrap header-row">
@@ -70,12 +70,16 @@
         <span class="icon-label">검색</span>
       </a>
       {% if site.api_url %}
+      {% if site.community %}
       <button type="button" class="icon-btn" data-open-bell aria-label="알림" hidden>
         {{ icon('bell') }}<span class="icon-label">알림</span><span class="bell-n" data-bell-n hidden></span>
       </button>
       <a href="{{ base }}/dm/" class="icon-btn" data-open-dm aria-label="쪽지" hidden>
         {{ icon('send') }}<span class="icon-label">쪽지</span><span class="bell-n" data-dm-n hidden></span>
       </a>
+      {% else %}
+      <a href="{{ base }}/glossary/" class="icon-btn" aria-label="용어 사전">{{ icon('book') }}<span class="icon-label">용어</span></a>
+      {% endif %}
       <button type="button" class="icon-btn" data-open-account aria-label="내 계정">
         {{ icon('user') }}<span class="icon-label" data-account-label>로그인</span>
       </button>
@@ -121,8 +125,13 @@
 <nav class="tabbar" data-tabbar aria-label="빠른 이동">
   <a href="{{ base }}/" data-path="/">{{ icon('home') }}<span>홈</span></a>
   <a href="{{ base }}/search/" data-path="/search/">{{ icon('search') }}<span>검색</span></a>
+  {% if site.community %}
   <button type="button" class="tab-compose" data-compose aria-label="글쓰기">{{ icon('plus') }}</button>
   <button type="button" data-tab-bell>{{ icon('bell') }}<span>알림</span><span class="bell-n" data-bell-n hidden></span></button>
+  {% else %}
+  <a href="{{ base }}/glossary/" data-path="/glossary/">{{ icon('book') }}<span>용어</span></a>
+  {% if site.operator.youtube_url %}<a href="{{ site.operator.youtube_url }}" rel="noopener" target="_blank" data-ev="yt_tab">{{ icon('play') }}<span>영상</span></a>{% endif %}
+  {% endif %}
   <button type="button" data-tab-me>{{ icon('user') }}<span>로그인</span></button>
   <a href="{{ base }}/settings/" data-path="/settings/">{{ icon('gear') }}<span>설정</span></a>
 </nav>

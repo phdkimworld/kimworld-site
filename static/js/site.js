@@ -492,6 +492,12 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     if (t.classList) { t.classList.add('kfig-hit'); setTimeout(function () { t.classList.remove('kfig-hit'); }, 1600); }
     return true;
   }
+  // data-ev 가 붙은 링크·버튼(2026-11-16 개편: 유튜브 구독 카드·탭 등) 누름을 이벤트로 센다(워커 허용 목록에 있어야 남는다)
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-ev]'); if (t && window.kwEv) kwEv(t.getAttribute('data-ev'));
+  }, true);
+  // 홈 검색창으로 찾기(자료실 첫 화면이 실제로 쓰이는지)
+  var libF = document.querySelector('.lib-search'); if (libF) libF.addEventListener('submit', function () { if (window.kwEv) kwEv('home_search'); });
   // 홈 → 리포트·글로 넘어간 횟수(홈 체류 시간 대신 볼 숫자, 운영 통계 '홈 → 리포트 클릭률')
   if (/^\/(index\.html)?$/.test(location.pathname.replace((window.KW && KW.base) || '', '') || '/')) document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[href]'); if (!a || !window.kwEv) return;

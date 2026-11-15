@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{# 2026-11-16 개편(검색 자료실 중심): 모든 공개 리포트를 한 페이지에 달별로. 검색엔진이 리포트를 빠짐없이 찾고, 독자는 훑어서 찾는다 #}
+{% block title %}미국 주식 리포트 전체 목록 {{ rs|length }}편 | {{ site.site_name }}{% endblock %}
+{% block description %}{{ site.site_name }}의 무료 미국 주식 리포트 {{ rs|length }}편 전체 목록. 종목 {{ rs|unique(attribute="ticker")|list|length }}개, 최신순.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+  {"@type": "ListItem", "position": 1, "name": "홈", "item": site.site_url ~ "/"},
+  {"@type": "ListItem", "position": 2, "name": "리포트 전체 목록", "item": page_url}]}|tojson }}
+</script>
+{% endblock %}
+{% block main %}
+<div class="wrap narrow">
+  <nav class="crumbs" aria-label="위치"><a href="{{ base }}/">홈</a><span aria-hidden="true">›</span><span>리포트 전체 목록</span></nav>
+  <header class="page-head">
+    <h1>리포트 전체 목록</h1>
+    <p class="muted">무료 리포트 {{ rs|length }}편 · 종목 {{ rs|unique(attribute="ticker")|list|length }}개 · 최신순</p>
+    <form class="lib-search" action="{{ base }}/search/" role="search">
+      <label class="sr-only" for="q-all">종목·용어 검색</label>
+      <input id="q-all" name="q" type="search" placeholder="종목·티커·용어 검색" autocomplete="off" enterkeyhint="search">
+      <button class="btn btn-primary" type="submit">찾기</button>
+    </form>
+  </header>
+  {% for g in rs|groupby_month %}
+  <section class="all-month" aria-labelledby="m-{{ g.key }}">
+    <h2 id="m-{{ g.key }}" class="section-title">{{ g.label }} <span class="muted ins-sub">{{ g.rows|length }}편</span></h2>
+    <ul class="all-list">
+      {% for r in g.rows %}<li><a href="{{ base }}/r/{{ r.slug }}/"><span class="all-tk">{{ r.ticker }}</span><span class="all-t">{{ r.share_title or r.title }}</span></a><time class="muted" datetime="{{ r.date|iso }}">{{ r.date.month }}.{{ r.date.day }}</time></li>{% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  {{ page_bottom|safe }}
+</div>
+{% endblock %}

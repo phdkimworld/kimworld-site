@@ -28,7 +28,12 @@ def check(cond, msg):
 _PREV: list[Path] = []
 
 
-def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None) -> Path:
+# 광고 엔진 검사용 고정 배치: 2026-11-16 개편 전 ads.yaml placements(쿠팡 대체 포함). 실제 사이트는 쿠팡을 뺐지만(검사 '8-2)'),
+# 쿠팡 상자·특가·배너를 그리는 엔진 자체는 남아 있어 그 동작을 계속 검사한다
+TEST_PLACEMENTS = {"report_mid": ["adfit_report_mid", "coupang_products"], "report_products": ["coupang_deal", "coupang_products"], "report_recommend": "dable_report", "report_end": ["adfit_list", "coupang_products"], "report_bottom": ["adfit_report_end", "coupang_products"], "list": ["adfit_list", "coupang_products"], "report_late": ["adfit_report_end", "coupang_products"], "rail": ["adfit_rail", "coupang_products"], "feed_inline": ["adfit_feed", "adfit_feed2", "adsense_in_article", "coupang_products"], "page_bottom": ["adfit_bottom", "coupang_banner"], "explore": ["adfit_list", "coupang_products"], "explore_inline": ["adsense_in_article", "coupang_products"], "profile_inline": ["adsense_in_article", "coupang_products"], "dm_list": ["adfit_list", "coupang_products"], "post_detail": ["adfit_list", "coupang_products"], "thread_inline": ["adsense_in_article", "coupang_products"]}
+
+
+def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None, community: bool = True, live_ads: bool = False) -> Path:
     while _PREV:  # 테스트는 늘 마지막 프로젝트(t)만 쓰므로 이전 임시 폴더는 바로 지운다(끝날 때까지 쌓이면 디스크가 찬다)
         shutil.rmtree(_PREV.pop(), True)
     tmp = Path(tempfile.mkdtemp(prefix="kws-"))
@@ -40,12 +45,19 @@ def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None)
             shutil.copytree(p, tmp / name, ignore=shutil.ignore_patterns("*.mp4", "card-*.jpg", "ig_*.jpg", "cover.jpg"))
             continue
         (shutil.copytree if p.is_dir() else shutil.copy)(p, tmp / name)
+    # 커뮤니티 화면(site.yaml community): 예전 검사들은 켠 상태의 화면을 본다. 2026-11-16 개편 뒤 실제 사이트는 꺼 둠 → 꺼진 화면은 '8-2)'에서 따로 검사
+    _sy = (tmp / "site.yaml").read_text(encoding="utf-8")
+    (tmp / "site.yaml").write_text(re.sub(r"(?m)^community: \w+", f"community: {'true' if community else 'false'}", _sy), encoding="utf-8")
     tick = yaml.safe_load((tmp / "data/tickers.yaml").read_text(encoding="utf-8"))
     tick["ZZZZ"] = {"name": "제트테스트", "name_en": "Zeta Test", "exchange": "TEST", "theme": "양자컴퓨팅", "aliases": ["제트"]}
     (tmp / "data/tickers.yaml").write_text(yaml.safe_dump(tick, allow_unicode=True), encoding="utf-8")
     shutil.copy(SRC / "tests/fixtures/zzzz-test-2026-01.md", tmp / "content/reports/")
     for name, text in (extra_reports or {}).items():
         (tmp / "content/reports" / name).write_text(text, encoding="utf-8")
+    if not live_ads:
+        _ab = yaml.safe_load((tmp / "ads.yaml").read_text(encoding="utf-8"))
+        _ab["placements"] = {**_ab.get("placements", {}), **TEST_PLACEMENTS}
+        (tmp / "ads.yaml").write_text(yaml.safe_dump(_ab, allow_unicode=True), encoding="utf-8")
     if ads_cfg is not None:
         base = yaml.safe_load((tmp / "ads.yaml").read_text(encoding="utf-8"))
         for k, v in ads_cfg.items():
@@ -361,6 +373,26 @@ _pd = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
 check("ad-coupang-deal" not in _pd and 'ad-coupang-products" data-slot="report_products"' in _pd, "받은 지 하루 넘은 특가는 안 씀(상품 상자로)")
 for k in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY", "COUPANG_CACHE"):
     _os.environ.pop(k, None)
+
+print("8-2) 검색 자료실 개편(2026-11-16, community: false — 실제 사이트 설정)")
+check(re.search(r"(?m)^community: false", (SRC / "site.yaml").read_text(encoding="utf-8")) is not None, "실제 site.yaml은 커뮤니티 화면을 끈 상태")
+t = make_project(community=False, live_ads=True)
+r = run(t)
+check(r.returncode == 0, "커뮤니티 끈 화면도 빌드 성공 " + r.stdout[-300:])
+_h = (t / "dist/index.html").read_text(encoding="utf-8")
+_p = (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8")
+_k = (t / "dist/t/zzzz/index.html").read_text(encoding="utf-8")
+check('class="lib-hero"' in _h and 'class="lib-search"' in _h and 'id="q-lib"' in _h, "홈 첫 화면 = 자료실 검색창")
+check("data-composer" not in _h and " data-feed>" not in _h and "data-suggest" not in _h and "data-compose" not in _h and "data-tab-bell" not in _h, "홈: 글쓰기·사람 글 피드·팔로우 추천·글쓰기 탭·알림 탭 없음")
+check('href="/glossary/" data-path="/glossary/"' in _h and 'data-ev="yt_tab"' in _h, "아래 탭 줄: 홈·검색·용어·영상·로그인·설정")
+check('href="/reports/"' in _h and 'class="yt-card"' in _h and 'class="no-cmty"' in _h, "홈: 전체 리포트 목록 링크·유튜브 구독 카드")
+check("data-community" not in _p and 'href="#community"' not in _p.replace('href="#community" data-so-all', '') and "data-open-dm" not in _p, "리포트: 이야기(커뮤니티)·쪽지 입구 없음")
+check("sent-h" in _p and 'yt-card yt-card-sm' in _p, "리포트: 종목 투표는 남고 유튜브 구독 카드")
+check("data-community" not in _k, "종목 페이지: 커뮤니티 없음")
+_all = (t / "dist/reports/index.html").read_text(encoding="utf-8")
+check('href="/r/zzzz-test-2026-01/"' in _all and "리포트 전체 목록" in _all and "/reports/" in (t / "dist/sitemap.xml").read_text(encoding="utf-8"), "리포트 전체 목록 페이지(사이트맵 포함)")
+_ay = yaml.safe_load((SRC / "ads.yaml").read_text(encoding="utf-8"))["placements"]
+check(not any("coupang" in str(v) for v in _ay.values()), "실제 광고 설정: 사이트 칸에 쿠팡 없음(유튜브·블로거 전용)")
 
 print("8) 조회수·댓글·인기 영역")
 t = make_project()

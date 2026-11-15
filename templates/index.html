@@ -14,7 +14,25 @@
 {% endblock %}
 {% block main %}
 <h1 class="sr-only">{{ site.site_name }} — {{ site.tagline }}</h1>
-{% if not site.api_url %}
+{% if not site.community %}
+{# 2026-11-16 개편(검색 자료실 중심): 첫 화면 = 찾기. 종목·용어 검색창 + 리포트가 많은 종목 바로가기 #}
+<section class="lib-hero" aria-labelledby="lib-h">
+  <div class="wrap">
+    <p id="lib-h" class="lib-title">미국 주식 리포트 자료실</p>
+    <p class="lib-sub">종목 {{ ticker_list|length }}개 · 리포트 {{ rs|length }}편{% if gl_count %} · 용어 {{ gl_count }}개{% endif %} · 모두 무료</p>
+    <form class="lib-search" action="{{ base }}/search/" role="search">
+      <label class="sr-only" for="q-lib">종목·용어 검색</label>
+      <input id="q-lib" name="q" type="search" placeholder="종목·티커·용어 검색" autocomplete="off" enterkeyhint="search">
+      <button class="btn btn-primary" type="submit">찾기</button>
+    </form>
+    <ul class="chip-list lib-chips" aria-label="리포트가 많은 종목">
+      {% for t in (ticker_list|sort(attribute='count', reverse=True))[:12] %}<li><a class="chip" href="{{ base }}/t/{{ t.code|lower }}/"><strong>{{ t.code }}</strong> {{ t.name }}</a></li>{% endfor %}
+      <li><a class="chip chip-more" href="#tick-h">전체 종목 ›</a></li>
+      {% if gl_count %}<li><a class="chip chip-more" href="{{ base }}/glossary/">용어 사전 ›</a></li>{% endif %}
+    </ul>
+  </div>
+</section>
+{% elif not site.api_url %}
 <section class="hero">
   <div class="wrap">
     <p class="hero-title">{{ site.tagline }}</p>
@@ -27,9 +45,9 @@
 
 <div class="wrap home-grid">
 
-  <section class="feed" aria-labelledby="latest-h" data-feed>
-    <h2 id="latest-h" class="sr-only">피드</h2>
-    {% if site.api_url %}
+  <section class="feed" aria-labelledby="latest-h"{% if site.community %} data-feed{% endif %}>
+    {% if site.community %}<h2 id="latest-h" class="sr-only">피드</h2>{% else %}<h2 id="latest-h" class="section-title lib-latest">최신 리포트</h2>{% endif %}
+    {% if site.api_url and site.community %}
     <div class="composer card" data-composer hidden>
       <span class="composer-av" data-composer-av aria-hidden="true"></span>
       <form class="composer-form" data-composer-form novalidate>
@@ -68,8 +86,12 @@
       {%- endfor %}
     </div>
     {% if rs|length < feed_first %}{{ list_ad|safe }}{% endif %}
+    {% if site.community %}
     {% if site.api_url and feed_more_ad %}<template data-feed-more-ad>{{ feed_more_ad|safe }}</template>{% endif %}
     {% if site.api_url %}<div class="feed-end" data-feed-end hidden><button type="button" class="btn" data-feed-more>글 더 보기</button></div>{% endif %}
+    {% else %}
+    <p class="lib-all"><a class="btn" href="{{ base }}/reports/">전체 리포트 {{ rs|length }}편 보기 ›</a></p>
+    {% endif %}
     {{ page_bottom|safe }}
     {% else %}
     <div class="empty">
@@ -101,10 +123,12 @@
     <ol class="rank mood-list" data-sreq-list hidden></ol>
     <p class="side-mood-more"><a href="{{ base }}/search/#tab=mood">전체 순위 보기 ›</a></p>
   </section>
+  {% if site.community %}
   <section class="ins-card suggest" data-suggest hidden aria-labelledby="sg-h">
     <h2 id="sg-h" class="section-title">팔로우 추천 <span class="muted ins-sub">최근 30일 활발한 사람</span></h2>
     <ul class="sg-list" data-suggest-list></ul>
   </section>
+  {% endif %}
   {% endif %}
   <nav class="side-themes" aria-label="테마별 리포트">
     <h2 class="section-title">테마별 리포트</h2>
@@ -147,6 +171,14 @@
       {% for t in ticker_list %}<li><a class="chip" href="{{ base }}/t/{{ t.code|lower }}/"><strong>{{ t.code }}</strong> {{ t.name }}</a></li>{% endfor %}
     </ul>
   </section>
+  {% endif %}
+
+  {% if site.operator.youtube_url %}
+  {# 2026-11-16 개편: 사업의 중심은 유튜브 채널(주 3만 조회). 자료실에서 채널로 잇는다 #}
+  <aside class="yt-card" aria-label="유튜브 채널">
+    <div><strong>영상으로 먼저 보기</strong><p class="muted">리포트마다 10분 안팎의 미스터리 영상이 있습니다. 새 영상 알림은 유튜브 구독으로 받으세요.</p></div>
+    <a class="btn btn-primary" href="{{ site.operator.youtube_url }}?sub_confirmation=1" rel="noopener" target="_blank" data-ev="yt_sub_home">유튜브 구독</a>
+  </aside>
   {% endif %}
 
   <section aria-labelledby="theme-h" class="theme-bottom">

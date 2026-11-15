@@ -53,6 +53,6 @@
   <div class="cards" id="reports">{% for r in rs %}{{ card(r, base) }}{% endfor %}</div>
   {{ list_ad|safe }}
   {{ page_bottom|safe }}
-  {% if site.api_url %}{{ community('', 'b-' ~ code|lower, code ~ ' 커뮤니티', nm ~ '에 대한 생각을 나눠 보세요', thread_ad, ads.rhythm.board) }}{% endif %}
+  {% if site.api_url and site.community %}{{ community('', 'b-' ~ code|lower, code ~ ' 커뮤니티', nm ~ '에 대한 생각을 나눠 보세요', thread_ad, ads.rhythm.board) }}{% endif %}
 </div>
 {% endblock %}
