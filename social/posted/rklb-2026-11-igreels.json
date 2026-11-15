@@ -12,7 +12,11 @@
   "results": {
     "instagram": {
       "container": "18101452130389749",
-      "last_error": "인스타 컨테이너 ERROR: ERROR"
+      "last_error": "인스타 컨테이너 ERROR: ERROR",
+      "id": "18016905263764609",
+      "done": true,
+      "permalink": "https://www.instagram.com/reel/DfwUeP7laTV/"
     }
-  }
+  },
+  "posted_at": "2026-11-15T03:36:34-05:00"
 }
