@@ -414,9 +414,10 @@ r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_outp
 check(r.returncode != 0 and "http(s)://" in r.stdout + r.stderr, "출처 주소가 javascript: → 빌드 실패")
 t = make_project()
 f = t / "content/reports/zzzz-test-2026-01.md"
-f.write_text(f.read_text(encoding="utf-8") + "\n\nMarket data: 숫자 정리, 자바스크립트 이야기\n", encoding="utf-8")
+f.write_text(f.read_text(encoding="utf-8") + "\n\nMarket data: 숫자 정리, 자바스크립트 이야기\n\n[없는 글](/r/no-such-report-2026-01/)\n", encoding="utf-8")
 r = subprocess.run([sys.executable, "build.py", "--strict"], cwd=t, capture_output=True, text=True)
 check("허용하지 않는" not in r.stdout + r.stderr, "평범한 'data:' 글자는 통과")
+check(r.returncode != 0 and "깨진 내부 링크" in r.stdout and "/r/no-such-report-2026-01/" in r.stdout, "본문의 깨진 내부 링크 → --strict 빌드 실패(상설 검사)")
 
 print("11) 댓글 검토 도우미")
 sys.path.insert(0, str(SRC / "scripts")); import moderation as MOD

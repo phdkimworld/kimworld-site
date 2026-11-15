@@ -1525,6 +1525,22 @@ def build(drafts=False, strict=False, out: Path = DIST):
     for t in ticker_list + [{"code": "talk", "name": "라운지"}]:
         make_board_og(og_dir / f"b-{str(t['code']).lower()}.png", str(t["code"]), str(t.get("name") or t["code"]), og_font)
 
+    # ---- 깨진 내부 링크 검사(2026-11-15): 만든 HTML의 href/src="/..."가 out 안의 파일(또는 폴더/index.html)을 가리키는지.
+    # 2026-11-14 수동 점검에서 본문 차트 2개가 깨져 있었다 → 상설 검사로(--strict 면 배포 전에 막힌다). 스크립트 안 문자열은 뺀다.
+    broken: dict[str, str] = {}
+    for f in out.rglob("*.html"):
+        h = re.sub(r"<script\b.*?</script>", "", f.read_text(encoding="utf-8", errors="ignore"), flags=re.S)
+        for m in re.finditer(r'\s(?:href|src)="(/(?!/)[^"]*)"', h):
+            p = urllib.parse.unquote(m.group(1).split("#")[0].split("?")[0])
+            if base_path and p.startswith(base_path + "/"):
+                p = p[len(base_path):]
+            t = out / p.lstrip("/")
+            if not (t.is_file() or (t / "index.html").is_file()):
+                broken.setdefault(p, str(f.relative_to(out)))
+    if broken:
+        ex = ", ".join(f"{p} ← {src}" for p, src in list(broken.items())[:5])
+        log.warn(f"깨진 내부 링크 {len(broken)}개: {ex}")
+
     # ---- 결과
     for w in log.warnings:
         print("⚠️ ", w)
