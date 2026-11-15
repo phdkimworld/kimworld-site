@@ -138,7 +138,20 @@ def cpas_block() -> str:
 
 ADFIT_MARK = "<!--kw-adfit-->"
 # 애드핏 매체 '김박사 월드 블로그'(phdkimworld.blogspot.com)의 300x250 단위(운영자 생성 2026-11-06). 비우면 넣지 않는다
-BLOGGER_ADFIT_UNIT = os.environ.get("BLOGGER_ADFIT_UNIT") or "DAN-oEExd9h6z1Zbc6qF"  # blogspot.com 매체 재등록(2026-11-09)
+# 2026-11-15 운영자 지시 "블로거에선 애드핏 제거"(매체 심사 보류): 기본값을 비워 새 글에 넣지 않고, ads_backfill이 기존 글의 칸을 지운다.
+# 다시 켜려면 BLOGGER_ADFIT_UNIT 환경변수에 단위 코드(예전 값 DAN-oEExd9h6z1Zbc6qF)를 넣는다.
+BLOGGER_ADFIT_UNIT = os.environ.get("BLOGGER_ADFIT_UNIT", "").strip()
+ADFIT_RE = re.compile(r'<!--kw-adfit-->\s*<div[^>]*>.*?ba\.min\.js.*?</script>\s*</div>', re.S)
+
+
+def strip_adfit(c: str) -> str:
+    """애드핏 칸(표시 주석 + div)을 지운다. 블로거가 HTML을 다시 써서 모양이 달라졌으면 ins·스크립트·표시를 따로 지운다."""
+    c = ADFIT_RE.sub("", c)
+    if ADFIT_MARK in c or "kakao_ad_area" in c:
+        c = re.sub(r'<ins[^>]*kakao_ad_area[^>]*>\s*</ins>', "", c)
+        c = re.sub(r'<script[^>]*ba\.min\.js[^>]*>\s*</script>', "", c)
+        c = c.replace(ADFIT_MARK, "")
+    return c
 
 
 def adfit_block() -> str:
@@ -274,6 +287,8 @@ def backfill_ads(tok: str, limit: int) -> int:
                 nc = nc[:i] + adfit_block() + nc[i:]
             elif BLOGGER_ADFIT_UNIT:  # 이미 있는 칸은 단위 코드만 새 것으로(2026-11-09)
                 nc = re.sub(r'(class="kakao_ad_area"[^>]*data-ad-unit=")DAN-[A-Za-z0-9]+(")', rf"\g<1>{BLOGGER_ADFIT_UNIT}\g<2>", nc)
+            elif not BLOGGER_ADFIT_UNIT and (ADFIT_MARK in nc or "kakao_ad_area" in nc):  # 애드핏 끔(2026-11-15): 기존 칸 지우기
+                nc = strip_adfit(nc)
             if nc == c:
                 continue
             req = urllib.request.Request(f"https://www.googleapis.com/blogger/v3/blogs/{bid}/posts/{it['id']}", data=json.dumps({"content": nc}).encode(), headers=H, method="PATCH")
@@ -292,7 +307,7 @@ def backfill_ads(tok: str, limit: int) -> int:
         page = js.get("nextPageToken") or ""
         if not page:
             break
-    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건에 넣음(쿠팡·애드핏)")
+    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건 고침(쿠팡 넣기·애드핏 " + ("넣기·코드 교체" if BLOGGER_ADFIT_UNIT else "지우기") + ")")
     return done
 
 

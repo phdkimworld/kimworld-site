@@ -90,6 +90,8 @@ def keyword_for(cfg: dict, cat: str, log: list[dict], theme: str) -> str:
         kws = list(((yaml.safe_load((ROOT / "data" / "coupang.yaml").read_text(encoding="utf-8")) or {}).get("keywords") or {}).get(theme) or [])
     else:
         kws = [k.replace("{theme}", theme or "미국 주식") for k in cc.get("keywords") or []]
+    if not kws and cc.get("theme_items"):  # 테마 검색어가 없는 종목(예: RUM 11-11)은 책으로 새지 않게 IT기기 검색어로(2026-11-15)
+        kws = list(cfg["categories"].get("it", {}).get("keywords") or [])
     kws = kws or ["미국 주식 투자 책"]
     used = {k: 0 for k in kws}
     for e in log:
