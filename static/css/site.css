@@ -335,6 +335,10 @@ button { font: inherit; color: inherit; }
 .chart-link { display: block; position: relative; }
 .chart-link::after { content: "크게 보기"; position: absolute; right: 8px; bottom: 8px; font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
 /* 대표 차트는 빌드가 검은 화면용(투명 배경)으로 바꿔 둔다(chart_dark.py). 색 반전 필터를 쓰지 않는다 */
+/* 이야기형 본문 그림(4~6장, 2026-11-15): 그림 + 아래 한 줄 캡션 */
+.story-fig { margin: 1.6em 0; }
+.story-fig img { display: block; width: 100%; height: auto; }
+.story-fig figcaption { margin-top: 8px; font-size: .9rem; line-height: 1.5; color: var(--muted); }
 /* 휴대폰: 아래로 읽는 동안 머리글을 숨기고, 위로 올리면 다시 보인다 */
 .site-header { transition: transform .2s ease; }
 @media (max-width: 859px) { .site-header.hdr-hide { transform: translateY(-100%); } }

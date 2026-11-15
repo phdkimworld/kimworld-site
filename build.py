@@ -167,7 +167,7 @@ def md_renderer():
 
 # ---------------------------------------------------------------- 본문 가공
 
-SKIP_TAGS = {"a", "summary", "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre", "th", "button", "sup", "script", "style"}
+SKIP_TAGS = {"a", "summary", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre", "th", "button", "sup", "script", "style"}
 
 
 def apply_glossary(body_html: str, glossary: list[dict]) -> tuple[str, list[dict]]:
@@ -266,9 +266,10 @@ def ad_weights(ads) -> dict:
             "prior": {"ctr": round(ctr, 5), "n": 40}, "epc": round(epc, 2), "explore": 0.1, "g": g}
 
 
-def chart_img_attrs(tag: str, src: str) -> str:
+def chart_img_attrs(tag: str, src: str, lazy: bool = True) -> str:
     """본문 차트 그림에 크기·지연 로딩을 붙인다(2026-11-09 첫 화면 속도·레이아웃 밀림).
-    차트는 늘 세 번째 소제목 뒤라 첫 화면 밖이므로 lazy 가 안전하다. 이미 있는 속성은 그대로 둔다."""
+    옛 형식은 차트가 세 번째 소제목 뒤라 첫 화면 밖이므로 lazy 가 안전하다. 이야기형은 첫 그림이 첫 문단 바로 뒤라
+    lazy=False(첫 화면에서 바로 받음). 이미 있는 속성은 그대로 둔다."""
     f = ROOT / src.lstrip("/")
     add = []
     if " width=" not in tag and f.exists():
@@ -280,12 +281,22 @@ def chart_img_attrs(tag: str, src: str) -> str:
         except Exception:
             pass
     if " loading=" not in tag:
-        add.append('loading="lazy"')
+        add.append('loading="lazy"' if lazy else 'loading="eager"')
     if " decoding=" not in tag:
         add.append('decoding="async"')
     if not add:
         return tag
     return re.sub(r"\s*/?>$", "", tag) + " " + " ".join(add) + " />"
+
+
+def story_figures(html_in: str) -> str:
+    """이야기형 본문 그림(2026-11-15 운영자 "피겨를 더 넣어서", 본문 4~6장)을 <figure>로 싸고 캡션(alt)을 그림 아래 한 줄로 보인다.
+    문단(<p>)이 아니게 되므로 _story_ad_cuts 가 그림과 그 해설 문단 사이에 광고를 끼우지 않는다."""
+    def wrap(m: re.Match) -> str:
+        alt = re.search(r'\balt="([^"]*)"', m.group(1))
+        cap = f'<figcaption>{alt.group(1)}</figcaption>' if alt and alt.group(1).strip() else ""
+        return f'<figure class="story-fig">{m.group(1)}{cap}</figure>'
+    return re.sub(r'<p>\s*(<a class="chart-link"[^>]*>\s*<img [^>]*>\s*</a>)\s*</p>', wrap, html_in)
 
 
 def fix_chart_src(html_in: str) -> str:
@@ -1090,8 +1101,13 @@ def build(drafts=False, strict=False, out: Path = DIST):
         # 차트 경로를 '/charts/x.png'로 쓴 리포트는 그림이 깨진다(2026-11-14 점검: sldp-2026-10-3·wimi-2026-10) → 실제 위치로
         body_html = fix_chart_src(body_html)
         # 차트 이미지는 눌러서 원본 크기로 볼 수 있게(모바일에서 글자가 작다)
-        body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)',
-                           lambda m: f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2))}</a>', body_html)
+        _nimg = [0]
+
+        def _chart(m: re.Match) -> str:
+            _nimg[0] += 1
+            lazy = _nimg[0] > 1 or str(meta.get("style") or "").strip().lower() != "story"  # 이야기형 첫 그림은 첫 화면 안
+            return f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2), lazy)}</a>'
+        body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)', _chart, body_html)
         toc = [t for t in md.toc_tokens]
         # 이야기형(운영자 지시 2026-11-14 "섹션이니 목차니 너무 끼어들어서 뚝뚝 끊기는데 그냥 썰 풀듯이 줄줄"): 머리말 style: story.
         # 본문은 소제목 없이 이어지는 문단 + 끝 부록 '## 숫자로 다시 보기' 하나. 화면에서 목차·핵심 요약 상자·바로가기 줄을 뺀다
@@ -1101,6 +1117,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         is_story = style == "story"
         if is_story:
             toc = []  # 목차·영상/SNS 바로가기·체크리스트 바로가기는 모두 목차에서 나오므로 함께 빠진다
+            body_html = story_figures(body_html)  # 본문 그림 4~6장: <figure> + 캡션, 광고는 그림 옆에 붙지 않음
             if re.search(r"^#{2,3}\s", body.split("\n## 숫자로 다시 보기", 1)[0], flags=re.M):
                 log.warn(f"{name}: 이야기형은 본문에 소제목(##·###)을 쓰지 않습니다(끝 부록 '## 숫자로 다시 보기'만)")
         chars = plain_len(body_html)

@@ -153,6 +153,33 @@ check("zzzz-storybad-2026-02" in r.stdout and "이야기형은 본문에 소제�
 sys.path.insert(0, str(SRC)); import build as _bs
 check(_bs.split_for_ads("<p>a</p><p>b</p>", True, True, story=True) == [("html", "<p>a</p><p>b</p>")], "이야기형: 문단이 적으면 광고 자리 없음")
 
+print("3-3) 이야기형 그림 여러 장(2026-11-15 운영자 \"피겨를 더 넣어서\": 본문 4~6장)")
+_fp = []
+for i in range(14):
+    _fp.append(f"{i + 1}번째 장면입니다. " + _para * 2)
+    if i in (0, 3, 6, 9, 12):
+        _k = (0, 3, 6, 9, 12).index(i) + 1
+        _fp.append(f"![그림 {_k}에서 볼 것: 테스트 막대(11월 13일 기준)](/static/charts/zzzz-figs-2026-02-{_k}.png)")
+_figs_md = "---\n" + _sh + "---\n\n" + "\n\n".join(_fp) + _story_body[_story_body.index("\n\n## 숫자로 다시 보기"):]
+t = make_project(FULL_ADS, {"zzzz-figs-2026-02.md": _figs_md.replace("2026-01-15", "2026-02-04")})
+from PIL import Image as _Im, ImageDraw as _ImD
+for _k in range(1, 6):
+    _im = _Im.new("RGB", (1200, 700), "#FFFFFF"); _ImD.Draw(_im).rectangle([100, 200, 300 + 120 * _k, 300], fill="#C9D1DB")
+    _im.save(t / f"static/charts/zzzz-figs-2026-02-{_k}.png")
+r = run(t)
+check(r.returncode == 0, "이야기형 그림 5장: 빌드 성공 " + r.stdout[-300:])
+page = (t / "dist/r/zzzz-figs-2026-02/index.html").read_text(encoding="utf-8")
+_bp = notpl(page)
+_figs = re.findall(r'<figure class="story-fig">(.*?)</figure>', _bp, flags=re.S)
+check(len(_figs) == 5 and all("<figcaption>그림 " in f for f in _figs), f"이야기형 그림: <figure> 5개, 각각 캡션 한 줄 (실제 {len(_figs)})")
+_imgs = re.findall(r'<img [^>]*zzzz-figs-2026-02-\d\.png[^>]*>', _bp)
+check(len(_imgs) == 5 and all('width="1200" height="700"' in x for x in _imgs), "이야기형 그림: 크기(width·height)로 레이아웃 밀림 방지")
+check('loading="eager"' in _imgs[0] and all('loading="lazy"' in x for x in _imgs[1:]), "이야기형 그림: 첫 그림만 바로 받고 나머지는 lazy")
+check(all((t / f"dist/static/charts/zzzz-figs-2026-02-{k}.view.png").exists() for k in range(1, 6)), "이야기형 그림: 장마다 크게 보기 판(.view.png)")
+_slots = [m.start() for m in re.finditer(r'<aside class="ad[^>]*data-slot="report_(?:mid|products)"', _bp)]
+check(len(_slots) == 2 and all(re.search(r"</p>\s*$", _bp[:p]) for p in _slots), f"이야기형 그림: 가운데·상품 광고는 문단 뒤(그림과 해설 사이에 끼지 않음) {len(_slots)}")
+check(not re.search(r"</figure>\s*<aside class=\"ad", _bp), "이야기형 그림: 그림 바로 뒤에 광고 없음")
+
 print("4) 쿠팡 배너에 다른 도메인")
 bad = {"coupang": {"banner_html": '<script src="https://evil.example.com/x.js"></script>'}}
 t = make_project(bad)
