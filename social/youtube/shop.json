@@ -142,5 +142,13 @@
 "kw": "골프 장갑",
 "sub_id": "ythblcid",
 "why": "explore"
+},
+{
+"date": "2026-11-16",
+"ticker": "PLUG",
+"cat": "bk",
+"kw": "미국 주식 투자 책",
+"sub_id": "ytbkplug",
+"why": "exploit"
 }
 ]
