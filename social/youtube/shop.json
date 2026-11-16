@@ -166,5 +166,13 @@
 "kw": "주식 차트 공부 책",
 "sub_id": "ytbkbtq",
 "why": "exploit"
+},
+{
+"date": "2026-11-16",
+"ticker": "IREN",
+"cat": "bk",
+"kw": "경제 위기 역사 책",
+"sub_id": "ytbkiren",
+"why": "exploit"
 }
 ]
