@@ -150,5 +150,13 @@
 "kw": "미국 주식 투자 책",
 "sub_id": "ytbkplug",
 "why": "exploit"
+},
+{
+"date": "2026-11-16",
+"ticker": "JOBY",
+"cat": "bk",
+"kw": "우주항공·방산 책",
+"sub_id": "ytbkjoby",
+"why": "exploit"
 }
 ]
