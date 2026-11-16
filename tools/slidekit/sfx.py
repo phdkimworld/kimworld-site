@@ -22,18 +22,20 @@ def boom(sec=1.6):  # 긴장감 있는 저음 충격음: 훅·반전·답 공개
     tail = _lp(rng.standard_normal(len(t)), 120) * _env(len(t), 0.02, 0.5) * 2
     x = body + thump + tail; return _st(x / np.abs(x).max())
 
-def whoosh(sec=0.55):  # 화면 전환: 걸러진 잡음이 부풀었다 사라짐, 좌→우
+def whoosh(sec=0.45):  # 화면 전환: 부드러운 음높이 미끄럼(잡음 없음 — 11-16 시청자 "코푸는 소리" 뒤 잡음형 바람 소리 폐기), 좌→우
     n = int(SR * sec); t = np.arange(n) / n
-    noise = rng.standard_normal(n); x = _lp(noise, 6) - _lp(noise, 60)  # 대역 통과 느낌
-    env = np.sin(np.pi * t) ** 2.2; x = x * env; x /= np.abs(x).max()
-    pan = np.linspace(-0.7, 0.7, n)
+    f = 520 + 380 * t  # 살짝 올라가는 맑은 음
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    x = np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.15 * np.sin(3 * ph)
+    env = np.sin(np.pi * t) ** 2.5; x = x * env; x /= np.abs(x).max()
+    pan = np.linspace(-0.6, 0.6, n)
     return np.stack([x * np.sqrt((1 - pan) / 2) * 1.414, x * np.sqrt((1 + pan) / 2) * 1.414], 1)
 
 def riser(sec=2.2):  # 질문 직전 긴장 상승음
     t = _t(sec); f = 180 + 520 * (t / sec) ** 2
     tone = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.5
-    noise = _lp(rng.standard_normal(len(t)), 8) * 0.6
-    x = (tone + noise) * (t / sec) ** 2.5; x[-int(SR * 0.04):] *= np.linspace(1, 0, int(SR * 0.04))
+    shimmer = np.sin(2 * np.pi * np.cumsum(f * 1.5) / SR) * 0.15  # 잡음 대신 5도 위 음(잡음은 숨·코 소리처럼 들림)
+    x = (tone + shimmer) * (t / sec) ** 2.5; x[-int(SR * 0.04):] *= np.linspace(1, 0, int(SR * 0.04))
     return _st(x / np.abs(x).max())
 
 def chime(sec=1.8):  # 사이트 안내(미드롤) 시작: 맑은 두 음 종소리
@@ -61,7 +63,7 @@ def bed(dur):  # 미스터리 배경 드론: 단조 화음 + 느린 일렁임, �
     l = x; r = np.roll(x, int(SR * 0.013))
     return np.stack([l, r], 1)
 
-GAIN = {'boom': 0.32, 'whoosh': 0.16, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10}
+GAIN = {'boom': 0.32, 'whoosh': 0.08, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10}
 GEN = {'boom': boom, 'whoosh': whoosh, 'riser': riser, 'chime': chime, 'tick': tick}
 BED_GAIN = 0.075
 
