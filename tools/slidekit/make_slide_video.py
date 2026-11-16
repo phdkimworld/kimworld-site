@@ -3,6 +3,7 @@
 #   효과음은 sfx.py가 코드로 합성한다. 화면 전환=whoosh, 훅·단서·반전·답=boom, 훅 질문 직전=riser, 미드롤·마무리=chime, 숫자 카드=tick
 #   slides.json의 화면마다 "sfx": "boom|whoosh|riser|chime|tick|none"으로 직접 정할 수 있다
 #   raw.wav 옆의 raw_timing.json(st_tts.py가 만든다)을 읽는다. 프레임과 확인용 contact.png는 출력 폴더의 slides_out/에 저장
+#   (11-16 확대) 움직이는 장면은 코어 수만큼 브라우저로 나눠 찍고(ANIM_WORKERS로 조절), 움직임이 없는 프레임은 다시 찍지 않는다
 #   움직이는 장면(2026-11-16): 슬라이드에 "anim": {"tpl": "live_chart|chalk_hook", "data": {..., "beats": [문장 번호…]}}이 있으면
 #   그 슬라이드 구간 전체를 anim.py로 프레임 캡처해 넣는다(박자 = 문장 시작 시각). segments.json 'anim'에 [시작, 움직임 끝, 구간 끝, 틀]을 남겨
 #   video_check·'최장 정지' 지표가 움직이는 구간을 정지로 세지 않는다. 장면마다 slides_out/anim_*/preview.png(다섯 장)를 눈으로 확인
@@ -64,6 +65,24 @@ anim_info = {}  # key → (움직임 길이 초, 박자 초 목록, 틀)
 still = lambda f: f[-1] if isinstance(f, list) else f
 async def render():
     files = {}
+    # 움직이는 장면은 먼저 모아 anim.render_many로 한꺼번에(코어 수만큼 브라우저, 정지 구간은 한 장) 찍는다
+    jobs, keys = [], []
+    for _, key, _, sl in segs:
+        if isanim(key) and key not in keys:
+            pi, k = key[:2]; spec = sl[k]['anim']
+            t0 = min(a for a, kk, _, _ in segs if kk == key); dur = sum(bb - a for a, kk, bb, _ in segs if kk == key)
+            tb = anim.beat_times(spec.get('data', {}), P[pi]['sents'], t0, P[pi]['start'])
+            jobs.append({'tpl': spec['tpl'], 'data': spec.get('data', {}), 't': tb, 'dur': dur, 'outdir': os.path.join(wd, f'anim_p{pi+1:02d}_s{k}'), 'deck': deck, 't0': t0}); keys.append(key)
+    if jobs:
+        import time as _t; _s = _t.time()
+        res = await anim.render_many(jobs)
+        bad = [f"p{k[0]+1} s{k[1]} {j['tpl']}: " + ' / '.join(r[2][:4]) for k, j, r in zip(keys, jobs, res) if r[2]]
+        if bad: sys.exit('ANIM_FAIL ' + ' | '.join(bad))
+        for k, j, (fr, mv, _, _) in zip(keys, jobs, res):
+            bl = j['t'].get('beats') or []
+            files[k] = fr; anim_info[k] = (mv, [round(j['t0'] + x, 2) for x in bl if x is not None], j['tpl'])
+        shot = sum(len(set(fr)) for fr, _, _, _ in res); tot = sum(len(fr) for fr, _, _, _ in res)
+        print(f'움직이는 장면 {len(jobs)}개 · 프레임 {tot}(새로 찍음 {shot}) · 일꾼 {anim.WORKERS} · {_t.time() - _s:.0f}초', flush=True)
     async with async_playwright() as p:
         b = await p.chromium.launch(args=anim.GL_ARGS); pg = await b.new_page(viewport={'width': 1920, 'height': 1080})
         await pg.goto('file://' + os.path.join(KIT, 'slide.html')); await pg.wait_for_timeout(300)
@@ -71,13 +90,6 @@ async def render():
             if key in files: continue
             if isad(key): files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll; continue
             pi, k, si = key[:3]; ban = len(key) == 4; d = dict(sl[k])
-            if isanim(key):
-                t0 = min(a for a, kk, _, _ in segs if kk == key); dur = sum(bb - a for a, kk, bb, _ in segs if kk == key)
-                spec = d['anim']; tb = anim.beat_times(spec.get('data', {}), P[pi]['sents'], t0, P[pi]['start'])
-                fr, mv, probs, _ = await anim.render(b, spec['tpl'], spec.get('data', {}), tb, dur, os.path.join(wd, f'anim_p{pi+1:02d}_s{k}'), deck)
-                if probs: sys.exit('ANIM_FAIL p%d s%d %s: %s' % (pi + 1, k, spec['tpl'], ' / '.join(probs[:6])))
-                bl = tb.get('beats') or []
-                files[key] = fr; anim_info[key] = (mv, [round(t0 + x, 2) for x in bl if x is not None], spec['tpl']); continue
             if d.get('bg'): d['bg'] = 'file://' + absp(d['bg'])
             f = os.path.join(wd, f'p{pi+1:02d}_s{k}_{si}{"_b" if ban else ""}.png')
             await pg.evaluate('([a,b,c,e])=>render(a,b,c,e)', [{'ticker': deck['ticker'], 'name': deck['name'], 'banner': deck.get('banner')}, d, si, ban])
@@ -106,8 +118,12 @@ lst = os.path.join(wd, 'list.txt')
 with open(lst, 'w') as fo:
     for t0, key, t1, _ in segs:
         fl = files[key]
-        if isinstance(fl, list):  # 움직이는 장면: 프레임마다 1/30초, 남는 시간은 마지막 프레임
-            for f in fl[:-1]: fo.write(f"file '{f}'\nduration {1 / anim.FPS:.6f}\n")
+        if isinstance(fl, list):  # 움직이는 장면: 프레임마다 1/30초(같은 그림이 이어지면 한 줄로 합침), 남는 시간은 마지막 프레임
+            runs = []
+            for f in fl[:-1]:
+                if runs and runs[-1][0] == f: runs[-1][1] += 1
+                else: runs.append([f, 1])
+            for f, c in runs: fo.write(f"file '{f}'\nduration {c / anim.FPS:.6f}\n")
             fo.write(f"file '{fl[-1]}'\nduration {max(1 / anim.FPS, (t1 - t0) - (len(fl) - 1) / anim.FPS):.6f}\n")
         else: fo.write(f"file '{fl}'\nduration {t1 - t0:.3f}\n")
     fo.write(f"file '{still(files[segs[-1][1]])}'\n")

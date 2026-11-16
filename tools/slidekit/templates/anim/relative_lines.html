@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- anim 틀 relative_lines: 종목 vs 업종·지수, 기준일=100으로 맞춘 선들이 함께 그려지고 끝에 이름과 기준일 대비 %가 붙는다. figkit 'relative'와 같은 뜻.
+     data = {title, sub?, kicker?, series:[{name, points:[[날짜, 종가], …], hi?}](2~4개, 첫 점 = 기준일), normalize?(true: 첫 점=100으로 바꿈),
+             base_label?('10.30 = 100'), gap?(끝에 범례 자리(왼쪽 위)에 뜨는 한 줄, 예: '차이 24%포인트'), note?, source?, beats?:[선이 끝까지 그려지는 문장, gap 문장?]}
+     첫 프레임: 제목·축·100 기준선·모든 선의 첫 점과 이름(왼쪽 범례). 선은 처음부터 beats[0]초까지 함께 그려진다. -->
+<link rel="stylesheet" href="lib/kit.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit.js"></script>
+</head><body><script>
+frame();
+const S = (d.series || []).map(s => ({...s, v: s.points.map(p => d.normalize === false ? p[1] : p[1] / s.points[0][1] * 100)}));
+const dates = S[0].points.map(p => p[0]), N = dates.length, PAL = [COL.blue, '#B08CFF', '#7FD1C7', COL.mute];
+let k = 0; S.forEach(s => s.c = s.hi ? COL.gold : PAL[k++ % PAL.length]);
+const all = S.flatMap(s => s.v).concat([100]); let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * .1 || 5; lo -= pad; hi += pad;
+const XL = 250, XR = 1440, Y0 = 900, Y1 = d.sub ? 330 : 300, X = i => XL + i * (XR - XL) / (N - 1), Y = v => Y0 - (v - lo) / (hi - lo) * (Y0 - Y1);
+const tk = ticks(lo, hi); tk.list.forEach(v => { el('line', {x1: XL - 20, x2: XR + 20, y1: Y(v), y2: Y(v), stroke: COL.line, 'stroke-width': 2}); el('text', {x: XL - 34, y: Y(v) + 11, 'text-anchor': 'end', 'font-size': 30, 'font-weight': 700, fill: COL.dim}, null, String(+v.toFixed(tk.step < 1 ? 1 : 0))); });
+el('line', {x1: XL - 20, x2: XR + 20, y1: Y(100), y2: Y(100), stroke: COL.gold, 'stroke-width': 3, 'stroke-dasharray': '14 12', opacity: .85});
+el('text', {x: XL, y: Y(100) - 16, 'font-size': 30, 'font-weight': 700, fill: COL.gold, 'data-box': ''}, null, d.base_label || (dates[0] + ' = 100'));
+const di = N > 2 ? [0, Math.round((N - 1) / 2), N - 1] : [0, N - 1];
+di.forEach(i => el('text', {x: X(i), y: 966, 'text-anchor': i == 0 ? 'start' : (i == N - 1 ? 'end' : 'middle'), 'font-size': 34, 'font-weight': 900, fill: i == N - 1 ? COL.white : COL.mute, 'data-box': ''}, null, dates[i]));
+// 끝 이름표: 이름 + 기준일 대비 %(겹치지 않게 벌림)
+const ly = spread(S.map(s => Y(s.v[N - 1])), 124, Y1 + 10, Y0 - 40);
+const L = S.map((s, i) => {
+  const pts = s.v.map((v, j) => [X(j), Y(v)]), path = el('path', {d: 'M' + pts.map(p => p.join(',')).join(' L'), fill: 'none', stroke: s.c, 'stroke-width': s.hi ? 10 : 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: s.hi ? 1 : .9});
+  const len = path.getTotalLength(); path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+  el('circle', {cx: pts[0][0], cy: pts[0][1], r: 10, fill: s.c});
+  const head = el('circle', {r: s.hi ? 16 : 12, fill: s.c, opacity: 0});
+  const g = el('g', {opacity: 0}), pct = s.v[N - 1] - 100;
+  el('text', {x: XR + 50, y: ly[i] - 8, 'font-size': 36, 'font-weight': 900, fill: s.hi ? COL.gold : COL.white, 'data-box': ''}, g, s.name);
+  el('text', {x: XR + 50, y: ly[i] + 58, 'font-size': 44, 'font-weight': 900, fill: pct < 0 ? COL.red : COL.green, 'data-box': ''}, g, (pct > 0 ? '+' : '') + pct.toFixed(1) + '%');
+  el('line', {x1: X(N - 1) + 14, y1: Y(s.v[N - 1]), x2: XR + 40, y2: ly[i] + 8, stroke: s.c, 'stroke-width': 2, opacity: .6}, g);
+  return {path, len, head, g, s};
+});
+// 첫 프레임 범례(왼쪽 위, 선 그리기가 끝나면 사라지고 끝 이름표로 바뀜)
+const leg = el('g', {}); let lx = XL; S.forEach(s => { el('rect', {x: lx, y: Y1 - 62, width: 34, height: 10, rx: 5, fill: s.c}, leg); const t = el('text', {x: lx + 46, y: Y1 - 50, 'font-size': 32, 'font-weight': 900, fill: s.hi ? COL.gold : COL.white, 'data-box': ''}, leg, s.name); lx += 46 + t.getBBox().width + 50; });
+const tEnd = T.beats && T.beats[0] != null ? Math.max(1.5, T.beats[0]) : 3.6, P = {p: 0}, tl = gsap.timeline({paused: true});
+tl.to(P, {p: 1, duration: tEnd - .2, ease: 'power1.inOut'}, .2);
+L.forEach(l => tl.to(l.g, {opacity: 1, duration: .35}, tEnd));
+tl.to(leg, {opacity: 0, duration: .3}, tEnd);
+let end = tEnd + 1.2, gb = null;
+if (d.gap) { const g = el('text', {x: XL, y: Y1 - 16, 'text-anchor': 'start', 'font-size': 42, 'font-weight': 900, fill: COL.gold, opacity: 0, 'data-box': ''}, null, d.gap);
+  gb = T.beats && T.beats[1] != null ? Math.max(T.beats[1], tEnd + .3) : tEnd + .9; tl.to(g, {opacity: 1, duration: .4}, gb); end = Math.max(end, gb + 1); }
+finish(tl, end, [tEnd].concat(gb ? [gb] : []), () => L.forEach(l => { l.path.style.strokeDashoffset = l.len * (1 - P.p); l.path.style.visibility = P.p > 0 ? 'visible' : 'hidden'; const pt = l.path.getPointAtLength(l.len * P.p); l.head.setAttribute('cx', pt.x); l.head.setAttribute('cy', pt.y); l.head.setAttribute('opacity', P.p > 0 && P.p < 1 ? 1 : 0); }));
+</script></body></html>

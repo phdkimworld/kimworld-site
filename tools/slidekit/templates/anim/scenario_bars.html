@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- anim 틀 scenario_bars: 앞으로의 갈래 — 갈래마다 가능성 막대(0~100%)와 범위 선, 끝에 판정 날짜·기준선 상자. figkit 'scenarios'와 같은 입력.
+     data = {title, sub?, kicker?, items:[{label, sub?, p, range?:[낮음,높음], hi?}](2~5), decision('판정: 12월 4일 종가 · 기준선 4.37달러'),
+             decision_beat?, note?('주가 확률이 아니라 …에 대한 주관적 추정' — 꼭 넣는다), source?, beats?:[문장 번호…](items[1:]마다)}
+     첫 프레임: 제목·모든 갈래 이름(흐리게)·첫 막대와 %. -->
+<link rel="stylesheet" href="lib/kit.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit.js"></script>
+</head><body><script>
+frame();
+const I = d.items || [], n = I.length, TOP0 = d.sub ? 290 : 262, BOT = d.decision ? 860 : 960, rh = (BOT - TOP0) / n;
+const BX0 = 100, BX1 = 1560, MX = Math.min(100, Math.max(...I.map(x => (x.range || [0, x.p])[1])) * 1.15), X = v => BX0 + v / MX * (BX1 - BX0), bh = Math.min(46, rh * .32);
+const R = I.map((it, i) => {
+  const y = TOP0 + rh * i, g = el('g', {}), c = it.hi ? COL.gold : COL.bar;
+  const lab = el('text', {x: BX0, y: y + 44, 'font-size': n <= 3 ? 40 : 36, 'font-weight': 900, fill: it.hi ? COL.gold : COL.white, 'data-box': ''}, g, it.label);
+  let sub = null; if (it.sub) sub = el('text', {x: lab.getBBox().width + BX0 + 24, y: y + 44, 'font-size': 28, 'font-weight': 700, fill: COL.mute, 'data-box': ''}, g, it.sub);
+  const by = y + 64; el('rect', {x: BX0, y: by, width: BX1 - BX0, height: bh, rx: bh / 2, fill: 'rgba(255,255,255,.06)'}, g);
+  const bar = el('rect', {x: BX0, y: by, width: X(it.p) - BX0, height: bh, rx: bh / 2, fill: c}, g);
+  let rg = null; if (it.range) { rg = el('g', {}, g); const [a, b] = it.range, ry = by + bh / 2;
+    el('line', {x1: X(a), x2: X(b), y1: ry, y2: ry, stroke: COL.white, 'stroke-width': 4, opacity: .85}, rg);
+    [a, b].forEach(v => el('line', {x1: X(v), x2: X(v), y1: ry - 18, y2: ry + 18, stroke: COL.white, 'stroke-width': 4, opacity: .85}, rg)); }
+  const val = el('text', {x: 1824, y: by + bh / 2 + 22, 'text-anchor': 'end', 'font-size': 60, 'font-weight': 900, fill: it.hi ? COL.gold : COL.white, 'data-box': ''}, g, (it.text || it.p + '%'));
+  return {g, lab, sub, bar, rg, val, w: X(it.p) - BX0};
+});
+let dec = null; if (d.decision) { dec = el('g', {}); const t = el('text', {x: 960, y: 940, 'text-anchor': 'middle', 'font-size': 38, 'font-weight': 900, fill: COL.white, 'data-box': ''}, dec, d.decision);
+  const bb = t.getBBox(); if (bb.width > 1680) { t.setAttribute('font-size', 38 * 1680 / bb.width); } const b2 = t.getBBox();
+  dec.insertBefore(el('rect', {x: b2.x - 34, y: b2.y - 18, width: b2.width + 68, height: b2.height + 36, rx: 22, fill: 'rgba(245,184,61,.14)', stroke: COL.gold, 'stroke-width': 3}, dec), t); }
+const at = times(n, 1.2, 1.4), tl = gsap.timeline({paused: true});
+R.forEach((r, i) => {
+  if (i == 0) return;
+  tl.set([r.lab, r.sub].filter(Boolean), {opacity: .4}, 0).set([r.val, r.rg].filter(Boolean), {opacity: 0}, 0);
+  tl.to([r.lab, r.sub].filter(Boolean), {opacity: 1, duration: .25}, at[i]);
+  tl.fromTo(r.bar, {attr: {width: 0}}, {attr: {width: r.w}, duration: .7, ease: 'power2.out', immediateRender: false}, at[i]);
+  if (r.rg) tl.to(r.rg, {opacity: 1, duration: .3}, at[i] + .6);
+  tl.fromTo(r.val, {opacity: 0, scale: .85, transformOrigin: '100% 50%'}, {opacity: 1, scale: 1, duration: .3, immediateRender: false}, at[i] + .5);
+});
+let end = at[n - 1] + 1.2, db = null;
+if (dec) { db = beatAt('decision_beat', at[n - 1] + .7); tl.set(dec, {opacity: 0}, 0).fromTo(dec, {opacity: 0, y: 20}, {opacity: 1, y: 0, duration: .45, immediateRender: false}, db); end = Math.max(end, db + 1); }
+finish(tl, end, at.slice(1).concat(db ? [db] : []));
+</script></body></html>

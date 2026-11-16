@@ -66,8 +66,9 @@ if s.get('shop'):
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
-# ANIM: 움직이는 장면(2026-11-16, SKILL V6.8). 틀이 있는지, 박자 문장 번호가 그 슬라이드 안에서 커지는지, 안내(ad)·쿠팡 문장과 겹치지 않는지,
-# 마지막 박자 뒤 정지가 12초를 넘지 않는지, 롱폼 한 편에 2컷 이하인지
+# ANIM: 움직이는 장면(2026-11-16, SKILL V6.8 — 같은 날 운영자 "도움이 될 거 같은 장면이 있으면 전부"로 1~2컷 상한 없앰).
+# 틀이 있는지, 박자 문장 번호가 그 슬라이드 안에서 커지는지, 안내(ad)·쿠팡 문장과 겹치지 않는지, 마지막 박자 뒤 정지가 12초를 넘지 않는지,
+# 데이터 틀에 beats가 있는지(ANIMBEAT). 숫자·비교 장면(문단)인데 anim이 없으면 WARN ANIMCAND(실패 아님), 끝에 anim 문단 비율
 import os
 TPLS=[f[:-5] for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates','anim')) if f.endswith('.html')] if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates','anim')) else []
 na=0
@@ -86,9 +87,21 @@ for i,(p,t) in enumerate(zip(s['paras'],tm)):
         if nxt<=n and bs:
             end=t['sents'][nxt-1]['end'] if nxt-1<n else t['end'];lb=t['sents'][max(bs)]['start']
             if end-lb>12: print('ANIMTAIL p%d s%d 마지막 박자 뒤 %.1f초 정지: 슬라이드를 나누거나 마지막 박자를 뒤 문장으로'%(i+1,j,end-lb));ok=False
-        if dd.get('beats') is None and x['anim'].get('tpl')=='live_chart': print('ANIMBEAT p%d s%d live_chart에 beats(사건 점마다 문장 번호)가 없음: 내레이션 박자에 맞춘다'%(i+1,j));ok=False
+        if dd.get('beats') is None and x['anim'].get('tpl')!='chalk_hook': print('ANIMBEAT p%d s%d %s에 beats(항목마다 문장 번호)가 없음: 내레이션 박자에 맞춘다'%(i+1,j,x['anim'].get('tpl')));ok=False
         print('anim p%d s%d'%(i+1,j),an.get('tpl'),'박자',bs)
-if na>2: print('ANIMN 움직이는 장면은 롱폼 한 편에 1~2컷(훅 1 + 핵심 차트 1):',na);ok=False
+# ANIMCAND(경고): 숫자·비교 장면 = chart·(양쪽 큰 글자가 숫자인) compare 슬라이드가 있거나 숫자 stat 슬라이드가 2장 이상인 문단(첫·끝 두 문단 제외). 그런데 anim이 하나도 없으면 알린다.
+# 움직일 이유 없는 장면(제목·안내·쿠팡·미드롤·출처)은 정지 슬라이드 그대로. 목표는 롱폼 문단의 절반 안팎(SKILL V6.8)
+anim_p=0;cand=[];np_=len(s['paras'])
+for i,p in enumerate(s['paras']):
+    has=any(x.get('anim') for x in p['slides']);anim_p+=has
+    if has or i==0 or i>=np_-2: continue
+    dig=lambda v: bool(re.search(r'\d',str(v)))
+    num=[x for x in p['slides'] if x.get('layout')=='chart' or (x.get('layout')=='compare' and all(dig((x.get(k) or {}).get('big','')) for k in ('left','right'))) or (x.get('layout')=='stat' and any(dig(it.get('big','')) for it in x.get('stats',[]) if isinstance(it,dict)))]
+    if any(x.get('layout') in ('chart','compare') for x in num) or len(num)>=2: cand.append(i)
+for i in cand:
+    x=next(x for x in s['paras'][i]['slides'] if x.get('layout') in ('chart','compare','stat') and re.search(r'\d',json.dumps(x,ensure_ascii=False)))
+    print('WARN ANIMCAND p%d 숫자·비교 장면인데 anim 없음(%s \'%s\'): compare_bars·relative_lines·record_bars·scenario_bars·trend_line·live_chart 가운데 맞는 틀로'%(i+1,x.get('layout'),str(x.get('title',''))[:24]))
+print('ANIMRATIO anim %d컷 · 문단 %d/%d (%.0f%%) · 숫자 장면 중 정지 %d'%(na,anim_p,np_,100*anim_p/max(1,np_),len(cand)))
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')

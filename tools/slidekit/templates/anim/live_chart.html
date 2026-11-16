@@ -101,7 +101,7 @@ function draw(){const p=S.p;line.style.strokeDashoffset=L*(1-p);const pt=line.ge
   const k=Math.round(C.k),last=k==n-1,done=!last||Math.abs(C.v-P[k][1])<1e-6,v=last?C.v:P[k][1];
   pv.textContent=done?fmt(P[k][1]):C.v.toFixed(Math.min(DEC,2));plab.textContent=P[k][0]+' 종가';
   pp.textContent=(k==0&&!d.base)?'기준':pctTxt(done?P[k][1]:v);pp.className='pct '+(v<ref?'down':(v>ref?'up':''));}
-window.scene={dur:end,ready:document.fonts.ready,seek(t){tl.seek(Math.min(t,tl.duration()),false);draw();},
+window.scene={dur:end,ready:document.fonts.ready,seek(t){tl.seek(Math.min(t,tl.duration()),false);draw();},spans:tl.getChildren(true,true,false).map(c=>[c.startTime(),c.endTime()]),
   beats:at.slice(1)};
 scene.seek(0);
 </script></body></html>

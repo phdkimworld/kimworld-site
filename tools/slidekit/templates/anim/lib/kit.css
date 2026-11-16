@@ -1,0 +1,12 @@
+/* anim 공통 화면(live_chart·slide.html과 같은 색·글꼴·머리줄). 데이터 틀(compare_bars·relative_lines·record_bars·scenario_bars·trend_line)이 쓴다 */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0B1524;font-family:'Noto Sans CJK KR',sans-serif;color:#E6EDF5;word-break:keep-all}
+.bg{position:absolute;inset:0;background:radial-gradient(900px 600px at 85% 15%,rgba(79,163,255,.16),transparent 70%),radial-gradient(800px 600px at 10% 95%,rgba(245,184,61,.10),transparent 70%),#0B1524}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:80px 80px}
+.hdr{position:absolute;left:96px;right:96px;top:52px;display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
+.brand{color:#F5B83D}.tk{padding:4px 16px;border:2px solid #F5B83D;border-radius:10px;color:#F5B83D;font-weight:900}
+.kick{margin-left:auto;padding:8px 22px;border-radius:999px;background:rgba(245,184,61,.14);color:#F5B83D;font-weight:900}
+h1{position:absolute;left:96px;top:124px;max-width:1700px;font-weight:900;font-size:58px;line-height:1.15;color:#fff;letter-spacing:-1px}
+.sub{position:absolute;left:98px;top:202px;font-size:32px;font-weight:700;color:#9FB3CC}
+svg.stage{position:absolute;left:0;top:0}
+.ftr{position:absolute;left:96px;right:96px;bottom:36px;font-size:24px;color:#6F829B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

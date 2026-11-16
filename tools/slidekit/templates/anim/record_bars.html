@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- anim 틀 record_bars: 과거 사례별 20거래일 뒤 결과 — 세로 막대가 하나씩 선다. value가 null인 항목(이번 회차)은 점선 빈 칸 + text('12월 15일 판정').
+     figkit 'record'와 같은 입력. data = {title, sub?, kicker?, unit?('%'), items:[{label, sub?, value|null, text?, hi?}](2~8),
+             tally?(끝에 뜨는 한 줄, 예: '4번 중 3번 위'), tally_beat?, note?, source?, beats?:[문장 번호…](items[1:]마다)}
+     첫 프레임: 제목·0 기준선·모든 사례 이름(흐리게)·첫 막대와 숫자. -->
+<link rel="stylesheet" href="lib/kit.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit.js"></script>
+</head><body><script>
+frame();
+const I = d.items || [], n = I.length, vs = I.filter(x => x.value != null).map(x => x.value);
+const lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), PT = d.sub ? 360 : 330, PB = (lo < 0 ? 730 : 790) - (d.tally ? 30 : 0);
+const Y = v => PB - (v - lo) / ((hi - lo) || 1) * (PB - PT), Y0 = Y(0), XL = 140, XR = 1780, cw = (XR - XL) / n, bw = Math.min(150, cw * .5);
+el('line', {x1: XL - 20, x2: XR + 20, y1: Y0, y2: Y0, stroke: COL.mute, 'stroke-width': 3, opacity: .7});
+const R = I.map((it, i) => {
+  const cx = XL + cw * (i + .5), g = el('g', {}), nul = it.value == null, c = it.hi ? COL.gold : (nul ? COL.mute : (it.value < 0 ? COL.red : COL.green));
+  const lab = el('text', {x: cx, y: 880, 'text-anchor': 'middle', 'font-size': n <= 5 ? 36 : 30, 'font-weight': 900, fill: it.hi || nul ? COL.gold : COL.white, 'data-box': ''}, g, it.label);
+  let sub = null; if (it.sub) sub = el('text', {x: cx, y: 922, 'text-anchor': 'middle', 'font-size': 26, 'font-weight': 700, fill: COL.mute, 'data-box': ''}, g, it.sub);
+  [lab, sub].forEach(t => { if (t) { const w = t.getBBox().width; if (w > cw - 16) t.setAttribute('font-size', +t.getAttribute('font-size') * (cw - 16) / w); } });
+  let bar, val, y1, h;
+  if (nul) { h = (PB - PT) * .35; y1 = Y0 - h; bar = el('rect', {x: cx - bw / 2, y: y1, width: bw, height: h, rx: 10, fill: 'none', stroke: COL.gold, 'stroke-width': 4, 'stroke-dasharray': '14 10'}, g);
+    el('text', {x: cx, y: y1 + h / 2 + 22, 'text-anchor': 'middle', 'font-size': 64, 'font-weight': 900, fill: COL.gold}, g, '?');
+    val = el('text', {x: cx, y: y1 - 22, 'text-anchor': 'middle', 'font-size': 32, 'font-weight': 900, fill: COL.gold, 'data-box': ''}, g, it.text || '판정 전'); }
+  else { y1 = Math.min(Y(it.value), Y0); h = Math.abs(Y(it.value) - Y0);
+    bar = el('rect', {x: cx - bw / 2, y: y1, width: bw, height: h, rx: 8, fill: c, opacity: it.hi ? 1 : .88}, g);
+    val = el('text', {x: cx, y: it.value < 0 ? Y0 + h + 50 : y1 - 18, 'text-anchor': 'middle', 'font-size': n <= 5 ? 48 : 40, 'font-weight': 900, fill: it.hi ? COL.gold : c, 'data-box': ''}, g, fmtv(it.value, d.unit === undefined ? '%' : d.unit, undefined, it.text)); }
+  return {g, lab, sub, bar, val, y1, h, nul};
+});
+let tal = null; if (d.tally) tal = el('text', {x: 960, y: 1000, 'text-anchor': 'middle', 'font-size': 46, 'font-weight': 900, fill: COL.gold, 'data-box': ''}, null, d.tally);
+const at = times(n, 1.2, 1.2), tl = gsap.timeline({paused: true});
+R.forEach((r, i) => {
+  if (i == 0) return;
+  const kids = [...r.g.children].filter(e => e !== r.lab && e !== r.sub);
+  tl.set([r.lab, r.sub].filter(Boolean), {opacity: .4}, 0).set(kids, {opacity: 0}, 0);
+  tl.to([r.lab, r.sub].filter(Boolean), {opacity: 1, duration: .25}, at[i]).to(kids.filter(e => e !== r.val), {opacity: 1, duration: .15}, at[i]);
+  if (!r.nul) { const neg = r.y1 >= Y0 - .5; tl.fromTo(r.bar, {attr: {y: Y0, height: 0}}, {attr: {y: r.y1, height: r.h}, duration: .6, ease: 'power2.out', immediateRender: false}, at[i]); }
+  tl.fromTo(r.val, {opacity: 0, y: 10}, {opacity: 1, y: 0, duration: .3, immediateRender: false}, at[i] + .45);
+});
+let end = at[n - 1] + 1.2, tb = null;
+if (tal) { tb = beatAt('tally_beat', at[n - 1] + .6); tl.set(tal, {opacity: 0}, 0).to(tal, {opacity: 1, duration: .4}, tb); end = Math.max(end, tb + 1); }
+finish(tl, end, at.slice(1).concat(tb ? [tb] : []));
+</script></body></html>
