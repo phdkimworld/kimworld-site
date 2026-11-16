@@ -1250,7 +1250,19 @@ def build(drafts=False, strict=False, out: Path = DIST):
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    shutil.copytree(ROOT / "static", out / "static")
+    # 게시가 끝난 SNS 미디어(게시 3일 지남·대기열 미사용)는 배포에서 뺀다(2026-11-16 배포본 0.7GB, Pages 1GB 한도). 저장소 파일은 그대로
+    import importlib.util
+    _pruned, _spf = {}, ROOT / "scripts" / "social_prune.py"
+    if _spf.exists():  # 테스트용 임시 사이트에는 scripts/ 가 없을 수 있음
+        _sp = importlib.util.spec_from_file_location("social_prune", _spf)
+        social_prune = importlib.util.module_from_spec(_sp)
+        _sp.loader.exec_module(social_prune)
+        _pruned = social_prune.excluded(ROOT)
+    _pruned_abs = {str(ROOT / k) for k in _pruned}
+    shutil.copytree(ROOT / "static", out / "static",
+                    ignore=lambda d, names: [n for n in names if os.path.join(d, n) in _pruned_abs])
+    if _pruned:
+        print(f"SNS 미디어 {len(_pruned)}개 {sum(_pruned.values()) / 1e6:.0f}MB 배포 제외(게시 3일 지남, scripts/social_prune.py)")
     # 대표 차트(흰 배경 원본)를 검은 화면용 투명 배경 차트로(chart_dark.py, 원본은 그대로·공유 그림은 원본 사용)
     import chart_dark
     chart_dark.convert_all(ROOT / "static" / "charts", out / "static" / "charts")

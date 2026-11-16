@@ -318,4 +318,19 @@ st = dm.load_state(Path("/x")); st["comments"] = {"old": {"at": DT(24 * 20)}, "n
 dm.prune(st, DN)
 check("오래된 기록 정리", list(st["comments"]) == ["new"] and not st["messages"])
 check("오류 코드 요약", dm.err_code(RuntimeError('HTTP 403: {"error":{"code":200,"message":"perm"}}')) == "200" and dm.err_code(RuntimeError("연결 실패: x")) == "x")
+import social_prune as spr
+with tempfile.TemporaryDirectory() as d:
+    d = Path(d); (d / "social/queue").mkdir(parents=True); (d / "social/posted").mkdir(parents=True); (d / "static/social/x").mkdir(parents=True)
+    for n in ("old.mp4", "new.mp4", "q.mp4", "orphan.jpg", "both.jpg"):
+        (d / "static/social/x" / n).write_bytes(b"xx")
+    now = datetime(2026, 11, 16, 12, tzinfo=timezone.utc)
+    P = lambda n, paths, at: (d / "social/posted" / n).write_text(json.dumps({"media": {"paths": paths}, "posted_at": at}), encoding="utf-8")
+    P("a.json", ["static/social/x/old.mp4", "static/social/x/both.jpg"], "2026-11-10T06:00:00-05:00")
+    P("b.json", ["static/social/x/new.mp4"], "2026-11-15T06:00:00-05:00")
+    P("c.json", ["static/social/x/q.mp4"], "2026-11-01T06:00:00-05:00")
+    P("e.json", ["static/social/x/both.jpg"], "2026-11-15T06:00:00-05:00")
+    (d / "social/queue/w.json").write_text(json.dumps({"media": {"path": "static/social/x/q.mp4"}}), encoding="utf-8")
+    ex = spr.excluded(d, now)
+    check("게시 3일 지난 미디어만 배포 제외(대기열·최근 게시·기록 없는 파일은 남김)", list(ex) == ["static/social/x/old.mp4"])
+
 print(f"\n모두 통과 ({ok})")
