@@ -192,6 +192,93 @@ _slots = [m.start() for m in re.finditer(r'<aside class="ad[^>]*data-slot="repor
 check(len(_slots) == 2 and all(re.search(r"</p>\s*$", _bp[:p]) for p in _slots), f"이야기형 그림: 가운데·상품 광고는 문단 뒤(그림과 해설 사이에 끼지 않음) {len(_slots)}")
 check(not re.search(r"</figure>\s*<aside class=\"ad", _bp), "이야기형 그림: 그림 바로 뒤에 광고 없음")
 
+print("3-4) 이야기형 그림 웹 애니메이션(2026-11-16 운영자 \"애니메이션을 리포트에서 렌더링 되게\"): WebP 정지 이미지 + 명세 static/figs")
+_am = _figs_md.replace("zzzz-figs-2026-02", "zzzz-anim-2026-02").replace(".png)", ".webp)")
+t = make_project(FULL_ADS, {"zzzz-anim-2026-02.md": _am.replace("2026-01-15", "2026-02-05")})
+(t / "static/figs").mkdir(exist_ok=True)
+for _k in range(1, 6):
+    _im = _Im.new("RGB", (1200, 700), "#000000"); _ImD.Draw(_im).rectangle([100, 200, 300 + 120 * _k, 300], fill="#3B4554")
+    _im.save(t / f"static/charts/zzzz-anim-2026-02-{_k}.webp", "WEBP")
+    if _k == 5:
+        continue  # 5번째는 명세 없음 → 정지 이미지만(경고)
+    _ops = [{"k": "t", "x": 56, "y": 80, "a": "s", "b": 1, "s": 42, "c": "#F2F4F7", "t": f"테스트 막대 {_k}", "w": 300},
+            {"k": "r", "x0": 100, "y0": 200, "x1": 300 + 120 * _k, "y1": 300, "c": "#3B4554", "r": 6, "g": 0},
+            {"k": "t", "x": 312 + 120 * _k, "y": 260, "a": "s", "b": 1, "s": 32, "c": "#F2F4F7", "t": f"+{_k}.5%", "w": 60, "g": 0}]
+    (t / f"static/figs/zzzz-anim-2026-02-{_k}.json").write_text(json.dumps({
+        "slug": "zzzz-anim-2026-02", "n": _k, "figs": [{"n": _k, "type": "compare", "unit": "%", "title": [f"테스트 막대 {_k}"],
+                                                         "items": [{"label": "제트", "value": _k + 0.5}]}],
+        "tpl": "compare_bars", "data": {"title": f"테스트 막대 {_k}", "unit": "%", "items": [{"label": "제트", "value": _k + 0.5}]},
+        "web": {"w": 1200, "h": 700, "ops": _ops}}, ensure_ascii=False), encoding="utf-8")
+r = run(t)
+check(r.returncode == 0, "웹 애니메이션 그림: 빌드 성공 " + r.stdout[-300:])
+page = (t / "dist/r/zzzz-anim-2026-02/index.html").read_text(encoding="utf-8")
+_bp = notpl(page)
+_figs = re.findall(r'<figure class="story-fig"([^>]*)>(.*?)</figure>', _bp, flags=re.S)
+check(len(_figs) == 5, f"웹 애니메이션 그림: <figure> 5개 (실제 {len(_figs)})")
+_anim = [f for f in _figs if "data-fig=" in f[0]]
+check(len(_anim) == 4 and all(re.search(r'data-fig="/static/figs/zzzz-anim-2026-02-\d\.json\?v=[0-9a-f]{8}"', a) for a, _ in _anim),
+      "명세 있는 그림 4장만 data-fig(명세 주소 + 내용 해시 버전)")
+check(all('<div class="fig-box" style="aspect-ratio:1200/700">' in b for _, b in _figs), "그림 자리 높이 고정: .fig-box aspect-ratio = 정지 이미지 비율")
+check(all(re.search(r'<img [^>]*src="/static/charts/zzzz-anim-2026-02-\d\.webp"[^>]*width="1200" height="700"', b) for _, b in _figs),
+      "JS 없음·검색·공유용 정지 이미지 <img>(WebP, width·height)가 HTML에 그대로")
+check("chart-link" not in "".join(b for _, b in _figs) and not (t / "dist/static/charts/zzzz-anim-2026-02-1.view.png").exists(),
+      "WebP 그림에는 크게 보기(.view.png) 판·링크 없음")
+check((t / "dist/static/charts/zzzz-anim-2026-02-1.webp").exists() and (t / "dist/static/figs/zzzz-anim-2026-02-1.json").exists(), "정지 이미지·명세가 배포 폴더에")
+check("zzzz-anim-2026-02" in r.stdout and "명세" in r.stdout, "명세 없는 WebP 그림은 경고(→ --strict 실패)")
+_scr = re.findall(r'<script src="([^"]*/static/js/fig/fig\.js\?v=[0-9a-f]{10})" data-gsap="([^"]+)" defer></script>', page)
+check(len(_scr) == 1 and re.fullmatch(r"/static/js/fig/gsap-3\.12\.5\.min\.js\?v=[0-9a-f]{10}", _scr[0][1]) and "//" not in _scr[0][0] + _scr[0][1],
+      "fig.js 한 번, GSAP은 사이트 static/js/fig 자체 호스팅(외부 CDN 없음), 주소는 내용 해시")
+check((t / "dist/static/js/fig/fig.js").exists() and (t / "dist/static/js/fig/gsap-3.12.5.min.js").exists(), "fig.js·GSAP 파일 배포")
+check("static/js/fig/" not in (t / "dist/r/zzzz-test-2026-01/index.html").read_text(encoding="utf-8"), "애니메이션 그림이 없는 리포트에는 fig.js 를 붙이지 않음")
+_fj = (SRC / "static/js/fig/fig.js").read_text(encoding="utf-8")
+_rm = _fj.find("matchMedia('(prefers-reduced-motion")
+check(0 < _rm < _fj.find("function loadGsap") and "return;" in _fj[_rm:_rm + 80], "fig.js: 움직임 줄이기(reduced-motion)면 아무것도 받지 않고 끝(정지 이미지 유지)")
+check("IntersectionObserver" in _fj and "repeat" not in _fj and "http" not in _fj.replace("http://www.w3.org/2000/svg", ""), "fig.js: 화면에 들어올 때 한 번만(반복 없음), 외부 주소 없음")
+# 실제 브라우저(설치돼 있을 때만, CI는 건너뜀): 움직임 줄이기·JS 끔·높이 고정·재생
+try:
+    from playwright.sync_api import sync_playwright as _spw
+    import http.server as _hs, threading as _th, functools as _ft
+    _srv = _hs.ThreadingHTTPServer(("127.0.0.1", 0), _ft.partial(type("Q", (_hs.SimpleHTTPRequestHandler,), {"log_message": lambda *a: None}), directory=str(t / "dist")))
+    _th.Thread(target=_srv.serve_forever, daemon=True).start()
+    _url = f"http://127.0.0.1:{_srv.server_address[1]}/r/zzzz-anim-2026-02/"
+    with _spw() as _p:
+        _b = _p.chromium.launch()
+        def _open(**kw):
+            _c = _b.new_context(viewport={"width": 412, "height": 900}, **kw)
+            _c.route("**/*", lambda q: q.continue_() if q.request.url.startswith("http://127.0.0.1") else q.abort())
+            _g = _c.new_page(); _req = []
+            _g.on("request", lambda q: _req.append(q.url))
+            _g.goto(_url, wait_until="load")
+            return _c, _g, _req
+        _c, _g, _req = _open()
+        _h0 = _g.eval_on_selector("figure[data-fig] .fig-box", "e => e.getBoundingClientRect().height")
+        _g.eval_on_selector("figure[data-fig]", "e => e.scrollIntoView({block: 'center'})"); _g.wait_for_timeout(2500)
+        _h1 = _g.eval_on_selector("figure[data-fig] .fig-box", "e => e.getBoundingClientRect().height")
+        _n = _g.eval_on_selector_all(".fig-box.is-anim > svg.fig-anim", "e => e.length")
+        _txt = _g.eval_on_selector(".fig-box.is-anim > svg.fig-anim", "e => e.textContent")
+        check(_n >= 1 and "+1.5%" in _txt, f"브라우저: 화면에 들어온 그림이 명세 숫자로 SVG 애니메이션({_n}장)")
+        check(abs(_h0 - _h1) < 0.5 and _h0 > 100, f"브라우저: 애니메이션 전후 그림 자리 높이 같음({_h0:.1f} → {_h1:.1f})")
+        check(any("gsap-3.12.5.min.js" in u for u in _req) and not any("/static/figs/zzzz-anim-2026-02-5" in u for u in _req), "브라우저: GSAP·명세는 사이트에서만, 명세 없는 그림은 요청 없음")
+        _c.close()
+        _c, _g, _req = _open(reduced_motion="reduce")
+        _g.mouse.wheel(0, 4000); _g.wait_for_timeout(1500)
+        check(_g.eval_on_selector_all("svg.fig-anim", "e => e.length") == 0 and not any("gsap" in u or "/static/figs/" in u for u in _req),
+              "브라우저: 움직임 줄이기면 SVG·GSAP·명세 없이 정지 이미지")
+        _c.close()
+        _c, _g, _req = _open(java_script_enabled=False)
+        check(_g.eval_on_selector_all('figure[data-fig] img', "e => e.filter(i => i.complete && i.naturalWidth === 1200 && getComputedStyle(i).opacity === '1').length") >= 1,
+              "브라우저: JS 꺼짐이면 정지 이미지가 그대로 보임")
+        _c.close()
+        _b.close()
+    _srv.shutdown()
+except ImportError:
+    print("  skip 브라우저 검사(playwright 없음)")
+except Exception as _e:  # 브라우저를 띄울 수 없는 환경(CI 등)
+    if "Executable doesn't exist" in str(_e) or "playwright install" in str(_e):
+        print("  skip 브라우저 검사(chromium 없음)")
+    else:
+        check(False, f"브라우저 검사 오류: {_e}")
+
 print("4) 쿠팡 배너에 다른 도메인")
 bad = {"coupang": {"banner_html": '<script src="https://evil.example.com/x.js"></script>'}}
 t = make_project(bad)

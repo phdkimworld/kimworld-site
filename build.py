@@ -14,6 +14,7 @@ import os
 
 import argparse
 import datetime as dt
+import hashlib
 import html
 import json
 import math
@@ -305,14 +306,46 @@ def chart_img_attrs(tag: str, src: str, lazy: bool = True) -> str:
     return re.sub(r"\s*/?>$", "", tag) + " " + " ".join(add) + " />"
 
 
-def story_figures(html_in: str) -> str:
+GSAP_FILE = "gsap-3.12.5.min.js"  # 그림 애니메이션 라이브러리(자체 호스팅, static/js/fig/. 외부 CDN 금지)
+
+
+def fig_spec(src: str) -> Path | None:
+    """정지 그림 /static/charts/<이름>.webp 의 웹 애니메이션 명세 static/figs/<이름>.json(미디어 저장소 figkit make.py 가 함께 만듦)."""
+    m = re.fullmatch(r"/static/charts/([A-Za-z0-9._-]+)\.webp", src)
+    f = ROOT / "static" / "figs" / f"{m.group(1)}.json" if m else None
+    return f if f and f.exists() else None
+
+
+def story_figures(html_in: str, log=None, name: str = "") -> str:
     """이야기형 본문 그림(2026-11-15 운영자 "피겨를 더 넣어서", 본문 4~6장)을 <figure>로 싸고 캡션(alt)을 그림 아래 한 줄로 보인다.
-    문단(<p>)이 아니게 되므로 _story_ad_cuts 가 그림과 그 해설 문단 사이에 광고를 끼우지 않는다."""
+    문단(<p>)이 아니게 되므로 _story_ad_cuts 가 그림과 그 해설 문단 사이에 광고를 끼우지 않는다.
+    웹 애니메이션(2026-11-16 운영자 "애니메이션을 리포트에서 렌더링 되게"): 그림이 WebP이고 명세 static/figs/<이름>.json 이 있으면
+    <figure data-fig=명세>로 표시하고 그림 자리(.fig-box)의 가로세로 비율을 고정한다. 정지 이미지는 그대로 두고(검색·공유·JS 없음),
+    static/js/fig/fig.js 가 화면에 들어올 때 그 자리에 SVG 애니메이션을 한 번 그린다. WebP 그림에는 '크게 보기'(.view.png)가 없다."""
     def wrap(m: re.Match) -> str:
-        alt = re.search(r'\balt="([^"]*)"', m.group(1))
+        tag = m.group(1)
+        alt = re.search(r'\balt="([^"]*)"', tag)
         cap = f'<figcaption>{alt.group(1)}</figcaption>' if alt and alt.group(1).strip() else ""
-        return f'<figure class="story-fig">{m.group(1)}{cap}</figure>'
-    return re.sub(r'<p>\s*(<a class="chart-link"[^>]*>\s*<img [^>]*>\s*</a>)\s*</p>', wrap, html_in)
+        src = (re.search(r'\bsrc="([^"]+)"', tag) or [None, ""])[1]
+        if not src.endswith(".webp"):
+            return f'<figure class="story-fig">{tag}{cap}</figure>'
+        wh = re.search(r'\bwidth="(\d+)" height="(\d+)"', tag)
+        box = f' style="aspect-ratio:{wh.group(1)}/{wh.group(2)}"' if wh else ""
+        spec, data = fig_spec(src), ""
+        if spec:
+            try:
+                web = json.loads(spec.read_text(encoding="utf-8")).get("web") or {}
+                if not (web.get("ops") and wh and int(web.get("w", 0)) == int(wh.group(1)) and int(web.get("h", 0)) == int(wh.group(2))):
+                    raise ValueError("web 그리기 목록이 없거나 정지 이미지와 크기가 다름")
+                ver = hashlib.md5(spec.read_bytes()).hexdigest()[:8]
+                data = f' data-fig="/static/figs/{spec.name}?v={ver}"'
+            except Exception as e:  # 명세가 깨졌으면 정지 이미지만(빌드는 경고)
+                if log:
+                    log.warn(f"{name}: 그림 명세 {spec.name} 를 쓸 수 없습니다({e}) → 정지 이미지만")
+        elif log:
+            log.warn(f"{name}: WebP 그림 {src} 의 명세 static/figs/{src.rsplit('/', 1)[-1][:-5]}.json 이 없습니다(figkit make.py --site) → 정지 이미지만")
+        return f'<figure class="story-fig"{data}><div class="fig-box"{box}>{tag}</div>{cap}</figure>'
+    return re.sub(r'<p>\s*(<a class="chart-link"[^>]*>\s*<img [^>]*>\s*</a>|<img [^>]*src="/static/charts/[^"]+\.webp"[^>]*>)\s*</p>', wrap, html_in)
 
 
 def fix_chart_src(html_in: str) -> str:
@@ -1123,6 +1156,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
         def _chart(m: re.Match) -> str:
             _nimg[0] += 1
             lazy = _nimg[0] > 1 or str(meta.get("style") or "").strip().lower() != "story"  # 이야기형 첫 그림은 첫 화면 안
+            if m.group(2).endswith(".webp"):  # 이야기형 WebP 그림(2026-11-16~): 크게 보기 판 없이 그림만(웹 애니메이션은 story_figures)
+                return chart_img_attrs(m.group(1), m.group(2), lazy)
             return f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2), lazy)}</a>'
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)', _chart, body_html)
         toc = [t for t in md.toc_tokens]
@@ -1134,7 +1169,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         is_story = style == "story"
         if is_story:
             toc = []  # 목차·영상/SNS 바로가기·체크리스트 바로가기는 모두 목차에서 나오므로 함께 빠진다
-            body_html = story_figures(body_html)  # 본문 그림 4~6장: <figure> + 캡션, 광고는 그림 옆에 붙지 않음
+            body_html = story_figures(body_html, log, name)  # 본문 그림 4~6장: <figure> + 캡션, 광고는 그림 옆에 붙지 않음, WebP+명세면 웹 애니메이션
             if re.search(r"^#{2,3}\s", body.split("\n## 숫자로 다시 보기", 1)[0], flags=re.M):
                 log.warn(f"{name}: 이야기형은 본문에 소제목(##·###)을 쓰지 않습니다(끝 부록 '## 숫자로 다시 보기'만)")
         chars = plain_len(body_html)
@@ -1159,6 +1194,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
             "share_numbers": [str(x).strip() for x in (meta.get("share_numbers") or [])],
             "sources": sources, "sponsor": sponsor if isinstance(sponsor, dict) else None,
             "draft": is_draft, "body_html": body_html, "toc": toc, "chars": chars, "story": is_story,
+            "fig_anim": "<figure class=\"story-fig\" data-fig=" in body_html,  # 웹 애니메이션 그림이 있으면 fig.js 를 붙인다
             "minutes": max(1, math.ceil(chars / 600)), "url": f"{base_path}/r/{slug}/",
             "body_md": body, "short_answer": short_answer(body),
         })
@@ -1236,6 +1272,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
     common = {
         "site": site, "base": base_path, "themes": themes, "ads": ads, "ads_head": ads.head_tags(),
         "asset_ver": asset_ver, "year": today.year, "tickers": tickers,
+        # 그림 애니메이션 파일(fig.js·GSAP)은 내용이 바뀔 때만 주소가 바뀐다(빌드마다 바뀌는 asset_ver 를 쓰면 재방문 때 다시 받음)
+        "fig_ver": hashlib.md5(b"".join((ROOT / "static" / "js" / "fig" / n).read_bytes() for n in ("fig.js", GSAP_FILE)
+                                       if (ROOT / "static" / "js" / "fig" / n).exists())).hexdigest()[:10],
+        "gsap_file": GSAP_FILE,
         "COUPANG_PAGE_NOTICE": COUPANG_PAGE_NOTICE,
         # 종토방이 있는 종목(리포트가 있는 종목). 글 속 $TSLA 링크와 글쓰기 상자에 쓴다
         "board_ticks": [{"c": c, "n": (tickers.get(c) or {}).get("name", ""),

@@ -340,6 +340,13 @@ button { font: inherit; color: inherit; }
 .story-fig { margin: 1.6em 0; }
 .story-fig img { display: block; width: 100%; height: auto; }
 .story-fig figcaption { margin-top: 8px; font-size: .9rem; line-height: 1.5; color: var(--muted); }
+/* 웹 애니메이션 그림(2026-11-16): 자리 높이는 정지 이미지 비율로 고정(.fig-box aspect-ratio), SVG는 그 위에 겹쳐 그린다.
+   재생 전에는 SVG를 숨기고 정지 이미지를 보인다(JS 없음·움직임 줄이기·실패 때도 정지 이미지 그대로) */
+.fig-box { position: relative; }
+.fig-box > img { display: block; width: 100%; height: auto; }
+.fig-box > .fig-anim { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; overflow: visible; }
+.fig-box.is-anim > .fig-anim { visibility: visible; }
+.fig-box.is-anim > img { opacity: 0; }
 /* 휴대폰: 아래로 읽는 동안 머리글을 숨기고, 위로 올리면 다시 보인다 */
 .site-header { transition: transform .2s ease; }
 @media (max-width: 859px) { .site-header.hdr-hide { transform: translateY(-100%); } }

@@ -311,4 +311,6 @@
 <a class="read-pill" href="#" data-read-pill hidden aria-live="off"><span data-rp-part></span><span class="rp-sep" aria-hidden="true">·</span><span data-rp-left></span></a>
 <div class="term-pop" role="tooltip" hidden></div>
 {% if site.api_url and not r.draft %}<script src="{{ base }}/static/js/ask.js?v={{ asset_ver }}" defer></script>{% endif %}
+{# 이야기형 그림 웹 애니메이션(2026-11-16): 정지 이미지가 기본, JS가 있고 움직임 줄이기가 꺼져 있으면 화면에 들어올 때 한 번 움직인다(GSAP은 그때 받음) #}
+{% if r.fig_anim %}<script src="{{ base }}/static/js/fig/fig.js?v={{ fig_ver }}" data-gsap="{{ base }}/static/js/fig/{{ gsap_file }}?v={{ fig_ver }}" defer></script>{% endif %}
 {% endblock %}
