@@ -1,0 +1,88 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- anim 틀 chalk_hook: 칠판(WebGL 결, 없으면 2D 그라데이션)에 두 숫자를 맞대고 동그라미·밑줄, 끝에 질문 한 줄.
+     글씨: 말(라벨·질문)은 손글씨(lib/NanumPenScript-ks.woff2, KS X 1001 한글 2350자+ASCII 부분집합, OFL),
+           숫자는 또렷한 고딕(Noto Sans CJK KR Black)에 분필 결만 입힌다 — 손글씨 0·7 판독성 문제(11-16 시험) 해결.
+     입력(window.ANIM): {data, t:{beats:[초…]}, dur}
+     data = {top, left:{label, value}, mid?('그런데'), right:{label, value, tone?('red'|'gold'|'white')}, question?, beats?:[오른쪽 숫자 문장, 질문 문장]}
+     첫 프레임부터 제목(top)·왼쪽 라벨·왼쪽 숫자가 보인다. 오른쪽 숫자는 beats[0]초, 질문은 beats[1]초에 써진다.
+     계약: window.scene = {dur, ready, seek(t), boxes()} — 결정적(무작위는 고정 시드). -->
+<style>@font-face{font-family:'KW Pen';src:url(lib/NanumPenScript-ks.woff2) format('woff2')}
+*{margin:0;padding:0}html,body{width:1920px;height:1080px;overflow:hidden;background:#1d3328}canvas{position:absolute;left:0;top:0}</style>
+</head><body><canvas id="gl" width="1920" height="1080"></canvas><canvas id="cv" width="1920" height="1080"></canvas>
+<script>
+const W=1920,H=1080,PEN='"KW Pen"',NUM='"Noto Sans CJK KR"',A=window.ANIM||{data:{},t:{}},d=A.data,T=A.t||{};
+// ---------- 1) WebGL 칠판 바탕 ----------
+const glc=document.getElementById('gl');const gl=glc.getContext('webgl',{preserveDrawingBuffer:true,antialias:false});let drawBoard;
+if(gl){
+  const vs=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+  const fs=`precision highp float;uniform vec2 R;uniform float T;
+  float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+  float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p*=2.03;a*=.5;}return v;}
+  void main(){vec2 uv=gl_FragCoord.xy/R;vec2 q=uv*vec2(R.x/R.y,1.);vec3 base=vec3(.105,.205,.165);
+    float smudge=fbm(q*2.2+vec2(T*.02,0.));float streak=fbm(vec2(q.x*9.,q.y*1.3)+3.);float dust=step(.985,h(floor(gl_FragCoord.xy/2.)));
+    vec3 c=base+vec3(.06,.07,.065)*(smudge-.45)*1.6+vec3(.025)*(streak-.5)+vec3(.05)*dust;
+    float vig=smoothstep(1.25,.35,length(uv-.5)*1.4);c*=mix(.62,1.,vig);gl_FragColor=vec4(c,1.);}`;
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw gl.getShaderInfoLog(o);return o};
+  const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const lp=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(lp);gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+  const uR=gl.getUniformLocation(pr,'R'),uT=gl.getUniformLocation(pr,'T');
+  drawBoard=t=>{gl.viewport(0,0,W,H);gl.uniform2f(uR,W,H);gl.uniform1f(uT,t);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);gl.finish();};
+}else{const c2=glc.getContext('2d');drawBoard=()=>{const g=c2.createRadialGradient(W/2,H/2,200,W/2,H/2,1100);g.addColorStop(0,'#24402f');g.addColorStop(1,'#10201a');c2.fillStyle=g;c2.fillRect(0,0,W,H)}}
+// ---------- 2) 분필 글씨(Canvas 2D) ----------
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let seed=1;const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+const ease=x=>x<0?0:x>1?1:1-Math.pow(1-x,3),clamp=x=>Math.max(0,Math.min(1,x));
+// 글자 블록: 오프스크린에 그리고 분필 결(구멍)을 뚫는다. maxW를 넘으면 글자 크기를 줄인다
+function chalkBlock(text,size,color,rot,font,weight,maxW){
+  const c=document.createElement('canvas'),x=c.getContext('2d');const F=s=>`${weight||400} ${s}px ${font||PEN}`;
+  x.font=F(size);let tw=x.measureText(text).width;if(maxW&&tw>maxW){size=Math.floor(size*maxW/tw);x.font=F(size);tw=x.measureText(text).width}
+  const w=Math.ceil(tw)+40,h=Math.ceil(size*1.35);c.width=w;c.height=h;
+  x.font=F(size);x.textBaseline='middle';x.fillStyle=color;x.shadowColor=color;x.shadowBlur=size*.04;
+  x.fillText(text,20,h/2);x.globalAlpha=.35;x.fillText(text,21.5,h/2+1.2);x.globalAlpha=1;
+  x.globalCompositeOperation='destination-out';seed=text.length*97+size;
+  const holes=font===NUM?w*h/90:w*h/55; // 숫자는 결을 덜 뚫어 또렷하게
+  for(let i=0;i<holes;i++){x.globalAlpha=.2+rnd()*.6;x.fillRect(rnd()*w,rnd()*h,1+rnd()*2.2,1+rnd()*1.4);}
+  return {c,w,h,tw,size,rot:rot||0};
+}
+const TONE={red:'#ff8f8f',gold:'#ffe08a',white:'#ffffff'};
+let B={};const LX=480,RX=1440,SIDE=680;
+function build(){
+  B.top=chalkBlock(d.top||'',80,'#e9efe6',-.01,PEN,400,1700);
+  B.l1=chalkBlock(d.left.label,96,'#f4f6f0',-.02,PEN,400,SIDE);
+  B.l2=chalkBlock(d.left.value,250,'#ffffff',-.02,NUM,900,SIDE);
+  if(d.mid)B.vs=chalkBlock(d.mid,90,'#ffe08a',.02,PEN,400,220);
+  B.r1=chalkBlock(d.right.label,96,'#f4f6f0',.01,PEN,400,SIDE);
+  B.r2=chalkBlock(d.right.value,230,TONE[d.right.tone||'red'],-.015,NUM,900,SIDE);
+  if(d.question)B.q=chalkBlock(d.question,120,'#ffe08a',-.015,PEN,400,1600);
+}
+// 왼쪽에서 오른쪽으로 '써지는' 모습: 비스듬한 경계로 잘라 그린다
+function write(b,cx,cy,t0,t1,t){if(!b)return;const p=clamp((t-t0)/(t1-t0));if(p<=0)return;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(b.rot);ctx.translate(-b.w/2,-b.h/2);
+  const xr=p*(b.w+60);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(xr,0);ctx.lineTo(xr-60,b.h);ctx.lineTo(0,b.h);ctx.closePath();ctx.clip();ctx.drawImage(b.c,0,0);ctx.restore();
+  if(p<1){ctx.save();ctx.translate(cx,cy);ctx.rotate(b.rot);ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(-b.w/2+xr-30,-b.h*.1+Math.sin(t*40)*b.h*.2,7,0,7);ctx.fill();ctx.restore();}
+  VIS.push([b,cx,cy]);}
+function chalkStroke(ptsFn,n,p,color,lw){if(p<=0)return;const m=Math.max(2,Math.floor(n*p));
+  for(let pass=0;pass<2;pass++){ctx.beginPath();for(let i=0;i<m;i++){const [x,y]=ptsFn(i/n,pass);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+    ctx.strokeStyle=color;ctx.globalAlpha=pass?.45:.9;ctx.lineWidth=pass?lw*.6:lw;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();}ctx.globalAlpha=1;}
+const ring=(cx,cy,rx,ry)=>(u,pass)=>{const a=-2.6+u*Math.PI*2.25;const wob=1+.035*Math.sin(u*17+pass*2)+.02*Math.sin(u*41);return [cx+Math.cos(a)*rx*wob+pass*3,cy+Math.sin(a)*ry*wob+pass*2]};
+const under=(x0,x1,y)=>(u,pass)=>[x0+(x1-x0)*u,y+Math.sin(u*9+pass)*5+u*8+pass*3];
+// 시간표: 오른쪽 숫자 = beats[0], 질문 = beats[1](없으면 기본값)
+const bt=(T.beats||[]).filter(x=>x!=null);const tR=bt[0]!==undefined?Math.max(.9,bt[0]):1.9,tQ=bt[1]!==undefined?Math.max(tR+1.4,bt[1]):tR+2.0;
+let VIS=[];
+function frame(t){
+  drawBoard(t);ctx.clearRect(0,0,W,H);VIS=[];
+  ctx.fillStyle='#5a3d24';ctx.fillRect(0,0,W,26);ctx.fillRect(0,H-26,W,26);ctx.fillRect(0,0,26,H);ctx.fillRect(W-26,0,26,H);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(26,26,W-52,6);
+  write(B.top,960,120,-1,0,t);write(B.l1,LX,300,-1,0,t);write(B.l2,LX,520,-1,0,t);   // 첫 프레임부터 보이게(빈 화면·컷 판정)
+  chalkStroke(under(LX-B.l2.tw/2,LX+B.l2.tw/2,520+B.l2.size*.62),60,ease((t-.25)/.45),'#f4f6f0',12);
+  write(B.vs,960,300,tR-.85,tR-.55,t);write(B.r1,RX,300,tR-.6,tR-.1,t);write(B.r2,RX,520,tR,tR+.7,t);
+  chalkStroke(ring(RX,525,Math.min(440,B.r2.tw/2+70),Math.min(200,B.r2.size*.62+20)),90,ease((t-tR-.8)/.7),TONE[d.right.tone||'red'],11);
+  write(B.q,960,880,tQ,tQ+.65,t);
+}
+const END=(d.question?tQ+.65:tR+1.5)+.4;
+window.scene={dur:END,ready:(async()=>{const s=[d.top,d.left.label,d.mid,d.right.label,d.question].join(' ');await document.fonts.load(`100px ${PEN}`,s);await document.fonts.load(`900 100px ${NUM}`,d.left.value+d.right.value);await document.fonts.ready;build();frame(0);})(),
+  seek(t){frame(t)},beats:[tR,tQ],
+  boxes(){return VIS.map(([b,cx,cy])=>{const hw=b.tw/2,hh=b.size*.62;return {x:cx-hw,y:cy-hh,w:hw*2,h:hh*2}})},frame:[26,26,W-26,H-26]};
+</script></body></html>

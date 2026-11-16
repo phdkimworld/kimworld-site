@@ -1,0 +1,107 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- anim 틀 live_chart: 가격선이 그려지고 사건 점이 하나씩 뜨며, 오른쪽 패널은 점마다 그날 실제 종가로 바뀌고 마지막 값만 굴러간다.
+     색·글꼴·머리줄은 slide.html과 같다. 숫자는 data에 준 값만 쓴다(사이 값을 실제 종가처럼 보이지 않게, 굴러가는 건 마지막 0.9초뿐).
+     입력(window.ANIM, anim.py가 넣는다): {data, t:{beats:[초…], bracket_beat:초}, dur, ticker, name}
+     data = {title, kicker?, points:[[날짜, 종가, 사건 문구, 작은 문구?], …](2~8개), unit?('달러'), decimals?(3), base?:{value, label},
+             panel_note?('첫 점 대비'), bracket?:{from, to, text}, source?, beats?:[문장 번호…](points[1:]마다), bracket_beat?}
+     계약: window.scene = {dur, ready, seek(t), boxes()} — 첫 프레임부터 제목·축·첫 점·첫 숫자가 보인다(페이드인 없이 컷으로 시작). -->
+<script src="lib/gsap-3.12.5.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0B1524;font-family:'Noto Sans CJK KR',sans-serif;color:#E6EDF5;word-break:keep-all}
+.bg{position:absolute;inset:0;background:radial-gradient(900px 600px at 85% 15%,rgba(79,163,255,.16),transparent 70%),radial-gradient(800px 600px at 10% 95%,rgba(245,184,61,.10),transparent 70%),#0B1524}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:80px 80px}
+.hdr{position:absolute;left:96px;right:96px;top:52px;display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
+.brand{color:#F5B83D}.tk{padding:4px 16px;border:2px solid #F5B83D;border-radius:10px;color:#F5B83D;font-weight:900}
+.kick{margin-left:auto;padding:8px 22px;border-radius:999px;background:rgba(245,184,61,.14);color:#F5B83D;font-weight:900}
+h1{position:absolute;left:96px;top:130px;max-width:1380px;font-weight:900;font-size:60px;line-height:1.15;color:#fff;letter-spacing:-1px}
+svg{position:absolute;left:0;top:0}
+.panel{position:absolute;left:1515px;top:300px;width:365px;padding:34px 26px;border-radius:28px;background:rgba(22,37,59,.92);border:2px solid #22385A}
+.panel .lab{font-size:32px;font-weight:700;color:#9FB3CC;white-space:nowrap}
+.panel .big{font-size:88px;font-weight:900;letter-spacing:-3px;color:#fff;line-height:1.1;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.panel .big small{font-size:46px;letter-spacing:0;margin-left:4px}
+.panel .pct{font-size:64px;font-weight:900;margin-top:18px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.panel .note{font-size:28px;color:#9FB3CC;margin-top:4px}
+.ftr{position:absolute;left:96px;bottom:40px;font-size:22px;color:#6F829B}
+.down{color:#FF4D5E}.up{color:#3DDC97}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="hdr"><span class="brand">김박사 월드</span><span class="tk" id="tk"></span><span id="nm"></span><span class="kick" id="kick"></span></div>
+<h1 id="ttl" data-box></h1>
+<svg id="sv" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+  <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" id="fs0" stop-opacity=".28"/><stop offset="1" id="fs1" stop-opacity="0"/></linearGradient>
+  <clipPath id="reveal"><rect id="revealRect" x="0" y="0" width="0" height="1080"/></clipPath></defs>
+  <g id="axes"></g>
+  <g id="base"><line id="baseLine" stroke="#F5B83D" stroke-width="3" stroke-dasharray="14 12" opacity=".8"/><text id="baseTxt" font-size="30" font-weight="700" fill="#F5B83D" data-box></text></g>
+  <path id="area" fill="url(#fill)" clip-path="url(#reveal)"/>
+  <path id="line" fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle id="head" r="16" filter="url(#glow)"/>
+  <g id="dots"></g>
+  <g id="brk" opacity="0"><path id="brkPath" fill="none" stroke="#4FA3FF" stroke-width="5" stroke-linecap="round"/>
+    <text id="brkTxt" text-anchor="middle" font-size="40" font-weight="900" fill="#4FA3FF" data-box></text></g>
+</svg>
+<div class="panel" id="panel"><div class="lab" id="plab" data-box></div><div class="big" data-box><span id="pv"></span><small id="pu"></small></div>
+  <div class="pct" id="pp" data-box></div><div class="note" id="pnote" data-box></div></div>
+<div class="ftr" id="ftr"></div>
+<script>
+const A=window.ANIM||{data:{},t:{},dur:9}, d=A.data, P=d.points, n=P.length, $=id=>document.getElementById(id);
+$('tk').textContent=A.ticker||'';$('nm').textContent=A.name||'';$('ttl').textContent=d.title||'';
+if(d.kicker)$('kick').textContent=d.kicker;else $('kick').remove();
+$('ftr').textContent=d.source||'';$('pu').textContent=d.unit===undefined?'달러':d.unit;$('pnote').textContent=d.panel_note||(P[0][0]+' 대비');
+const DEC=d.decimals===undefined?3:d.decimals, ref=d.base?d.base.value:P[0][1];
+const fmt=v=>{let s=v.toFixed(DEC);if(DEC>2)s=s.replace(/0+$/,'').replace(/\.(\d)$/,'.$10');return s}; // 1.110→1.11, 1.365 그대로
+const pctTxt=v=>{const p=(v/ref-1)*100;return (p>0?'+':'')+p.toFixed(1)+'%'};
+const fall=P[n-1][1]<ref, COL=fall?'#FF4D5E':'#3DDC97';
+$('line').setAttribute('stroke',COL);$('head').setAttribute('fill',COL);$('fs0').setAttribute('stop-color',COL);$('fs1').setAttribute('stop-color',COL);
+// 축: 값 범위에서 눈금 4~6개
+const vs=P.map(p=>p[1]).concat(d.base?[d.base.value]:[]);let lo=Math.min(...vs),hi=Math.max(...vs);const pad=(hi-lo)*.12||hi*.05;lo-=pad;hi+=pad;
+const raw=(hi-lo)/5,mag=Math.pow(10,Math.floor(Math.log10(raw))),step=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw);
+const Y0=880,Y1=400,XL=300,XR=1400, X=i=>XL+i*(XR-XL)/(n-1), Y=v=>Y0-(v-lo)/(hi-lo)*(Y0-Y1);
+const NS='http://www.w3.org/2000/svg', el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e};
+const ax=$('axes'),dots=$('dots'),tdec=step<0.1?2:(step<1?2:(step<10?1:0));
+for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step){el('line',{x1:250,x2:XR+60,y1:Y(v),y2:Y(v),stroke:'#22385A','stroke-width':2},ax);const t=el('text',{x:236,y:Y(v)+11,'text-anchor':'end','font-size':30,fill:'#6F829B','font-weight':700},ax);t.textContent=v.toFixed(tdec)}
+P.forEach((p,i)=>{const t=el('text',{x:X(i),y:992,'text-anchor':'middle','font-size':38,'font-weight':900,fill:i==n-1?'#fff':'#9FB3CC','data-box':''},ax);t.textContent=p[0]});
+if(d.base){$('baseLine').setAttribute('x1',XL);$('baseLine').setAttribute('x2',XR);$('baseLine').setAttribute('y1',Y(d.base.value));$('baseLine').setAttribute('y2',Y(d.base.value));
+  const bt=$('baseTxt');bt.textContent=d.base.label||'';bt.setAttribute('x',XR);bt.setAttribute('text-anchor','end');bt.setAttribute('y',Y(d.base.value)+(fall?44:-18));}
+const pts=P.map((p,i)=>[X(i),Y(p[1])]);
+const line=$('line');line.setAttribute('d','M'+pts.map(p=>p.join(',')).join(' L'));
+$('area').setAttribute('d','M'+pts.map(p=>p.join(',')).join(' L')+` L${X(n-1)},${Y0} L${X(0)},${Y0} Z`);
+const L=line.getTotalLength();line.style.strokeDasharray=L;line.style.strokeDashoffset=L;
+let acc=[0];for(let i=1;i<n;i++)acc.push(acc[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));const FR=acc.map(a=>a/acc[n-1]);
+// 사건 점과 이름표: 내려간 점은 아래, 오른 점은 위(첫 점은 위). p[4]='above'|'below'로 직접 정할 수 있다
+const G=P.map((p,i)=>{const g=el('g',{opacity:i?0:1},dots);const [x,y]=pts[i],c=i==0?'#F5B83D':COL;
+  el('circle',{cx:x,cy:y,r:30,fill:c,opacity:.25},g);el('circle',{cx:x,cy:y,r:14,fill:c,stroke:'#0B1524','stroke-width':5},g);
+  const below=p[4]?p[4]=='below':(i>0&&p[1]<P[i-1][1]); const anchor=i==0?'start':(i==n-1?'end':'middle'),tx=i==0?x-20:(i==n-1?x+20:x);
+  const t=el('text',{x:tx,y:below?y+72:y-(p[3]?90:48),'text-anchor':anchor,'font-size':i==0?36:40,'font-weight':900,fill:i==0?'#F5B83D':'#fff','data-box':''},g);t.textContent=p[2]||'';
+  if(p[3]){const s=el('text',{x:tx,y:below?y+112:y-50,'text-anchor':anchor,'font-size':28,'font-weight':700,fill:'#9FB3CC','data-box':''},g);s.textContent=p[3]}
+  return g});
+if(d.bracket){const b=d.bracket,bx0=X(b.from),bx1=X(b.to),by=Math.max(290,Math.min(...pts.slice(b.from,b.to+1).map(p=>p[1]),d.base?Y(d.base.value):1e9)-100);
+  $('brkPath').setAttribute('d',`M${bx0},${by+30} L${bx0},${by} L${bx1},${by} L${bx1},${by+30}`);const bt=$('brkTxt');bt.textContent=b.text;bt.setAttribute('x',(bx0+bx1)/2);bt.setAttribute('y',by-22);}
+const bp=$('brkPath'),BL=d.bracket?bp.getTotalLength():0;bp.style.strokeDasharray=BL;bp.style.strokeDashoffset=BL;
+// 시간표: 점 i(1부터)는 beats[i-1]초에 뜬다(내레이션 문장 시작). 없으면 1.4초부터 고르게
+const T=A.t||{}, bt=(T.beats||[]).filter(x=>x!=null);
+const at=[0];for(let i=1;i<n;i++)at.push(bt[i-1]!==undefined?Math.max(bt[i-1],at[i-1]+.5):(i==1?1.4:at[i-1]+Math.max(.9,4.2/(n-1))));
+const S={p:0},C={v:P[0][1],k:0},tl=gsap.timeline({paused:true});
+if(d.base)tl.from('#baseLine',{attr:{x2:XL},duration:.6,ease:'power2.out'},0.15);
+for(let i=1;i<n;i++){const t1=at[i],t0=Math.max(at[i-1]+.05,t1-Math.min(1.1,(at[i]-at[i-1])*.85));
+  tl.fromTo(S,{p:FR[i-1]},{p:FR[i],duration:t1-t0,ease:'power1.inOut',immediateRender:false},t0);
+  tl.to(G[i],{opacity:1,duration:.15},t1).from(G[i].querySelectorAll('circle'),{attr:{r:0},duration:.45,ease:'back.out(2.5)'},t1).from(G[i].querySelectorAll('text'),{opacity:0,y:12,duration:.35},t1+.05);
+  if(i<n-1)tl.set(C,{v:P[i][1],k:i},t1).fromTo('#pv',{color:COL},{color:'#ffffff',duration:.5,immediateRender:false},t1);
+  else tl.set(C,{k:i},t1).to(C,{v:P[i][1],duration:.9,ease:'power2.out'},t1);}
+let end=at[n-1]+1.0;
+if(d.bracket){const tb=T.bracket_beat!=null?Math.max(T.bracket_beat,at[n-1]+.3):at[n-1]+1.0;
+  tl.to('#brk',{opacity:1,duration:.2},tb).to(bp,{strokeDashoffset:0,duration:.7,ease:'power2.inOut'},tb).from('#brkTxt',{opacity:0,y:20,duration:.5},tb+.3);end=Math.max(end,tb+1.0)}
+tl.to('#panel',{borderColor:COL,boxShadow:'0 0 0 6px '+(fall?'rgba(255,77,94,.25)':'rgba(61,220,151,.25)')+',0 20px 60px rgba(0,0,0,.45)',duration:.4},at[n-1]+.6)
+  .fromTo('#pv',{scale:1},{scale:1.12,duration:.25,yoyo:true,repeat:1,transformOrigin:'0% 50%'},at[n-1]+.7);
+end=Math.max(end,at[n-1]+1.3);tl.to({},{duration:.01},end);
+const pv=$('pv'),pp=$('pp'),plab=$('plab'),head=$('head'),rr=$('revealRect');
+function draw(){const p=S.p;line.style.strokeDashoffset=L*(1-p);const pt=line.getPointAtLength(L*p);
+  head.setAttribute('cx',pt.x);head.setAttribute('cy',pt.y);head.setAttribute('opacity',p>0&&p<FR[n-1]-1e-6?1:0);rr.setAttribute('width',pt.x);
+  const k=Math.round(C.k),last=k==n-1,done=!last||Math.abs(C.v-P[k][1])<1e-6,v=last?C.v:P[k][1];
+  pv.textContent=done?fmt(P[k][1]):C.v.toFixed(Math.min(DEC,2));plab.textContent=P[k][0]+' 종가';
+  pp.textContent=(k==0&&!d.base)?'기준':pctTxt(done?P[k][1]:v);pp.className='pct '+(v<ref?'down':(v>ref?'up':''));}
+window.scene={dur:end,ready:document.fonts.ready,seek(t){tl.seek(Math.min(t,tl.duration()),false);draw();},
+  beats:at.slice(1)};
+scene.seek(0);
+</script></body></html>

@@ -3,9 +3,12 @@
 #   효과음은 sfx.py가 코드로 합성한다. 화면 전환=whoosh, 훅·단서·반전·답=boom, 훅 질문 직전=riser, 미드롤·마무리=chime, 숫자 카드=tick
 #   slides.json의 화면마다 "sfx": "boom|whoosh|riser|chime|tick|none"으로 직접 정할 수 있다
 #   raw.wav 옆의 raw_timing.json(st_tts.py가 만든다)을 읽는다. 프레임과 확인용 contact.png는 출력 폴더의 slides_out/에 저장
+#   움직이는 장면(2026-11-16): 슬라이드에 "anim": {"tpl": "live_chart|chalk_hook", "data": {..., "beats": [문장 번호…]}}이 있으면
+#   그 슬라이드 구간 전체를 anim.py로 프레임 캡처해 넣는다(박자 = 문장 시작 시각). segments.json 'anim'에 [시작, 움직임 끝, 구간 끝, 틀]을 남겨
+#   video_check·'최장 정지' 지표가 움직이는 구간을 정지로 세지 않는다. 장면마다 slides_out/anim_*/preview.png(다섯 장)를 눈으로 확인
 import json, sys, os, asyncio, subprocess, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import sfx
+import sfx, anim
 from PIL import Image
 from playwright.async_api import async_playwright
 KIT = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +48,7 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         if shop_img and si in set(pd.get('shop', [])): key = ('AD', 'shop')
         elif si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
             key = ('AD', 'app' if midroll_app and pi == ad_paras[-1] else 'rep'); full_used += sdur
+        elif sl[k].get('anim'): key = (pi, k, 'anim')  # 움직이는 장면: 슬라이드 전체가 한 구간(배너 안내 문장도 장면 그대로)
         elif si in ads: key = (pi, k, si, 'B')
         else: key = (pi, k, si)
         seq.append((t0, key, sl))
@@ -55,15 +59,25 @@ for i, (t0, key, sl) in enumerate(seq):
     else: segs.append([t0, key, t1, sl])
 
 # 2) 고유 화면 렌더링
+isanim = lambda k: not isad(k) and len(k) == 3 and k[2] == 'anim'
+anim_info = {}  # key → (움직임 길이 초, 박자 초 목록, 틀)
+still = lambda f: f[-1] if isinstance(f, list) else f
 async def render():
     files = {}
     async with async_playwright() as p:
-        b = await p.chromium.launch(); pg = await b.new_page(viewport={'width': 1920, 'height': 1080})
+        b = await p.chromium.launch(args=anim.GL_ARGS); pg = await b.new_page(viewport={'width': 1920, 'height': 1080})
         await pg.goto('file://' + os.path.join(KIT, 'slide.html')); await pg.wait_for_timeout(300)
         for _, key, _, sl in segs:
             if key in files: continue
             if isad(key): files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll; continue
             pi, k, si = key[:3]; ban = len(key) == 4; d = dict(sl[k])
+            if isanim(key):
+                t0 = min(a for a, kk, _, _ in segs if kk == key); dur = sum(bb - a for a, kk, bb, _ in segs if kk == key)
+                spec = d['anim']; tb = anim.beat_times(spec.get('data', {}), P[pi]['sents'], t0, P[pi]['start'])
+                fr, mv, probs, _ = await anim.render(b, spec['tpl'], spec.get('data', {}), tb, dur, os.path.join(wd, f'anim_p{pi+1:02d}_s{k}'), deck)
+                if probs: sys.exit('ANIM_FAIL p%d s%d %s: %s' % (pi + 1, k, spec['tpl'], ' / '.join(probs[:6])))
+                bl = tb.get('beats') or []
+                files[key] = fr; anim_info[key] = (mv, [round(t0 + x, 2) for x in bl if x is not None], spec['tpl']); continue
             if d.get('bg'): d['bg'] = 'file://' + absp(d['bg'])
             f = os.path.join(wd, f'p{pi+1:02d}_s{k}_{si}{"_b" if ban else ""}.png')
             await pg.evaluate('([a,b,c,e])=>render(a,b,c,e)', [{'ticker': deck['ticker'], 'name': deck['name'], 'banner': deck.get('banner')}, d, si, ban])
@@ -75,7 +89,9 @@ files = asyncio.run(render())
 # 3) 확인용 콘택트 시트 (고유 화면 전부, 시간순)
 order = []
 for _, key, _, _ in segs:
-    if files[key] not in order: order.append(files[key])
+    fl = files[key]
+    for f in ([fl[i] for i in sorted({0, len(fl) // 4, len(fl) // 2, 3 * len(fl) // 4, len(fl) - 1})] if isinstance(fl, list) else [fl]):
+        if f not in order: order.append(f)
 cols = 6; tw, th = 320, 180; rows = math.ceil(len(order) / cols)
 sheet = Image.new('RGB', (cols * tw, rows * th), '#000')
 for i, f in enumerate(order): sheet.paste(Image.open(f).convert('RGB').resize((tw, th)), ((i % cols) * tw, (i // cols) * th))
@@ -88,8 +104,13 @@ if pad: segs[-1][2] += pad
 total = tm['duration'] + pad
 lst = os.path.join(wd, 'list.txt')
 with open(lst, 'w') as fo:
-    for t0, key, t1, _ in segs: fo.write(f"file '{files[key]}'\nduration {t1 - t0:.3f}\n")
-    fo.write(f"file '{files[segs[-1][1]]}'\n")
+    for t0, key, t1, _ in segs:
+        fl = files[key]
+        if isinstance(fl, list):  # 움직이는 장면: 프레임마다 1/30초, 남는 시간은 마지막 프레임
+            for f in fl[:-1]: fo.write(f"file '{f}'\nduration {1 / anim.FPS:.6f}\n")
+            fo.write(f"file '{fl[-1]}'\nduration {max(1 / anim.FPS, (t1 - t0) - (len(fl) - 1) / anim.FPS):.6f}\n")
+        else: fo.write(f"file '{fl}'\nduration {t1 - t0:.3f}\n")
+    fo.write(f"file '{still(files[segs[-1][1]])}'\n")
 # 효과음 위치: 화면이 바뀌는 순간마다 종류를 정한다
 def sfx_events():
     ev, last_t, prev = [], -99.0, None
@@ -99,6 +120,12 @@ def sfx_events():
             prev = key; continue
         pi, k, si = key[:3]; d = sl[k]
         new_slide = prev is None or isad(prev) or prev[:2] != (pi, k)
+        if isanim(key):  # 장면 시작은 화면 전환 소리, 박자(사건 점·숫자)마다 딸깍
+            kind = d.get('sfx', 'boom' if d['anim']['tpl'] == 'chalk_hook' else 'whoosh')
+            if kind != 'none': ev.append((t0, kind)); last_t = t0
+            for bt in anim_info[key][1]:
+                if bt - last_t >= 1.2 and bt < t1: ev.append((bt, 'tick')); last_t = bt
+            prev = key; continue
         kind = None
         if new_slide:
             kick = str(d.get('kicker', ''))
@@ -119,7 +146,7 @@ def sfx_events():
 STRIP_SEC = 6.0
 def strip_windows():
     if not deck.get('shop_strip'): return []
-    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4] + [(0, 30.0), (outro_t0, total)]
+    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)]  # 움직이는 장면 위에도 띠를 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
     shop_t = [a for a, k, b, _ in segs if isad(k) and k[1] == 'shop']
@@ -166,13 +193,16 @@ def hsh(f):
 static, run = [], None
 for a, k, b, _ in segs:
     if isad(k) or a >= outro_t0: run = None; continue
+    if isanim(k):  # 움직이는 동안은 정지가 아니다. 움직임이 끝난 뒤 마지막 프레임 유지 구간만 센다
+        h = hsh(still(files[k])); run = [min(b, a + anim_info[k][0]), b, h]; static.append(run); continue
     h = hsh(files[k])
     if run and run[2] == h: run[1] = b
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
 json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at,
-           'longest_static': [round(longest[0], 1), round(longest[1], 1)], 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
+           'longest_static': [round(longest[0], 1), round(longest[1], 1)],
+           'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
-print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at,
+print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
       '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))

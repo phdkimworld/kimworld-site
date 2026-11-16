@@ -66,6 +66,29 @@ if s.get('shop'):
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
+# ANIM: 움직이는 장면(2026-11-16, SKILL V6.8). 틀이 있는지, 박자 문장 번호가 그 슬라이드 안에서 커지는지, 안내(ad)·쿠팡 문장과 겹치지 않는지,
+# 마지막 박자 뒤 정지가 12초를 넘지 않는지, 롱폼 한 편에 2컷 이하인지
+import os
+TPLS=[f[:-5] for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates','anim')) if f.endswith('.html')] if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates','anim')) else []
+na=0
+for i,(p,t) in enumerate(zip(s['paras'],tm)):
+    n=len(t['sents']);sl=p['slides']
+    for j,x in enumerate(sl):
+        if not x.get('anim'): continue
+        na+=1;an=x['anim'];dd=an.get('data',{});f=x.get('from',0);nxt=sl[j+1].get('from',0) if j+1<len(sl) else n
+        if an.get('tpl') not in TPLS: print('ANIM p%d s%d 틀 없음:'%(i+1,j),an.get('tpl'),TPLS);ok=False
+        bs=[b for k,v in dd.items() if k=='beats' or k.endswith('_beat') for b in (v if isinstance(v,list) else [v]) if b is not None]
+        if any(not (f<=b<nxt) for b in bs): print('ANIM p%d s%d 박자 문장 번호가 슬라이드 범위(%d~%d) 밖:'%(i+1,j,f,nxt-1),bs);ok=False
+        bl=[b for b in dd.get('beats',[]) if b is not None]
+        if bl!=sorted(bl): print('ANIM p%d s%d beats는 커지는 순서로:'%(i+1,j),bl);ok=False
+        rng=set(range(f,nxt))
+        if rng&set(p.get('ad',[])) or rng&set(p.get('shop',[])): print('ANIMAD p%d s%d 움직이는 장면 구간에 안내(ad)·쿠팡 문장이 있음: 장면을 앞뒤로 옮긴다'%(i+1,j));ok=False
+        if nxt<=n and bs:
+            end=t['sents'][nxt-1]['end'] if nxt-1<n else t['end'];lb=t['sents'][max(bs)]['start']
+            if end-lb>12: print('ANIMTAIL p%d s%d 마지막 박자 뒤 %.1f초 정지: 슬라이드를 나누거나 마지막 박자를 뒤 문장으로'%(i+1,j,end-lb));ok=False
+        if dd.get('beats') is None and x['anim'].get('tpl')=='live_chart': print('ANIMBEAT p%d s%d live_chart에 beats(사건 점마다 문장 번호)가 없음: 내레이션 박자에 맞춘다'%(i+1,j));ok=False
+        print('anim p%d s%d'%(i+1,j),an.get('tpl'),'박자',bs)
+if na>2: print('ANIMN 움직이는 장면은 롱폼 한 편에 1~2컷(훅 1 + 핵심 차트 1):',na);ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')
