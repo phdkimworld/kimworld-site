@@ -62,6 +62,8 @@ for i, (t0, key, sl) in enumerate(seq):
 # 2) 고유 화면 렌더링
 isanim = lambda k: not isad(k) and len(k) == 3 and k[2] == 'anim'
 anim_info = {}  # key → (움직임 길이 초, 박자 초 목록, 틀)
+MOTION = not os.environ.get('NO_MOTION') and deck.get('motion', True) is not False
+motion_keys = set()  # 가벼운 움직임 프레임 목록을 쓰는 정지 슬라이드·전체 화면 안내
 still = lambda f: f[-1] if isinstance(f, list) else f
 async def render():
     files = {}
@@ -83,25 +85,68 @@ async def render():
             files[k] = fr; anim_info[k] = (mv, [round(j['t0'] + x, 2) for x in bl if x is not None], j['tpl'])
         shot = sum(len(set(fr)) for fr, _, _, _ in res); tot = sum(len(fr) for fr, _, _, _ in res)
         print(f'움직이는 장면 {len(jobs)}개 · 프레임 {tot}(새로 찍음 {shot}) · 일꾼 {anim.WORKERS} · {_t.time() - _s:.0f}초', flush=True)
-    async with async_playwright() as p:
-        b = await p.chromium.launch(args=anim.GL_ARGS); pg = await b.new_page(viewport={'width': 1920, 'height': 1080})
+    # 정지 슬라이드: 가벼운 움직임(MOTION, 11-16 "최대한 애니메이션") — 슬라이드가 새로 뜨면 덩어리가 차례로 들어오고, 문장마다 새로 드러난 요소만 들어온다.
+    # 0.3~0.8초 움직인 뒤 끝 상태(= 예전 정지 그림)로 남는다. 영상 0초(표지)는 움직이지 않는다. 끄기: NO_MOTION=1 또는 deck "motion": false
+    todo, prev = [], None
+    for t0, key, _, sl in segs:
+        if key in files or isad(key):
+            if isad(key) and key not in files: files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll
+            prev = key; continue
+        pi, k, si = key[:3]; first = prev is None or isad(prev) or prev[:2] != (pi, k)
+        if key not in [x[0] for x in todo]: todo.append((key, sl[k], first and t0 > 0.01, MOTION and t0 > 0.01))
+        prev = key
+    q = asyncio.Queue()
+    for x in todo: q.put_nowait(x)
+    async def worker(b):
+        pg = await b.new_page(viewport={'width': 1920, 'height': 1080})
         await pg.goto('file://' + os.path.join(KIT, 'slide.html')); await pg.wait_for_timeout(300)
-        for _, key, _, sl in segs:
-            if key in files: continue
-            if isad(key): files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll; continue
-            pi, k, si = key[:3]; ban = len(key) == 4; d = dict(sl[k])
+        while not q.empty():
+            key, s, first, mo = q.get_nowait()
+            pi, k, si = key[:3]; ban = len(key) == 4; d = dict(s)
             if d.get('bg'): d['bg'] = 'file://' + absp(d['bg'])
             f = os.path.join(wd, f'p{pi+1:02d}_s{k}_{si}{"_b" if ban else ""}.png')
             await pg.evaluate('([a,b,c,e])=>render(a,b,c,e)', [{'ticker': deck['ticker'], 'name': deck['name'], 'banner': deck.get('banner')}, d, si, ban])
-            await pg.wait_for_timeout(60); await pg.screenshot(path=f); files[key] = f
-        await b.close()
+            await pg.wait_for_timeout(60)
+            md = await pg.evaluate('([f,b])=>prep(f,b)', [first, ban]) if mo else 0
+            if md > 0:
+                fr = []
+                for i in range(int(math.ceil(md * anim.FPS)) + 1):
+                    await pg.evaluate('t=>motion(t)', i / anim.FPS); g = f[:-4] + f'_m{i:02d}.png'
+                    await pg.screenshot(path=g); fr.append(g)
+                files[key] = fr; motion_keys.add(key)
+            else:
+                await pg.screenshot(path=f); files[key] = f
+        await pg.close()
+    async with async_playwright() as p:
+        W = max(1, min(anim.WORKERS, 8, len(todo) or 1))
+        brs = [await p.chromium.launch(args=anim.GL_ARGS) for _ in range(W)]
+        await asyncio.gather(*[worker(b) for b in brs])
+        for b in brs: await b.close()
+    # 전체 화면 안내(미드롤·쿠팡 카드): 0.4초 동안 살짝 커지며 밝아진 뒤 끝 상태를 문장 끝까지 그대로(읽기 쉽게 정지 유지)
+    if MOTION:
+        for key in list(files):
+            if isad(key) and isinstance(files[key], str):
+                files[key] = ad_entrance(files[key], os.path.join(wd, f'ad_{key[1]}')); motion_keys.add(key)
     return files
+def ad_entrance(src, outdir, sec=0.4):
+    os.makedirs(outdir, exist_ok=True)
+    im = Image.open(src).convert('RGB').resize((1920, 1080)); n = int(sec * anim.FPS); fr = []
+    for i in range(n + 1):
+        x = 1 - (1 - i / n) ** 3; f = os.path.join(outdir, f'a{i:02d}.png')
+        if i == n: im.save(f)
+        else:
+            sc = 0.94 + 0.06 * x; w, h = int(1920 * sc), int(1080 * sc)
+            bg = Image.new('RGB', (1920, 1080), (11, 21, 36)); sm = im.resize((w, h), Image.BILINEAR)
+            bg.paste(Image.blend(Image.new('RGB', (w, h), (11, 21, 36)), sm, 0.7 + 0.3 * x), ((1920 - w) // 2, (1080 - h) // 2)); bg.save(f)
+        fr.append(f)
+    return fr
 files = asyncio.run(render())
 
 # 3) 확인용 콘택트 시트 (고유 화면 전부, 시간순)
 order = []
 for _, key, _, _ in segs:
     fl = files[key]
+    if key in motion_keys: fl = fl[-1]  # 가벼운 움직임은 끝 화면만 시트에
     for f in ([fl[i] for i in sorted({0, len(fl) // 4, len(fl) // 2, 3 * len(fl) // 4, len(fl) - 1})] if isinstance(fl, list) else [fl]):
         if f not in order: order.append(f)
 cols = 6; tw, th = 320, 180; rows = math.ceil(len(order) / cols)
@@ -211,14 +256,14 @@ for a, k, b, _ in segs:
     if isad(k) or a >= outro_t0: run = None; continue
     if isanim(k):  # 움직이는 동안은 정지가 아니다. 움직임이 끝난 뒤 마지막 프레임 유지 구간만 센다
         h = hsh(still(files[k])); run = [min(b, a + anim_info[k][0]), b, h]; static.append(run); continue
-    h = hsh(files[k])
+    h = hsh(still(files[k]))
     if run and run[2] == h: run[1] = b
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
 json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)],
-           'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
+           'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
 print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
-      '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))
+      '| 가벼운 움직임 %d화면' % len(motion_keys), '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))

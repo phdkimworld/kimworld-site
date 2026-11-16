@@ -5,8 +5,9 @@
 #     window.ANIM.t로 넘긴다. 틀은 그 시각에 사건 점·숫자를 띄운다(내레이션이 말하는 순간 화면에 뜬다)
 #   - 장면 계약: window.scene = {dur, ready, seek(t), boxes()?}. seek(t) 뒤 화면이 그 시각 그대로(실시간 녹화 아님, 매번 같은 결과)
 #   - 겹침 검사: 박자마다와 마지막 프레임에서 글자 상자([data-box] 요소 또는 scene.boxes())가 서로 겹치거나 화면 밖이면 실패
-# 그림 명세에서: python3 anim.py fromfig <figs.json> <n>  → {"tpl","data"}(beats만 더해 slides.json에)
-# 단독 미리보기: python3 anim.py preview <tpl> <data.json> <출력 폴더> [--dur 초] [--beats 1.5,3,4.5]
+# 그림 명세에서: python3 anim.py fromfig <figs.json> <n> [--v]  → {"tpl","data"}(beats만 더해 slides.json에, --v는 쇼츠 세로 틀 → shorts.json 장면 'anim')
+# 단독 미리보기: python3 anim.py preview <tpl> <data.json> <출력 폴더> [--dur 초] [--beats 1.5,3,4.5] [--cover(쇼츠 첫 장면 표지 검사)]
+# 쇼츠 세로 틀 v_stat·v_bars·v_line(11-16): 1080×768 투명 배경, make_shorts가 장면 "anim"으로 부른다. 첫 장면은 표지 검사(cover_check)
 #   → 출력 폴더에 preview.png(0·25·50·75·100% 다섯 장)와 ANIM_OK/ANIM_FAIL 한 줄
 import os, sys, json, asyncio
 KIT = os.path.dirname(os.path.abspath(__file__))
@@ -43,10 +44,11 @@ WORKERS = int(os.environ.get('ANIM_WORKERS', '0')) or max(1, min(8, os.cpu_count
 CHUNK = 45  # 일꾼 하나가 한 번에 찍는 프레임 수(긴 장면도 여러 일꾼이 나눠 찍는다)
 
 async def _open(browser, job, errs):
-    pg = await browser.new_page(viewport={'width': 1920, 'height': 1080}, device_scale_factor=1)
+    vw, vh = job.get('vp') or (1920, 1080)
+    pg = await browser.new_page(viewport={'width': vw, 'height': vh}, device_scale_factor=1)
     pg.on('pageerror', lambda e: errs.append(str(e)))
     deck = job.get('deck') or {}
-    anim = {'data': job['data'], 't': job['t'], 'dur': job['dur'], 'ticker': deck.get('ticker', ''), 'name': deck.get('name', '')}
+    anim = {'data': job['data'], 't': job['t'], 'dur': job['dur'], 'ticker': deck.get('ticker', ''), 'name': deck.get('name', ''), 'cover': bool(job.get('cover'))}
     await pg.add_init_script('window.ANIM = ' + json.dumps(anim, ensure_ascii=False) + ';')
     await pg.goto('file://' + os.path.join(TPL_DIR, job['tpl'] + '.html'))
     try: await pg.wait_for_function('window.scene && window.scene.ready', timeout=20000)
@@ -62,11 +64,30 @@ async def _probe(browser, job):
     for c in checks:
         await pg.evaluate('t=>scene.seek(t)', c)
         probs += [f'{c:.1f}초 {p}' for p in await pg.evaluate(BOX_JS)]
+    if job.get('cover'): probs += await cover_check(pg)
     if sd > dur + 0.05: probs.append(f'장면({sd:.1f}초)이 슬라이드 구간({dur:.1f}초)보다 김: 끝 박자가 잘림 — beats를 앞당기거나 구간을 늘린다')
     spans = await pg.evaluate('scene.spans || null')
     await pg.close()
     probs += [f'페이지 오류: {e[:80]}' for e in errs[:3]]
     return moving, probs, spans
+
+# 쇼츠 표지 검사(운영자 2026-11-16 "표지 화면 고려"): 0.0초 프레임 = 완성된 표지.
+#  data-cover 요소 중 이름·꼬리표(name)와 160px 이상 숫자(big)가 0초에 불투명·확대/회전 없이 최종 크기로 화면 안에 있어야 하고, 0.4초 전에는 아무것도 움직이지 않는다
+async def cover_check(pg):
+    await pg.evaluate('scene.seek(0)'); cv = await pg.evaluate('scene.cover ? scene.cover() : []'); fr = await pg.evaluate('scene.frame || [0,0,1920,1080]')
+    out = []; roles = {c['role'] for c in cv}
+    for r in ('name', 'big'):
+        if r not in roles: out.append(f"표지: 0초에 {'이름·꼬리표(label)' if r == 'name' else '큰 숫자(big)'} 없음")
+    for c in cv:
+        if c['op'] < 0.99: out.append(f"표지: '{c['text']}' 0초 투명도 {c['op']:.2f}(최종 상태 아님)")
+        for m in c['tf']:
+            v = [float(x) for x in m[m.find('(') + 1:-1].split(',')] if m.startswith('matrix(') else None
+            if not v or abs(v[0] - 1) > 0.01 or abs(v[3] - 1) > 0.01 or abs(v[1]) > 0.01 or abs(v[2]) > 0.01: out.append(f"표지: '{c['text']}' 0초에 확대·회전 중({m[:40]})"); break
+        if c['x'] < fr[0] - 1 or c['y'] < fr[1] - 1 or c['x'] + c['w'] > fr[2] + 1 or c['y'] + c['h'] > fr[3] + 1: out.append(f"표지: '{c['text']}' 화면 밖으로 잘림")
+        if c['role'] == 'big' and c['fs'] < 160: out.append(f"표지: 큰 숫자 '{c['text']}' {c['fs']:.0f}px < 160px")
+    early = [s for s in (await pg.evaluate('scene.spans || []')) if s[1] > 0.001 and s[0] < 0.39]
+    if early: out.append(f'표지: 0.4초 전에 움직이는 요소 {len(early)}개(움직임은 0.4~0.6초부터)')
+    return out
 
 def _shoot_list(n, spans):
     """프레임 i를 새로 찍어야 하나: 직전 프레임 뒤로 움직임(tween)이 하나라도 걸치면 찍고, 아니면 직전 프레임을 그대로 쓴다(정지 구간은 한 장)."""
@@ -108,7 +129,7 @@ async def render_many(jobs, workers=None, preview_only=False):
                 pg = await _open(brs[k], job, page_errs[ji])
                 for i in frames:
                     await pg.evaluate('t=>scene.seek(t)', i / FPS)
-                    await pg.screenshot(path=os.path.join(job['outdir'], f'f{i:05d}.png'))
+                    await pg.screenshot(path=os.path.join(job['outdir'], f'f{i:05d}.png'), omit_background=bool(job.get('transparent')))
                 await pg.close()
         await asyncio.gather(*[shoot_worker(k) for k in range(W)])
         await asyncio.gather(*[b.close() for b in brs])
@@ -126,9 +147,15 @@ async def render_many(jobs, workers=None, preview_only=False):
         out.append((frames, round(n / FPS, 3), probs + [f'페이지 오류: {e[:80]}' for e in page_errs[ji][:2]], prev))
     return out
 
-async def render(browser, tpl, data, t, dur, outdir, deck=None, preview_only=False):
+VERT = (1080, 768)  # 쇼츠 세로 틀(v_*)은 make_shorts 핵심 영역 1080×768, 배경 투명
+def job_for(tpl, data, t, dur, outdir, deck=None, cover=False):
+    j = {'tpl': tpl, 'data': data, 't': t, 'dur': dur, 'outdir': outdir, 'deck': deck}
+    if tpl.startswith('v_'): j.update(vp=VERT, transparent=True, cover=cover)
+    return j
+
+async def render(browser, tpl, data, t, dur, outdir, deck=None, preview_only=False, cover=False):
     """(옛 호출 호환) 장면 하나. browser 인자는 쓰지 않는다(render_many가 자기 브라우저를 띄움)."""
-    return (await render_many([{'tpl': tpl, 'data': data, 't': t, 'dur': dur, 'outdir': outdir, 'deck': deck}], preview_only=preview_only))[0]
+    return (await render_many([job_for(tpl, data, t, dur, outdir, deck, cover)], preview_only=preview_only))[0]
 
 # 리포트 그림 명세(figkit figs.json)의 그림 하나 → anim data. 같은 숫자를 영상과 리포트가 함께 쓴다(지어낸 숫자 방지, 토큰 절약)
 #   figkit 유형 → 틀: compare→compare_bars, relative→relative_lines, record→record_bars, scenarios→scenario_bars, trend→trend_line, price_events→live_chart
@@ -167,22 +194,35 @@ def fig_to_anim(figs_path, n):
         if fig.get('ref'): out['base'] = {'value': fig['ref']['v'], 'label': fig['ref'].get('label', '')}
     return tpl, out
 
+# 쇼츠용 세로 틀로(11-16): fromfig ... --v → v_bars(compare·record·scenarios) / v_line(trend·price_events·relative의 강조 선). label(16자로 자름)·big은 손으로 다듬는다(첫 장면이면 표지 필수), relative는 강조 선을 기준일=100으로
+def fig_to_vertical(figs_path, n):
+    tpl, d = fig_to_anim(figs_path, n); out = {'label': d.get('title', '')[:16]}
+    if tpl in ('compare_bars', 'record_bars'):
+        out.update(items=[{k: it[k] for k in ('label', 'value', 'text', 'hi') if k in it} for it in d['items']][:4], unit=d.get('unit', '%' if tpl == 'record_bars' else ''), decimals=d.get('decimals', 1)); return 'v_bars', out
+    if tpl == 'scenario_bars':
+        out.update(items=[{'label': it['label'], 'value': it['p'], 'text': f"{it['p']}%", **({'hi': True} if it.get('hi') else {})} for it in d['items']][:4], unit='%', decimals=0, callout=d.get('decision', '')[:18]); return 'v_bars', out
+    if tpl == 'trend_line': out.update(points=[[it['label'], it['value']] for it in d['items']][:7], unit=d.get('unit', ''), decimals=d.get('decimals', 1))
+    elif tpl == 'live_chart': out.update(points=[[p[0], p[1], p[2][:8]] for p in d['points']][:7], unit=d.get('unit', '달러'), decimals=2)
+    else:
+        s_ = next((x for x in d['series'] if x.get('hi')), d['series'][0]); out.update(label=s_['name'][:12] + ' ' + d.get('base_label', ''), points=[[p[0], round(p[1] / s_['points'][0][1] * 100, 1)] for p in s_['points']][::max(1, len(s_['points']) // 6)][:7], unit='', decimals=1)
+    return 'v_line', out
+
 def contact(files, out):
     from PIL import Image
-    tw, th = 480, 270; sheet = Image.new('RGB', (tw * len(files), th), '#000')
+    im0 = Image.open(files[0]); th = 270 if im0.width >= im0.height else 480; tw = round(th * im0.width / im0.height); sheet = Image.new('RGB', (tw * len(files), th), '#000')
     for i, f in enumerate(files): sheet.paste(Image.open(f).convert('RGB').resize((tw, th)), (i * tw, 0))
     sheet.save(out)
 
 def main():
     import argparse
     if sys.argv[1:2] == ['fromfig']:  # python3 anim.py fromfig <figs.json> <n> → {"tpl", "data"} JSON(slides.json 'anim' 자리에 그대로, beats만 더한다)
-        tpl, data = fig_to_anim(sys.argv[2], int(sys.argv[3])); print(json.dumps({'tpl': tpl, 'data': data}, ensure_ascii=False)); return
+        tpl, data = (fig_to_vertical if '--v' in sys.argv else fig_to_anim)(sys.argv[2], int(sys.argv[3])); print(json.dumps({'tpl': tpl, 'data': data}, ensure_ascii=False)); return
     ap = argparse.ArgumentParser(); ap.add_argument('cmd', choices=['preview']); ap.add_argument('tpl'); ap.add_argument('data'); ap.add_argument('out')
-    ap.add_argument('--dur', type=float, default=12.0); ap.add_argument('--beats', default=''); ap.add_argument('--ticker', default=''); ap.add_argument('--name', default='')
+    ap.add_argument('--dur', type=float, default=12.0); ap.add_argument('--beats', default=''); ap.add_argument('--ticker', default=''); ap.add_argument('--name', default=''); ap.add_argument('--cover', action='store_true')
     a = ap.parse_args(); data = json.load(open(a.data, encoding='utf-8'))
     t = {'beats': [float(x) for x in a.beats.split(',') if x]} if a.beats else {}
     async def go():
-        return await render(None, a.tpl, data, t, a.dur, a.out, {'ticker': a.ticker, 'name': a.name}, preview_only=True)
+        return await render(None, a.tpl, data, t, a.dur, a.out, {'ticker': a.ticker, 'name': a.name}, preview_only=True, cover=a.cover)
     _, moving, probs, _ = asyncio.run(go())
     for p in probs: print('  ✗', p)
     print(('ANIM_FAIL' if probs else 'ANIM_OK'), a.tpl, f'움직임 {moving:.1f}초', os.path.join(a.out, 'preview.png'))

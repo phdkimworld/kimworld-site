@@ -101,7 +101,13 @@ for i,p in enumerate(s['paras']):
 for i in cand:
     x=next(x for x in s['paras'][i]['slides'] if x.get('layout') in ('chart','compare','stat') and re.search(r'\d',json.dumps(x,ensure_ascii=False)))
     print('WARN ANIMCAND p%d 숫자·비교 장면인데 anim 없음(%s \'%s\'): compare_bars·relative_lines·record_bars·scenario_bars·trend_line·live_chart 가운데 맞는 틀로'%(i+1,x.get('layout'),str(x.get('title',''))[:24]))
-print('ANIMRATIO anim %d컷 · 문단 %d/%d (%.0f%%) · 숫자 장면 중 정지 %d'%(na,anim_p,np_,100*anim_p/max(1,np_),len(cand)))
+# ANIMRATIO 기준(운영자 2026-11-16 "롱폼 숏폼 모두 최대한 애니메이션"): ① 데이터 anim이 있는 문단이 본문 문단(끝 두 문단 투표·outro 제외)의 60% 이상(전: 기준 없음, '절반 안팎')
+# ② 나머지 정지 슬라이드·미드롤·쿠팡·투표는 make_slide_video의 가벼운 움직임(motion)이 맡는다 — deck "motion": false면 실패
+body=max(1,np_-2);anim_b=sum(1 for p in s['paras'][:np_-2] if any(x.get('anim') for x in p['slides']))
+mo=s.get('motion',True) is not False
+print('ANIMRATIO anim %d컷 · 문단 %d/%d (%.0f%%) · 본문 %d/%d (%.0f%%, 기준 60%%) · 가벼운 움직임 %s · 숫자 장면 중 정지 %d'%(na,anim_p,np_,100*anim_p/max(1,np_),anim_b,body,100*anim_b/body,'켬' if mo else '끔',len(cand)))
+if anim_b<0.6*body: print('ANIMLOW 데이터 anim 문단 %d/%d < 60%%: 숫자·비교·흐름이 있는 문단마다 anim 틀(fromfig 6틀)을 넣는다(WARN ANIMCAND 목록부터)'%(anim_b,body));ok=False
+if not mo: print('ANIMLOW slides.json "motion": false — 정지 슬라이드의 가벼운 움직임을 끄지 않는다(운영자 11-16 최대 적용)');ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')

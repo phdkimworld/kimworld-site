@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- 쇼츠 세로 틀 v_line(1080×768, 투명): 가격·추이 선이 점마다 그려지고 점 옆에 그날 실제 값(사이 값은 쓰지 않음)과 사건 글자가 뜬다.
+     data = {label?, big?(160px 이상 — 표지 장면이면 필수), tone?, points:[[x 라벨, 값, 사건 글자?], …](2~7), unit?('달러'), decimals?(2),
+             ref?:{v, label}(점선 기준선), beats?:[비율…](points[1:]마다)}
+     첫 프레임: label·big·첫 점(과 값). 상승 구간 초록·하락 빨강. 오른쪽 버튼 자리(x>900, 아래쪽) 비움. -->
+<link rel="stylesheet" href="lib/kit_v.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit_v.js"></script>
+</head><body><script>
+const P = (d.points || []).slice(0, 7), n = P.length, dec = d.decimals === undefined ? 2 : d.decimals;
+let y = 4;
+const lab = d.label ? txt(d.label, {y, size: 64, cls: 'lab', cover: 'name'}) : null; if (lab) y += lab.offsetHeight + 4;
+const big = d.big ? txt(d.big, {y, size: d.big_size || 170, min: 160, cls: d.tone || 'gold', cover: 'big'}) : null; if (big) y += big.offsetHeight;
+const TOPY = y + 150, bot = H - 80, X0 = 110, X1 = 860;
+const vs = P.map(p => p[1]).concat(d.ref ? [d.ref.v] : []), lo = Math.min(...vs), hi = Math.max(...vs);
+const X = i => X0 + (X1 - X0) * i / Math.max(1, n - 1), Y = v => bot - (bot - TOPY) * (v - lo) / ((hi - lo) || 1);
+if (d.ref) { el('line', {x1: X0 - 40, x2: X1 + 30, y1: Y(d.ref.v), y2: Y(d.ref.v), stroke: COL.gold, 'stroke-width': 5, 'stroke-dasharray': '18 14'});
+  if (d.ref.label) { const ly = TOPY - 120; el('line', {x1: 80, x2: 150, y1: ly + 30, y2: ly + 30, stroke: COL.gold, 'stroke-width': 5, 'stroke-dasharray': '18 14'});
+    const lt = txt(d.ref.label, {cx: 0, y: ly, size: 42, cls: 'gold'}); lt.style.left = '166px'; } }  // 기준선 이름은 위 범례 줄에(점 글자와 겹치지 않게)
+const segs = [], dots = [], vals = [], notes = [];
+for (let i = 0; i < n; i++) {
+  if (i) { const up = P[i][1] >= P[i - 1][1]; segs.push(el('line', {x1: X(i - 1), y1: Y(P[i - 1][1]), x2: X(i), y2: Y(P[i][1]), stroke: up ? COL.green : COL.red, 'stroke-width': 12, 'stroke-linecap': 'round'})); }
+}
+for (let i = 0; i < n; i++) {
+  dots.push(el('circle', {cx: X(i), cy: Y(P[i][1]), r: 13, fill: COL.white, stroke: '#0C1422', 'stroke-width': 5}));
+  const above = Y(P[i][1]) > (TOPY + bot) / 2, vy = above ? Y(P[i][1]) - 76 : Y(P[i][1]) + 18;
+  vals.push(txt(fmtv(P[i][1], d.unit === undefined ? '달러' : d.unit, dec), {cx: Math.min(Math.max(X(i), 150), X1 - 90), y: vy, size: 52, maxw: 300, cls: i === n - 1 ? 'gold' : 'white'}));
+  notes.push(P[i][2] ? txt(P[i][2], {cx: Math.min(Math.max(X(i), 160), X1 - 110), y: above ? vy - 56 : vy + 60, size: 42, maxw: 320, cls: 'mute'}) : null);
+}
+const xl0 = txt(P[0][0], {cx: X(0) + 20, y: bot + 14, size: 40, cls: 'mute'}), xl1 = txt(P[n - 1][0], {cx: X(n - 1) - 20, y: bot + 14, size: 40, cls: 'mute'});
+const tl = gsap.timeline({paused: true});
+if (big) enter(tl, big, 0, d.count);
+const at = [0].concat(times(n - 1, COVER ? 0.5 : 0.45));
+for (let i = 1; i < n; i++) {
+  const s = segs[i - 1], len = Math.hypot(X(i) - X(i - 1), Y(P[i][1]) - Y(P[i - 1][1]));
+  s.setAttribute('stroke-dasharray', len); tl.fromTo(s, {attr: {'stroke-dashoffset': len}}, {attr: {'stroke-dashoffset': 0}, duration: .45, ease: 'power1.inOut', immediateRender: true}, at[i] - .45 > at[i - 1] ? at[i] - .45 : at[i]);
+  tl.set([dots[i], vals[i], notes[i], i === n - 1 ? xl1 : null].filter(Boolean), {opacity: 0}, 0).to([dots[i], vals[i], notes[i], i === n - 1 ? xl1 : null].filter(Boolean), {opacity: 1, duration: .2}, Math.max(at[i], at[i - 1] + .45));
+  if (i > 1) tl.to([vals[i - 1], notes[i - 1]].filter(Boolean), {opacity: 0, duration: .01}, at[i] - .02);  // 앞 점 값·글자는 지워 겹치지 않게(첫 점은 남김)
+}
+band(tl, P.map((p, i) => [Math.min(Math.max(20, X(i) - 80), SAFE_X - 160), TOPY - 40, 160, bot - TOPY + 56]), at);
+let end = at[n - 1] + .5; end = keepAlive(tl, end, vals[n - 1]);
+finish(tl, end, at.slice(1));
+</script></body></html>

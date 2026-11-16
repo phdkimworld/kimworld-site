@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- 쇼츠 세로 틀 v_stat(핵심 영역 1080×768, 투명): 위 이름표 + 160px 이상 큰 숫자 + 작은 설명 + 차례로 들어오는 줄 1~3개 + 도장 하나.
+     data = {label(이름·정체 꼬리표, 예 '아이렌 · AI 클라우드'), big('+20%'), tone?(red|green|gold|white, 기본 gold), big_sub?('실적 다음 날'),
+             count?(true면 큰 숫자 카운트업, 표지 장면에서는 무시), lines?:[{text, tone?}](0~3), stamp?:{text, tone?}, beats?:[비율…](lines·stamp 차례, make_shorts가 초로 바꿈)}
+     표지(cover, 첫 장면): label·big은 0초부터 최종 크기(data-cover), 움직임은 0.5초부터 big_sub·lines·stamp에. -->
+<link rel="stylesheet" href="lib/kit_v.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit_v.js"></script>
+</head><body><script>
+const L = d.lines || [], hasStamp = !!(d.stamp && d.stamp.text);
+const lab = d.label ? txt(d.label, {y: 8, size: 64, cls: 'lab', cover: 'name'}) : null;
+const big = txt(d.big || '', {y: lab ? 104 : 40, size: d.big_size || 180, min: 160, cls: d.tone || 'gold', cover: 'big'});
+let y = big.offsetTop + big.offsetHeight + 6;
+const sub = d.big_sub ? txt(d.big_sub, {y, size: 48, cls: 'sub'}) : null; if (sub) y += sub.offsetHeight + 18; else y += 24;
+let st = null, sh = 0;
+if (hasStamp) { st = document.createElement('div'); st.className = 'stamp ' + (d.stamp.tone || 'red'); st.textContent = d.stamp.text; st.setAttribute('data-box', '');
+  st.style.fontSize = (d.stamp.size || 64) + 'px'; document.body.appendChild(st); st.style.left = (450 - st.offsetWidth / 2) + 'px';
+  while (st.getBoundingClientRect().right > SAFE_X && parseFloat(st.style.fontSize) > 48) { st.style.fontSize = (parseFloat(st.style.fontSize) - 4) + 'px'; st.style.left = (450 - st.offsetWidth / 2) + 'px'; }
+  sh = st.getBoundingClientRect().height + 12; }
+// 줄 간격: 남은 높이(도장 자리 뺀 것)를 줄 수로 나눔. 모자라면 글자를 줄인다(40px 아래로는 안 줄임)
+const gap = L.length ? Math.min(110, (H - 8 - y - sh) / L.length) : 0, lsz = Math.max(56, Math.min(L.length > 2 ? 72 : 84, gap * 0.84));
+const R = L.map((l, i) => txt(l.text, {y: y + i * gap, size: l.size || lsz, cls: l.tone || 'white'}));
+if (st) { const r = st.getBoundingClientRect(), want = y + L.length * gap + 6; st.style.top = (parseFloat(st.style.top || 0) + (want - r.top)) + 'px'; }
+const tl = gsap.timeline({paused: true});
+if (lab && !COVER) tl.fromTo(lab, {opacity: .4, y: -16}, {opacity: 1, y: 0, duration: .3, immediateRender: true}, 0);
+enter(tl, big, 0, d.count);
+const ev = [sub, ...R, st].filter(Boolean), at = times(ev.length, COVER ? 0.5 : 0.45);
+if (sub) { const i = 0; tl.set(sub, {opacity: 0}, 0).fromTo(sub, {opacity: 0, y: 18}, {opacity: 1, y: 0, duration: .3, immediateRender: false}, at[i]); }
+R.forEach((r, k) => { const i = k + (sub ? 1 : 0); tl.set(r, {opacity: 0}, 0).fromTo(r, {opacity: 0, x: k % 2 ? 160 : -160}, {opacity: 1, x: 0, duration: .32, ease: 'power3.out', immediateRender: false}, at[i]); });
+if (st) tl.set(st, {opacity: 0}, 0).fromTo(st, {opacity: 0, scale: 1.8, rotation: -8}, {opacity: 1, scale: 1, rotation: -8, duration: .2, ease: 'power2.in', immediateRender: false}, at[ev.length - 1]);
+let end = ev.length ? at[ev.length - 1] + .4 : .6;
+end = keepAlive(tl, end, big);
+finish(tl, end, at);
+</script></body></html>

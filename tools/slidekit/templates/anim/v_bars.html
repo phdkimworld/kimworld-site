@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- 쇼츠 세로 틀 v_bars(1080×768, 투명): 세로 막대 2~4개가 차례로 자라고 위에 숫자가 붙는다(compare·record·scenarios를 세로로).
+     data = {label?(위 한 줄), big?(160px 이상 숫자 — 표지 장면이면 필수), tone?, items:[{label, value|null, text?, hi?, tone?}](2~4, null=판정 전 점선),
+             unit?('%'), decimals?(1), callout?(끝 한 줄), beats?:[비율…](items[1:]마다, 그다음 callout)}
+     첫 프레임: label·big·첫 막대와 숫자. 막대 영역은 x 80~900(오른쪽 버튼 자리 비움). -->
+<link rel="stylesheet" href="lib/kit_v.css"><script src="lib/gsap-3.12.5.min.js"></script><script src="lib/kit_v.js"></script>
+</head><body><script>
+const I = (d.items || []).slice(0, 4), n = I.length;
+let y = 4;
+const lab = d.label ? txt(d.label, {y, size: 64, cls: 'lab', cover: 'name'}) : null; if (lab) y += lab.offsetHeight + 4;
+const big = d.big ? txt(d.big, {y, size: d.big_size || 170, min: 160, cls: d.tone || 'gold', cover: 'big'}) : null; if (big) y += big.offsetHeight;
+const call = d.callout ? txt(d.callout, {y: H - 74, size: 56, cls: 'gold'}) : null;
+const TOPY = y + 90, base = (call ? H - 96 : H - 20) - 62, X0 = 80, X1 = SAFE_X, cw = (X1 - X0) / n, bw = Math.min(170, cw * .62);
+const vals = I.map(x => x.value == null ? 0 : Math.abs(x.value)), M = Math.max(...vals) || 1;
+el('line', {x1: X0 - 10, x2: X1 + 10, y1: base, y2: base, stroke: COL.mute, 'stroke-width': 4, opacity: .6});
+const R = I.map((it, i) => {
+  const cx = X0 + cw * (i + .5), h = it.value == null ? (base - TOPY) * .55 : Math.max(8, (base - TOPY) * Math.abs(it.value) / M);
+  const c = it.tone ? COL[it.tone] : (it.hi ? COL.gold : (d.unit === '%' && it.value < 0 ? COL.red : (d.unit === '%' && it.value > 0 ? COL.green : COL.bar)));
+  const bar = it.value == null ? el('rect', {x: cx - bw / 2, y: base - h, width: bw, height: h, rx: 12, fill: 'none', stroke: COL.mute, 'stroke-width': 5, 'stroke-dasharray': '16 12'})
+                               : el('rect', {x: cx - bw / 2, y: base - h, width: bw, height: h, rx: 12, fill: c});
+  const lb = txt(it.label, {cx, y: base + 8, size: n > 3 ? 44 : 48, maxw: cw - 8, cls: it.hi ? 'gold' : 'mute'});
+  const vt = txt(it.value == null ? (it.text || '판정 전') : fmtv(it.value, undefined, undefined, it.text), {cx, y: base - h - (n > 3 ? 60 : 72), size: n > 3 ? 50 : 60, maxw: cw - 4, cls: it.hi ? 'gold' : 'white'});
+  return {bar, lb, vt, h};
+});
+const tl = gsap.timeline({paused: true});
+if (big) enter(tl, big, 0, d.count);
+const at = [0].concat(times(n - 1 + (call ? 1 : 0), COVER ? 0.5 : 0.45));
+R.forEach((r, i) => {
+  if (i === 0) return;  // 첫 막대·숫자는 첫 프레임부터(빈 화면 방지, 표지면 최종 상태)
+  const t0 = i === 0 ? 0 : at[i];
+  tl.fromTo(r.bar, {attr: {y: base, height: 0}}, {attr: {y: base - r.h, height: r.h}, duration: .55, ease: 'power2.out', immediateRender: i > 0 || !COVER}, t0);
+  if (i > 0) tl.set([r.vt], {opacity: 0}, 0).set(r.lb, {opacity: .4}, 0).to(r.lb, {opacity: 1, duration: .2}, t0);
+  tl.fromTo(r.vt, {opacity: 0, y: 20}, {opacity: 1, y: 0, duration: .3, immediateRender: false}, t0 + .35);
+});
+band(tl, R.map((r, i) => [X0 + cw * i + 4, TOPY - 80, cw - 8, base + 66 - (TOPY - 80)]), at);
+let end = at[n - 1] + .9;
+if (call) { const tc = at[n]; tl.set(call, {opacity: 0}, 0).fromTo(call, {opacity: 0, y: 20}, {opacity: 1, y: 0, duration: .35, immediateRender: false}, tc); end = tc + .4; }
+const hi = R.find((r, i) => I[i].hi); end = keepAlive(tl, end, hi ? hi.vt : (big || R[n - 1].vt));
+finish(tl, end, at.slice(1));
+</script></body></html>

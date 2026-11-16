@@ -18,10 +18,16 @@
 #          마지막 두 장면 안에 꼭 하나(없으면 렌더를 멈춘다). 정답 표시·비율·특정 보기 강조 금지(숨긴 답 규칙).
 #  sfx: boom(드롭·히트) / tick(숫자). 영상 전체 3~5개만 쓴다(지침).
 #  group: "A"|"B" 필수(실험 조). 첫 장면 at 0 요소는 애니메이션 없이 최종 크기(0초 프레임 = 표지, 독립 검토 2026-10-17).
-import json, os, subprocess, sys, wave
+#  장면 "anim"(2026-11-16 운영자 "롱폼 숏폼 모두 최대한 애니메이션"): {"tpl": "v_stat|v_bars|v_line", "data": {..., "beats": [비율…]}, "sfx": [[비율, "boom|tick"]…]}
+#    → slidekit/templates/anim/v_*.html(GSAP, 1080×768 투명)을 프레임 캡처해 핵심 영역에 깐다(그 위에 els도 그릴 수 있음, 줌인 없음). beats는 at처럼 장면 안 비율.
+#    첫 장면이 anim이면 표지 모드: label(이름·꼬리표)·big(160px 이상)을 0초부터 최종 크기로, 움직임은 0.5초부터(anim.cover_check가 확인).
+#  0초 표지 자동 검사(cover_check): 렌더 전에 0초 프레임을 그려 shorts_out/cover0.png로 저장하고 ① 첫 장면 0초 요소에 160px 이상 숫자·이름표
+#    ② 핵심 영역이 비지 않음 ③ 좌우 끝·핵심 영역 위아래 끝에 글자가 걸리지 않음(잘림) ④ 큰 글자 높이를 본다. 실패면 COVER_FAIL로 멈춘다
+#    (옛 회차를 다시 렌더할 때만 SHORTS_COVER=warn).
+import json, os, re, subprocess, sys, wave
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'slidekit'))
-import sfx
+import sfx, anim as AK, asyncio
 from PIL import Image, ImageDraw, ImageFont
 
 W, H, FPS = 1080, 1920, 30
@@ -176,6 +182,28 @@ def draw_el(core, el, p, dur):
         core.alpha_composite(im, (int(cx - im.width / 2), int(y)))
 
 
+def cover_check(img, sc, dur, is_anim):
+    """0초 프레임(img, 1080×1920 RGB)이 완성된 표지인가. 문제 목록을 돌려준다(빈 목록 = 통과).
+    anim 첫 장면의 요소 검사(0초 최종 크기·160px·화면 안·0.4초 전 움직임 없음)는 anim.cover_check가 렌더 때 이미 했다(실패면 ANIM_FAIL)."""
+    bad = []
+    if not is_anim:
+        els0 = [e for e in sc['els'] if e.get('at', 0) == 0]
+        big = [e for e in els0 if e['kind'] in ('num', 'text', 'stamp') and fit_size(e.get('text', ''), FB if e['kind'] != 'text' else FBD, e.get('size', 190 if e['kind'] == 'num' else (120 if e['kind'] == 'stamp' else 76)), e.get('maxw', 860)) >= 160 and re.search(r'\d', e.get('text', ''))]
+        if not big: bad.append('첫 장면 0초 요소에 160px 이상 숫자가 없음(도구가 줄인 크기 기준)')
+        if not [e for e in sc['els'] if e.get('at', 0) <= min(1.0, 1.0 / max(dur, 0.1)) and e['kind'] == 'text' and not re.fullmatch(r'[-+\d.,%$→ ]+', e.get('text', ''))]: bad.append('0~1초에 이름·정체 꼬리표(text)가 없음')
+    a = np.asarray(img.convert('L'), dtype=np.int16)[CORE_Y:CORE_Y + CORE_H]
+    lit = a > 140
+    if lit.mean() < 0.012: bad.append(f'핵심 영역이 거의 비어 있음(밝은 화소 {lit.mean() * 100:.1f}%)')
+    edge = int(lit[:, :5].sum() + lit[:, -5:].sum())
+    if edge > 40: bad.append(f'좌우 끝에 글자가 걸림(잘림 의심, 화소 {edge})')
+    tb = int(lit[:3].sum() + lit[-3:].sum())
+    if tb > 60: bad.append(f'핵심 영역 위·아래 끝에 글자가 걸림(잘림 의심, 화소 {tb})')
+    rows = lit.sum(1) > 3; run = best = 0
+    for r in rows: run = run + 1 if r else 0; best = max(best, run)
+    if best < 100: bad.append(f'큰 글자가 보이지 않음(가장 높은 글자 줄 {best}px < 100px ≈ 160px 글꼴)')
+    return bad
+
+
 def chunks(text, maxc=12):
     """자막: 어절 단위로 한 줄 12자 이하, 두 줄씩 묶는다."""
     lines, cur = [], ''
@@ -251,12 +279,29 @@ def main(spec_p, raw, out):
     subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', vp, '-af', 'highpass=f=60,acompressor=threshold=-20dB:ratio=2.5:attack=10:release=200,loudnorm=I=-14:TP=-1.5:LRA=11',
                     '-ar', '44100', '-ac', '2', '-c:a', 'pcm_s16le', norm], check=True)
     ends = starts[1:] + [total]
+    # 1.5) 움직이는 장면(anim) 프레임 캡처 — 장면 시각 = 문장 시작~다음 문장 시작
+    anim_fr = {}
+    jobs, idx = [], []
+    for i, sc in enumerate(scenes):
+        an = sc.get('anim')
+        if not an: continue
+        assert an.get('tpl', '').startswith('v_') and an['tpl'] in AK.TPLS, f"ANIM 쇼츠 틀은 v_stat·v_bars·v_line: {an.get('tpl')}"
+        dur = ends[i] - starts[i]; dd = an.get('data', {})
+        tb = {k: ([None if b is None else round(b * dur, 3) for b in v] if isinstance(v, list) else round(v * dur, 3)) for k, v in dd.items() if k == 'beats' or k.endswith('_beat')}
+        jobs.append(AK.job_for(an['tpl'], dd, tb, dur, os.path.join(wd, f'anim_{i+1:02d}'), {'ticker': spec['ticker'], 'name': spec.get('name', '')}, cover=(i == 0))); idx.append(i)
+    if jobs:
+        res = asyncio.run(AK.render_many(jobs))
+        bad = [f'장면 {i+1} {j["tpl"]}: ' + ' / '.join(r[2][:4]) for i, j, r in zip(idx, jobs, res) if r[2]]
+        if bad: sys.exit('ANIM_FAIL ' + ' | '.join(bad))
+        for i, r in zip(idx, res): anim_fr[i] = r[0]
     # 2) 효과음(3~5개)과 배경음(-19dB)
     ev = []
     for i, sc in enumerate(scenes):
         for el in sc['els']:
             if el.get('sfx'):
                 ev.append((starts[i] + el.get('at', 0) * (ends[i] - starts[i]), el['sfx']))
+        for a_, k_ in (sc.get('anim') or {}).get('sfx', []):
+            ev.append((starts[i] + a_ * (ends[i] - starts[i]), k_))
     assert len(ev) <= 5, f'효과음 {len(ev)}개 — 지침은 3~5개'
     mixed = os.path.join(wd, 'mix.wav')
     sfx.mix(norm, ev, mixed, bed_on=True, bed_db=-19)
@@ -279,11 +324,8 @@ def main(spec_p, raw, out):
     for yy in range(H):
         k = yy / H; bd.line([(0, yy), (W, yy)], fill=(int(12 + 6 * (1 - k)), int(20 + 8 * (1 - k)), int(34 + 12 * (1 - k)), 255))
     tagf = font(FBD, 40); sub_cache = {}
-    proc = subprocess.Popen(['ffmpeg', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
-                             '-i', mixed, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p',
-                             '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], stdin=subprocess.PIPE)
-    sheet = []
-    for fi in range(nf):
+    _ac = {}
+    def frame_at(fi):
         t = fi / FPS
         si = max(i for i in range(len(scenes)) if starts[i] - 0.05 <= t or i == 0)
         sc = scenes[si]; dur = ends[si] - starts[si]; p = (t - starts[si] + 0.05) / dur
@@ -298,9 +340,13 @@ def main(spec_p, raw, out):
         core = Image.new('RGBA', (W, CORE_H), (0, 0, 0, 0))
         if sc.get('title'):
             ImageDraw.Draw(core).text((540 - ImageDraw.Draw(core).textlength(sc['title'], font=font(FBD, 76)) / 2, 10), sc['title'], font=font(FBD, 76), fill=COL['white'])
+        if si in anim_fr:  # 움직이는 장면: 캡처 프레임(투명 배경)을 먼저 깔고 els를 위에, 줌인은 하지 않는다
+            fl = anim_fr[si]; f_ = fl[min(len(fl) - 1, max(0, int(round((t - starts[si] + 0.05) * FPS))))]
+            if _ac.get('p') != f_: _ac['p'], _ac['im'] = f_, Image.open(f_).convert('RGBA')
+            core.alpha_composite(_ac['im'])
         for el in sc['els']:
             draw_el(core, el, p, dur)
-        z = 1.0 + 0.05 * min(max(p, 0), 1)
+        z = 1.0 + 0.05 * min(max(p, 0), 1) if si not in anim_fr else 1.0
         if z > 1.001:
             zc = core.resize((int(W * z), int(CORE_H * z)), Image.BILINEAR)
             core = zc.crop(((zc.width - W) // 2, (zc.height - CORE_H) // 2, (zc.width - W) // 2 + W, (zc.height - CORE_H) // 2 + CORE_H))
@@ -320,6 +366,19 @@ def main(spec_p, raw, out):
         if t < 2.0 or t >= total - 3.0:
             nf_ = font(FBD, 38); note = '교육용 분석 · 매수·매도 권유 아님'
             d2 = ImageDraw.Draw(fr); d2.text((540 - d2.textlength(note, font=nf_) / 2, NOTE_Y), note, font=nf_, fill=COL['sub'])
+        return fr
+    # 0초 표지 검사(cover_check): 인코딩 전에 0초 프레임을 그려 본다
+    f0 = frame_at(0).convert('RGB'); f0.save(os.path.join(wd, 'cover0.png'))
+    cv = cover_check(f0, scenes[0], ends[0] - starts[0], 0 in anim_fr)
+    for c in cv: print('  ✗', c)
+    if cv and os.environ.get('SHORTS_COVER') != 'warn': sys.exit('COVER_FAIL 0초 프레임이 표지가 아님: ' + ' / '.join(cv) + ' (shorts_out/cover0.png)')
+    print('COVER_OK 0초 프레임 표지 검사 통과' if not cv else 'COVER_WARN(옛 회차 재렌더)', os.path.join(wd, 'cover0.png'))
+    proc = subprocess.Popen(['ffmpeg', '-y', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
+                             '-i', mixed, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p',
+                             '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], stdin=subprocess.PIPE)
+    sheet = []
+    for fi in range(nf):
+        fr = frame_at(fi)
         rgb = fr.convert('RGB'); proc.stdin.write(rgb.tobytes())
         if fi % int(FPS * 2.5) == 0:
             sheet.append(rgb.resize((270, 480)))
@@ -328,7 +387,7 @@ def main(spec_p, raw, out):
     for i, x in enumerate(sheet):
         sh.paste(x, ((i % cols) * 270, (i // cols) * 480))
     sh.save(os.path.join(wd, 'contact.png'))
-    print(f'saved {out} | 장면 {len(scenes)} | 길이 {total:.1f}초 | 효과음 {len(ev)} | 시트 2.5초 간격')
+    print(f'saved {out} | 장면 {len(scenes)} | 움직이는 장면(anim) {len(anim_fr)}/{len(scenes)} | 길이 {total:.1f}초 | 효과음 {len(ev)} | 시트 2.5초 간격')
 
 
 if __name__ == '__main__':
