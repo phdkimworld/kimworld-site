@@ -571,13 +571,17 @@ if (D / "index.html").exists():
     dm = (D / "dm/index.html")
     check(dm.exists() and "noindex" in dm.read_text(encoding="utf-8") and "dm.js" in dm.read_text(encoding="utf-8"), "쪽지함 페이지(검색 노출 안 함)")
     check("Disallow: /dm/" in (D / "robots.txt").read_text(encoding="utf-8"), "robots: 쪽지함 차단")
-    check("data-open-dm" in (D / "index.html").read_text(encoding="utf-8"), "머리줄 쪽지 버튼")
+    # 2026-11-16 개편(community: false)부터 실제 사이트에는 쪽지 버튼이 없다 → 설정에 맞는지 본다
+    _cm_on = re.search(r"(?m)^community: true", (SRC / "site.yaml").read_text(encoding="utf-8")) is not None
+    check(("data-open-dm" in (D / "index.html").read_text(encoding="utf-8")) == _cm_on, "머리줄 쪽지 버튼(커뮤니티 켤 때만)")
     _tk = next((D / "t").glob("*/index.html")).read_text(encoding="utf-8")
     check('data-sent ' in _tk and 'data-sent-v="bull"' in _tk and 'data-sent-v="bear"' in _tk and "sentiment.js" in _tk and _tk.index("data-sent ") < _tk.index('id="reports"' if 'id="reports"' in _tk else "seg-tabs"),
           "종목 화면 위: 투자 심리 투표(불리시·베어리시)")
     _rp = (D / "r/rgti-2026-10/index.html").read_text(encoding="utf-8") if (D / "r/rgti-2026-10/index.html").exists() else next((D / "r").glob("*/index.html")).read_text(encoding="utf-8")
     check('data-sent ' in _rp and 'data-where="report"' in _rp and "sentiment.js" in _rp and _rp.index('class="summary-box"') < _rp.index('class="prose"') < _rp.index("data-sent ") < _rp.index('class="disclaimer-box"'),
           "리포트 본문 끝(출처 위, SKILL R1.7 2026-10-28): 같은 종목 투자 심리 투표")
+    check('data-sum-vote' in _rp and 'data-sum-v="bull"' in _rp and 'data-sum-v="bear"' in _rp and _rp.index('class="summary-box"') < _rp.index('data-sum-vote') < _rp.index('class="prose"') and '"sent_vote_sum"' in (SRC / "worker/src/index.js").read_text(encoding="utf-8"),
+          "리포트 요약: 한 번 누르는 투표(투표 실험 2026-11-16, 결과는 본문 끝 상자)")
     _ck = [p.read_text(encoding="utf-8") for p in (D / "r").glob("*/index.html")]
     check(any('<ul class="checklist">' in h for h in _ck) and not any(re.search(r"<ul>\s*<li>[□☐]", h) for h in _ck),
           "□ 체크리스트는 글머리 점 없는 checklist 목록(독자 검토 10-29)")

@@ -123,6 +123,7 @@ button { font: inherit; color: inherit; }
 .asof-age:not(:empty)::before { content: "· "; }
 .report-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
 .notice { border-radius: 12px; padding: 12px 16px; font-size: .9rem; background: var(--notice); border: 1px solid var(--notice-line); margin: 16px 0; }
+.notice-new p { margin: 0 0 10px; } .nn-btn { width: 100%; }
 .sponsor-flag, .draft-flag { font-weight: 700; background: var(--notice); border: 1px solid var(--notice-line); padding: 8px 14px; border-radius: 10px; margin: 16px 0 0; font-size: .85rem; }
 .summary-box { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin: 22px 0; box-shadow: var(--shadow); }
 .summary-title { font-size: 1rem; margin: 0 0 8px; }
@@ -851,6 +852,15 @@ body:has(.tabbar) .install-bar { bottom: calc(66px + env(safe-area-inset-bottom,
 .yt-jump-t { margin: 0 0 8px; font-size: .86rem; font-weight: 700; }
 .sum-jump { margin: 10px 0 0; font-size: .86rem; font-weight: 700; }
 .sum-jump a { color: var(--accent); text-decoration: none; }
+.sum-vote { --s-up: #f2555a; --s-down: #3b82f6; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.sum-vote[hidden] { display: none; }
+.sv-q { margin: 0 0 8px; font-size: .88rem; font-weight: 700; }
+.sv-q .muted { font-weight: 400; font-size: .8rem; }
+.sv-btns { display: flex; gap: 8px; }
+.sv-b { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid currentColor; background: transparent; font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; }
+.sv-bull { color: var(--s-up); } .sv-bear { color: var(--s-down); }
+.sv-bull[aria-pressed="true"] { background: color-mix(in srgb, var(--s-up) 14%, transparent); } .sv-bear[aria-pressed="true"] { background: color-mix(in srgb, var(--s-down) 14%, transparent); }
+.sv-done { margin: 8px 0 0; font-size: .84rem; } .sv-done a { color: var(--accent); font-weight: 700; text-decoration: none; }
 .next-theme { margin-top: 24px; }
 .mid-next { margin: 1.4em 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--surface-2, rgba(127,127,127,.08)); border-radius: 0 8px 8px 0; font-size: .92rem; line-height: 1.5; }
 .mid-next-k { display: block; font-size: .76rem; font-weight: 700; color: var(--muted, #888); margin-bottom: 2px; }

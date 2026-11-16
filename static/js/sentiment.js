@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function () {
   if (box) (function () {
   var q = function (s) { return box.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(box.querySelectorAll(s)); };
   var DATA = null, DAYS = 30, busy = false;
+  // 리포트 요약 안 한 번 누르는 투표(투표 실험 2026-11-16): 큰 상자의 같은 버튼을 대신 누른다(하루 한 표·결과 규칙 그대로)
+  var sv = document.querySelector('[data-sum-vote]'), svb = sv ? Array.prototype.slice.call(sv.querySelectorAll('[data-sum-v]')) : [], fromSum = false;
   var NS = 'http://www.w3.org/2000/svg';
   function svg(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
   function kday(off) { return new Date(Date.now() + 9 * 3600e3 - off * 864e5).toISOString().slice(0, 10); }
@@ -18,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     DATA = d;
     var voted = d.voted;
     qa('[data-sent-v]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-sent-v') === voted ? 'true' : 'false'); });
+    if (sv) { svb.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-sum-v') === voted ? 'true' : 'false'); }); sv.querySelector('[data-sum-done]').hidden = !voted; }
     box.classList.toggle('is-voted', !!voted);
     var meta = q('[data-sent-meta]'), tease = q('[data-sent-tease]');
     if (!voted) {
@@ -141,11 +144,21 @@ document.addEventListener('DOMContentLoaded', function () {
       var first = !(DATA && DATA.voted);
       C.api('/v1/sentiment/' + encodeURIComponent(tk), { method: 'POST', body: { v: v } }).then(function (d) {
         busy = false; box.classList.remove('is-busy');
-        if (d && d.voted) { paint(d); syncPolls(tk, { voted: d.voted, n30: d.d30.bull + d.d30.bear, d30: d.d30 }); if (window.kwEv) kwEv('sent_vote'); C.flash(first ? '투표했어요. 내일 또 참여해 주세요' : '오늘 표를 바꿨어요'); }
+        if (d && d.voted) { paint(d); syncPolls(tk, { voted: d.voted, n30: d.d30.bull + d.d30.bear, d30: d.d30 }); if (window.kwEv) { kwEv('sent_vote'); if (fromSum) kwEv('sent_vote_sum'); } C.flash(first ? '투표했어요. 내일 또 참여해 주세요' : '오늘 표를 바꿨어요'); }
         else C.flash((d && d.message) || '투표하지 못했습니다');
       }).catch(function () { busy = false; box.classList.remove('is-busy'); C.flash('투표하지 못했습니다'); });
     });
   });
+  if (sv) {
+    sv.hidden = false;
+    svb.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var t = q('[data-sent-v="' + b.getAttribute('data-sum-v') + '"]');
+        if (!t) return;
+        fromSum = !(DATA && DATA.voted); t.click(); setTimeout(function () { fromSum = false; }, 8000);
+      });
+    });
+  }
   qa('[data-sent-days]').forEach(function (b) {
     b.addEventListener('click', function () {
       DAYS = parseInt(b.getAttribute('data-sent-days'), 10);

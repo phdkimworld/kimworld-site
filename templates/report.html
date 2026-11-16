@@ -95,7 +95,8 @@
     </header>
 
     {% if r.newer %}
-    <p class="notice notice-new">이 종목의 더 최근 리포트가 있습니다 → <a href="{{ r.newer.url }}" data-newer>{{ r.newer.share_title or r.newer.title }} ({{ r.newer.date|kdate }})</a></p>
+    {#- 유입 실험 2026-11-16(SNS): Threads 랜딩 1위 iren-2026-10-4 등 옛 리포트로 들어온 사람이 후속편으로 넘어가게 글 링크 → 버튼. 볼 지표: newer_click(0)·Threads 쪽수(1.14), 판정 11-30 #}
+    <div class="notice notice-new"><p>이 종목 후속편이 나왔어요 · <span class="muted">{{ r.newer.date|kdate }}</span><br>{{ r.newer.share_title or r.newer.title }}</p><a class="btn btn-primary nn-btn" href="{{ r.newer.url }}" data-newer>후속편 바로 보기 →</a></div>
     {% endif %}
     {% if stale %}
     <p class="notice notice-stale">이 리포트의 숫자는 {{ r.data_as_of|kdate }} 기준이라 지금과 다를 수 있습니다.</p>
@@ -144,8 +145,12 @@
       {% endif %}
       {% if r.has_diag %}<p class="sum-jump sum-diag"><a href="#diagnosis">➜ 결론부터: 지금 어느 국면인지 진단 바로 보기</a></p>{% endif %}
       {% if r.check_id %}<p class="sum-jump"><a href="#{{ r.check_id }}">✓ 리스크와 매매 전 체크리스트 바로 보기</a></p>{% endif %}
-      {# 투표 실험 2026-11-02: 투표 상자를 본문 끝으로 옮긴 10-28 뒤 7일 참여자 51→15명. 상자 자리는 그대로 두고 요약에서 바로 가는 줄만 #}
-      {% if site.api_url %}<p class="sum-jump sum-vote"><a href="#sent-h">🗳 {{ r.company }}, 앞으로 어떻게 보세요? 한 번 눌러 투표하고 다른 투자자 의견 보기</a></p>{% endif %}
+      {# 투표 실험 2026-11-16: 11-02 '투표 상자로 가는 줄'은 판정에서 참여자 15→6명이라 되돌리고, 요약 안에서 바로 한 번 누르는 투표로 바꿈(같은 종목 하루 한 표, 결과는 본문 끝 상자에서 열림). 볼 지표: sent_vote_sum·7일 참여자·방문 대비 참여율, 판정 11-30 #}
+      {% if site.api_url %}<div class="sum-vote" data-sum-vote hidden>
+        <p class="sv-q">🗳 {{ r.company }}, 앞으로 어떻게 보세요? <span class="muted">한 번 누르면 투표돼요</span></p>
+        <div class="sv-btns"><button type="button" class="sv-b sv-bull" data-sum-v="bull" aria-pressed="false">▲ 오를 것 같다</button><button type="button" class="sv-b sv-bear" data-sum-v="bear" aria-pressed="false">▼ 내릴 것 같다</button></div>
+        <p class="sv-done" data-sum-done hidden>투표했어요 · <a href="#sent-h">다른 투자자 결과 보기 ↓</a></p>
+      </div>{% endif %}
       <div class="disclosure">
         {% if has_coupang %}<p>{{ COUPANG_PAGE_NOTICE }}</p>{% endif %}
         <p class="muted">이 글은 투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.</p>
