@@ -1,0 +1,43 @@
+# 쿠팡 주소 → 파트너스 단축 링크(하위 ID 지정) 만들기(2026-11-16, 텔레그램·블로거 응원 링크·비교 글용).
+# 결과 단축 링크는 주석으로 남긴다(어차피 공개 채널에 올라갈 링크라 비밀이 아니다). 키는 출력하지 않는다.
+name: Coupang deeplink
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "쿠팡 주소(쉼표로 여러 개, www.coupang.com 만)"
+        required: true
+      subid:
+        description: "하위 ID(영문·숫자 20자 이내, 예: tgcheer)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Make short links
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+          URLS: ${{ inputs.urls }}
+          SUBID: ${{ inputs.subid }}
+        run: |
+          pip install -q pyyaml
+          python3 - <<'PY'
+          import os, re, sys
+          sys.path.insert(0, "scripts")
+          import yt_shop as ys
+          sid = re.sub(r"[^A-Za-z0-9]", "", os.environ["SUBID"])[:20]
+          urls = [u.strip() for u in os.environ["URLS"].split(",") if u.strip().startswith("https://www.coupang.com/")][:10]
+          if not sid or not urls:
+              print("::error title=쿠팡 단축 링크::하위 ID 또는 www.coupang.com 주소 없음"); sys.exit(1)
+          m = ys.deeplink(urls, sid, os.environ["COUPANG_ACCESS_KEY"].strip(), os.environ["COUPANG_SECRET_KEY"].strip())
+          for u in urls:
+              print(f"::notice title=단축 링크 {sid}::{u} -> {m.get(u, '실패')}")
+          PY
