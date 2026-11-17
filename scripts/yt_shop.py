@@ -47,13 +47,17 @@ def cat_of(sid: str, cats) -> str | None:
     return s[2:4] if s.startswith("yt") and s[2:4] in cats else None
 
 
-def perf(rows_clicks: list[dict], rows_comm: list[dict], cats) -> dict:
-    """쿠팡 보고서 행을 카테고리별 클릭·수수료로 묶는다."""
+def perf(rows_clicks: list[dict], rows_comm: list[dict], cats, exclude: dict | None = None) -> dict:
+    """쿠팡 보고서 행을 카테고리별 클릭·수수료로 묶는다. exclude = {하위 ID: [YYYYMMDD, …]} 는 시험 클릭이라 클릭 수에서 뺀다(data/yt_shop.yaml test_clicks)."""
     out = {c: {"clicks": 0, "commission": 0.0} for c in cats}
+    ex = {str(k).lower(): {str(d).replace("-", "") for d in v} for k, v in (exclude or {}).items()}
+    day = lambda x: str(x.get("date") or x.get("clickDate") or x.get("statDate") or "").replace("-", "")[:8]
     num = lambda v: float(str(v).replace(",", "")) if str(v).replace(",", "").replace(".", "", 1).lstrip("-").isdigit() else 0.0
     sid = lambda x: x.get("subId") or x.get("subid") or x.get("sub_id") or x.get("subParam") or ""
     for x in rows_clicks:
         c = cat_of(sid(x), cats)
+        if c and day(x) in ex.get(str(sid(x)).lower(), ()):
+            continue
         if c:
             out[c]["clicks"] += int(num(x.get("click") or x.get("clicks") or x.get("clickCount") or x.get("count") or 0))
     for x in rows_comm:
@@ -204,7 +208,7 @@ def main() -> int:
     try:
         start = (kst - dt.timedelta(days=int(cfg.get("window_days", 60)))).strftime("%Y%m%d")
         end = (kst - dt.timedelta(days=1)).strftime("%Y%m%d")
-        stats = perf(report_rows("clicks", start, end, access, secret), report_rows("commission", start, end, access, secret), cats)
+        stats = perf(report_rows("clicks", start, end, access, secret), report_rows("commission", start, end, access, secret), cats, cfg.get("test_clicks"))
     except Exception as e:  # 보고서를 못 받아도 시험 단계 규칙으로는 고를 수 있다
         print(f"::warning title=유튜브 쿠팡::실적 받기 실패 {type(e).__name__}")
     cat, why = choose(cfg, log, stats, ticker, today, force)

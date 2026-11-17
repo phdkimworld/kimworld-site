@@ -11,6 +11,11 @@
 # theme_items: true 면 data/coupang.yaml 의 그 테마 검색어를 쓴다.
 # 상품 문구(line)는 영상 속 카드·설명란·고정댓글 안내에 쓴다. 효능·수익을 말하지 않는다(건강기능식품은 효능 표현 금지).
 
+# 링크 추적 시험(coupang-link-check.yml)으로 생긴 클릭은 카테고리 성적에서 뺀다(하위 ID: [쿠팡 보고서 날짜 YYYYMMDD]).
+# 2026-11-17 KST 오전: ythlsldp 단축 링크를 GitHub에서 5번 열어 추적 확인(subid=ythlsldp, lptag=AF4489672 확인)
+test_clicks:
+  ythlsldp: ["20261117"]
+
 window_days: 60
 explore_min: 3
 exploit_pct: 75

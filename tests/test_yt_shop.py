@@ -33,6 +33,8 @@ check("같은 티커·날짜는 같은 결과", ys.choose(cfg, log, stats, "X1",
 check("force 우선", ys.choose(cfg, log, stats, "X1", T, "bk") == ("bk", "force"))
 _z = [ys.choose(cfg, log, {k: {"clicks": 0, "commission": 0} for k in cats}, f"Z{i}", T) for i in range(60)]
 check("실적이 모두 0이면 1위 없이 고르게 탐색(첫 카테고리만 반복하지 않음)", all(w == "explore-nodata" for c, w in _z) and len({c for c, w in _z}) >= 4)
+_px = ys.perf([{"subId": "ythlsldp", "date": "20261117", "click": 4}, {"subId": "ythlsldp", "date": "20261118", "click": 1}], [], cats, {"ythlsldp": ["20261117"]})
+check("시험 클릭(test_clicks)은 성적에서 뺌", _px["hl"]["clicks"] == 1)
 old = [{"date": "2026-08-01", "ticker": "Z", "cat": "hl"}] * 5
 check("기간 밖 기록은 세지 않음", ys.choose(cfg, old, {}, "A", T)[0] == cats[0])
 p = ys.perf([{"subId": "ytbkaaa", "click": 3}, {"subId": "blogger", "click": 5}, {"subId": "YTHLB", "click": "2"}],
