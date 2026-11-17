@@ -2,7 +2,7 @@
 {% from "_macros.html" import card, icon, community, sentiment %}
 {% set current_theme = r.theme %}
 {% block title %}{{ r.seo_title }} | {{ site.site_name }}{% endblock %}
-{% block description %}{{ r.summary }}{% endblock %}
+{% block description %}{{ r.seo_desc or r.summary }}{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_image %}{{ r.og_image }}{% endblock %}
 {% block og_title %}{{ r.share_title }}{% endblock %}

@@ -708,6 +708,8 @@ if (D / "r/stx-2026-10/index.html").exists():
     dsc = re.search(r'og:description" content="([^"]+)"', h).group(1)
     check(dsc.endswith("무료로 전문 보기") and len(dsc) <= 130 and "3.3배" in dsc, "공유 설명: 앞 문장 + 무료 안내(숫자 속 점에서 끊지 않음)")
     check('og:image:alt' in h and 'twitter:image:alt' in h and 'article:tag' in h, "그림 설명·태그")
+    md = re.search(r'<meta name="description" content="([^"]+)"', h).group(1)
+    check(len(md) <= 120 and "스택스" in md and "3.3배" in md and md.endswith("?"), "검색 설명: 120자 안(스니펫에서 안 잘림)·첫 문장 숫자 + 마지막 질문")
     check((D / "og/b-talk.png").exists() and (D / "og/b-stx.png").exists(), "종토방·라운지 공유 그림")
 
 print("17) 중간 이탈 줄이기: 접기·다음 부 예고·진단 바로가기·가운데 광고 자리")

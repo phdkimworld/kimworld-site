@@ -1065,10 +1065,25 @@ def seo_fields(r: dict) -> dict:
         desc = (desc + " " + x.strip()).strip()
     if len(desc) > 100:
         desc = desc[:98].rstrip() + "…"
+    # 검색 결과 설명(meta description, 2026-11-17): 요약 전체(중앙값 177자)는 네이버·다음·구글 스니펫(80~120자)에서 잘려
+    # 끝의 질문이 안 보인다 → 첫 문장(사건·숫자) + 마지막 질문을 120자 안에. 안 들어가면 앞 문장들로 채운다. 숫자·사실은 요약 그대로
+    seo_desc = sents[0].strip() if sents else ""
+    last = sents[-1].strip() if len(sents) > 1 else ""
+    if last.endswith("?") and len(seo_desc) + len(last) + 1 <= 120:
+        seo_desc = f"{seo_desc} {last}"
+    else:
+        for x in sents[1:]:
+            if len(seo_desc) + len(x) + 1 > 120:
+                break
+            seo_desc = f"{seo_desc} {x.strip()}"
+    if len(seo_desc) > 120:
+        seo_desc = seo_desc[:118].rstrip() + "…"
+    if r["ticker"].upper() not in seo_desc.upper() and name not in seo_desc:
+        seo_desc = f"{head}: {seo_desc}"
     # 검색 결과 제목은 앞 30자 안팎만 보이므로 훅의 첫 마디만(' — ' 뒤 덧붙인 질문은 설명·공유 제목에 남김, 2026-11-02)
     hook1 = hook.split(" — ")[0].strip() or hook
     return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} 분석 — {hook1}" if tick_in else f"{head} {kind} 분석 — {hook1}", "seo_hook": hook,
-            "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기"}
+            "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기", "seo_desc": seo_desc or summ}
 
 
 def build(drafts=False, strict=False, out: Path = DIST):
