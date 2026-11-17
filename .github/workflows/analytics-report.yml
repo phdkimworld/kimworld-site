@@ -63,6 +63,13 @@ jobs:
           if [ -n "$OPS_PUSH_TOKEN" ]; then
             JSON_OUT=.cache/analytics.json NO_ANNOTATIONS=1 python3 scripts/analytics_report.py
             scripts/ops_publish.sh .cache/analytics.json analytics
+            # 운영 요약 한 장(stats/digest.md): 매일 점검 세션이 큰 JSON 대신 이것만 읽는다(2026-11-17 "주간한도 사용을 줄여"). 7일 집계일 때만
+            if python3 -c "import json,sys; sys.exit(0 if json.load(open('.cache/analytics.json')).get('days') == 7 else 1)"; then
+              echo "::add-mask::$OPS_PUSH_TOKEN"
+              rm -rf .cache/ops && git clone -q --depth 1 -b ops-data "https://x-access-token:${OPS_PUSH_TOKEN}@github.com/phdkimworld/kimworld.git" .cache/ops 2>/dev/null || true
+              { python3 scripts/ops_digest.py .cache/analytics.json .cache/ops/stats/coupang.json > .cache/digest.md && scripts/ops_publish.sh .cache/digest.md digest.md; } || echo "::warning title=OPS::운영 요약 만들기 실패"
+              rm -rf .cache/ops
+            fi
           else
             python3 scripts/analytics_report.py
           fi
