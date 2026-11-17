@@ -151,6 +151,33 @@ def pick(items: list[dict], books_only: bool, n: int = 6) -> list[dict]:
 DEEPLINK = "/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink"
 
 
+def deeplink(urls: list[str], sid: str, access: str, secret: str) -> dict:
+    """쿠팡 주소 → 단축 링크(같은 하위 ID). {원래 주소: 단축 링크}"""
+    body = json.dumps({"coupangUrls": urls, "subId": sid}).encode()
+    req = urllib.request.Request(cs.DOMAIN + DEEPLINK, data=body, method="POST", headers={
+        "Authorization": cs.authorization("POST", DEEPLINK, "", access, secret, dt.datetime.now(dt.timezone.utc)),
+        "Content-Type": "application/json;charset=UTF-8"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        js = json.loads(r.read().decode("utf-8"))
+    return {str(x.get("originalUrl") or ""): x["shortenUrl"] for x in js.get("data") or [] if str(x.get("shortenUrl") or "").startswith("https://")}
+
+
+# 채널 응원 링크(cr, 2026-11-16 운영자 "우리 채널로 해볼만한걸 다 해봐"): 상품 대신 쿠팡 첫 화면으로. 클릭 뒤 24시간 안의 쿠팡 구매가 모두 수수료가 되는 구조를 쓴다
+CHEER_URLS = ["https://www.coupang.com/", "https://www.coupang.com/np/goldbox"]
+
+
+def cheer_link(sid: str, access: str, secret: str) -> str:
+    for u in CHEER_URLS:
+        try:
+            m = deeplink([u], sid, access, secret)
+        except Exception as e:
+            print(f"::warning title=유튜브 쿠팡::응원 링크 {u.split('/', 3)[-1] or '홈'} 실패 {type(e).__name__}")
+            continue
+        if m:
+            return next(iter(m.values()))
+    return ""
+
+
 def shorten(cands: list[dict], sid: str, access: str, secret: str) -> None:
     """상품 페이지 주소를 쿠팡 단축 링크(link.coupang.com/a/…, 같은 하위 ID)로 바꾼다. 실패하면 검색 결과 링크를 그대로 둔다."""
     src = [f"https://www.coupang.com/vp/products/{c['pid']}" for c in cands if c.get("pid")]
@@ -217,15 +244,25 @@ def main() -> int:
     sid = sub_id(cat, ticker)
     q = kw if not cc.get("books_only") or re.search(r"책|도서", kw) else kw + " 책"
     items = []
+    if cc.get("cheer"):  # 상품 검색 없이 응원 링크 하나
+        link = cheer_link(sid, access, secret)
+        cands = [{"name": cc.get("label", "쿠팡 채널 응원 링크"), "url": link, "pid": "", "price": 0, "image": "", "category": "", "rocket": False}] if link else []
+        q = ""
     try:
+        if not q:
+            raise StopIteration
         items = search_raw(q, sid, access, secret)
     except urllib.error.HTTPError as e:
         print(f"::warning title=유튜브 쿠팡::검색 HTTP {e.code}" + (" (시간당 한도. 다음 정시 뒤 다시)" if e.code == 429 else ""))
+    except StopIteration:
+        pass
     except Exception as e:
         print(f"::warning title=유튜브 쿠팡::검색 실패 {type(e).__name__}")
-    cands = pick(items, bool(cc.get("books_only")))
+    if not cc.get("cheer"):
+        cands = pick(items, bool(cc.get("books_only")))
     try:
-        shorten(cands, sid, access, secret)
+        if not cc.get("cheer"):
+            shorten(cands, sid, access, secret)
     except Exception as e:
         print(f"::warning title=유튜브 쿠팡::단축 링크 실패 {type(e).__name__}(긴 링크 그대로)")
     for i, c in enumerate(cands):
