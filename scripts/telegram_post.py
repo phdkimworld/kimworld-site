@@ -61,6 +61,15 @@ def send(token: str, chat: str, slug: str, fm: dict) -> int:
             return int(json.load(r)["result"]["message_id"])
     except urllib.error.HTTPError as ex:
         body = ex.read().decode("utf-8", "replace")[:300].replace(token, "***")
+        if ex.code == 400 and ("HTTP URL content" in body or "wrong type of the web page content" in body or "IMAGE_PROCESS_FAILED" in body):
+            # 텔레그램이 대표 그림(/og/<slug>.png)을 못 받아 오면 같은 글을 그림 없이(링크 미리보기로) 보낸다(2026-11-17: btq-2026-11-3에서 5회 연속 실패)
+            print(f"::warning title=텔레그램 그림 실패::{slug} 그림 없이 글로 보냄")
+            msg = urllib.parse.urlencode({"chat_id": chat, "text": caption(slug, fm), "parse_mode": "HTML"}).encode()
+            try:
+                with urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=msg), timeout=60) as r:
+                    return int(json.load(r)["result"]["message_id"])
+            except urllib.error.HTTPError as ex2:
+                body = ex2.read().decode("utf-8", "replace")[:300].replace(token, "***")
         print(f"::error title=텔레그램 {ex.code}::{slug} {body}")
         raise SystemExit(1)
 
