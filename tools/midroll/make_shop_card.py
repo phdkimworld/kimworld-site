@@ -36,6 +36,13 @@ def wrap(text, path, size, width, maxl, min_size=None):
 pad = 40; box = (110, 150, 110 + 700, 150 + 700)
 d.rounded_rectangle([box[0] * S, box[1] * S, box[2] * S, box[3] * S], radius=36 * S, fill="#FFFFFF")
 p = spec.get("img")
+if not p:  # 채널 응원 링크(cr, 2026-11-16): 상품 사진 대신 장바구니 그림과 '응원' 글자
+    cx, cy = box[0] + 350, box[1] + 330
+    d.rounded_rectangle([(cx - 170) * S, (cy - 110) * S, (cx + 170) * S, (cy + 130) * S], radius=28 * S, outline=NAVY, width=14 * S)
+    d.arc([(cx - 90) * S, (cy - 210) * S, (cx + 90) * S, (cy - 30) * S], 180, 360, fill=NAVY, width=14 * S)
+    d.ellipse([(cx - 22) * S, (cy - 10) * S, (cx + 22) * S, (cy + 34) * S], fill=GOLD)
+    t = "채널 응원"; f = font(FK, 64)
+    d.text(((cx * S) - d.textlength(t, font=f) / 2, (cy + 170) * S), t, font=f, fill=NAVY)
 if p:
     p = p if os.path.isabs(p) else os.path.join(base, p)
     ph = Image.open(p).convert("RGB")
