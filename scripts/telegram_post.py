@@ -27,6 +27,8 @@ SITE = yaml.safe_load((ROOT / "site.yaml").read_text(encoding="utf-8"))
 BASE = SITE["site_url"].rstrip("/")
 TICK = yaml.safe_load((ROOT / "data" / "tickers.yaml").read_text(encoding="utf-8")) or {}
 ET = ZoneInfo("America/New_York")
+_CL = ROOT / "data" / "cheer_links.yaml"
+CHEER = str((yaml.safe_load(_CL.read_text(encoding="utf-8")) or {}).get("telegram") or "") if _CL.exists() else ""  # 쿠팡 채널 응원 링크(2026-11-16)
 
 
 def front(p: Path) -> dict:
@@ -43,10 +45,12 @@ def caption(slug: str, fm: dict) -> str:
     kp = [str(x) for x in (fm.get("key_points") or [])][:3]
     lines = [f"<b>{e(title)}</b>", ""]
     lines += [f"• {e(x)}" for x in kp]
-    lines += ["", f'👉 <a href="{html.escape(u)}">전체 리포트 무료로 보기</a>', "", f"#{e(tk)} #{e(name.replace(' ', ''))} #미국주식", "<i>투자 권유가 아닌 공개 자료 정리입니다.</i>"]
+    cheer = [f'🛒 <a href="{html.escape(CHEER)}">쿠팡 가실 때 이 링크로</a> 들어가 주시면 채널 운영에 도움이 됩니다'] if CHEER else []
+    tail = [f"#{e(tk)} #{e(name.replace(' ', ''))} #미국주식", "<i>투자 권유가 아닌 공개 자료 정리입니다." + (" 쿠팡 파트너스 활동으로 일정액의 수수료를 받습니다." if CHEER else "") + "</i>"]
+    lines += ["", f'👉 <a href="{html.escape(u)}">전체 리포트 무료로 보기</a>'] + cheer + [""] + tail
     c = "\n".join(lines)
     while len(c) > 1000 and kp:  # 사진 설명 한도 1024자
-        kp.pop(); lines = [f"<b>{e(title)}</b>", ""] + [f"• {e(x)}" for x in kp] + lines[-5:]; c = "\n".join(lines)
+        kp.pop(); lines = [f"<b>{e(title)}</b>", ""] + [f"• {e(x)}" for x in kp] + lines[-(5 + len(cheer)):]; c = "\n".join(lines)
     return c
 
 

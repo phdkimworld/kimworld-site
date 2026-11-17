@@ -1,0 +1,4 @@
+# 채널 응원 링크(쿠팡 첫 화면 단축 링크, 2026-11-16 운영자 "우리 채널로 해볼만한걸 다 해봐").
+# 누른 뒤 24시간 안의 쿠팡 구매가 무엇이든 수수료가 된다. 하위 ID로 채널별 클릭을 따로 본다(coupang_daily 비공개 요약 by_sub).
+# 새 링크는 .github/workflows/coupang-deeplink.yml(urls=https://www.coupang.com/, subid=…)로 만든다.
+telegram: "https://link.coupang.com/a/iJ022LZbFc"   # subid tgcheer
