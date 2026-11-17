@@ -5,7 +5,7 @@
 요약은 SEAL_OUT 파일 → 비공개 저장소 stats/coupang.json(scripts/ops_publish.sh). 상품명 등 주문 상세는 어디에도 남기지 않는다.
 
 쿠팡이 센 숫자라 사이트에서 못 세는 다이내믹 배너(iframe) 클릭까지 들어 있다. 하위 ID로 자리를 나눈다:
-  banner = 페이지 맨 아래 다이내믹 배너(2026-10-28부터 subId), deal = 리포트 끝 '오늘의 특가'(골드박스, 2026-10-30), blogger = 구글 블로거 글 아래 배너(2026-11-04), youtube = 유튜브 영상 설명란·고정댓글 링크(하위 ID yt+카테고리 2자+티커, 2026-11-10 카테고리 실험 data/yt_shop.yaml), 테마별 상품 상자 = data/coupang.yaml 검색어 하위 ID, 그 밖 = 하위 ID 없음·사이트 밖 링크
+  banner = 페이지 맨 아래 다이내믹 배너(2026-10-28부터 subId), deal = 리포트 끝 '오늘의 특가'(골드박스, 2026-10-30), blogger = 구글 블로거 글 아래 배너(2026-11-04)·블로거 비교 글(하위 ID bg…, 2026-11-16), youtube = 유튜브 영상 설명란·고정댓글 링크(하위 ID yt+카테고리 2자+티커, 2026-11-10 카테고리 실험 data/yt_shop.yaml), 테마별 상품 상자 = data/coupang.yaml 검색어 하위 ID, 그 밖 = 하위 ID 없음·사이트 밖 링크
 환경변수: COUPANG_ACCESS_KEY, COUPANG_SECRET_KEY, ROWS_OUT, SEAL_OUT. PROBE=1이면 응답 필드 이름을 봉인 요약에 넣는다(주석에는 안 씀).
 """
 import datetime as dt
@@ -84,9 +84,9 @@ def main() -> None:
 
     def where(x):
         s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()
-        return "banner" if s == "banner" else "deal" if s == cs.DEAL_SUB else "blogger" if s == "blogger" else "youtube" if s.startswith("yt") else "boxes" if s in boxes else "other"
+        return "banner" if s == "banner" else "deal" if s == cs.DEAL_SUB else "blogger" if s == "blogger" or s.startswith("bg") else "youtube" if s.startswith("yt") else "boxes" if s in boxes else "other"
 
-    data, seen_orders, tags, probe, ytcat = {}, set(), {}, {}, {}
+    data, seen_orders, tags, probe, ytcat, bysub = {}, set(), {}, {}, {}, {}
     for kind in ("clicks", "orders", "commission"):
         try:
             rs = fetch(kind, start, end, access, secret)
@@ -101,6 +101,13 @@ def main() -> None:
                 continue
             r = data.setdefault(d, {c: 0 for c in COLS if c not in ("day", "click_addtags")})
             w = where(x)
+            _s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower() or "(없음)"
+            if kind in ("clicks", "commission"):  # 하위 ID별 클릭·수수료(비공개 요약 by_sub, 2026-11-16: 텔레그램 tgcheer·블로거 비교 글 bg… 등 채널별 비교)
+                bs = bysub.setdefault(_s, {"clicks": 0, "commission": 0})
+                if kind == "clicks":
+                    bs["clicks"] += int(num(first(x, "click", "clicks", "clickCount", "count")))
+                else:
+                    bs["commission"] += round(num(first(x, "commission", "commissionAmount", "amount")))
             if w == "youtube":  # 카테고리별(하위 ID 앞 4자) 클릭·수수료 — 비공개 요약에만
                 yc = ytcat.setdefault(str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()[2:4], {"clicks": 0, "commission": 0, "subs": set()})
                 yc["subs"].add(str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower())
@@ -131,7 +138,7 @@ def main() -> None:
     for t in tags.values():
         for k, v in t.items():
             allt[k] = allt.get(k, 0) + v
-    summ = {**tot, "yt_by_cat": {k: {"clicks": v["clicks"], "commission": v["commission"], "videos_with_clicks": len(v["subs"])} for k, v in ytcat.items()}, "click_addtags": allt, "days": len(rows), "range": [start, end], **({"probe_fields": probe} if probe else {})}
+    summ = {**tot, "by_sub": dict(sorted(bysub.items(), key=lambda kv: -kv[1]["clicks"])[:60]), "yt_by_cat": {k: {"clicks": v["clicks"], "commission": v["commission"], "videos_with_clicks": len(v["subs"])} for k, v in ytcat.items()}, "click_addtags": allt, "days": len(rows), "range": [start, end], **({"probe_fields": probe} if probe else {})}
     Path(os.environ.get("SEAL_OUT") or ROOT / ".cache" / "coupang_summary.json").write_text(json.dumps(summ, ensure_ascii=False), encoding="utf-8")
     print(f"::notice title=쿠팡 일별::{len(rows)}일치 받음(숫자는 비공개 저장)")
 
