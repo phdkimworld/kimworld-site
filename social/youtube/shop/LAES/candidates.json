@@ -1,79 +1,22 @@
 {
  "ticker": "LAES",
- "date": "2026-11-13",
- "cat": "bk",
- "cat_name": "투자서",
- "line": "영상 속 산업을 더 깊이 이해하고 싶다면",
+ "date": "2026-11-17",
+ "cat": "cr",
+ "cat_name": "채널 응원 링크",
+ "line": "쿠팡에서 장 보실 일이 있다면",
  "reason": "explore",
- "keyword": "양자컴퓨팅 책",
- "sub_id": "ytbklaes",
+ "keyword": "응원",
+ "sub_id": "ytcrlaes",
  "disclosure": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
  "candidates": [
   {
-   "name": "흥미롭게 읽는 양자 세계(상) /게임처럼 생각하면 양자역학이 쉬워진다, 아부다수, 미디어숲",
-   "url": "https://link.coupang.com/a/iFa9nWWZau",
-   "pid": "9767845069",
-   "price": 19800,
-   "image": "https://ads-partners.coupang.com/image1/k2vIuXnZOLErXT9nk4_lM6y2sl5vwbf9O2julSmY37HxbtIG5MeFhUybSSXvl5flmdwettau_emQ69Upmh58iI3XyOxMYF534XLLXoqvsU0M69-vyLzT43zEQIjiYXfSA6LDKpJ-jcMwYdd-_i1Sp3wKmCWZm5AFCYmD8EQEo3hlAHZUPIIapZXCWH2prTOqssDrE2tGvF4ZoMboS0nUkOJ3dLmTC7WOJArlMeOIJhZZje638a77LzEc36YH04EJIW6fNaZQlfDTSz4Rh_U-bp8KHz4n8Z_xyll9LFFzOv0ane4Za1G7Kx9kBy8F2iycQdMB_WNlPPlx-Op4wNwaqShmWci32QE7ZMVlvXtURDpHAuGyF5GjPuU5-ytIb4t73LYEG_mOg6-Pcl1TFhblfrY_6Oz2amULtCT5qBqdxUDiWKrTXvU5QCVavtYO5RdoUSjS20aYShlAU9ctwo9tjLDRWqPCcUdNi0A28gj-6VXosxbhRmoL_nhhk24sY8yYCFM5-lJ9sjqg2DBwXdYlrA-POFWDEra44BWE6H3OG2c=",
-   "category": "도서/음반/DVD",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9767845069&itemId=29236385220&vendorItemId=96155144302&traceid=V0-153-6a5375140cc6c38f&clickBeacon=5847c120-dfdd-11f1-9746-bc3223e1b51c%7E3&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=1&slot=1",
-   "img": "img_0.jpg"
-  },
-  {
-   "name": "그림으로 배우는 열에너지 공학, 북스힐, 김동진",
-   "url": "https://link.coupang.com/a/iFa9n1Z2hE",
-   "pid": "7183841464",
-   "price": 29400,
-   "image": "https://ads-partners.coupang.com/image1/FTTjwP6Wb0sJRxMsFcCe1-cWjttGiYNqCauRwgm0ScE44c05IED7TrWnmBzlhzTuNDLFHFPjjIAsZZRvrWNiTWH8UAtZWquccSX3VbP48jiTsXovhhqVdYNIHGCy-X0vr5R-7Og27aV211hykbmMpFWwgtopLNUH639b9EncLSJC7w-91GQYTKiRvmsZSpeDezqFBbrcIeNBT9bgVS1VJbJBM00b6BN_yhzlt1qnV7CjDSGu1Z2-gDRQo2mZpA_LFWAjCdU8KKI8KPUO2zcazoKdfYfaFyEilcWuH50O4WqvkSbPMHw9uoQyhbZYpEyYeOYuhYwpesZ4rZGFADA0StNrW3GsAxtiIWLgxNZhAwpV50Gv6BrDMABnC88DP2dSfe03nc0zapim5OHP7ugqDJk_kcTCjTInLJneXxax-MOazhIHi733Z7ShdadrmPKHDuWWTCStrj6VQGZavnPzHktPURxthPBDcQF9mRL-J9yrJzXkvkFDQWT9KRXFK1FYF4qqS_m5Z1rGe4gzBJj6Zq9lKqgIbW8R56aVPVmkgzei",
-   "category": "도서/음반/DVD",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=7183841464&itemId=18123126387&vendorItemId=93455379133&traceid=V0-153-371faf32e870bf09&clickBeacon=5847c120-dfdd-11f1-b7fb-e773086195c4%7E3&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=1&slot=3",
-   "img": "img_1.jpg"
-  },
-  {
-   "name": "양자심리학:심리학과 물리학의 경계, 학지사, Arnold Mindell 저/양명숙,이규환 공역",
-   "url": "https://link.coupang.com/a/iFa9n65Feu",
-   "pid": "69096094",
-   "price": 24500,
-   "image": "https://ads-partners.coupang.com/image1/TcM586VCG6vszM1sTT7v_t3K604XATM74xZfyV-djp7fV3qkOWQgY0Oat0-fRXi9jQ4vkU2BXi-p6S5d3y-JhTUvt6F9eSs1Tgf2gLtNMy-JNJEWC_H7uf2KLt6I7SLQ9dB2HzTYZwy5CTXemOVlErNVLWnv9oCAPjp72ALrviSl-ivt1jVFLdo9OQfpo8eleEunbgsb_e39DQWogXjh_qvLg6LBSLFh69zkPwGKJMOXANJ69_gZQ1ffQO0ALqjY0_DT4t83dNTn3coIHJ8odbGRhxASTP5XSQQm2WZg5CZPVmKwvvF0KSYN5Ilyo0-hqinQbGBM8gAVMefPwO6OoCOR-hKh8Htj74CVzBJnUiKTps6l_wFkp5PcWdbIJdmiM4NNJBBYDGFb3rsarXTYM5oQOmiiewSUowvHl5p5CbYb56EwZ8V03SXALh2riNa4EEg0GRJEOBKReR9kVjAdNlS9dPUJHAOqzuiFSH9r80ZOvGHQQXhi383YT1VyrPP1qbamNGrhECBmaFWjNSnvoxmGvhHI8-i-kqaTQOU=",
-   "category": "도서/음반/DVD",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=69096094&itemId=231125060&vendorItemId=93363483508&traceid=V0-153-52d3c00c60f4e171&clickBeacon=5847c120-dfdd-11f1-b872-711669a72333%7E3&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=1&slot=4",
-   "img": "img_2.jpg"
-  },
-  {
-   "name": "파이썬과 IBM 퀀텀으로 배우는 양자 컴퓨팅 2/e + 쁘띠수첩 증정",
-   "url": "https://link.coupang.com/a/iFa9ocjQPs",
-   "pid": "9803408532",
-   "price": 36000,
-   "image": "https://ads-partners.coupang.com/image1/-hLdRqY9FwyFs8L3-hLnt-_lWLFvF7S8fTYbMvoYpS0-FLb12hNfG23RXdeSbOK9TUwH_-YFdLzVcXEOgVqX4CuhmzvqMFwZQrlZ0qG2lrlvEa-zFRxc0Iv4I4Mx-XAMZ1mWiejBqCa2G6TDdajGKsmrvK6JYliUureVZeGMia0b-UAeLGJz86hKqy7lFrTGAFU3kaLNCGOzpSBMaejNgctLhuU7RnmU8dHfzgz8pMavHeL55TJgV2rMzBbTFTo31ClGxjFdDBfX4ZBAkKARndinHl_z18L8oDzbk6tEcXIJf-V_4A0kdEMYYnsogobe9xENSOmeKxr8dTpN-W1or-QBCOprsCizuir4zk2P5aad_5genQj7fObI3sDbz7kocV9U3-Ya55CJe4CgkMgxD_HVTIv4-1RBT8ckxpMj_rN_sUDfNRhm_LoTgOdON49Gv5Sv-9gaPbMd0HfTrQ_PFj7yd4LAlUuovf7lMvZugMJlhs5DhmZk7SWW9EPIxWCM-PLAZCRSlu2Zq1xbND8fLPE3oSMsT-24BqZacN4BQKw8hW3I-qKxk1kP",
-   "category": "도서/음반",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9803408532&itemId=29356340545&vendorItemId=96308159179&traceid=V0-153-9a2d943a1585978c&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=0&slot=5",
-   "img": "img_3.jpg"
-  },
-  {
-   "name": "NSB9791188569922-새책-스테이책터 [양자컴퓨팅 혁명 - 0과 1 너머의 세상 - 최종현학술원 과학기술혁신 시리즈 5]---플루토-김정상 2025-12-09 184쪽",
-   "url": "https://link.coupang.com/a/iFa9ogOUg0",
-   "pid": "9817983360",
-   "price": 18000,
-   "image": "https://ads-partners.coupang.com/image1/j4DY7pynQEV2YIukj9_9WpVi79X9q40jh1moLzd9Z4H3lZqq61Q9PyIsNMO9Xxcv0ons5eJFdi83gLzFn4H4LQxzCYe1em-mQ-Sn9Vj8SJjuAMxDRT1ZCtF_3RW8jxVkDlwSRVcmLIUTicP3L1-VjSeT-7qZHpnsFZaysEI7kPgEbjw1aCCP5vgliuWqV-ni01mj2iCdL99mtmo2NcLJR5cSXgWmBIwkPQ6yIKARi6kZK1JQDhi1ziQoorQuxEJ-HnSa_xjVj7jwIUp0HaygpRsiiFf75QVDI2EOCASjlW7q1z4B2TbsXM0Q9hnPje5NBuZC2bSKNkQNE2B9hPptVJSKCeJj_QjT-Cbma_hF0-C361QsyUWmBBMLFFQwuCDZTJ7bO_8hAk-x55OK2ZHoE82xSc_Tll-caILxbRyCQQzOznHZzuaEy993gQZ0KZgGSeSfh5EjqjE5zIFdhmUHHp1SUn3boz3NIfxxOVaQLX4AsOIcNjJWj7nMMPjzzK22eeW3_VUrCuDY_dPhv7_cctcoBeCMppfe9zo9NrEyC_y1Qx2jvAbznx9NxQ==",
-   "category": "도서/음반",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9817983360&itemId=29404954090&vendorItemId=96315540568&traceid=V0-153-7891d3ddee41f26a&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=0&slot=6",
-   "img": "img_4.jpg"
-  },
-  {
-   "name": "NSB9791189057466-새책-스테이책터 [양자컴퓨팅 및 정보 - 스캐풀딩접근방식]---휴먼싸이언스-Peter Y Lee 2025-08-08 570쪽 188x257mm",
-   "url": "https://link.coupang.com/a/iFa9ok09ZY",
-   "pid": "9819119254",
-   "price": 40000,
-   "image": "https://ads-partners.coupang.com/image1/9ZwPvlEFG1GOMVZg9W_n0vXTmn4HYeUnx77N0Do00iig3WeQ_5NQjIZHBnpaphzPXHKKvWRgVncI5VRt3QGbho-q-taR5TirHFAxe-5sLG7ZBqhAZXZJyLg0FFluPYVD5zisCyTUuhV-FQrvEOlgzv5TD9obwc9-944OVE-0L7w7ttmpYkC-eUkqyFoo9bshMq5eN7UtAt4GiV0xoZ62su0tmTZUDLE7R4X56Nw6MdBKOQLPAtq-vso0xzXp2JgqrspJobaSNHwrr6xGYKc5hpPVxCRw3aCm5_6gZ0lmNDPmFtUhc5ATG_eyXTACiLmOlR5Gq-I4Umx8Vfn9YdVCHShnlQHpXWCBVl02FjiGtx3-WTKQp_vYuk7kHeoH2s1hwG6W8ioS-cEA3eRNL9NqPHL8oq8nVlDUXcx0lOcdS6hsnALN7nN6BOnIsNuzpJqNfxAEfApEq0vbNrfR_fsvbd0252lDFux9ebQBV1dN4yhke2pkvXdWIEsH0cFxpjHUX6H-xqVbUDVJmhRLu-5uOcr_tUH6CeB2xuoBhZIn1QHG1NIABpFe_Ye36-w=",
-   "category": "도서/음반",
-   "rocket": false,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbklaes&pageKey=9819119254&itemId=29408282066&vendorItemId=96318803465&traceid=V0-153-0e12db40d5b82785&requestid=20261114124158636081845575&token=31850C%7CMIXED&pt=0&slot=7",
-   "img": "img_5.jpg"
+   "name": "쿠팡 들르실 때 이 링크로(채널 응원)",
+   "url": "https://link.coupang.com/a/iKn7B2Z1sO",
+   "pid": "",
+   "price": 0,
+   "image": "",
+   "category": "",
+   "rocket": false
   }
  ]
 }
