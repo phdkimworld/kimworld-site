@@ -36,14 +36,22 @@ jobs:
             [ -z "$loc" ] && break
             case "$loc" in http*) u="$loc";; /*) u="https://$host$loc";; *) break;; esac
           done
-          # 쿠팡 단축 링크는 200 페이지 안의 스크립트·meta로 넘긴다 → 본문 속 이동 주소에서 하위 ID·태그만 뽑는다(상품명은 남기지 않음)
-          body=$(curl -sS -m 20 -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$URL" || true)
-          echo "::notice title=본문::길이 $(printf '%s' "$body" | wc -c)자 · location 스크립트 $(printf '%s' "$body" | grep -c -iE 'location\.(href|replace)|http-equiv=.refresh') 곳"
-          printf '%s' "$body" | grep -oE 'https?:(\\?/){2}[^"'"'"' <>]*coupang\.com[^"'"'"' <>]*' | sed 's#\\/#/#g' | sort -u | head -5 | while read -r t; do
-            h=$(printf '%s' "$t" | awk -F/ '{print $3}'); p=$(printf '%s' "$t" | awk -F/ '{print "/"$4}' | cut -c1-24)
-            echo "::notice title=본문 속 이동 주소::$h$p · $(printf '%s' "$t" | grep -oiE '(subid|subId)=[A-Za-z0-9_-]+' | head -1) · $(printf '%s' "$t" | grep -oiE 'lptag=[A-Za-z0-9_-]+' | head -1) · $(printf '%s' "$t" | grep -oiE '(traceid|trackingCode|pageKey)=[^&]{0,6}' | cut -d= -f1 | sort -u | tr '\n' ' ')"
-          done
-          # 이동 스크립트 줄(한글은 지우고 앞뒤 일부만) — 이동 주소 조립 방식을 보기 위함
-          printf '%s' "$body" | tr '\n' ' ' | grep -oE '.{0,220}location\.(href|replace).{0,220}' | head -1 | LC_ALL=C sed 's/[^[:print:]]//g' | cut -c1-440 | sed 's/^/::notice title=이동 스크립트::/'
-          printf '%s' "$body" | tr '\n' ' ' | grep -oiE '(var|let|const) [A-Za-z_]+ ?= ?["'"'"'][^"'"'"']{0,160}["'"'"']' | grep -iE 'url|link|land|redirect|href' | head -4 | LC_ALL=C sed 's/[^[:print:]]//g' | sed 's/^/::notice title=주소 변수::/'
+          # 쿠팡 단축 링크는 200 페이지 안의 스크립트 변수(redirectWebUrl 등, \x3D 식으로 이스케이프)로 넘긴다 → 풀어서 하위 ID·태그만 남긴다(상품명은 남기지 않음)
+          curl -sS -m 20 -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$URL" -o body.html || true
+          python3 - <<'PY'
+          import re, urllib.parse as up
+          b = open("body.html", encoding="utf-8", errors="replace").read()
+          dec = lambda v: re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), v).replace("\\/", "/")
+          found = 0
+          for name, val in re.findall(r"(\w*(?:[Uu]rl|[Ll]ink|deeplink|fallback)\w*)\s*=\s*'([^']{10,2000})'", b):
+              u = dec(val)
+              if "coupang" not in u and not u.startswith("coupang:"):
+                  continue
+              pr = up.urlparse(u); q = {k.lower(): v for k, v in up.parse_qsl(pr.query)}
+              keys = sorted(k for k in q if k in ("subid", "lptag", "traceid", "pagekey", "itemid", "vendoritemid", "src", "spec", "addtag", "ctag"))
+              print(f"::notice title=이동 주소 {name}::{pr.scheme}://{pr.netloc}{pr.path[:28]} · subid={q.get('subid', '없음')} · lptag={q.get('lptag', '없음')} · 키 {','.join(keys)}")
+              found += 1
+          if not found:
+              print("::warning title=이동 주소::스크립트 변수에서 쿠팡 주소를 찾지 못함")
+          PY
           curl -sS -m 25 -L -o /dev/null -w "%{http_code} %{url_effective}\n" -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$URL" | awk '{split($2,a,"/"); print "::notice title=최종 도착::HTTP " $1 " · " a[3]}'
