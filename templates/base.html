@@ -77,8 +77,6 @@
       <a href="{{ base }}/dm/" class="icon-btn" data-open-dm aria-label="쪽지" hidden>
         {{ icon('send') }}<span class="icon-label">쪽지</span><span class="bell-n" data-dm-n hidden></span>
       </a>
-      {% else %}
-      <a href="{{ base }}/glossary/" class="icon-btn" aria-label="용어 사전">{{ icon('book') }}<span class="icon-label">용어</span></a>
       {% endif %}
       <button type="button" class="icon-btn" data-open-account aria-label="내 계정">
         {{ icon('user') }}<span class="icon-label" data-account-label>로그인</span>
@@ -129,7 +127,6 @@
   <button type="button" class="tab-compose" data-compose aria-label="글쓰기">{{ icon('plus') }}</button>
   <button type="button" data-tab-bell>{{ icon('bell') }}<span>알림</span><span class="bell-n" data-bell-n hidden></span></button>
   {% else %}
-  <a href="{{ base }}/glossary/" data-path="/glossary/">{{ icon('book') }}<span>용어</span></a>
   {% if site.operator.youtube_url %}<a href="{{ site.operator.youtube_url }}" rel="noopener" target="_blank" data-ev="yt_tab">{{ icon('play') }}<span>영상</span></a>{% endif %}
   {% endif %}
   <button type="button" data-tab-me>{{ icon('user') }}<span>로그인</span></button>
