@@ -680,11 +680,12 @@ button { font: inherit; color: inherit; }
 /* ---------- 쓰레드·토스증권식 다듬기: 아래 탭 줄, 답글 줄, 하트, 두 번 톡 좋아요, 불러오는 자리, 종목 탭 ---------- */
 .tabbar { display: none; }
 @media (max-width: 759px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center;
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center; /* 탭 수만큼 고르게(2026-11-17: 6칸 고정이라 5개일 때 오른쪽이 빔) */
     height: calc(58px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
     background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); }
   .tabbar > a, .tabbar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 58px;
     border: 0; background: none; color: var(--muted); font: inherit; font-size: 10.5px; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .tabbar > [hidden] { display: none !important; }
   .tabbar > [aria-current="page"] { color: var(--text); font-weight: 700; }
   .tabbar > [aria-current="page"] .ic { stroke-width: 2.4; }
   .tabbar .tab-compose { width: 52px; height: 40px; margin: 0 auto; border-radius: 12px; background: var(--surface-2); color: var(--text); }
