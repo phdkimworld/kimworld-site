@@ -9,12 +9,13 @@ echo "::add-mask::$OPS_PUSH_TOKEN"
 D=$(mktemp -d)
 git clone -q --depth 1 -b ops-data "https://x-access-token:${OPS_PUSH_TOKEN}@github.com/phdkimworld/kimworld.git" "$D" 2>/dev/null || { echo "::warning title=OPS::비공개 저장소 받기 실패(토큰 권한 확인)"; exit 3; }
 mkdir -p "$D/stats"
-cp "$SRC" "$D/stats/$NAME.json"
+case "$NAME" in *.*) DEST="stats/$NAME";; *) DEST="stats/$NAME.json";; esac   # 확장자가 있으면 그대로(예: digest.md)
+cp "$SRC" "$D/$DEST"
 cd "$D"
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git add "stats/$NAME.json"
+git add "$DEST"
 if git diff --cached --quiet; then echo "::notice title=OPS::$NAME 바뀐 것 없음"; exit 0; fi
 git commit -q -m "$NAME $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST"
-for i in 1 2 3 4; do git pull -q --rebase origin ops-data && git push -q origin HEAD:ops-data && { echo "::notice title=OPS::$NAME → 비공개 저장소 stats/$NAME.json"; exit 0; }; sleep $((i * 5)); done
+for i in 1 2 3 4; do git pull -q --rebase origin ops-data && git push -q origin HEAD:ops-data && { echo "::notice title=OPS::$NAME → 비공개 저장소 $DEST"; exit 0; }; sleep $((i * 5)); done
 exit 1
