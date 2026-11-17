@@ -63,6 +63,14 @@ jobs:
         run: |
           pip install -q pyyaml
           python3 scripts/blogger_post.py
+      - name: Comparison guides
+        # 구매 의도 비교 글(scripts/blogger_guides.py, 2026-11-16): 실행마다 쿠팡 검색 1회로 항목 하나씩 채우고, 다 차면 게시
+        if: env.SKIP != '1' && inputs.ads_backfill != '1'
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+          GUIDE_SEARCHES: "1"
+        run: python3 scripts/blogger_guides.py || echo "::warning title=블로거 비교 글::실패(다음 실행에 다시)"
       - name: Commit
         if: env.SKIP != '1'
         run: |
