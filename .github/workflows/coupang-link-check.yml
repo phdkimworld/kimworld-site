@@ -43,4 +43,7 @@ jobs:
             h=$(printf '%s' "$t" | awk -F/ '{print $3}'); p=$(printf '%s' "$t" | awk -F/ '{print "/"$4}' | cut -c1-24)
             echo "::notice title=본문 속 이동 주소::$h$p · $(printf '%s' "$t" | grep -oiE '(subid|subId)=[A-Za-z0-9_-]+' | head -1) · $(printf '%s' "$t" | grep -oiE 'lptag=[A-Za-z0-9_-]+' | head -1) · $(printf '%s' "$t" | grep -oiE '(traceid|trackingCode|pageKey)=[^&]{0,6}' | cut -d= -f1 | sort -u | tr '\n' ' ')"
           done
+          # 이동 스크립트 줄(한글은 지우고 앞뒤 일부만) — 이동 주소 조립 방식을 보기 위함
+          printf '%s' "$body" | tr '\n' ' ' | grep -oE '.{0,220}location\.(href|replace).{0,220}' | head -1 | LC_ALL=C sed 's/[^[:print:]]//g' | cut -c1-440 | sed 's/^/::notice title=이동 스크립트::/'
+          printf '%s' "$body" | tr '\n' ' ' | grep -oiE '(var|let|const) [A-Za-z_]+ ?= ?["'"'"'][^"'"'"']{0,160}["'"'"']' | grep -iE 'url|link|land|redirect|href' | head -4 | LC_ALL=C sed 's/[^[:print:]]//g' | sed 's/^/::notice title=주소 변수::/'
           curl -sS -m 25 -L -o /dev/null -w "%{http_code} %{url_effective}\n" -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$URL" | awk '{split($2,a,"/"); print "::notice title=최종 도착::HTTP " $1 " · " a[3]}'
