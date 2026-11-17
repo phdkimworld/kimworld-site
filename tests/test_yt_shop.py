@@ -31,6 +31,8 @@ check("성과 좋은 카테고리를 주로 고른다(약 75%)", 0.62 < share < 
 check("나머지는 다른 카테고리 탐색", all(w == "explore-rand" for c, w in picks if c != "hl"))
 check("같은 티커·날짜는 같은 결과", ys.choose(cfg, log, stats, "X1", T) == ys.choose(cfg, log, stats, "X1", T))
 check("force 우선", ys.choose(cfg, log, stats, "X1", T, "bk") == ("bk", "force"))
+_z = [ys.choose(cfg, log, {k: {"clicks": 0, "commission": 0} for k in cats}, f"Z{i}", T) for i in range(60)]
+check("실적이 모두 0이면 1위 없이 고르게 탐색(첫 카테고리만 반복하지 않음)", all(w == "explore-nodata" for c, w in _z) and len({c for c, w in _z}) >= 4)
 old = [{"date": "2026-08-01", "ticker": "Z", "cat": "hl"}] * 5
 check("기간 밖 기록은 세지 않음", ys.choose(cfg, old, {}, "A", T)[0] == cats[0])
 p = ys.perf([{"subId": "ytbkaaa", "click": 3}, {"subId": "blogger", "click": 5}, {"subId": "YTHLB", "click": "2"}],

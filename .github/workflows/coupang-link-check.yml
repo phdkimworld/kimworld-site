@@ -1,0 +1,39 @@
+# 쿠팡 파트너스 단축 링크 점검(2026-11-16 운영자 지시 "3번해" — 유튜브 링크 추적 확인).
+# 단축 링크를 브라우저처럼 열어 리디렉션 단계마다 주소의 하위 ID(subid)·파트너 태그(lptag)·도착 호스트를 주석으로 남긴다.
+# 마지막 GET은 실제 클릭처럼 기록될 수 있다(다음 날 쿠팡 보고서에서 그 하위 ID로 잡히는지 보는 시험). 상품 이름은 남기지 않는다.
+name: Coupang link check
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "확인할 쿠팡 단축 링크(https://link.coupang.com/a/...)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Follow redirects
+        env:
+          URL: ${{ inputs.url }}
+        run: |
+          case "$URL" in https://link.coupang.com/*) ;; *) echo "::error title=쿠팡 링크 점검::link.coupang.com 링크만 받습니다"; exit 1;; esac
+          UA="Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
+          u="$URL"
+          for i in 1 2 3 4 5 6; do
+            h=$(curl -sS -m 20 -o /dev/null -D - -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$u" || true)
+            code=$(printf '%s' "$h" | awk 'NR==1{print $2}')
+            loc=$(printf '%s' "$h" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2; exit}')
+            host=$(printf '%s' "$u" | awk -F/ '{print $3}')
+            sub=$(printf '%s' "$u" | grep -oiE '(subid|subId)=[A-Za-z0-9_-]+' | head -1)
+            tag=$(printf '%s' "$u" | grep -oiE 'lptag=[A-Za-z0-9_-]+' | head -1)
+            echo "::notice title=단계 $i::HTTP $code · $host · ${sub:-subid 없음} · ${tag:-lptag 없음}"
+            [ -z "$loc" ] && break
+            case "$loc" in http*) u="$loc";; /*) u="https://$host$loc";; *) break;; esac
+          done
+          curl -sS -m 25 -L -o /dev/null -w "%{http_code} %{url_effective}\n" -A "$UA" -H "Accept-Language: ko-KR,ko;q=0.9" "$URL" | awk '{split($2,a,"/"); print "::notice title=최종 도착::HTTP " $1 " · " a[3]}'

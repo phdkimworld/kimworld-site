@@ -79,6 +79,9 @@ def choose(cfg: dict, log: list[dict], stats: dict, ticker: str, today: dt.date,
     rnd = random.Random(hashlib.md5(f"{ticker.upper()}{today}".encode()).hexdigest())
     score = lambda c: (stats.get(c, {}).get("commission", 0) / n[c], stats.get(c, {}).get("clicks", 0) / n[c])
     best = max(cats, key=lambda c: (score(c), -cats.index(c)))
+    if score(best) == (0, 0):  # 아직 어느 카테고리도 클릭·수수료가 없으면 '1위'가 없다 → 덜 쓴 카테고리부터 계속 돌린다(2026-11-16: 0끼리 비교해 목록 첫 bk만 반복된 문제)
+        m = min(n.values())
+        return rnd.choice([c for c in cats if n[c] == m]), "explore-nodata"
     if rnd.random() * 100 < float(cfg.get("exploit_pct", 75)):
         return best, "exploit"
     return rnd.choice([c for c in cats if c != best]), "explore-rand"
