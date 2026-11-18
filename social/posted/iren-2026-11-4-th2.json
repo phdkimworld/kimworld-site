@@ -25,8 +25,14 @@
   "publish_at": "2026-11-18T06:35:10-05:00",
   "results": {
     "threads": {
-      "ids": [],
-      "last_error": "HTTP 400: {\"error\":{\"message\":\"An unknown error occurred\",\"code\":1,\"type\":\"OAuthException\",\"error_subcode\":2207052,\"is_transient\":false,\"error_user_msg\":\"The media could not be fetched from this URI: https:\\/\\/drkimworld.com\\/static\\/social\\/iren-2026-11-4\\/cards\\/card-08.jpg.Please check the limita"
+      "ids": [
+        "18122104579756721",
+        "17998754520028821"
+      ],
+      "last_error": "HTTP 400: {\"error\":{\"message\":\"An unknown error occurred\",\"code\":1,\"type\":\"OAuthException\",\"error_subcode\":2207052,\"is_transient\":false,\"error_user_msg\":\"The media could not be fetched from this URI: https:\\/\\/drkimworld.com\\/static\\/social\\/iren-2026-11-4\\/cards\\/card-08.jpg.Please check the limita",
+      "permalink": "https://www.threads.com/@phdkimworld/post/Df5Q7zAj-EE",
+      "done": true
     }
-  }
+  },
+  "posted_at": "2026-11-18T14:33:01-05:00"
 }
