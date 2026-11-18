@@ -8,8 +8,8 @@ if [ -z "${OPS_PUSH_TOKEN:-}" ]; then echo "::notice title=OPS::비공개 저장
 echo "::add-mask::$OPS_PUSH_TOKEN"
 D=$(mktemp -d)
 git clone -q --depth 1 -b ops-data "https://x-access-token:${OPS_PUSH_TOKEN}@github.com/phdkimworld/kimworld.git" "$D" 2>/dev/null || { echo "::warning title=OPS::비공개 저장소 받기 실패(토큰 권한 확인)"; exit 3; }
-mkdir -p "$D/stats"
-case "$NAME" in *.*) DEST="stats/$NAME";; *) DEST="stats/$NAME.json";; esac   # 확장자가 있으면 그대로(예: digest.md)
+case "$NAME" in *.*) DEST="stats/$NAME";; *) DEST="stats/$NAME.json";; esac   # 확장자가 있으면 그대로(예: digest.md, query/x.json)
+mkdir -p "$(dirname "$D/$DEST")"
 cp "$SRC" "$D/$DEST"
 cd "$D"
 git config user.name "github-actions[bot]"

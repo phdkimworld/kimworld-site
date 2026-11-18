@@ -193,6 +193,7 @@
 
 - `worker/`: Cloudflare Worker + D1. `api.drkimworld.com`에서 조회수(하루 한 사람 한 번), 댓글(닉네임만, 회원 가입 없음), 좋아요(댓글마다 한 번, 다시 누르면 취소), 신고(3건이면 숨김), 검색어(하루 한 사람 한 번)를 저장한다. 원래 IP는 저장하지 않고 해시만 남긴다.
 - 링크·연락처·리딩방·종목 추천 문구가 든 댓글은 자동 보류(`held`). 관리 대기열은 `/v1/admin/queue`(관리 토큰 필요).
+- **다른 세션의 D1 읽기(2026-11-17 운영자 "클라우드플레어 다른 세션이 접근할수 있게")**: 세션 셸은 Cloudflare·`api.drkimworld.com`에 닿지 않고 토큰도 없다. 읽기는 `gh workflow run d1-query.yml -R phdkimworld/kimworld-site -f sql="SELECT …" -f name=<이름>` → 결과는 비공개 저장소 ops-data `stats/query/<이름>.json`(공개 로그엔 줄 수만). `scripts/d1_guard.py`가 SELECT/WITH 한 문장만 받고 개인정보 표(users·sessions·dm_*·avatars·keys·ask_log 등)는 거절한다. 쓰기는 이 통로로 하지 않는다(스키마는 migrations+api.yml, 댓글 상태는 api.yml 입력). 전체 안내는 스킬 `kimworld-cloudflare`.
 - 배포: `.github/workflows/api.yml`(worker/ 변경 시·손으로 실행). 비밀값 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`가 없으면 건너뛴다. 댓글 숨김·삭제는 이 워크플로를 `comment_id`·`status` 입력으로 손 실행한다.
 - 사이트: `site.yaml api_url`을 비우면 관련 화면이 모두 꺼진다. API가 응답하지 않아도 영역만 숨겨지고 사이트는 그대로 동작한다.
 - 운영자는 댓글로 개별 종목 매매 질문에 답하지 않는다(유사투자자문 소지). 운영자·김박사 닉네임은 자동으로 익명 처리된다.
