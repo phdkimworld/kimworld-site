@@ -208,9 +208,12 @@ STRIP_SEC = 6.0
 # 4.4) 구독 버튼 띠(운영자 지시 2026-11-17 "1 3만 수행" — 구독 전환 시험): 문단 'sub' = [문장 번호] 한 문장 동안 화면 아래(y 860)에 '구독' 띠.
 # 문구는 deck 'sub_text'(없으면 기본). 쿠팡 띠는 이 구간을 피한다. check_slides.py SUB가 영상 전체 1문장·'구독'이 들어간 문장인지 본다
 sub_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('sub', []) if k < len(P[pi]['sents'])]
+# 4.6) 이어 보기 띠(운영자 지시 2026-11-18 "종목 간 교차 링크 필수"): 문단 'next' = [문장 번호] 그 문장 동안 '이어 보기' 띠.
+# 문구는 deck 'next_text'(예: '실스크(LAES) 편 · 설명란 링크'). 구독 띠와 겹치면 안 된다(check_slides NEXTSUB)
+next_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('next', []) if k < len(P[pi]['sents'])]
 def strip_windows():
     if not deck.get('shop_strip'): return []
-    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)] + sub_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
+    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
     shop_t = [a for a, k, b, _ in segs if isad(k) and k[1] == 'shop']
@@ -248,6 +251,18 @@ def make_sub(text, path):
     d.text((x0 + 60 * S, 13 * S), tag, font=f1, fill=(255, 255, 255, 255))
     d.text((bx1 + 22 * S, 14 * S), text, font=f2, fill=(15, 15, 15, 255))
     im.resize((1920, 84), Image.LANCZOS).save(path)
+def make_next(text, path):
+    from PIL import ImageDraw, ImageFont
+    S = 2; FD = '/usr/share/fonts/opentype/noto/'
+    f1 = ImageFont.truetype(FD + 'NotoSansCJK-Black.ttc', 34 * S, index=1); f2 = ImageFont.truetype(FD + 'NotoSansCJK-Bold.ttc', 34 * S, index=1)
+    im = Image.new('RGBA', (1920 * S, 84 * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    tag = '이어 보기'; tw = d.textlength(tag, font=f1); bw = d.textlength(text, font=f2)
+    w = int(24 * S + tw + 28 * S + bw + 36 * S); x0 = (1920 * S - w) // 2
+    d.rounded_rectangle([x0, 0, x0 + w, 84 * S], radius=42 * S, fill=(12, 20, 38, 238), outline=(94, 200, 255, 255), width=3 * S)
+    d.rounded_rectangle([x0 + 12 * S, 12 * S, x0 + 12 * S + tw + 28 * S, 72 * S], radius=30 * S, fill=(94, 200, 255, 255))
+    d.text((x0 + 26 * S, 14 * S), tag, font=f1, fill=(12, 20, 38, 255))
+    d.text((x0 + 12 * S + tw + 44 * S, 14 * S), text, font=f2, fill=(255, 255, 255, 255))
+    im.resize((1920, 84), Image.LANCZOS).save(path)
 strip_at = strip_windows(); strip_png = os.path.join(wd, 'shop_strip.png')
 if strip_at: make_strip(deck['shop_strip'], strip_png)
 sub_png = os.path.join(wd, 'sub_strip.png')
@@ -261,6 +276,8 @@ sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
 # 화면 아래 띠(쿠팡·구독): 있는 것만 차례로 겹친다
 layers = [(strip_png, [(t, t + STRIP_SEC) for t in strip_at])] if strip_at else []
 if sub_win: layers.append((sub_png, sub_win))
+next_png = os.path.join(wd, 'next_strip.png')
+if next_win and deck.get('next_text'): make_next(str(deck['next_text']), next_png); layers.append((next_png, next_win))
 if layers:
     fc, last = '[0:v]scale=1920:1080,fps=30[b0]', 'b0'
     for i, (_, wins) in enumerate(layers):
@@ -289,9 +306,9 @@ for a, k, b, _ in segs:
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
-json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'sub_at': sub_win,
+json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'sub_at': sub_win, 'next_at': next_win,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)],
            'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
-print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 구독 띠', sub_win, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
+print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 구독 띠', sub_win, '| 이어 보기 띠', next_win, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
       '| 가벼운 움직임 %d화면' % len(motion_keys), '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))

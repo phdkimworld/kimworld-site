@@ -78,6 +78,16 @@ for i,k in sb:
     if i>=len(s['paras'])-1: print('SUB 마지막 문단(outro)에는 넣지 않음(남은 시청자가 적다)');ok=False
     if k in s['paras'][i].get('ad',[]) or k in s['paras'][i].get('shop',[]): print('SUB p%d[%d] 사이트 안내·쿠팡 문장과 겹침(행동은 한 문장에 하나)'%(i+1,k));ok=False
     if re.search(r'놓치|보내 ?드|알려 ?드|업데이트',st['text']): print('SUB p%d[%d] 긴급성·업데이트 약속 표현 금지:'%(i+1,k),st['text'][:40]);ok=False
+# NEXT: 이어 보기 띠(운영자 지시 2026-11-18 "종목 간 교차 링크 필수"). 문단 'next' = [안내 문장 번호], deck 'next_text'.
+# 안내 문장은 '편'·'설명란'을 담고, 구독(sub)·사이트 안내(ad)·쿠팡(shop) 문장과 같은 문장이 아니다(NEXTSUB). 'next'를 쓰는 덱만 검사한다(옛 회차 오탐 없음)
+nx=[(i,k) for i,p in enumerate(s['paras']) for k in p.get('next',[])]
+if nx and not s.get('next_text'): print('NEXT "next_text"(띠 문구)가 없음');ok=False
+for i,k in nx:
+    if k>=len(tm[i]['sents']): print('NEXT 문장 번호가 범위 밖 p%d[%d]'%(i+1,k));ok=False;continue
+    st=tm[i]['sents'][k]
+    if k in s['paras'][i].get('sub',[]) or k in s['paras'][i].get('ad',[]) or k in s['paras'][i].get('shop',[]): print('NEXTSUB p%d[%d] 이어 보기 안내가 구독·사이트 안내·쿠팡 문장과 겹침'%(i+1,k));ok=False
+    if not re.search(r'편',st['text']) or '설명란' not in st['text']: print('NEXT p%d[%d] 안내 문장에 \'편\'·\'설명란\'이 없음:'%(i+1,k),st['text'][:40]);ok=False
+    else: print('next p%d[%d]'%(i+1,k),st['text'][:45])
     print('sub p%d[%d]'%(i+1,k),st['text'][:45])
 # ANIM: 움직이는 장면(2026-11-16, SKILL V6.8 — 같은 날 운영자 "도움이 될 거 같은 장면이 있으면 전부"로 1~2컷 상한 없앰).
 # 틀이 있는지, 박자 문장 번호가 그 슬라이드 안에서 커지는지, 안내(ad)·쿠팡 문장과 겹치지 않는지, 마지막 박자 뒤 정지가 12초를 넘지 않는지,
