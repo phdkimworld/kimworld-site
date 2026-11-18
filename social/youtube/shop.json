@@ -222,5 +222,13 @@
 "kw": "캠핑 의자",
 "sub_id": "ythbjoby",
 "why": "explore-nodata"
+},
+{
+"date": "2026-11-18",
+"ticker": "KWNOTE",
+"cat": "hl",
+"kw": "루테인",
+"sub_id": "ythlkwnote",
+"why": "explore-nodata"
 }
 ]

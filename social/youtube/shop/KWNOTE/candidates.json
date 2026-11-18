@@ -1,0 +1,35 @@
+{
+ "ticker": "KWNOTE",
+ "date": "2026-11-18",
+ "cat": "hl",
+ "cat_name": "건강",
+ "line": "오래 화면을 보는 분들이 많이 찾는",
+ "reason": "explore-nodata",
+ "keyword": "루테인",
+ "sub_id": "ythlkwnote",
+ "disclosure": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
+ "candidates": [
+  {
+   "name": "뉴트리디데이 프리미엄 루테인 골드",
+   "url": "https://link.coupang.com/a/iMMERmFgHc",
+   "pid": "7497623760",
+   "price": 21900,
+   "image": "https://ads-partners.coupang.com/image1/Iu1jEUAFIaNSqJGoIm3fWo2SUr4m0WRyi9XCPoVtFV5Ymh5M8JZUxze4OPlrs4LXhzb2t5MiWCifqrl-Psksf0Lxx9gnkncdytAJTzsutUc37yq2-RdVPkH_Dtufoe7vrqgP7151VT0TFnfyFF2y7NCTL8kJ9UfWAiGBHc2F_Pn0DPbArACEShxtOG58UHOJ7ZYxwf5DR8g7LQJbkggrAN_RleLFBhRatHHuU6KCEJRAXqEn9eIcs6qYMJg9MoapIuHKRMMOpKlytpCeDg0xo6eoFVJ4I70RnBmD8AxBvJ568F6USaoywJpWZAlQcMUnMGvPbbT2DT_z8vrOcmkeQaq_10E1FJ4wsjVgPaqsRssIaSiIvERlc4obJfbsS9pQMvocY1Fj7uuwIbL9AGOPMJjrM0ythgPPSdXqRxWCfkHafxGyFigQHxvmy9RzfD9FkOAu_PIl-3cR26yoDoxCae9d-JuCwZ_cQc66tvZZ_lEHcvWpofe4v3rPqB2QphvG0rW682zN_oLbq-E6PXDuDMJwzr3UDCr90g==",
+   "category": "식품",
+   "rocket": true,
+   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ythlkwnote&pageKey=7497623760&itemId=20460038122&vendorItemId=4443299967&traceid=V0-153-1f3da279cdc65e4d&requestid=20261119024004644262984159&token=31850C%7CGM&pt=0&slot=1",
+   "img": "img_0.jpg"
+  },
+  {
+   "name": "아이클리어 루테인",
+   "url": "https://link.coupang.com/a/iMMERsKR2G",
+   "pid": "6214567659",
+   "price": 25460,
+   "image": "https://ads-partners.coupang.com/image1/SNav8DsYxMjIf1TZSCk4nGP0rzqNixSQ-CXAUESJURYMyPbrkSJAUGDVTHuF-kWEXRknJpWK9BUIPn6xqAa8m_02AdSvo80CcEoXsfcG49JaYFESRYBdNHFERrXCYQ3v5ySljQ1i-e7NqB_RVGfYtU5GZuXpTufokskBO7PuRAXS9Tuh-qYW7mVqwx8u0tLU6eQzt36_8q0TnxnJyzwSsDI4_JR4xzq4P4x3h0E2nC44eIMgjtH2ChHFxYky_JxiOT3ZARQhXzv7iOuzoGz1A23SYvNnWcN9zeRhaGIZLzeKkKA5u5nIPpKRwVylNmVgztEUu0LPMEnhcxRMbf-5lp6ZTJnum2gWsDVqhsVzEuqbybAx93eB8e_dNCrkQGBk0gXAQmtmM-iVxCSXqj9douW9jb30tjpCxXvm7M5qs1Dj14ZUIbhTnQ4AL7mTm61huRTljR-FrXvqH8nly3PKaQd0HU9qaQX_1ZyI-qw2k0X0c7M2j5RxFyx2uqSeufz154snzCBiVWzkWdAHke-BLLWT_ZqoYPihLMGR7w==",
+   "category": "식품",
+   "rocket": true,
+   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ythlkwnote&pageKey=6214567659&itemId=19421831914&vendorItemId=86533293659&traceid=V0-153-eec20c57704d435b&requestid=20261119024004644262984159&token=31850C%7CGM&pt=0&slot=4",
+   "img": "img_1.jpg"
+  }
+ ]
+}
