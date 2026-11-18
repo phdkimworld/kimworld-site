@@ -347,7 +347,8 @@ function botWhy(req) {
 function quickSrc(src) {
   if (src === "youtube") return "yt";
   if (/^(threads|ig|instagram|facebook|fb|x|t\.co|twitter)$/.test(src)) return "sns";
-  if (/(google|naver|daum|bing)/.test(src)) return "search";
+  const se = /(google|naver|daum|bing)/.exec(src);  // 검색은 엔진별로 나눈다(2026-11-18: 네이버 체류 26초 vs 다음앱 293초 — 어느 첫 화면인지 보려고)
+  if (se) return `search-${se[1]}`;
   if (src === "direct") return "direct";
   return "other";
 }

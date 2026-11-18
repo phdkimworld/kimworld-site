@@ -45,6 +45,9 @@ def main() -> int:
     out.append(f"- 세션 {s_now} {pct(s_now, s_prev)} · 하루 {s_now / max(1, a.get('days', 7)):.0f} · 방문자 {g(t, 'uv', 'now')} {pct(g(t, 'uv', 'now'), g(t, 'uv', 'prev'))} · PV {g(t, 'pv', 'now')} · 신규 {g(t, 'newv', 'now')}")
     act = a.get("active", {})
     out.append(f"- 활성 DAU {act.get('dau')} · WAU {act.get('wau')} · MAU {act.get('mau')} · 빠른 이탈 {g(a, 'bots', 'quick')}/{s_now}")
+    qlb = a.get("quick_land_by") or {}
+    if qlb:  # 빠른 이탈 랜딩 종류:유입(검색은 엔진별, 2026-11-18부터) 상위 5
+        out.append("- 빠른 이탈 랜딩: " + " · ".join(f"{k} {v}" for k, v in list(qlb.items())[:5]))
     out.append("")
     out.append("## 채널(세션, 전주)")
     for ch in a.get("channels", [])[:8]:
