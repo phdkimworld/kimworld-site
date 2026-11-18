@@ -1,37 +1,12 @@
 {
- "generated": "2026-11-18T17:26:03+00:00",
- "since": "2026-11-11T17:26:03+00:00",
+ "generated": "2026-11-18T20:26:58+00:00",
+ "since": "2026-11-11T20:26:58+00:00",
  "platforms": {
   "threads": {
    "ok": true,
    "me": "phdkimworld",
-   "my_replies_24h": 0,
-   "open": [
-    {
-     "platform": "threads",
-     "kind": "top",
-     "replyTo": "18118524854276665",
-     "commentId": "18118524854276665",
-     "postId": "18113960135242851",
-     "postPermalink": "https://www.threads.com/@phdkimworld/post/Df4PcPKlc_A",
-     "postText": "아이렌(IREN)의 실적 날 종가는 18.03달러. 그게 바닥처럼 보였던 건 7거래일뿐이었다.\n\n11월 17일 종가 15.805달러, 실적 날보다 12.3% 낮다. 그사이 회사가 직접 낸 새 소식은 없었다.\n\n지난 예측(11월 13일 기준): 적중 1, 빗나감 0, 진행 중 4.\n대표: 네비우스와 같은 방향이라는 진단이 맞았고, 가장 무겁게 본 '실적 날 ",
-     "slug": "iren-2026-11",
-     "author": "icewatermelon88",
-     "text": "음 부지담보대출하지않을까요? 이주가에 조달발표하면 회복절대불가같은데..",
-     "publishedAt": "2026-11-18T17:04:18+0000",
-     "likeCount": 0,
-     "followups": [],
-     "context": [
-      {
-       "author": "icewatermelon88",
-       "isMe": false,
-       "text": "음 부지담보대출하지않을까요? 이주가에 조달발표하면 회복절대불가같은데..",
-       "publishedAt": "2026-11-18T17:04:18+0000"
-      }
-     ],
-     "my_replies_in_thread_24h": 0
-    }
-   ]
+   "my_replies_24h": 1,
+   "open": []
   },
   "instagram": {
    "ok": true,
@@ -46,5 +21,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-18T17:30Z"
+ "saved_utc": "2026-11-18T20:30Z"
 }
