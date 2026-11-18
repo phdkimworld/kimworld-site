@@ -66,6 +66,19 @@ if s.get('shop'):
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
+# SUB: 구독 요청 한 문장(운영자 지시 2026-11-17 "1 3만 수행" — 구독 전환 시험). 영상 전체에 정확히 1문장, '구독'이 들어가고,
+# 첫 30초·outro·사이트 안내(ad)·쿠팡(shop) 문장이 아니다. 그 문장 동안 화면 아래 '구독' 띠가 뜬다(make_slide_video.py)
+sb=[(i,k) for i,p in enumerate(s['paras']) for k in p.get('sub',[])]
+if len(sb)!=1: print('SUBMISS 구독 요청 문장("sub": [문장 번호])은 영상 전체에 정확히 1개(SKILL V3 구독 요청):',sb);ok=False
+for i,k in sb:
+    if k>=len(tm[i]['sents']): print('SUB 문장 번호가 범위 밖 p%d[%d]'%(i+1,k));ok=False;continue
+    st=tm[i]['sents'][k]
+    if '구독' not in st['text']: print('SUB p%d[%d] 문장에 \'구독\'이 없음:'%(i+1,k),st['text'][:40]);ok=False
+    if st['start']<30: print('SUB p%d[%d] 첫 30초(훅)에는 넣지 않음'%(i+1,k));ok=False
+    if i>=len(s['paras'])-1: print('SUB 마지막 문단(outro)에는 넣지 않음(남은 시청자가 적다)');ok=False
+    if k in s['paras'][i].get('ad',[]) or k in s['paras'][i].get('shop',[]): print('SUB p%d[%d] 사이트 안내·쿠팡 문장과 겹침(행동은 한 문장에 하나)'%(i+1,k));ok=False
+    if re.search(r'놓치|보내 ?드|알려 ?드|업데이트',st['text']): print('SUB p%d[%d] 긴급성·업데이트 약속 표현 금지:'%(i+1,k),st['text'][:40]);ok=False
+    print('sub p%d[%d]'%(i+1,k),st['text'][:45])
 # ANIM: 움직이는 장면(2026-11-16, SKILL V6.8 — 같은 날 운영자 "도움이 될 거 같은 장면이 있으면 전부"로 1~2컷 상한 없앰).
 # 틀이 있는지, 박자 문장 번호가 그 슬라이드 안에서 커지는지, 안내(ad)·쿠팡 문장과 겹치지 않는지, 마지막 박자 뒤 정지가 12초를 넘지 않는지,
 # 데이터 틀에 beats가 있는지(ANIMBEAT). 숫자·비교 장면(문단)인데 anim이 없으면 WARN ANIMCAND(실패 아님), 끝에 anim 문단 비율

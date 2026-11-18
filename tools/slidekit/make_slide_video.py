@@ -205,9 +205,12 @@ def sfx_events():
 # 4.5) 쿠팡 짧은 띠(운영자 지시 2026-11-11 "짧게 여러번"): deck 'shop_strip' = 띠 문구(28자 이하). 영상 1/3·2/3 지점과 쿠팡 카드 직전에 6초씩 3번,
 # 화면 아래(자막·재생바 위, y 860~944)에 얇은 띠를 겹친다. 첫 30초(훅)·outro·전체 화면 미드롤·쿠팡 카드·사이트 안내 배너 구간과 겹치지 않게 슬라이드 전환 지점에 맞춘다
 STRIP_SEC = 6.0
+# 4.4) 구독 버튼 띠(운영자 지시 2026-11-17 "1 3만 수행" — 구독 전환 시험): 문단 'sub' = [문장 번호] 한 문장 동안 화면 아래(y 860)에 '구독' 띠.
+# 문구는 deck 'sub_text'(없으면 기본). 쿠팡 띠는 이 구간을 피한다. check_slides.py SUB가 영상 전체 1문장·'구독'이 들어간 문장인지 본다
+sub_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('sub', []) if k < len(P[pi]['sents'])]
 def strip_windows():
     if not deck.get('shop_strip'): return []
-    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)]  # 움직이는 장면 위에도 띠를 얹지 않는다
+    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)] + sub_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
     shop_t = [a for a, k, b, _ in segs if isad(k) and k[1] == 'shop']
@@ -231,16 +234,41 @@ def make_strip(text, path):
     d.text((x0 + 26 * S, 14 * S), tag, font=f1, fill=(14, 26, 43, 255))
     d.text((x0 + 12 * S + tw + 44 * S, 13 * S), text, font=f2, fill=(255, 255, 255, 255))
     im.resize((1920, 84), Image.LANCZOS).save(path)
+def make_sub(text, path):
+    from PIL import ImageDraw, ImageFont
+    S = 2; FD = '/usr/share/fonts/opentype/noto/'
+    f1 = ImageFont.truetype(FD + 'NotoSansCJK-Black.ttc', 36 * S, index=1); f2 = ImageFont.truetype(FD + 'NotoSansCJK-Bold.ttc', 34 * S, index=1)
+    im = Image.new('RGBA', (1920 * S, 84 * S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    tag = '구독'; tw = d.textlength(tag, font=f1); bw = d.textlength(text, font=f2)
+    w = int(12 * S + 34 * S + tw + 30 * S + 22 * S + bw + 36 * S); x0 = (1920 * S - w) // 2
+    d.rounded_rectangle([x0, 0, x0 + w, 84 * S], radius=42 * S, fill=(255, 255, 255, 240))
+    bx1 = x0 + 12 * S + 34 * S + tw + 30 * S
+    d.rounded_rectangle([x0 + 12 * S, 12 * S, bx1, 72 * S], radius=30 * S, fill=(204, 0, 0, 255))
+    d.polygon([(x0 + 30 * S, 28 * S), (x0 + 30 * S, 56 * S), (x0 + 52 * S, 42 * S)], fill=(255, 255, 255, 255))  # 재생 삼각형
+    d.text((x0 + 60 * S, 13 * S), tag, font=f1, fill=(255, 255, 255, 255))
+    d.text((bx1 + 22 * S, 14 * S), text, font=f2, fill=(15, 15, 15, 255))
+    im.resize((1920, 84), Image.LANCZOS).save(path)
 strip_at = strip_windows(); strip_png = os.path.join(wd, 'shop_strip.png')
 if strip_at: make_strip(deck['shop_strip'], strip_png)
+sub_png = os.path.join(wd, 'sub_strip.png')
+if sub_win: make_sub(str(deck.get('sub_text') or '주가가 이상하게 움직인 미국 종목을 추적합니다'), sub_png)
 voice = os.path.join(wd, 'voice.wav'); mixed = os.path.join(wd, 'mix.wav')
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af',
     'highpass=f=60,equalizer=f=140:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=2.5:attack=10:release=200,loudnorm=I=-16:TP=-1.5:LRA=11',
     '-ar', '44100', '-ac', '2', '-c:a', 'pcm_s16le', voice], check=True)
 events = [] if os.environ.get('NO_SFX') else sfx_events()
 sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
-ov = (['-i', strip_png, '-filter_complex', '[0:v]scale=1920:1080,fps=30[b];[2:v]format=rgba[s];[b][s]overlay=0:860:enable=\'' + '+'.join(f'between(t,{t:.2f},{t + STRIP_SEC:.2f})' for t in strip_at) + '\',format=yuv420p[v]', '-map', '[v]', '-map', '1:a']
-      if strip_at else ['-vf', 'scale=1920:1080,fps=30,format=yuv420p'])
+# 화면 아래 띠(쿠팡·구독): 있는 것만 차례로 겹친다
+layers = [(strip_png, [(t, t + STRIP_SEC) for t in strip_at])] if strip_at else []
+if sub_win: layers.append((sub_png, sub_win))
+if layers:
+    fc, last = '[0:v]scale=1920:1080,fps=30[b0]', 'b0'
+    for i, (_, wins) in enumerate(layers):
+        en = '+'.join(f'between(t,{a:.2f},{b:.2f})' for a, b in wins)
+        fc += f";[{i + 2}:v]format=rgba[s{i}];[{last}][s{i}]overlay=0:860:enable='{en}'[b{i + 1}]"; last = f'b{i + 1}'
+    fc += f';[{last}]format=yuv420p[v]'
+    ov = sum((['-i', pth] for pth, _ in layers), []) + ['-filter_complex', fc, '-map', '[v]', '-map', '1:a']
+else: ov = ['-vf', 'scale=1920:1080,fps=30,format=yuv420p']
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-i', mixed] + ov + ['-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage', '-crf', '20', '-r', '30',
     '-af', 'alimiter=limit=0.95,apad', '-t', f'{total:.3f}', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', out], check=True)
 ad = [(round(a, 1), round(b, 1)) for a, k, b, _ in segs if isad(k) and k[1] != 'shop']
@@ -261,9 +289,9 @@ for a, k, b, _ in segs:
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
-json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at,
+json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'sub_at': sub_win,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)],
            'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
-print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
+print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 구독 띠', sub_win, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
       '| 가벼운 움직임 %d화면' % len(motion_keys), '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))
