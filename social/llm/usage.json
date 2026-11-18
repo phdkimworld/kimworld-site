@@ -2,6 +2,14 @@
  "months": {
   "2026-11": {
    "features": {
+    "comments": {
+     "cache_read": 0,
+     "cache_write": 12200,
+     "calls": 1,
+     "in": 160,
+     "out": 242,
+     "usd": 0.001662
+    },
     "judge": {
      "cache_read": 0,
      "cache_write": 0,
@@ -19,7 +27,7 @@
      "usd": 0.047302
     }
    },
-   "usd": 1.334414
+   "usd": 1.336076
   }
  }
 }
