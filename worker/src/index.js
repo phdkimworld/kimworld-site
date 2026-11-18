@@ -527,8 +527,15 @@ async function analytics(db, now, daysIn) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
+    // 가족 앱 '우리집 책 읽어주기' 녹음 저장소(워커 storytime-audio)로 넘김. 회사망이 workers.dev를 막아 이 도메인을 같이 씀.
+    // 김박사 월드 API·D1과는 아무것도 공유하지 않음(경로 앞 /storytime 만 떼고 그대로 전달)
+    if (env.STORYTIME && (url.pathname === "/storytime" || url.pathname.startsWith("/storytime/"))) {
+      const fwd = new URL(req.url);
+      fwd.pathname = url.pathname.slice("/storytime".length) || "/";
+      return env.STORYTIME.fetch(new Request(fwd, req));
+    }
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
     const now = Date.now();
     const ip = req.headers.get("CF-Connecting-IP") || "0.0.0.0";

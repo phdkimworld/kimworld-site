@@ -998,5 +998,16 @@ console.log("리포트에 질문하기");
   check(Array.isArray(an.data.ask) && an.data.ask[0].usd > 0 && !JSON.stringify(an.data.ask).includes("현금"), "질문하기: 운영 통계에 사용량(질문 원문 없음)");
   delete env.ANTHROPIC_API_KEY;
 }
+// 가족 앱 녹음 저장소로 넘기기: /storytime 떼고 STORYTIME 서비스로, 다른 경로는 영향 없음
+{
+  let seen = null;
+  env.STORYTIME = { fetch: async r => { seen = new URL(r.url).pathname + new URL(r.url).search; return new Response("st"); } };
+  const r1 = await worker.fetch(new Request("https://api.drkimworld.com/storytime/a/0123456789abcdef0123.bin?k=x"), env);
+  check(await r1.text() === "st" && seen === "/a/0123456789abcdef0123.bin?k=x", "storytime: /storytime/… 는 녹음 저장소로 그대로 넘김");
+  seen = null;
+  await call("GET", "/v1/health");
+  check(seen === null, "storytime: 다른 경로는 넘기지 않음");
+  delete env.STORYTIME;
+}
 console.log(fails ? `\n실패 ${fails}개` : "\n모두 통과");
 process.exit(fails ? 1 : 0);
