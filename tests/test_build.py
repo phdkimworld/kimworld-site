@@ -695,7 +695,7 @@ if (D / "index.html").exists():
     check("Allow: /search/$" in _rb and "Disallow: /search/\n" in _rb, "robots: 예전 도메인의 /search/<스팸> 주소 차단, 검색 화면은 허용")
     _hm = (D / "index.html").read_text(encoding="utf-8")
     _tb = re.search(r'<nav class="tabbar".*?</nav>', _hm, re.S)
-    check(_tb and '/settings/' in _tb.group(0) and _tb.group(0).count('<a ') + _tb.group(0).count('<button') == 6, "아래 탭 줄에 '설정'(6칸)")
+    check(_tb and '/settings/' in _tb.group(0) and _tb.group(0).count('<a ') + _tb.group(0).count('<button') == 5, "아래 탭 줄에 '설정'(5칸: 홈·검색·영상·로그인·설정, 용어 탭은 11-17에 뺌)")
     _sw = (D / "sw.js").read_text(encoding="utf-8")
     check("addEventListener('push'" in _sw and "notificationclick" in _sw and "__API__" not in _sw, "서비스 워커: 푸시 받기·누르면 열기")
     check("/dm/" not in (D / "sitemap.xml").read_text(encoding="utf-8"), "사이트맵에 쪽지함 없음")
