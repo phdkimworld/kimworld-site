@@ -1,79 +1,22 @@
 {
  "ticker": "BTQ",
- "date": "2026-11-16",
- "cat": "bk",
- "cat_name": "투자서",
- "line": "영상 속 산업을 더 깊이 이해하고 싶다면",
- "reason": "exploit",
- "keyword": "주식 차트 공부 책",
- "sub_id": "ytbkbtq",
+ "date": "2026-11-17",
+ "cat": "cr",
+ "cat_name": "채널 응원 링크",
+ "line": "쿠팡에서 장 보실 일이 있다면",
+ "reason": "explore",
+ "keyword": "응원",
+ "sub_id": "ytcrbtq",
  "disclosure": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
  "candidates": [
   {
-   "name": "오늘 시작해도 늦지 않은 주식 공부, 원앤원북스, 곽유정",
-   "url": "https://link.coupang.com/a/iJaVzdMCmi",
-   "pid": "9179365132",
-   "price": 18000,
-   "image": "https://ads-partners.coupang.com/image1/NYH4CAdOEK2N4FmvNQKSE477Yj9Dd_KFf3VLkUnK4bD7Kc9huVzxxzylSN_qKCVrlDEC97HYSrv2SOxFCHwL2s94dvTn38Alp6I6UJomciP5qIoJyckiucyiHayJ0eSnn_GpMRuej5nxG8gVorbvMwWsE2zKvvz8oMT68-MRj3E-QjJgKOzyV_tAHFbG6w44WoJcKRcWLPfAOH0b5iJv2kqpLlaNTGkb0MwvIDi7O3cyUZXr4_IzAT9LcWnT_50LHjOyNHD9DMLGXLuGVf4pT7JUcoActaSvJJi9akITEqUsJoKw-5u4G79oGwYTUin8AErZArdcpuukCQm6_BBaoCfTU1lzpUFBN0ENA9JI5B7wALib5QQ7vYyNCT7GFBivjSBShVQmKpcDG20M-wSPIO1vGJIf_cOP2SW7GWB0935g8svrGqBBjyYqq6AZUuH9CNlAuPRRBP6rpHWPh4ud_ihMhvCX-GPC_2D7jseOZL-NkL_eOuGIYNHJWjnN7SKkO2_9ZlaQbYeJ27cxz-OJXA==",
-   "category": "도서/음반/DVD",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=9179365132&itemId=27067436215&vendorItemId=94044022379&traceid=V0-153-e6c5c9503fad1ace&clickBeacon=b8a90b60-e1c1-11f1-9a34-ec07cc8a98c1%7E3&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=1&slot=1",
-   "img": "img_0.jpg"
-  },
-  {
-   "name": "현대인을 위한 최소한의 지식 - 경제 금융 주식 투자 공부 관련 입문 책, 데일리뉴액션, 디엔에이",
-   "url": "https://link.coupang.com/a/iJaVzjceya",
-   "pid": "9581661926",
-   "price": 15300,
-   "image": "https://ads-partners.coupang.com/image1/Y7ctzIXOrRoDcAEuY2nmmjp9uhhVU4Ao5tLQyLv9iXWQpotNS6ioPQAyyq-ryrolDJnAbX19eFQTH2DI02J_4_2wqlZTLZu1g-FSapJEbItg34pqqmQOmoFyvuYGeZdOfqthibPKJCxE9ZeUj9fURA4Ewbhhp1Au5n_b54Aa8UngEHFN77iYPbJQY42c-DqIg_9mqsEvq1PIi3qQKF7ewhpGEpbPNThQBVtvMCD0wLIpHGkZmG3RY8wjBKpLQFg6FH2vh5Njx3oI6cPkT3J3ec_8fxH0-NT74cDlXBTRXtgS3_B9woWApC5GZRuAJGsZXUWO6kQGPkr09fKA3EW-JiQiubEUIIn-KHGthrzYnhBa6tUsty0-FuaWDjF_mLHBrBCMvhhPfA-Z7s7mF1wtuPCYMn_jKdPhVJZf7Q-Pd728N8La9rpFx15yyxVgNbNt5bymnMjwia9uzpYJ0rFLs_NN6xxq9kdyDKIf4wXoJrWT1cUK01HFfZ4J_ihTqMRQKooP_yqxaZkAoP8y2lPVgrIjldRVfkdKZy8_TZ9ESg==",
-   "category": "도서/음반/DVD",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=9581661926&itemId=28601527876&vendorItemId=95049833471&traceid=V0-153-7b7a4d7773a1368d&clickBeacon=b8a90b60-e1c1-11f1-94a7-2f8ce331b2cf%7E3&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=1&slot=2",
-   "img": "img_1.jpg"
-  },
-  {
-   "name": "챗 GPT 주식투자 사용설명서: 실전ㆍ실습ㆍ실무에서 바로 써먹는 금융 프롬프트 67, 황인환(황Q), 허반석, 여의도책방",
-   "url": "https://link.coupang.com/a/iJaVzonTvE",
-   "pid": "8915673755",
-   "price": 16200,
-   "image": "https://ads-partners.coupang.com/image1/K4Lx9HqKW-OCVLSQK0PCId3fHo7OPUExPDMzhFrMZ3OxP3FU9QJgYdciLPi3RJjNg0IzI9n7tHV-CXMLZcdIQxoUJKn_sAO4XBlvBhzLon6NNbGqO1tADE8-kKXBE3ckl5sMGnQt1Qp9dbFF40kLwwnOiqLoSlZ48569149jGzlcuURMeIy2ozrGm-iG4scZFOTeyftB-2izTpsuQR_DudSj4q--LCw0rnjRiCzYXRyFe3XS22ZaynfU3cwIKb6A_UiiPjhpzPIQVSY0_iWujOoHwA9E2WhcIRqwyDn61PRLIwjGKNT-F_rx-epToyrRtcP3fDQ5pjPQe7mmKk7tOw4d8g_kS89H22a8-OzE2ZajlRzOxA5RbqkvG8F5r9zp1kTv8wCANmL41wrceavpHoVWqzIxUx7B77PE6CrBfEz5CRJrB9fFBYwt8SFADUyVS74I_CmyZ6-rhzeKpCTYmXi4k2zVqYr_67pHUedxtR6kfDAYHPpSsopmRSEWrPZly0lWmGomxbfjAw0-9TiE4g==",
-   "category": "도서/음반/DVD",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=8915673755&itemId=26049091767&vendorItemId=93072983734&traceid=V0-153-e43c165e34914535&clickBeacon=b8a90b60-e1c1-11f1-9034-dee485e938ff%7E3&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=1&slot=3",
-   "img": "img_2.jpg"
-  },
-  {
-   "name": "라오어의 미국주식 무한매수법+미국주식 밸류 리밸런싱 세트 (전 2권) - 사은품증정, 알키, 라오어",
-   "url": "https://link.coupang.com/a/iJaVztoyvQ",
-   "pid": "9666086624",
-   "price": 30600,
-   "image": "https://ads-partners.coupang.com/image1/fPEx1aB50wwOkP5afFHIG3VWsUae8SQlZgH1D4mzPDgdMWeL8lhRgqVAKh2XNIvPgYH59IzTf5z1UuTa1NZW21Jb0_mYnJ5IzugoQtqx-gtfPrxH7ckzHyy95ZoDsVyL2_-CR61Ff0t97V6PbmI8eQtodM4_qSzGQXHEG032lQYtUkdxiCp7Fn4gUEWKkkqz6BmkrDRR-03tFHY9GlOiKmHkiX2dxWbJbkC3n1o4gk0dNDawPwuL7lLcKpY-25khl5u1FD1Ev9IFAcuHbLpsEJYf_kr_w3iaVcaEx3vhGdEIgUVXWSHI6TgR5MdhOhIcBheBhRPkfZ15QglSS8p_6atfmECBJmp88MFW0_ntnLd60uX29Y734L76HBj9OemA2Lgj3epsrwPmtdD8dvmbPPcvfqH2WMfiC8vHQHYvAmBaNqepW_r1IEdAr4QCZOI21vL6U1DfvLBbcaz76bwh2BabmlFVVFXJk4YzeBlF4Fp4Mf9-w5-WR9ln5Op6D4oOnEBizujNCkt685vbB1561DA4zS_H1aWIPPy76x4u",
-   "category": "도서/음반/DVD",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=9666086624&itemId=28898844311&vendorItemId=95653331492&traceid=V0-153-0269a2423cf911da&clickBeacon=b8a90b60-e1c1-11f1-8256-5e0f4d7766df%7E3&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=1&slot=4",
-   "img": "img_3.jpg"
-  },
-  {
-   "name": "39세 부자 아빠의 레버리지 ETF 투자 노트, 여의도책방, 제이투",
-   "url": "https://link.coupang.com/a/iJaVzyOaHI",
-   "pid": "8701038572",
-   "price": 19800,
-   "image": "https://ads-partners.coupang.com/image1/FmmawC5125XHy1qaFi6hh1mjbg6lLFTNG9Wu8YwNTD6ycdy6mUbKKemAAVdB7G8D1cNR_j5vLhDJfevQ6oZg8Wd9CxB-sT7TyZ_j-AbsHFDtUC3fANfHlvfW3ghDahcKVw3Q2pwIa4t3ML3GVReSnC2uo0u1JJo5t3WvXDjSc4Rm7eBKlb8xTSrxYhrcjnF4zjiLPNSZyh9xeVmY1TCkggZT5nb7Ag42m0HVtnlrn1ljYMXdP7NpAHm2TECW98ub-T-tEIUA_52Tqw_NY275yKKrR6IyYbXaL9I9eBoPI0eAAZnCHVH1X-vY9EuRDyts49FIe6YCjR9J87-cYbW5AJcCbm2Y4jGXP1LVHye0WASNPdpTUQIG0ttMe7AwNP8eJAHv7z9fPZkOWV1WtYRASgmYffQJMGcIANafT41CGrj7Yu28RXhDGbU6vaQl5c3K9ulR-yPpKqtB1JBrG6G6HGk8mvqbckw5YkPDIGfV-LEEyfCEtk55saxaLXDHtQgXSuk1ADiFlJ0jCJ4x2zo=",
-   "category": "도서/음반/DVD",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=8701038572&itemId=25266966282&vendorItemId=92328234158&traceid=V0-153-28c4405e48876927&clickBeacon=b8a90b60-e1c1-11f1-8262-fff97d7cce58%7E3&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=1&slot=5",
-   "img": "img_4.jpg"
-  },
-  {
-   "name": "처음 배우는 주식 차트",
-   "url": "https://link.coupang.com/a/iJaVzDZPFc",
-   "pid": "7275897394",
-   "price": 34200,
-   "image": "https://ads-partners.coupang.com/image1/0OmdXmkdKRScRtTh0DYfLwFoSV1W6X1LvyfETl_d7gCxjkm0E8Bfjit9ykxnCL_FAdzYkPXYxWJqmqrY1RzBseUKWqllPn4RAyeNU1uDuAuPfrTJAzL3qA9SWpIjZ5VYBptW6ZwHsa75Vk3DVYAxLHnyVWvhv8DvLGJyM7C7spNiCVkePhe_xh2OuzE6hWFshMY3v4IsE7qf264b7VE-aC0ZCtd2wmFIE8_T7boNpuJHEZZ_4oxUhTuCGdAxzNQb7pmdj_6kOXhTMgZ7Vof03Nuqcmw_LYHp1Gh0juJ-y0nODAWOnTC8PubQT0zLAqYlcElja8DNjII4Tqx03gg_umM40eykk7OEqTEGJBetaB3vNx2vQdSveB9-YvIGoAwGBaA9qPv97nSlKLy5mEMOscFvbnrVb84ciCHtMbu8q4uHmBiCrJFp1fb7QfnjKcoIS745IQBlHns5h85GAJUNmOiJdn_N1C_2DTKKbrjhh7u4TNkAkXNFXHktgAUHy5OqWJVuEjAlYqHX7tPxGkaXMF5NnWTWAyvKTw==",
-   "category": "도서/음반",
-   "rocket": true,
-   "long_url": "https://link.coupang.com/re/AFFSDP?lptag=AF4489672&subid=ytbkbtq&pageKey=7275897394&itemId=18566333198&vendorItemId=85703667021&traceid=V0-153-411cebe8eea9aab1&requestid=20261116222916757003649262&token=31850C%7CMIXED&pt=0&slot=6",
-   "img": "img_5.jpg"
+   "name": "쿠팡 들르실 때 이 링크로(채널 응원)",
+   "url": "https://link.coupang.com/a/iLPdsGXKLc",
+   "pid": "",
+   "price": 0,
+   "image": "",
+   "category": "",
+   "rocket": false
   }
  ]
 }
