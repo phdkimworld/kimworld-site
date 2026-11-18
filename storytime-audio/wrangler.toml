@@ -1,0 +1,10 @@
+# 우리집 책 읽어주기(가족 앱) 녹음 저장소. 김박사 월드 사이트와는 별개이고, 이 저장소의 Cloudflare 배포 토큰만 같이 씀.
+# 녹음은 가족 암호로 잠긴 파일(.bin)이라 내려받아도 들을 수 없음. 올리기·지우기는 맥 처리기의 서명(Ed25519)만 받음.
+name = "storytime-audio"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "storytime-audio"

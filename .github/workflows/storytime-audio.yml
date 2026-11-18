@@ -1,0 +1,52 @@
+name: Storytime audio (R2)
+
+# 가족 앱 '우리집 책 읽어주기'의 녹음 저장소(R2 버킷 storytime-audio + 워커 storytime-audio)를 만들고 배포한다.
+# 김박사 월드 사이트·API와는 별개. 같은 Cloudflare 배포 토큰(Workers Scripts·R2 Storage Edit)만 같이 쓴다.
+# 녹음은 가족 암호로 잠긴 파일이고, 올리기는 맥 처리기의 Ed25519 서명(공개키는 storytime-audio/src/index.js)만 받는다.
+on:
+  push:
+    branches: [main]
+    paths: ["storytime-audio/**", ".github/workflows/storytime-audio.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storytime-audio
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: storytime-audio
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Test
+        run: node test/test.mjs
+      - name: Bucket
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "::error::Cloudflare 비밀값 없음"; exit 1; fi
+          W="npx --yes wrangler@3.99.0"
+          if $W r2 bucket list 2>/dev/null | grep -q 'storytime-audio'; then
+            echo "버킷 있음"
+          else
+            $W r2 bucket create storytime-audio || { echo "::error::R2 버킷을 만들지 못함(토큰에 Workers R2 Storage Edit 권한이 있는지)"; exit 1; }
+          fi
+      - name: Deploy
+        run: npx --yes wrangler@3.99.0 deploy
+      - name: Address
+        run: |
+          SUB=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["subdomain"])')
+          URL="https://storytime-audio.$SUB.workers.dev"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
+          echo "::notice title=storytime-audio::$URL (상태 $code)"
