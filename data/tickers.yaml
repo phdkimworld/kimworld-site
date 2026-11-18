@@ -648,3 +648,12 @@ EOSE:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["이오스에너지", "이오스 에너지 엔터프라이즈", "Eos Energy", "Eos Energy Enterprises"]
+# 종목이 아닌 채널 연재(결산) 리포트용 자리(2026-11-18 오답노트 1편). series: true 면 검색 제목에 '주가'·티커 괄호를 붙이지 않고
+# 종목 투표·업데이트 요청·종목 구조화 자료(tickerSymbol)를 뺀다. 시세를 받지 않는다(실제 상장 종목이 아님)
+KWNOTE:
+  name: "김박사 월드 오답노트"
+  name_en: "Dr. Kim World Prediction Review"
+  exchange: "연재"
+  theme: "예측 결산"
+  series: true
+  aliases: ["오답노트", "김박사 월드 오답노트", "예측 결산", "예측 채점"]

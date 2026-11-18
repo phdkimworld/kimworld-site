@@ -1082,6 +1082,9 @@ def seo_fields(r: dict) -> dict:
         seo_desc = f"{head}: {seo_desc}"
     # 검색 결과 제목은 앞 30자 안팎만 보이므로 훅의 첫 마디만(' — ' 뒤 덧붙인 질문은 설명·공유 제목에 남김, 2026-11-02)
     hook1 = hook.split(" — ")[0].strip() or hook
+    if r.get("series"):  # 종목 없는 채널 연재(오답노트 등, data/tickers.yaml series: true): '주가'·티커 괄호 없이 '<연재 이름> — <훅>'
+        return {"seo_name": name, "seo_kind": "분석", "seo_title": f"{name} — {hook1}", "seo_hook": hook,
+                "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기", "seo_desc": seo_desc if name in seo_desc else f"{name}: {seo_desc}"}
     return {"seo_name": name, "seo_kind": kind, "seo_title": f"{head} 분석 — {hook1}" if tick_in else f"{head} {kind} 분석 — {hook1}", "seo_hook": hook,
             "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기", "seo_desc": seo_desc or summ}
 
@@ -1197,6 +1200,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         reports.append({
             "slug": slug, "ticker": ticker, "company": tk.get("name", ""), "company_en": tk.get("name_en", ""),
             "exchange": tk.get("exchange", ""), "aliases": tk.get("aliases", []),
+            "series": bool(tk.get("series")),  # 채널 연재(종목 아님): 종목 투표·업데이트 요청·tickerSymbol 없음
             "title": str(meta["title"]), "theme": meta["theme"], "theme_slug": theme_by_name[meta["theme"]]["slug"],
             "date": d, "updated": upd, "data_as_of": asof, "summary": str(meta["summary"]).strip(),
             "key_points": [str(x) for x in (meta.get("key_points") or [])][:5],

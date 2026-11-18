@@ -80,7 +80,7 @@ def card_html(c, i, total, spec):
     elif k == "scenarios":
         rows = "".join(f"""<div class="srow{' top' if '높음' in str(lv) else ''}"><div class="sno">{esc(n)}</div><div class="sname">{esc(t)}</div><div class="slv">{esc(lv)}</div></div>""" for n, t, lv in c["rows"])
         inner = f"""<div class="label">{esc(c.get('label', '앞으로'))}</div><div class="ttitle">{esc(c['title'])}</div><div class="srows">{rows}</div>
-<div class="note">가능성은 과거 기록과 지금 신호로 매긴 추정 구간입니다</div><div class="ask">{esc(c.get('ask', '댓글에 번호 하나만 남겨 주세요'))}</div>"""
+<div class="note">{esc(c.get('note', '가능성은 과거 기록과 지금 신호로 매긴 추정 구간입니다'))}</div><div class="ask">{esc(c.get('ask', '댓글에 번호 하나만 남겨 주세요'))}</div>"""
     elif k == "cta":
         items = "".join(f"<li>{esc(x)}</li>" for x in c.get("items", []))
         inner = f"""<div class="ttitle">{esc(c['title'])}</div><ul class="items">{items}</ul>
