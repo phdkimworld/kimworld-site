@@ -345,7 +345,7 @@ def story_figures(html_in: str, log=None, name: str = "") -> str:
         elif log:
             log.warn(f"{name}: WebP 그림 {src} 의 명세 static/figs/{src.rsplit('/', 1)[-1][:-5]}.json 이 없습니다(figkit make.py --site) → 정지 이미지만")
         return f'<figure class="story-fig"{data}><div class="fig-box"{box}>{tag}</div>{cap}</figure>'
-    return re.sub(r'<p>\s*(<a class="chart-link"[^>]*>\s*<img [^>]*>\s*</a>|<img [^>]*src="/static/charts/[^"]+\.webp"[^>]*>)\s*</p>', wrap, html_in)
+    return re.sub(r'<p>\s*(<a class="chart-link"[^>]*>\s*(?:<picture><source [^>]*>)?<img [^>]*>(?:</picture>)?\s*</a>|<img [^>]*src="/static/charts/[^"]+\.webp"[^>]*>)\s*</p>', wrap, html_in)
 
 
 def fix_chart_src(html_in: str) -> str:
@@ -1176,7 +1176,11 @@ def build(drafts=False, strict=False, out: Path = DIST):
             lazy = _nimg[0] > 1 or str(meta.get("style") or "").strip().lower() != "story"  # 이야기형 첫 그림은 첫 화면 안
             if m.group(2).endswith(".webp"):  # 이야기형 WebP 그림(2026-11-16~): 크게 보기 판 없이 그림만(웹 애니메이션은 story_figures)
                 return chart_img_attrs(m.group(1), m.group(2), lazy)
-            return f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{chart_img_attrs(m.group(1), m.group(2), lazy)}</a>'
+            img = chart_img_attrs(m.group(1), m.group(2), lazy)
+            # 2026-11-19: 같은 그림의 WebP(빌드 때 chart_dark.write_webp가 dist에 씀, 무손실, 약 35% 크기)를 먼저 주고 PNG는 대체로
+            if m.group(2).endswith(".png") and not (ROOT / (m.group(2).lstrip("/")[:-4] + ".webp")).exists():
+                img = f'<picture><source srcset="{m.group(2)[:-4]}.webp" type="image/webp">{img}</picture>'
+            return f'<a class="chart-link" href="{m.group(2)[:-4] + ".view.png" if m.group(2).endswith(".png") else m.group(2)}" target="_blank" rel="noopener" aria-label="차트 크게 보기">{img}</a>'
         body_html = re.sub(r'(<img [^>]*src="(/static/charts/[^"]+)"[^>]*>)', _chart, body_html)
         toc = [t for t in md.toc_tokens]
         # 이야기형(운영자 지시 2026-11-14 "섹션이니 목차니 너무 끼어들어서 뚝뚝 끊기는데 그냥 썰 풀듯이 줄줄"): 머리말 style: story.
@@ -1285,6 +1289,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     # 대표 차트(흰 배경 원본)를 검은 화면용 투명 배경 차트로(chart_dark.py, 원본은 그대로·공유 그림은 원본 사용)
     import chart_dark
     chart_dark.convert_all(ROOT / "static" / "charts", out / "static" / "charts")
+    chart_dark.write_webp(ROOT / "static" / "charts", out / "static" / "charts")  # 본문 <picture>의 WebP(2026-11-19)
 
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html", "xml"]))
     def _groupby_month(rs):  # 리포트 전체 목록(reports.html): 달별 묶음(최신 달 먼저)

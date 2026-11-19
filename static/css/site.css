@@ -334,6 +334,7 @@ button { font: inherit; color: inherit; }
 :root[data-theme="dark"] .rank-hot { color: #fb923c; }
 /* 차트 PNG는 흰 배경이라 어두운 화면에서는 색을 뒤집어 맞춘다(색상은 hue-rotate로 유지) */
 .chart-link { display: block; position: relative; }
+.chart-link picture { display: block; }
 .chart-link::after { content: "크게 보기"; position: absolute; right: 8px; bottom: 8px; font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
 /* 대표 차트는 빌드가 검은 화면용(투명 배경)으로 바꿔 둔다(chart_dark.py). 색 반전 필터를 쓰지 않는다 */
 /* 이야기형 본문 그림(4~6장, 2026-11-15): 그림 + 아래 한 줄 캡션 */

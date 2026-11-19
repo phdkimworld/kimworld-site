@@ -101,3 +101,38 @@ def convert_all(src_dir: Path, out_dir: Path, cache_dir: Path | None = None) -> 
             (out_dir / view_name(f.name)).write_bytes(f.read_bytes())
             continue
     return n
+
+
+def write_webp(src_dir: Path, out_dir: Path, cache_dir: Path | None = None) -> int:
+    """out_dir에 쓴 본문 차트(<이름>.png, 크게 보기 판 제외)마다 같은 그림의 WebP(<이름>.webp)를 함께 쓴다(2026-11-19 운영 점검:
+    차트 PNG(어두운 판) → 무손실 WebP로 약 35% 크기. 유튜브 랜딩 빠른 이탈이 가장 큰 묶음이라 휴대폰 첫 로딩을 가볍게). 리포트 화면은
+    <picture>로 WebP를 먼저 주고 PNG를 대체로 남긴다. src_dir에 같은 이름 WebP(이야기형 그림)가 이미 있으면 건드리지 않는다.
+    변환이 안 되면 PNG 내용을 같은 이름으로 써 둔다(화면의 <source>가 깨지지 않게). 변환한 개수를 돌려준다."""
+    import os
+    try:
+        from PIL import Image
+    except Exception:
+        return 0
+    cache_dir = Path(os.environ.get("CHART_CACHE") or cache_dir or Path.home() / ".cache" / "kimworld-charts-dark")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for f in sorted(out_dir.glob("*.png")):
+        if f.name.endswith(".view.png") or (src_dir / (f.stem + ".webp")).exists():
+            continue
+        data = f.read_bytes()
+        c = cache_dir / f"{f.stem}-{hashlib.md5(data + b'w2').hexdigest()[:12]}.webp"
+        try:
+            if not c.exists():
+                with Image.open(f) as im:
+                    im.save(c, "WEBP", lossless=True, method=4)  # 색이 몇 개뿐인 차트라 무손실이 손실 압축보다 작다
+            (out_dir / (f.stem + ".webp")).write_bytes(c.read_bytes())
+            n += 1
+        except Exception:
+            (out_dir / (f.stem + ".webp")).write_bytes(data)  # 화면의 <source>가 깨지지 않게(브라우저는 내용으로 PNG를 알아봄)
+    return n
+
+
+def has_webp(out_dir: Path, png_src: str) -> bool:
+    """'/static/charts/x.png' 에 대응하는 WebP가 out_dir에 쓰였는지."""
+    name = png_src.rsplit("/", 1)[-1]
+    return name.endswith(".png") and (out_dir / (name[:-4] + ".webp")).exists()
