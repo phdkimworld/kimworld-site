@@ -86,7 +86,7 @@ def main() -> None:
         s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower()
         return "banner" if s == "banner" else "deal" if s == cs.DEAL_SUB else "blogger" if s == "blogger" or s.startswith("bg") else "youtube" if s.startswith("yt") else "boxes" if s in boxes else "other"
 
-    data, seen_orders, tags, probe, ytcat, bysub = {}, set(), {}, {}, {}, {}
+    data, seen_orders, tags, probe, ytcat, bysub, odet, tagsub = {}, set(), {}, {}, {}, {}, [], {}
     for kind in ("clicks", "orders", "commission"):
         try:
             rs = fetch(kind, start, end, access, secret)
@@ -119,7 +119,10 @@ def main() -> None:
                 n = int(num(first(x, "click", "clicks", "clickCount", "count")))
                 r["clicks"] += n; r["clicks_" + w] += n
                 t = str(first(x, "addtag", default="?")); tags.setdefault(d, {}); tags[d][t] = tags[d].get(t, 0) + n
+                tagsub[f"{_s}|{t}"] = tagsub.get(f"{_s}|{t}", 0) + n  # 하위 ID별 링크 종류(addtag) — 몰 링크 구분용
             elif kind == "orders":
+                # 2026-11-19 운영자 "Api로 접근해봐"(김박사 몰): 하위 ID 없는 링크(예전 인플루언서 몰)에서 무엇이 팔렸는지 — 비공개 요약에만, 주문번호는 빼고
+                odet.append({k: v for k, v in x.items() if k not in ("orderId", "orderNo")} | {"_where": w})
                 oid = str(first(x, "orderId", default="")) or json.dumps(x, sort_keys=True)
                 if oid not in seen_orders:  # 주문 하나에 상품 여러 줄 → 주문 수는 한 번
                     seen_orders.add(oid); r["orders"] += 1
@@ -138,7 +141,7 @@ def main() -> None:
     for t in tags.values():
         for k, v in t.items():
             allt[k] = allt.get(k, 0) + v
-    summ = {**tot, "by_sub": dict(sorted(bysub.items(), key=lambda kv: -kv[1]["clicks"])[:60]), "yt_by_cat": {k: {"clicks": v["clicks"], "commission": v["commission"], "videos_with_clicks": len(v["subs"])} for k, v in ytcat.items()}, "click_addtags": allt, "days": len(rows), "range": [start, end], **({"probe_fields": probe} if probe else {})}
+    summ = {**tot, "by_sub": dict(sorted(bysub.items(), key=lambda kv: -kv[1]["clicks"])[:60]), "yt_by_cat": {k: {"clicks": v["clicks"], "commission": v["commission"], "videos_with_clicks": len(v["subs"])} for k, v in ytcat.items()}, "click_addtags": allt, "click_addtags_by_sub": tagsub, "orders_detail": odet[-80:], "days": len(rows), "range": [start, end], **({"probe_fields": probe} if probe else {})}
     Path(os.environ.get("SEAL_OUT") or ROOT / ".cache" / "coupang_summary.json").write_text(json.dumps(summ, ensure_ascii=False), encoding="utf-8")
     print(f"::notice title=쿠팡 일별::{len(rows)}일치 받음(숫자는 비공개 저장)")
 
