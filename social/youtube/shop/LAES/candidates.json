@@ -1,17 +1,17 @@
 {
  "ticker": "LAES",
- "date": "2026-11-17",
+ "date": "2026-11-19",
  "cat": "cr",
  "cat_name": "채널 응원 링크",
  "line": "쿠팡에서 장 보실 일이 있다면",
- "reason": "explore",
+ "reason": "explore-nodata",
  "keyword": "응원",
  "sub_id": "ytcrlaes",
  "disclosure": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
  "candidates": [
   {
    "name": "쿠팡 들르실 때 이 링크로(채널 응원)",
-   "url": "https://link.coupang.com/a/iKn7B2Z1sO",
+   "url": "https://link.coupang.com/a/iNHNyVTajk",
    "pid": "",
    "price": 0,
    "image": "",

@@ -230,5 +230,13 @@
 "kw": "루테인",
 "sub_id": "ythlkwnote",
 "why": "explore-nodata"
+},
+{
+"date": "2026-11-19",
+"ticker": "LAES",
+"cat": "cr",
+"kw": "응원",
+"sub_id": "ytcrlaes",
+"why": "explore-nodata"
 }
 ]
