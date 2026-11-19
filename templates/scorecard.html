@@ -22,7 +22,12 @@
     <div class="sc-tile"><b>{{ sc.judged }}</b><span>판정 끝 / 전체 {{ sc.total }}</span></div>
     <div class="sc-tile"><b>{{ sc.brier if sc.brier is not none else "-" }}</b><span>브라이어 점수(낮을수록 좋음 · 모두 50%면 0.250)</span></div>
     <div class="sc-tile"><b>{{ sc.calls.hit }}/{{ sc.calls.n }}</b><span>가장 기운 쪽 적중</span></div>
+    {% if sc.sides %}<div class="sc-tile"><b>{{ sc.sides.break_hit }}/{{ sc.sides.break_n }} · {{ sc.sides.hold_happened }}/{{ sc.sides.hold_n }}</b><span>판정선 이탈 쪽 적중 · '지킨다' 쪽 일어남({{ sc.sides.tickers }} 리포트 채점표, {{ sc.sides.as_of }} 기준)</span></div>{% endif %}
   </section>
+  {% if sc.sides %}<p class="muted sc-foot">판정선은 리포트에 미리 적어 둔 기준 가격(직전 저점·현금 가치 같은 선)입니다. 그 선 아래로 내려간다는 쪽은 {{ sc.sides.break_n }}번 중 {{ sc.sides.break_hit }}번 맞았고, 선을 지킨다는 쪽은 {{ sc.sides.hold_n }}번 중 {{ sc.sides.hold_happened }}번 일어났습니다.</p>{% endif %}
+  <aside class="sc-fix" aria-label="장부 정정">
+    <p><strong>정정 (11월 18일)</strong> 오답노트 1 영상 제목의 '6번'은 정정 전 숫자입니다. 35%로 둔 뉴스케일(SMR) '증권사 하향 연쇄'는 실제로 일어났는데, 장부가 이것을 가장 기운 쪽의 빗나감으로 세고 있었습니다. 50% 미만 갈래는 가장 기운 쪽으로 세지 않도록 고쳐, 이제 {{ sc.calls.n }}개 중 {{ sc.calls.hit }}개로 셉니다.</p>
+  </aside>
 
   <section aria-labelledby="sc-why">
     <h2 id="sc-why" class="section-title">왜 틀린 것까지 공개하나</h2>
@@ -45,6 +50,20 @@
   </section>
   {% endif %}
 
+  {% if sc.tickers %}
+  <section aria-labelledby="sc-tk">
+    <h2 id="sc-tk" class="section-title">종목별 성적</h2>
+    <div class="table-wrap"><table class="sc-table">
+      <thead><tr><th scope="col">종목</th><th scope="col">예측</th><th scope="col">판정 끝</th><th scope="col">가장 기운 쪽</th><th scope="col">브라이어</th></tr></thead>
+      <tbody>
+      {% for r in sc.tickers %}<tr><th scope="row"><a href="{{ base }}/t/{{ r.ticker|lower }}/">{{ (tickers.get(r.ticker) or {}).get('name') or r.ticker }}</a><span class="muted sc-code">{{ r.ticker }}</span></th><td>{{ r.n }}</td><td>{{ r.judged }}</td><td>{% if r.calls %}{{ r.hit }}/{{ r.calls }}{% else %}-{% endif %}</td><td>{{ '%.3f'|format(r.brier) if r.brier is not none else '-' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="muted sc-foot">판정이 하나라도 끝난 종목만 적었습니다. '가장 기운 쪽'은 적중 수/판정 수이고 '-'는 50% 미만 갈래만 판정된 경우, 브라이어 '-'는 가능성 숫자가 없는 확인 항목만 판정된 경우입니다. {{ sc.as_of }} 기준.</p>
+  </section>
+  {% endif %}
+
   <section aria-labelledby="sc-list">
     <h2 id="sc-list" class="section-title">판정 끝난 예측 {{ sc.judged }}개 <span class="muted ins-sub">최근 판정 먼저</span></h2>
     <ul class="sc-list">
@@ -60,6 +79,31 @@
     </ul>
     <p class="muted">아직 판정 전인 예측 {{ sc.waiting }}개는 판정일이 지나면 여기에 더해집니다. 판정 전 예측은 이 페이지에 싣지 않습니다.</p>
   </section>
+  <section aria-labelledby="sc-rule">
+    <h2 id="sc-rule" class="section-title">틀린 뒤 고친 규칙 <span class="muted ins-sub">11월 18일부터</span></h2>
+    <ol class="sc-rules">
+      <li>같은 종류의 일이 과거에 얼마나 자주 있었는지에서 출발하고, 근거가 있을 때만 15%p 안에서 조정합니다.</li>
+      <li>가장 기운 쪽 갈래도 40% 이하가 기본입니다. 넘기려면 비슷한 과거 사례가 5개 이상 있어야 합니다.</li>
+      <li>'일이 생기는가'와 '생기면 주가가 얼마나 움직이나'를 따로 적습니다. 둘을 묶은 갈래는 두 확률을 곱한 값을 넘지 않게 합니다.</li>
+      <li>주식을 팔 수 있는 한도가 있다고 해서 실제로 판다고 보지 않습니다. 직전 분기에 실제로 판 기록이 있을 때만 높입니다.</li>
+      <li>날짜가 미리 알려진 악재(보호예수 해제, 예고된 계약 종료)는 '그날 크게 하락' 가능성을 낮게 둡니다. 알려진 지 오래일수록 더 낮춥니다.</li>
+      <li>주가가 기준선 아래로 내려가는지(수준)와 뉴스에 어느 쪽으로 반응하는지(방향)를 나눠 봅니다.</li>
+      <li>가장 기운 쪽 갈래마다 '이게 틀린다면 왜일까'를 먼저 적어 보고, 그 이유가 그럴듯하면 숫자를 낮춥니다.</li>
+      <li>영상과 리포트의 이야기(왜 빠졌나)와 가능성 숫자는 따로 정합니다. 숫자는 이야기가 아니라 1~7을 따릅니다.</li>
+    </ol>
+  </section>
+
+  {% if sc.pending_months %}{% set _m = sc.pending_months|rejectattr('month', 'equalto', '미정')|list %}{% set peak = (_m|sort(attribute='n', reverse=True)|first) if _m else none %}
+  <section aria-labelledby="sc-next">
+    <h2 id="sc-next" class="section-title">다음 채점</h2>
+    {% if peak %}<p>판정을 기다리는 예측 {{ sc.waiting }}개 가운데 <strong>{{ peak.n }}개</strong>가 {{ peak.month[:4] }}년 {{ peak.month[5:]|int }}월에 판정일이 몰려 있습니다. 판정이 끝나면 이 페이지와 오답노트 다음 편에서 고친 규칙으로 쓴 예측과 고치기 전 예측을 나란히 채점합니다.</p>{% endif %}
+    <ul class="sc-months">
+      {% for m in sc.pending_months %}<li><span>{% if m.month == '미정' %}판정일 미정{% else %}{{ m.month[:4] }}년 {{ m.month[5:]|int }}월{% endif %}</span><strong>{{ m.n }}개</strong></li>{% endfor %}
+    </ul>
+    <p class="sc-cta"><a class="btn btn-primary" href="https://www.youtube.com/playlist?list=PLf3UskF7N-hM" rel="noopener" target="_blank">오답노트 재생목록</a> <a class="btn" href="{{ base }}/r/wrong-2026-11/">오답노트 1 리포트 읽기</a></p>
+  </section>
+  {% endif %}
+
   <p class="muted sc-note">이 표는 지난 리포트의 추정을 공개 자료로 다시 채점한 교육용 기록이며, 특정 종목의 매수·매도 권유나 앞날의 보장이 아닙니다.</p>
 </div>
 {{ page_bottom|safe }}

@@ -1717,7 +1717,7 @@ article.report .sent { margin-top: 14px; }
 .all-list time { flex: none; font-size: .8rem; }
 
 /* 예측 성적표(2026-11-18) */
-.sc-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 6px; }
+.sc-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 14px 0 6px; }
 .sc-tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
 .sc-tile b { font-size: 1.5rem; line-height: 1.1; }
 .sc-tile span { font-size: .78rem; color: var(--muted); line-height: 1.35; }
@@ -1735,3 +1735,17 @@ article.report .sent { margin-top: 14px; }
 .sc-body .muted { font-size: .8rem; }
 .sc-note { margin-top: 18px; font-size: .8rem; }
 @media (max-width: 420px) { .sc-tile b { font-size: 1.25rem; } }
+/* 성적표 추가 칸(11-19): 정정·종목별 표·고친 규칙·다음 채점 */
+.sc-foot { font-size: .78rem; line-height: 1.6; }
+.sc-fix { margin: 14px 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--notice); border: 1px solid var(--notice-line); font-size: .88rem; line-height: 1.65; }
+.sc-fix p { margin: 0; }
+.sc-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.sc-table th, .sc-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sc-table thead th { font-size: .78rem; color: var(--muted); }
+.sc-table thead th:first-child, .sc-table tbody th { text-align: left; white-space: normal; }
+.sc-code { display: block; font-size: .72rem; font-weight: 400; }
+.sc-rules { padding-left: 1.4em; }
+.sc-rules li { margin: 0 0 8px; line-height: 1.65; }
+.sc-months { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.sc-months li { display: flex; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: .82rem; }
+.sc-cta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }

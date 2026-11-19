@@ -288,5 +288,97 @@
    "outcome": 1,
    "status": "일어남"
   }
- ]
+ ],
+ "tickers": [
+  {
+   "ticker": "BTQ",
+   "n": 22,
+   "judged": 2,
+   "hit": 0,
+   "calls": 0,
+   "brier": null
+  },
+  {
+   "ticker": "CBRS",
+   "n": 12,
+   "judged": 6,
+   "hit": 0,
+   "calls": 2,
+   "brier": 0.249
+  },
+  {
+   "ticker": "INOD",
+   "n": 7,
+   "judged": 2,
+   "hit": 0,
+   "calls": 1,
+   "brier": 0.325
+  },
+  {
+   "ticker": "IREN",
+   "n": 26,
+   "judged": 1,
+   "hit": 0,
+   "calls": 0,
+   "brier": 0.09
+  },
+  {
+   "ticker": "LAES",
+   "n": 19,
+   "judged": 4,
+   "hit": 0,
+   "calls": 0,
+   "brier": 0.041
+  },
+  {
+   "ticker": "SLDP",
+   "n": 19,
+   "judged": 2,
+   "hit": 0,
+   "calls": 0,
+   "brier": 0.036
+  },
+  {
+   "ticker": "SMR",
+   "n": 22,
+   "judged": 4,
+   "hit": 0,
+   "calls": 2,
+   "brier": 0.218
+  }
+ ],
+ "pending_months": [
+  {
+   "month": "2026-10",
+   "n": 5
+  },
+  {
+   "month": "2026-11",
+   "n": 41
+  },
+  {
+   "month": "2026-12",
+   "n": 215
+  },
+  {
+   "month": "2027-01",
+   "n": 4
+  },
+  {
+   "month": "2027-03",
+   "n": 4
+  },
+  {
+   "month": "미정",
+   "n": 20
+  }
+ ],
+ "sides": {
+  "break_hit": 4,
+  "break_n": 4,
+  "hold_happened": 0,
+  "hold_n": 4,
+  "tickers": "LAES·SLDP·SMR·JOBY",
+  "as_of": "2026-11-18"
+ }
 }

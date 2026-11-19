@@ -753,9 +753,15 @@ check(_d["judged"] == 3 and _d["waiting"] == 1 and _d["total"] == 4, "성적표:
 check(not any("앞날 예측 문장" in x["text"] for x in _d["rows"]), "성적표: 판정 전 예측 문장은 싣지 않음")
 check(_d["calls"] == {"hit": 0, "n": 1} and _d["brier"] == round(((0.6 - 0) ** 2 + (0.4 - 1) ** 2) / 2, 3), "성적표: 콜 적중·브라이어(확인 예측 제외)")
 check(_d["rows"][0]["text"] == "버틴다", "성적표: '시나리오 N ·'·대응 기준 꼬리 정리")
+check(_d["tickers"][0] == {"ticker": "AAA", "n": 2, "judged": 2, "hit": 0, "calls": 1, "brier": _d["brier"]} and _d["pending_months"] == [{"month": "미정", "n": 1}], "성적표: 종목별 표·판정 달별 대기 수(%·문장 없음)")
+_tmpd = Path(tempfile.mkdtemp(prefix="kws-sc-")); (_tmpd / "README.md").write_text("- 판정선·현금선·새 최저 이탈 쪽 예측 4/4 적중, '지킨다' 쪽 0/4 (LAES·SLDP, 장부 11-18 기준)\n", encoding="utf-8")
+check(_sc.sides(str(_tmpd / "ledger.jsonl")) == {"break_hit": 4, "break_n": 4, "hold_happened": 0, "hold_n": 4, "tickers": "LAES·SLDP", "as_of": f"{_sc.dt.date.today().year}-11-18"}
+      and _sc.sides(str(_tmpd / "x" / "ledger.jsonl")) is None, "성적표: 판정선 이탈·지킴 줄(README), 못 읽으면 칸 숨김")
+shutil.rmtree(_tmpd, True)
 if (D / "scorecard/index.html").exists():
     _h = (D / "scorecard/index.html").read_text(encoding="utf-8")
     check("sc-list" in _h and "/scorecard/" in (D / "sitemap.xml").read_text(encoding="utf-8"), "실제 사이트: 성적표 페이지·사이트맵")
+    check("정정 (11월 18일)" in _h and "sc-table" in _h and "고친 규칙" in _h and "/r/wrong-2026-11/" in _h and "playlist?list=" in _h, "실제 사이트: 정정·종목별 표·고친 규칙·다음 채점 링크")
 
 print()
 if FAILS:

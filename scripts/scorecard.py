@@ -55,9 +55,45 @@ def build(rows: list[dict]) -> dict:
         # judged = 결과가 정해진 날(판정일 전에 일찍 갈린 갈래도 있음), judge_date = 리포트에 적은 판정 기한
         items.append({"ticker": r["ticker"], "slug": r.get("slug"), "as_of": r.get("as_of"), "judged": r.get("judged"), "judge_date": r.get("judge_date"),
                       "kind": r["kind"], "text": clean(r.get("text", "")), "prob": r.get("prob"), "outcome": r["outcome"], "status": r["status"]})
+    # 종목별 성적(11-19): 판정이 하나라도 끝난 종목만. 계산은 위와 같은 정의(콜·브라이어)
+    tickers = []
+    for tk in sorted({r["ticker"] for r in done}):
+        mine = [r for r in rows if r["ticker"] == tk]
+        d2 = [r for r in done if r["ticker"] == tk]
+        s2 = [r for r in d2 if r["kind"] == "scenario" and r.get("prob") is not None]
+        c2 = [r for r in s2 if r["status"] in ("적중", "빗나감")]
+        tickers.append({"ticker": tk, "n": len(mine), "judged": len(d2), "hit": sum(r["status"] == "적중" for r in c2), "calls": len(c2),
+                        "brier": round(sum((r["prob"] / 100 - r["outcome"]) ** 2 for r in s2) / len(s2), 3) if s2 else None})
+    # 판정을 기다리는 예측의 판정 달별 수(수만. 판정 전 예측의 %·문장은 싣지 않는다)
+    months = {}
+    for r in rows:
+        if r.get("outcome") is None or r.get("status") in DONE_NOT:
+            k = (r.get("judge_date") or "")[:7] or "미정"
+            months[k] = months.get(k, 0) + 1
     return {"as_of": dt.date.today().isoformat(), "total": len(rows), "judged": len(done),
             "waiting": sum(cnt.get(k, 0) for k in DONE_NOT), "scenarios": len(sc), "calls": {"hit": hit, "n": len(calls)},
-            "brier": brier, "buckets": buckets, "rows": items}
+            "brier": brier, "buckets": buckets, "rows": items, "tickers": tickers,
+            "pending_months": [{"month": k, "n": v} for k, v in sorted(months.items(), key=lambda kv: (kv[0] == "미정", kv[0]))]}
+
+
+SIDES_RE = re.compile(r"이탈 쪽 예측 (\d+)/(\d+) 적중, '지킨다' 쪽 (\d+)/(\d+) \(([^,()]+), 장부 (\d\d)-(\d\d) 기준\)")
+
+
+def sides(src: str) -> dict | None:
+    """판정선 이탈 쪽·지킨다 쪽 성적(리포트 채점표 기준)은 장부 옆 README.md '인용할 만한 종목 횡단 사례' 줄에서 읽는다. 못 읽으면 None(칸을 숨김)."""
+    try:
+        if src.startswith("https://"):
+            with urllib.request.urlopen(src.rsplit("/", 1)[0] + "/README.md", timeout=30) as r:
+                txt = r.read().decode("utf-8")
+        else:
+            txt = (Path(src).parent / "README.md").read_text(encoding="utf-8")
+    except Exception:
+        return None
+    m = SIDES_RE.search(txt)
+    if not m:
+        return None
+    return {"break_hit": int(m.group(1)), "break_n": int(m.group(2)), "hold_happened": int(m.group(3)), "hold_n": int(m.group(4)),
+            "tickers": m.group(5).strip(), "as_of": f"{dt.date.today().year}-{m.group(6)}-{m.group(7)}"}
 
 
 def main() -> int:
@@ -67,6 +103,7 @@ def main() -> int:
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "data" / "scorecard.json"
     try:
         d = build(read(sys.argv[1]))
+        d["sides"] = sides(sys.argv[1])
     except Exception as e:  # 장부를 못 읽어도 빌드는 저장소의 파일로 계속
         print(f"::warning title=성적표::장부를 읽지 못함({type(e).__name__}) — 저장소의 {out.name} 그대로")
         return 0
