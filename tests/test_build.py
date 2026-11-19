@@ -763,6 +763,27 @@ if (D / "scorecard/index.html").exists():
     check("sc-list" in _h and "/scorecard/" in (D / "sitemap.xml").read_text(encoding="utf-8"), "실제 사이트: 성적표 페이지·사이트맵")
     check("정정 (11월 18일)" in _h and "sc-table" in _h and "고친 규칙" in _h and "/r/wrong-2026-11/" in _h and "playlist?list=" in _h, "실제 사이트: 정정·종목별 표·고친 규칙·다음 채점 링크")
 
+# 김박사 몰 쇼핑몰(2026-11-19): 모든 쿠팡 링크 rel=sponsored, 화면마다 대가성 문구, 진열 없어도 만들어짐
+print("\n== 김박사 몰 ==")
+import tempfile as _tf
+import mall_build as _mb
+_mc = _mb.cfg()
+_cat = {"updated": "2026-11-19 07:10", "entry": {"go": "https://link.coupang.com/a/go"},
+        "deals": [{"name": "시험 특가", "url": "https://link.coupang.com/re/a", "image": "", "price": 9900, "orig": 12000, "rate": 17, "rocket": True}],
+        "cats": {_mc["categories"][0]["slug"]: [{"name": "시험 식품", "url": "https://link.coupang.com/re/b", "image": "", "price": 5000, "orig": 0, "rate": 0, "rocket": False}]}}
+with _tf.TemporaryDirectory() as _d:
+    _mb.build(_mc, _cat, Path(_d))
+    _pages = list(Path(_d).rglob("*.html"))
+    _all = "".join(x.read_text(encoding="utf-8") for x in _pages)
+    check(all(_mb.DISCLOSURE in x.read_text(encoding="utf-8") for x in _pages), "몰: 모든 화면에 대가성 문구")
+    _as = re.findall(r'<a [^>]*href="https://link\.coupang\.com[^>]*>', _all)
+    check(len(_as) >= 3 and all('rel="sponsored nofollow noopener"' in t for t in _as), "몰: 모든 쿠팡 링크 rel=sponsored")
+    check((Path(_d) / f"c/{_mc['categories'][0]['slug']}/index.html").exists() and (Path(_d) / "search/index.html").exists(), "몰: 카테고리·검색 화면")
+    check(all(k["sub"].startswith("mall") for k in _mc["categories"]) and _mc["entry_subid"].startswith("mall"), "몰: 하위 ID mall…")
+with _tf.TemporaryDirectory() as _d:
+    _mb.build(_mc, {}, Path(_d))
+    check((Path(_d) / "index.html").exists(), "몰: 진열이 없어도 홈은 만든다")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

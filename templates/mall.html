@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{# 김박사 몰 입구(2026-11-19 운영자 "김박사 몰부터"): 모든 채널이 이 고정 주소로 보내고, 여기서 블로거 '김박사 몰' 글로 넘긴다.
+   사이트 통계가 /mall/ 랜딩을 유입 경로(utm_source)별로 세어 채널별 클릭을 본다. 사이트 본문에는 쿠팡 상품을 싣지 않는다(11-16 개편 결정) — 이 페이지는 넘겨주기만. #}
+{% block title %}김박사 몰로 이동 | {{ site.site_name }}{% endblock %}
+{% block description %}김박사 월드 시청자 장보기 입구(쿠팡 파트너스)로 이동합니다.{% endblock %}
+{% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="2;url={{ mall_url }}">{% endblock %}
+{% block main %}
+<div class="wrap narrow" style="padding:40px 16px;text-align:center">
+  <h1>김박사 몰로 이동합니다</h1>
+  <p class="muted">쿠팡에서 장 보실 때 김박사 몰 입구로 들어가 주시면 무료 리포트와 영상을 만드는 데 도움이 됩니다(가격은 같습니다).</p>
+  <p><a class="btn" href="{{ mall_url }}" rel="nofollow" data-ev="mall_go">바로 가기 ›</a></p>
+  <p class="muted" style="font-size:.8rem">김박사 몰은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
+</div>
+<script>setTimeout(function(){location.replace({{ mall_url|tojson }})},1500)</script>
+{% endblock %}

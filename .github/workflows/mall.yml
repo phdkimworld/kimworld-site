@@ -1,0 +1,84 @@
+# 김박사 몰(2026-11-19 운영자 "블로거 말고 제대로된 쇼핑몰로 만들어"): 쿠팡 API로 진열을 받고(scripts/mall_build.py) Cloudflare Pages(kimworld-mall)에 올린다.
+# 매일 한 번(한국 07:10) + 손으로. 진열은 mall/catalog.json에 남긴다(사이트 배포는 mall/** 를 건너뛴다).
+# 사용자 지정 도메인 mall.drkimworld.com 은 토큰 권한이 되면 붙인다(안 되면 pages.dev 주소 그대로, 주석에 이유).
+name: Kimdr mall
+
+on:
+  schedule:
+    - cron: "10 22 * * *"
+  workflow_dispatch:
+    inputs:
+      fetch:
+        description: "0이면 쿠팡 API를 부르지 않고 저장된 진열로만 다시 올림"
+        required: false
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kimdr-mall
+  cancel-in-progress: false
+
+jobs:
+  mall:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+      COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Fetch and build
+        run: |
+          pip install -q pyyaml
+          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/mall_build.py --build dist-mall; else python3 scripts/mall_build.py --fetch --build dist-mall; fi
+      - name: Deploy (Cloudflare Pages)
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error title=김박사 몰::Cloudflare 비밀값 없음"; exit 1; }
+          P=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml'))['pages_project'])")
+          npx --yes wrangler@3.99.0 pages project create "$P" --production-branch main > /dev/null 2>&1 || true
+          npx --yes wrangler@3.99.0 pages deploy dist-mall --project-name "$P" --branch main --commit-dirty=true 2>&1 | tail -5 | tee .deploy.txt
+          grep -q "Deployment complete\|Success" .deploy.txt || { echo "::error title=김박사 몰 배포::$(tail -2 .deploy.txt | tr '\n' ' ' | head -c 300)"; exit 1; }
+          echo "::notice title=김박사 몰 배포::https://$P.pages.dev"
+      - name: Custom domain (best effort)
+        continue-on-error: true
+        run: |
+          P=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml'))['pages_project'])")
+          D=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml')).get('custom_domain') or '')")
+          [ -n "$D" ] || exit 0
+          API=https://api.cloudflare.com/client/v4; H="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          ST=$(curl -sS -H "$H" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains/$D" | jq -r '.result.status // empty')
+          if [ -z "$ST" ]; then
+            R=$(curl -sS -X POST -H "$H" -H "Content-Type: application/json" --data "{\"name\":\"$D\"}" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains")
+            echo "::notice title=김박사 몰 도메인::붙이기 요청 $(echo "$R" | jq -c '{success, errors: [.errors[]?.message]}')"
+          fi
+          ZONE=$(curl -sS -H "$H" "$API/zones?name=${D#*.}" | jq -r '.result[0].id // empty')
+          if [ -n "$ZONE" ]; then
+            HAS=$(curl -sS -H "$H" "$API/zones/$ZONE/dns_records?name=$D" | jq -r '.result | length')
+            if [ "$HAS" = "0" ]; then
+              R=$(curl -sS -X POST -H "$H" -H "Content-Type: application/json" --data "{\"type\":\"CNAME\",\"name\":\"$D\",\"content\":\"$P.pages.dev\",\"proxied\":true}" "$API/zones/$ZONE/dns_records")
+              echo "::notice title=김박사 몰 DNS::$(echo "$R" | jq -c '{success, errors: [.errors[]?.message]}')"
+            fi
+          else
+            echo "::notice title=김박사 몰 DNS::영역(zone) 조회 권한 없음 또는 없음 — pages.dev 주소로 운영"
+          fi
+          echo "::notice title=김박사 몰 도메인 상태::$D $(curl -sS -H "$H" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains/$D" | jq -r '.result.status // .errors[0].message // "?"')"
+      - name: Commit catalog
+        if: inputs.fetch != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mall/catalog.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "김박사 몰 진열 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

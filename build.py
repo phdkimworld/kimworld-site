@@ -1422,6 +1422,13 @@ def build(drafts=False, strict=False, out: Path = DIST):
           feed_more_ad=ads.render("thread_inline", {"theme": "*"}))  # '글 더 보기'로 이어 불러온 글 사이(애드센스·쿠팡만, 애드핏은 정책상 불가)
     ads.begin_page()
     write("reports/index.html", "reports.html", rs=public, page_bottom=ads.render("page_bottom", {}))  # 2026-11-16 개편: 리포트 전체 목록
+    # 김박사 몰 입구(2026-11-19): 쇼핑몰 사이트(mall/mall.yaml url, Cloudflare Pages)로 넘기는 /mall/(noindex, 사이트맵 제외).
+    # 몰 주소가 아직 없으면 쿠팡 입구 단축 링크(mall/catalog.json entry.go)로. 둘 다 없으면 만들지 않는다
+    _mc = load_yaml(ROOT / "mall" / "mall.yaml", {}) or {}
+    _mcat = load_yaml(ROOT / "mall" / "catalog.json", {}) or {}
+    _mall_url = _mc.get("url") or (_mcat.get("entry") or {}).get("go") or ""
+    if str(_mall_url).startswith("https://"):
+        write("mall/index.html", "mall.html", mall_url=_mall_url)
     if scorecard.get("judged"):
         ads.begin_page()
         write("scorecard/index.html", "scorecard.html", scorecard=scorecard, page_bottom=ads.render("page_bottom", {}))

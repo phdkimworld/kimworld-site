@@ -204,6 +204,8 @@ def body(slug: str, fm: dict) -> str:
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
     parts.append(adfit_block())
     parts.append(cpas_block())
+    # 김박사 몰 입구 한 줄(2026-11-19 운영자 "김박사 몰부터"): 사이트 /mall/ → 김박사 몰 쇼핑몰. 유입은 사이트 통계 utm_source=blogger
+    parts.append(f'<p style="margin:10px 0">🛒 <a href="{BASE}/mall/?utm_source=blogger&amp;utm_medium=post&amp;utm_content=mall" rel="sponsored nofollow">김박사 몰</a> — 쿠팡 장보실 때 이 입구로 들어가 주시면 채널 운영에 도움이 됩니다.</p>')
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
         "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "

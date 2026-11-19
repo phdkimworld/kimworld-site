@@ -77,6 +77,15 @@ def main() -> int:
         bs = c.get("by_sub") or {}
         if bs:
             out.append("- 하위 ID 상위: " + " · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in list(bs.items())[:8]))
+    # 김박사 몰(2026-11-19, 쇼핑몰 사이트): 쿠팡 하위 ID mall…(입구 go·특가 gb·카테고리) + 사이트 /mall/ 랜딩(채널별 utm_source). 이 하위 ID는 쿠팡 칸 '기타'에도 들어 있다
+    if c:
+        mb = {k: v for k, v in (c.get("by_sub") or {}).items() if k.startswith("mall")}
+        ml = [l for l in a.get("landings", []) if str(l.get("path", "")).startswith("/mall")]
+        mc = json.loads((ROOT / "mall" / "catalog.json").read_text(encoding="utf-8")) if (ROOT / "mall" / "catalog.json").exists() else {}
+        out.append("- 김박사 몰: " + (" · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in mb.items()) or "쿠팡 클릭 0")
+                   + f" (합계 {sum(v['clicks'] for v in mb.values())}클릭/{sum(v['commission'] for v in mb.values())}원)"
+                   + " | /mall/ 랜딩 " + (" · ".join(f"{l['src']} {l['sess']}" for l in ml) or "0")
+                   + f" | 진열 특가 {len(mc.get('deals') or [])} · 카테고리 {len(mc.get('cats') or {})} · 갱신 {mc.get('updated') or '없음'}")
     shop = ROOT / "social" / "youtube" / "shop.json"
     if shop.exists():
         log = json.loads(shop.read_text(encoding="utf-8"))
