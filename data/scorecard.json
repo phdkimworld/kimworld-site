@@ -1,0 +1,292 @@
+{
+ "as_of": "2026-11-19",
+ "total": 310,
+ "judged": 21,
+ "waiting": 289,
+ "scenarios": 19,
+ "calls": {
+  "hit": 0,
+  "n": 5
+ },
+ "brier": 0.176,
+ "buckets": [
+  {
+   "lo": 0,
+   "hi": 20,
+   "said": 11,
+   "actual": 0,
+   "hit": 0,
+   "n": 5
+  },
+  {
+   "lo": 20,
+   "hi": 40,
+   "said": 29,
+   "actual": 36,
+   "hit": 4,
+   "n": 11
+  },
+  {
+   "lo": 40,
+   "hi": 60,
+   "said": 45,
+   "actual": 0,
+   "hit": 0,
+   "n": 3
+  }
+ ],
+ "rows": [
+  {
+   "ticker": "SMR",
+   "slug": "smr-2026-11",
+   "as_of": "2026-11-05",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-04",
+   "kind": "scenario",
+   "text": "실망이 이어진 하락 | 하락 · 4.41달러 아래",
+   "prob": 35,
+   "outcome": 0,
+   "status": "빗나감"
+  },
+  {
+   "ticker": "SMR",
+   "slug": "smr-2026-11",
+   "as_of": "2026-11-05",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-04",
+   "kind": "scenario",
+   "text": "첫날 하락 뒤 회복 | 하락 · 4.41달러 위",
+   "prob": 15,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "SMR",
+   "slug": "smr-2026-10-2",
+   "as_of": "2026-10-23",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-20",
+   "kind": "scenario",
+   "text": "3분기 보고서의 판매 확인",
+   "prob": 55,
+   "outcome": 0,
+   "status": "빗나감"
+  },
+  {
+   "ticker": "SMR",
+   "slug": "smr-2026-10-2",
+   "as_of": "2026-10-23",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-20",
+   "kind": "scenario",
+   "text": "증권사 하향의 연쇄",
+   "prob": 35,
+   "outcome": 1,
+   "status": "일어남(보조)"
+  },
+  {
+   "ticker": "SLDP",
+   "slug": "sldp-2026-11-2",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-14",
+   "kind": "scenario",
+   "text": "지키고 업종 반등 | 지킴 · 위",
+   "prob": 25,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "SLDP",
+   "slug": "sldp-2026-11-2",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-14",
+   "kind": "scenario",
+   "text": "홀로 버팀 | 지킴 · 아래",
+   "prob": 10,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "LAES",
+   "slug": "laes-2026-11-3",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-14",
+   "kind": "scenario",
+   "text": "저점을 지키며 다시 오름 | 지킴 · 1.25달러 위",
+   "prob": 25,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "LAES",
+   "slug": "laes-2026-11-3",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-14",
+   "kind": "scenario",
+   "text": "저점은 지켰지만 제자리 아래 | 지킴 · 1.25달러 아래",
+   "prob": 5,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "LAES",
+   "slug": "laes-2026-11-2",
+   "as_of": "2026-11-05",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-04",
+   "kind": "scenario",
+   "text": "하락이 이어짐 | 하락 · 1.23달러 아래",
+   "prob": 30,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "LAES",
+   "slug": "laes-2026-11-2",
+   "as_of": "2026-11-05",
+   "judged": "2026-11-18",
+   "judge_date": "2026-12-04",
+   "kind": "scenario",
+   "text": "첫날 하락 뒤 회복 | 하락 · 1.23달러 위",
+   "prob": 10,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "IREN",
+   "slug": "iren-2026-11",
+   "as_of": "2026-11-04",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-19",
+   "kind": "scenario",
+   "text": "실적 실망 추가 하락 | 하락 · 조달 없음",
+   "prob": 30,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "INOD",
+   "slug": "inod-2026-10-2",
+   "as_of": "2026-10-27",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-06",
+   "kind": "scenario",
+   "text": "고객 축소 확인 | 큰 고객 매출 감소 또는 전망 하향",
+   "prob": 40,
+   "outcome": 0,
+   "status": "빗나감"
+  },
+  {
+   "ticker": "INOD",
+   "slug": "inod-2026-10-2",
+   "as_of": "2026-10-27",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-06",
+   "kind": "scenario",
+   "text": "엇갈린 숫자, 좁은 움직임 | 매출은 전망 안, 고객 설명은 모호",
+   "prob": 30,
+   "outcome": 1,
+   "status": "일어남(보조)"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-11",
+   "as_of": "2026-11-04",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "해제와 실적이 이어진 하락 | 급락 · 하락",
+   "prob": 35,
+   "outcome": 0,
+   "status": "빗나감"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-11",
+   "as_of": "2026-11-04",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "해제는 넘기고 실적에 실망 | 무난 · 하락",
+   "prob": 25,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-11",
+   "as_of": "2026-11-04",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "공급 종료 뒤 재평가 | 무난 · 상승",
+   "prob": 25,
+   "outcome": 1,
+   "status": "일어남(보조)"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-11",
+   "as_of": "2026-11-04",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "해제에 밀리고 실적에 반등 | 급락 · 상승",
+   "prob": 15,
+   "outcome": 0,
+   "status": "안 일어남(보조)"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-10-3",
+   "as_of": "2026-10-28",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "해제와 실적이 이어진 하락 | 11월 9일 해제 사흘 뒤 실적이 기대에 못 미침",
+   "prob": 40,
+   "outcome": 0,
+   "status": "빗나감"
+  },
+  {
+   "ticker": "CBRS",
+   "slug": "cbrs-2026-10-3",
+   "as_of": "2026-10-28",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-13",
+   "kind": "scenario",
+   "text": "공급 종료 뒤 재평가 | 11월 9일 해제가 큰 하락 없이 지나가고 실적이 전망을 지킴",
+   "prob": 25,
+   "outcome": 1,
+   "status": "일어남(보조)"
+  },
+  {
+   "ticker": "BTQ",
+   "slug": "btq-2026-11-3",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-16",
+   "kind": "check",
+   "text": "9월 말 현금이 972만 9,250캐나다달러보다 많은가",
+   "prob": null,
+   "outcome": 1,
+   "status": "일어남"
+  },
+  {
+   "ticker": "BTQ",
+   "slug": "btq-2026-11-3",
+   "as_of": "2026-11-13",
+   "judged": "2026-11-18",
+   "judge_date": "2026-11-16",
+   "kind": "check",
+   "text": "7월 1일 뒤 판 주식이 227만 2,768주보다 많은가",
+   "prob": null,
+   "outcome": 1,
+   "status": "일어남"
+  }
+ ]
+}

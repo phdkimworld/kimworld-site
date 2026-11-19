@@ -738,6 +738,25 @@ if (D / "r/ntla-2026-10/index.html").exists():
     h = (D / "r/ntla-2026-10/index.html").read_text(encoding="utf-8")
     check('href="#diagnosis"' in h and 'data-read-pill' in h and h.count('class="next-part"') >= 4, "실제 리포트: 진단 바로가기·읽기 위치·다음 부 예고")
 
+# 예측 성적표(2026-11-18): 판정 끝난 예측만 싣고, 계산은 pred_ledger.py와 같게
+print("\n== 예측 성적표 ==")
+sys.path.insert(0, str(SRC / "scripts"))
+import scorecard as _sc
+_rows = [
+    {"ticker": "AAA", "slug": "aaa-2026-11", "kind": "scenario", "text": "시나리오 1 · 버틴다 | - 지켜볼 대응 기준: 1달러", "prob": 60, "outcome": 0, "status": "빗나감", "judged": "2026-11-18"},
+    {"ticker": "AAA", "slug": "aaa-2026-11", "kind": "scenario", "text": "2 · 깬다", "prob": 40, "outcome": 1, "status": "일어남(보조)", "judged": "2026-11-18"},
+    {"ticker": "BBB", "slug": "bbb-2026-11", "kind": "scenario", "text": "앞날 예측 문장", "prob": 50, "outcome": None, "status": "대기"},
+    {"ticker": "BBB", "slug": "bbb-2026-11", "kind": "check", "text": "판매가 있나", "prob": None, "outcome": 1, "status": "일어남", "judged": "2026-11-17"},
+]
+_d = _sc.build(_rows)
+check(_d["judged"] == 3 and _d["waiting"] == 1 and _d["total"] == 4, "성적표: 판정 끝 3 · 대기 1")
+check(not any("앞날 예측 문장" in x["text"] for x in _d["rows"]), "성적표: 판정 전 예측 문장은 싣지 않음")
+check(_d["calls"] == {"hit": 0, "n": 1} and _d["brier"] == round(((0.6 - 0) ** 2 + (0.4 - 1) ** 2) / 2, 3), "성적표: 콜 적중·브라이어(확인 예측 제외)")
+check(_d["rows"][0]["text"] == "버틴다", "성적표: '시나리오 N ·'·대응 기준 꼬리 정리")
+if (D / "scorecard/index.html").exists():
+    _h = (D / "scorecard/index.html").read_text(encoding="utf-8")
+    check("sc-list" in _h and "/scorecard/" in (D / "sitemap.xml").read_text(encoding="utf-8"), "실제 사이트: 성적표 페이지·사이트맵")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

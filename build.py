@@ -1300,7 +1300,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
     env.filters["isot"] = lambda d: (dt.datetime.combine(d, dt.time(9, 0), KST).isoformat() if isinstance(d, dt.date) and not isinstance(d, dt.datetime) else (d.isoformat() if d else ""))
     env.filters["seo_items"] = lambda slugs, su: [{"@type": "ListItem", "position": i + 1, "url": f"{su}/r/{x}/"} for i, x in enumerate(slugs)]
     asset_ver = str(int(dt.datetime.now().timestamp()))
+    # 예측 성적표(2026-11-18): 판정 끝난 예측만(data/scorecard.json, scripts/scorecard.py). 판정이 없으면 페이지·링크를 만들지 않는다
+    scorecard = load_yaml(ROOT / "data" / "scorecard.json", {}) or {}
     common = {
+        "has_scorecard": bool(scorecard.get("judged")),
         "site": site, "base": base_path, "themes": themes, "ads": ads, "ads_head": ads.head_tags(),
         "asset_ver": asset_ver, "year": today.year, "tickers": tickers,
         # 그림 애니메이션 파일(fig.js·GSAP)은 내용이 바뀔 때만 주소가 바뀐다(빌드마다 바뀌는 asset_ver 를 쓰면 재방문 때 다시 받음)
@@ -1414,6 +1417,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
           feed_more_ad=ads.render("thread_inline", {"theme": "*"}))  # '글 더 보기'로 이어 불러온 글 사이(애드센스·쿠팡만, 애드핏은 정책상 불가)
     ads.begin_page()
     write("reports/index.html", "reports.html", rs=public, page_bottom=ads.render("page_bottom", {}))  # 2026-11-16 개편: 리포트 전체 목록
+    if scorecard.get("judged"):
+        ads.begin_page()
+        write("scorecard/index.html", "scorecard.html", scorecard=scorecard, page_bottom=ads.render("page_bottom", {}))
     ads.begin_page()
     ex_ctx = {"theme": "*"}
     write("search/index.html", "search.html", rs=public, ticker_list=ticker_list, explore_ad=ads.render("explore", ex_ctx),
@@ -1537,6 +1543,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
     urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
     urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
     urls += [(f"{su}/reports/", today, None)]  # 2026-11-16 리포트 전체 목록
+    urls += [(f"{su}/scorecard/", today, None)] if scorecard.get("judged") else []  # 2026-11-18 예측 성적표
     urls += ([(f"{su}/glossary/", today, None)] + [(f"{su}/glossary/{x['path']}/", today, None) for x in gl_terms]) if gl_terms else []
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']

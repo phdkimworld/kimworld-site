@@ -93,6 +93,10 @@ jobs:
           npx --yes wrangler@3.99.0 d1 execute kimworld --remote --json --command \
             "SELECT g, slot, seg, SUM(imps) AS imps, SUM(clicks) AS clicks FROM ad_stats WHERE day >= '$SINCE' GROUP BY g, slot, seg" > ../.cache/ad_stats.json
           python3 -c "import json;d=json.load(open('../.cache/ad_stats.json'));print('광고 성과 줄 수:', len(d[0]['results']))"
+      - name: Scorecard (prediction ledger)
+        # 예측 성적표(/scorecard/): 공개 미디어 저장소의 예측 장부에서 판정 끝난 예측만 다시 셈. 못 읽으면 저장소의 data/scorecard.json 그대로
+        continue-on-error: true
+        run: python scripts/scorecard.py "https://raw.githubusercontent.com/phdkimworld/kimworld-media/claude/kim-world-stock-studio-laes-ovy09b/review/predictions/ledger.jsonl"
       - name: Build
         run: python build.py --strict
       - name: Board notices

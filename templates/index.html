@@ -90,7 +90,7 @@
     {% if site.api_url and feed_more_ad %}<template data-feed-more-ad>{{ feed_more_ad|safe }}</template>{% endif %}
     {% if site.api_url %}<div class="feed-end" data-feed-end hidden><button type="button" class="btn" data-feed-more>글 더 보기</button></div>{% endif %}
     {% else %}
-    <p class="lib-all"><a class="btn" href="{{ base }}/reports/">전체 리포트 {{ rs|length }}편 보기 ›</a></p>
+    <p class="lib-all"><a class="btn" href="{{ base }}/reports/">전체 리포트 {{ rs|length }}편 보기 ›</a>{% if has_scorecard %} <a class="btn" href="{{ base }}/scorecard/" data-ev="scorecard_home">예측 성적표 ›</a>{% endif %}</p>
     {% endif %}
     {{ page_bottom|safe }}
     {% else %}

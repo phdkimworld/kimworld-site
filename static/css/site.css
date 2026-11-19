@@ -1715,3 +1715,23 @@ article.report .sent { margin-top: 14px; }
 .all-tk { flex: none; min-width: 3.6em; font-weight: 800; color: var(--accent); font-size: .85rem; }
 .all-t { font-size: .92rem; line-height: 1.45; }
 .all-list time { flex: none; font-size: .8rem; }
+
+/* 예측 성적표(2026-11-18) */
+.sc-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 6px; }
+.sc-tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+.sc-tile b { font-size: 1.5rem; line-height: 1.1; }
+.sc-tile span { font-size: .78rem; color: var(--muted); line-height: 1.35; }
+.sc-cal { width: 100%; max-width: 480px; height: auto; margin: 6px 0 4px; }
+.sc-cal .sc-lb, .sc-cal .sc-v { font-size: 11px; fill: var(--muted); }
+.sc-cal .sc-said { fill: var(--muted); opacity: .45; }
+.sc-cal .sc-act { fill: var(--accent, #f5b83d); }
+.sc-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.sc-list li { display: flex; gap: 10px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
+.sc-mark { flex: none; width: 22px; font-weight: 700; text-align: center; }
+.sc-yes .sc-mark { color: #2e9e5b; }
+.sc-no .sc-mark { color: #c94a4a; }
+.sc-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sc-body a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.sc-body .muted { font-size: .8rem; }
+.sc-note { margin-top: 18px; font-size: .8rem; }
+@media (max-width: 420px) { .sc-tile b { font-size: 1.25rem; } }
