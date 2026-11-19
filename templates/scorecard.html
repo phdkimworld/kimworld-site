@@ -9,6 +9,14 @@
   {"@type": "ListItem", "position": 1, "name": "홈", "item": site.site_url ~ "/"},
   {"@type": "ListItem", "position": 2, "name": "예측 성적표", "item": page_url}]}|tojson }}
 </script>
+{# AI 검색·구글 데이터셋 검색용(2026-11-19): 공개 채점 기록이라는 것을 구조화 데이터로 #}
+<script type="application/ld+json">
+{{ {"@context": "https://schema.org", "@type": "Dataset", "name": "김박사 월드 예측 성적표",
+    "description": "김박사 월드 리포트가 가능성 숫자를 붙여 적은 미국 주식 시나리오 예측 가운데 판정이 끝난 " ~ sc.judged ~ "개의 공개 채점 기록. 브라이어 점수 " ~ sc.brier ~ "(모두 50%라고 하면 0.250), 가능성 구간별 말한 평균과 실제 비율.",
+    "url": page_url, "inLanguage": "ko", "dateModified": sc.as_of, "isAccessibleForFree": true,
+    "creator": {"@type": "Organization", "name": site.site_name, "url": site.site_url},
+    "variableMeasured": ["판정 끝 예측 수", "브라이어 점수", "가장 기운 쪽 적중", "가능성 구간별 실제 비율"]}|tojson }}
+</script>
 {% endblock %}
 {% block main %}
 <div class="wrap narrow sc">
