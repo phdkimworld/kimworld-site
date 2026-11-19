@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { createHash, createPrivateKey, sign } from 'node:crypto';
 const store = new Map();
 const env = { BUCKET: {
-  async get(k) { const v = store.get(k); return v && { size: v.byteLength, httpEtag: '"x"', body: v, json: async () => JSON.parse(new TextDecoder().decode(v)) }; },
+  async get(k, o) { const v = store.get(k); if (!v) return null;
+    const r = o && o.range; const body = r ? v.slice(r.offset, r.length ? r.offset + r.length : undefined) : v;
+    return { size: v.byteLength, httpEtag: '"x"', body, json: async () => JSON.parse(new TextDecoder().decode(v)) }; },
   async head(k) { const v = store.get(k); return v && { size: v.byteLength, httpEtag: '"x"' }; },
   async put(k, v) { store.set(k, typeof v === 'string' ? new TextEncoder().encode(v) : new Uint8Array(v)); },
   async delete(k) { store.delete(k); },
@@ -35,6 +37,12 @@ if (process.env.SIGN_KEY) {
   ok(r.status === 200, 'signed PUT → 200');
   const g = await worker.fetch(req('GET', '/a/' + K + '?k=' + RT), env);
   ok(g.status === 200 && g.headers.get('Access-Control-Allow-Origin') === '*' && (await g.arrayBuffer()).byteLength === 500, 'GET after PUT');
+  const rq = new Request(B + '/a/' + K + '?k=' + RT, { headers: { Range: 'bytes=100-199' } });
+  const rr = await worker.fetch(rq, env);
+  ok(rr.status === 206 && rr.headers.get('Content-Range') === 'bytes 100-199/500' && (await rr.arrayBuffer()).byteLength === 100, 'Range → 206');
+  const ro = await worker.fetch(new Request(B + '/a/' + K + '?k=' + RT, { headers: { Range: 'bytes=450-' } }), env);
+  ok(ro.status === 206 && ro.headers.get('Content-Range') === 'bytes 450-499/500', 'open Range → 206');
+  ok((await worker.fetch(new Request(B + '/a/' + K + '?k=' + RT, { headers: { Range: 'bytes=600-' } }), env)).status === 416, 'Range past end → 416');
   const l = await (await worker.fetch(signed('GET', '/list'), env)).json();
   ok(l.keys.length === 1 && l.keys[0][1] === 500 && l.usage.bytes === 500, 'signed list + usage');
   ok((await worker.fetch(signed('PUT', '/a/' + K, new Uint8Array(300)), env)).status === 200, 'replace');

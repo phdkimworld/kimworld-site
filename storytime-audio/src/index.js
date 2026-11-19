@@ -1,5 +1,6 @@
 // 우리집 책 읽어주기 녹음 저장소 (R2)
 //  GET/HEAD /a/<20자 hex>.bin?k=<가족 읽기 토큰> : 앱(토큰은 가족 암호로 잠긴 목록 안에만 있음). 받아서 풀어 재생
+//    Range: bytes=a-b 를 받음(206) — 64KB 조각마다 잠근 녹음을 앱이 앞부분부터 받아 바로 재생(스트리밍)·건너뛰기
 //
 // 요금 안전장치 (R2 무료 한도: 저장 10GB, 쓰기(Class A) 월 100만, 읽기(Class B) 월 1000만)
 //  - 저장 9GB를 넘기는 올리기는 거절(507). 쓰기는 한 달 30만 번을 넘으면 거절(429)
@@ -13,7 +14,8 @@ const READ_HASH = '3b736b26c8d6023c6c9b60b6213ae821d265bc278073c636a6fc7a3d693b2
 const CAP_BYTES = 9e9, CAP_WRITES = 300000;
 const USAGE = '_usage.json';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-  'Access-Control-Allow-Headers': 'Range', 'Access-Control-Max-Age': '86400' };
+  'Access-Control-Allow-Headers': 'Range', 'Access-Control-Max-Age': '86400',
+  'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges' };
 
 const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -56,13 +58,24 @@ export default {
       if (!KEY_RE.test(key)) return new Response('bad key', { status: 400, headers: CORS });
       if (req.method === 'GET' || req.method === 'HEAD') {
         if (!(await readOk(u.searchParams.get('k')))) return new Response('forbidden', { status: 403, headers: CORS });
+        const rg = req.method === 'GET' && /^bytes=(\d+)-(\d*)$/.exec(req.headers.get('Range') || '');
+        if (rg) {   // 부분 받기: R2 읽기 1번(캐시 안 씀)
+          const a = Number(rg[1]), b = rg[2] ? Number(rg[2]) : null;
+          const o = await env.BUCKET.get(key, { range: b === null ? { offset: a } : { offset: a, length: b - a + 1 } });
+          if (!o) return new Response('not found', { status: 404, headers: CORS });
+          if (a >= o.size) return new Response('range', { status: 416, headers: { ...CORS, 'Content-Range': `bytes */${o.size}` } });
+          const end = Math.min(b === null ? o.size - 1 : b, o.size - 1);
+          return new Response(o.body, { status: 206, headers: { ...CORS, 'Content-Type': 'application/octet-stream',
+            'Content-Range': `bytes ${a}-${end}/${o.size}`, 'Content-Length': String(end - a + 1), 'Accept-Ranges': 'bytes',
+            'ETag': o.httpEtag, 'Cache-Control': 'private, max-age=0' } });
+        }
         const cache = typeof caches !== 'undefined' ? caches.default : null;
         const ck = new Request(u.origin + u.pathname + '?v=' + (u.searchParams.get('v') || ''), { method: 'GET' });
         if (cache && req.method === 'GET') { const hit = await cache.match(ck); if (hit) return hit; }
         const o = req.method === 'HEAD' ? await env.BUCKET.head(key) : await env.BUCKET.get(key);
         if (!o) return new Response('not found', { status: 404, headers: CORS });
         const h = { ...CORS, 'Content-Type': 'application/octet-stream', 'Content-Length': String(o.size),
-          'ETag': o.httpEtag, 'Cache-Control': 'public, max-age=86400' };
+          'ETag': o.httpEtag, 'Cache-Control': 'public, max-age=86400', 'Accept-Ranges': 'bytes' };
         const res = new Response(req.method === 'HEAD' ? null : o.body, { headers: h });
         if (cache && req.method === 'GET' && ctx && ctx.waitUntil) ctx.waitUntil(cache.put(ck, res.clone()));
         return res;
