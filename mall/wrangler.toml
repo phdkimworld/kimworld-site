@@ -1,0 +1,9 @@
+# 김박사 몰 — 정적 페이지만 서비스하는 워커(Workers Static Assets). 2026-11-19: Cloudflare 토큰에 Pages 권한이 없어(멤버십 읽기 실패)
+# 이미 권한이 있는 워커 배포로 올린다. 페이지는 mall.yml이 dist-mall/에 만든다. 주소: kimworld-mall.<계정 하위 도메인>.workers.dev
+name = "kimworld-mall"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[assets]
+directory = "../dist-mall"
+not_found_handling = "404-page"

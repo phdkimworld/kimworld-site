@@ -1,6 +1,6 @@
 # 김박사 몰 — 별도 쇼핑몰 사이트(운영자 지시 2026-11-19 "김박사 몰부터 해보지. 알아서 다 컨셉 잡고 페이지 만들고 링크도 박고 추적해서 관리해 줘 오늘부터는" → "블로거 말고 제대로된 쇼핑몰로 만들어").
 # scripts/mall_build.py 가 쿠팡 파트너스 API(오늘의 특가 goldbox · 카테고리 베스트 bestcategories)로 매일 진열을 받아 정적 쇼핑몰을 만들고,
-# .github/workflows/mall.yml 이 Cloudflare Pages(kimworld-mall)에 올린다. 사이트 본체(drkimworld.com)에는 쿠팡 상품을 싣지 않는다(11-16 개편) — /mall/ 은 넘겨주기만.
+# .github/workflows/mall.yml 이 Cloudflare 워커 정적 자산(kimworld-mall, mall/wrangler.toml — 토큰에 Pages 권한이 없어 11-19 변경)으로 올린다. 사이트 본체(drkimworld.com)에는 쿠팡 상품을 싣지 않는다(11-16 개편) — /mall/ 은 넘겨주기만.
 #
 # 컨셉(근거 11-19 쿠팡 API 해부): 이 채널의 쿠팡 수익은 '링크를 한 번 누른 뒤 24시간 안의 집 장보기'에서 나왔다(생활용품·식품·홈).
 # 그래서 ① 맨 위 '쿠팡 들어가기' 입구 ② 매일 바뀌는 오늘의 특가 ③ 장보기 카테고리(식품·생활·주방·홈) ④ 시청자 취향(가전·스포츠·도서·자동차·남성패션)
@@ -8,9 +8,9 @@
 # 추적: 하위 ID mall… → 쿠팡 실적 비공개 by_sub (mallgo 입구 · mallgb 특가 · mall<코드> 카테고리). 채널별 유입은 drkimworld.com/mall/?utm_source=<채널> 랜딩.
 name: "김박사 몰"
 tagline: "김박사 월드 시청자 장보기 입구"
-url: ""            # 첫 배포 뒤 채움(예: https://kimworld-mall.pages.dev). 비어 있으면 사이트 /mall/ 은 쿠팡 입구 링크로 넘긴다
+url: ""            # 첫 배포 뒤 채움(예: https://kimworld-mall.<하위도메인>.workers.dev 또는 https://mall.drkimworld.com). 비어 있으면 사이트 /mall/ 은 쿠팡 입구 링크로 넘긴다
 pages_project: kimworld-mall
-custom_domain: mall.drkimworld.com   # 권한이 되면 붙이고, 안 되면 pages.dev 주소를 쓴다
+custom_domain: mall.drkimworld.com   # 영역 권한이 되면 붙이고, 안 되면 workers.dev 주소를 쓴다
 entry_subid: mallgo
 deal_subid: mallgb
 per_category: 30

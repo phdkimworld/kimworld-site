@@ -1,4 +1,4 @@
-# 김박사 몰(2026-11-19 운영자 "블로거 말고 제대로된 쇼핑몰로 만들어"): 쿠팡 API로 진열을 받고(scripts/mall_build.py) Cloudflare Pages(kimworld-mall)에 올린다.
+# 김박사 몰(2026-11-19 운영자 "블로거 말고 제대로된 쇼핑몰로 만들어"): 쿠팡 API로 진열을 받고(scripts/mall_build.py) Cloudflare 워커 정적 자산(kimworld-mall, mall/wrangler.toml)으로 올린다.
 # 매일 한 번(한국 07:10) + 손으로. 진열은 mall/catalog.json에 남긴다(사이트 배포는 mall/** 를 건너뛴다).
 # 사용자 지정 도메인 mall.drkimworld.com 은 토큰 권한이 되면 붙인다(안 되면 pages.dev 주소 그대로, 주석에 이유).
 name: Kimdr mall
@@ -38,39 +38,26 @@ jobs:
         run: |
           pip install -q pyyaml
           if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/mall_build.py --build dist-mall; else python3 scripts/mall_build.py --fetch --build dist-mall; fi
-      - name: Deploy (Cloudflare Pages)
+      - name: Deploy (Cloudflare Workers static assets)
+        # Pages 권한이 없어(11-19) 워커 정적 자산으로 올린다. 404 화면은 홈 복사본
         run: |
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error title=김박사 몰::Cloudflare 비밀값 없음"; exit 1; }
-          P=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml'))['pages_project'])")
-          npx --yes wrangler@3.99.0 pages project create "$P" --production-branch main > /dev/null 2>&1 || true
-          npx --yes wrangler@3.99.0 pages deploy dist-mall --project-name "$P" --branch main --commit-dirty=true 2>&1 | tail -5 | tee .deploy.txt
-          grep -q "Deployment complete\|Success" .deploy.txt || { echo "::error title=김박사 몰 배포::$(tail -2 .deploy.txt | tr '\n' ' ' | head -c 300)"; exit 1; }
-          echo "::notice title=김박사 몰 배포::https://$P.pages.dev"
+          cp dist-mall/index.html dist-mall/404.html
+          cd mall && npx --yes wrangler@3.99.0 deploy 2>&1 | tail -8 | tee ../.deploy.txt
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' ../.deploy.txt | head -1)
+          [ -n "$URL" ] || { echo "::error title=김박사 몰 배포::$(tail -3 ../.deploy.txt | tr '\n' ' ' | head -c 300)"; exit 1; }
+          echo "::notice title=김박사 몰 배포::$URL"
       - name: Custom domain (best effort)
+        # mall.drkimworld.com 을 워커 사용자 지정 도메인으로(영역 권한이 있으면). 실패해도 workers.dev 주소로 운영
         continue-on-error: true
         run: |
-          P=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml'))['pages_project'])")
           D=$(python3 -c "import yaml;print(yaml.safe_load(open('mall/mall.yaml')).get('custom_domain') or '')")
           [ -n "$D" ] || exit 0
-          API=https://api.cloudflare.com/client/v4; H="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
-          ST=$(curl -sS -H "$H" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains/$D" | jq -r '.result.status // empty')
-          if [ -z "$ST" ]; then
-            R=$(curl -sS -X POST -H "$H" -H "Content-Type: application/json" --data "{\"name\":\"$D\"}" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains")
-            echo "::notice title=김박사 몰 도메인::붙이기 요청 $(echo "$R" | jq -c '{success, errors: [.errors[]?.message]}')"
-          fi
-          ZONE=$(curl -sS -H "$H" "$API/zones?name=${D#*.}" | jq -r '.result[0].id // empty')
-          if [ -n "$ZONE" ]; then
-            HAS=$(curl -sS -H "$H" "$API/zones/$ZONE/dns_records?name=$D" | jq -r '.result | length')
-            if [ "$HAS" = "0" ]; then
-              R=$(curl -sS -X POST -H "$H" -H "Content-Type: application/json" --data "{\"type\":\"CNAME\",\"name\":\"$D\",\"content\":\"$P.pages.dev\",\"proxied\":true}" "$API/zones/$ZONE/dns_records")
-              echo "::notice title=김박사 몰 DNS::$(echo "$R" | jq -c '{success, errors: [.errors[]?.message]}')"
-            fi
-          else
-            echo "::notice title=김박사 몰 DNS::영역(zone) 조회 권한 없음 또는 없음 — pages.dev 주소로 운영"
-          fi
-          echo "::notice title=김박사 몰 도메인 상태::$D $(curl -sS -H "$H" "$API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$P/domains/$D" | jq -r '.result.status // .errors[0].message // "?"')"
+          cd mall && cp wrangler.toml wrangler.cd.toml && printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "$D" >> wrangler.cd.toml
+          npx --yes wrangler@3.99.0 deploy -c wrangler.cd.toml 2>&1 | tail -6 > ../.cd.txt || true
+          if grep -q "$D" ../.cd.txt && ! grep -qi "error" ../.cd.txt; then echo "::notice title=김박사 몰 도메인::https://$D 연결"; else echo "::notice title=김박사 몰 도메인::못 붙임 — $(grep -i error ../.cd.txt | head -1 | head -c 200)"; fi
       - name: Commit catalog
-        if: inputs.fetch != '0'
+        if: always() && inputs.fetch != '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
