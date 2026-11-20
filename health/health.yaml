@@ -26,7 +26,7 @@ keep_days: 14             # 이 기간 동안 검색에 다시 안 잡힌 상품
 searches_per_run: 2          # 2시간마다 실행(health.yml) → 하루 24회 검색, 성분×검색어 한 바퀴 약 1.2일. 쿠팡 검색 API는 시간당 10회 — 사이트 배포(coupang_sync)가 시간당 8회까지 쓰므로 여기서는 2회만
 indexnow_key: "7a1d6437e712e2a606dfc68baf33f33d"   # IndexNow 공개 키(빙·네이버·얀덱스에 새 주소 알림). 같은 이름의 .txt를 사이트 맨 위에 둔다
 verification:                # 서치 콘솔·서치어드바이저에서 이 사이트(health.drkimworld.com)를 등록하고 받은 HTML 태그 값(공개값)
-  google: ""
+  google: "MkduUezdSLhoQCWYmilJ2kwYezMuNcJ7YkqMRGiv0rI"   # 건강월드 계정, 2026-11-20 사이트 확인 API로 받음
   naver: ""
   bing: ""
 # 상품 이름에 그 가이드의 match 낱말이 하나도 없으면 진열하지 않는다(검색 결과 앞쪽에 무관한 상품이 섞여 옴, 2026-11-20 확인)
