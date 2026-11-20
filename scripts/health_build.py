@@ -104,7 +104,7 @@ def plan(c: dict, cat: dict) -> list[dict]:
     return gs[: int(c.get("searches_per_run") or 2)]
 
 
-def fetch(c: dict, searcher=cs.search, getter=get) -> dict:
+def fetch(c: dict, searcher=None, getter=get) -> dict:
     access, secret = os.environ.get("COUPANG_ACCESS_KEY", "").strip(), os.environ.get("COUPANG_SECRET_KEY", "").strip()
     cat = load_cat()
     if not (access and secret):
@@ -123,7 +123,14 @@ def fetch(c: dict, searcher=cs.search, getter=get) -> dict:
     now = dt.datetime.now(KST).strftime("%Y-%m-%d %H:%M")
     for g in plan(c, cat):
         try:
-            items = clean(searcher(g["keyword"], g["sub"], int(c.get("per_search") or 20), access, secret), drop)
+            if searcher is None:
+                js = getter(cs.SEARCH_PATH, {"keyword": g["keyword"], "limit": int(c.get("per_search") or 20), "subId": g["sub"]}, access, secret)
+                raw = cs.parse(js)
+                if not raw:
+                    print(f"::warning title=김박사 건강몰::{g['name']} 검색 0개 rCode={js.get('rCode')} {str(js.get('rMessage') or '')[:80]}")
+            else:
+                raw = searcher(g["keyword"], g["sub"], int(c.get("per_search") or 20), access, secret)
+            items = clean(raw, drop)
             at[g["slug"]] = now  # 실패해도 다음 차례로 넘어가도록 시도 시각은 남긴다(아래 except에서도)
             if items:
                 prods[g["slug"]] = items; ok += 1

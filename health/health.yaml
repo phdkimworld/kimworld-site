@@ -20,7 +20,7 @@ url: "https://health.drkimworld.com"
 custom_domain: health.drkimworld.com
 best_category: 1024          # 쿠팡 '헬스/건강식품'
 best_subid: hmbest
-per_search: 20
+per_search: 10            # 쿠팡 검색 API 한 번 최대 10개
 searches_per_run: 2          # 쿠팡 검색 API는 시간당 10회 — 사이트 배포(coupang_sync)가 시간당 8회까지 쓰므로 여기서는 2회만
 verification:                # 서치 콘솔·서치어드바이저에서 이 사이트(health.drkimworld.com)를 등록하고 받은 HTML 태그 값(공개값)
   google: ""
