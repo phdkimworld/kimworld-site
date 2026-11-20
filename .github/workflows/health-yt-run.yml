@@ -11,7 +11,7 @@ on:
         description: "자산이 있는 릴리스 태그(예: hw-2026-11-20)"
         required: true
       mode:
-        description: "upload | channel | comments | reply"
+        description: "upload | thumbs | channel | comments | reply"
         required: true
         default: upload
 
@@ -49,8 +49,12 @@ jobs:
               rc=0; python3 hw_upload.py meta.json out uploaded.json || rc=$?
               [ -s uploaded.json ] && gh release upload "$TAG" uploaded.json --clobber -R "$GITHUB_REPOSITORY"
               exit $rc ;;
+            thumbs)
+              mkdir -p out
+              for f in *__*.jpg; do [ -e "$f" ] || continue; s=${f%%__*}; mkdir -p out/$s; cp "$f" "out/$s/${f#*__}"; done
+              python3 hw_upload.py meta.json out uploaded.json --thumbs ;;
             channel) python3 hw_channel.py ;;
             comments) python3 hw_comments.py fetch comments.json && gh release upload "$TAG" comments.json --clobber -R "$GITHUB_REPOSITORY" ;;
             reply) python3 hw_comments.py reply replies.json replied.json; [ -s replied.json ] && gh release upload "$TAG" replied.json --clobber -R "$GITHUB_REPOSITORY" ;;
-            *) echo "::error::mode는 upload|channel|comments|reply"; exit 1 ;;
+            *) echo "::error::mode는 upload|thumbs|channel|comments|reply"; exit 1 ;;
           esac
