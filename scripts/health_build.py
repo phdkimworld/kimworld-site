@@ -214,6 +214,7 @@ h2.sec{margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}.row{sc
 .crumb{font-size:12px;color:var(--muted);margin:12px 0 0}.crumb a{text-decoration:none}
 footer{margin-top:40px;padding:22px 0 40px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}footer a{color:var(--ink)}
 .empty{color:var(--muted);padding:20px 0}
+.adbox{margin:22px 0;min-height:1px;text-align:center}
 """
 
 
@@ -249,6 +250,9 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
         nav.append(f'<a href="{up}best/" class="{"on" if on == "best" else ""}">건강식품 베스트</a>')
     v = c.get("verification") or {}
     meta = "".join(f'<meta name="{n}" content="{esc(v[k])}">' for k, n in (("google", "google-site-verification"), ("naver", "naver-site-verification"), ("bing", "msvalidate.01")) if v.get(k))
+    ad = c.get("adsense") or {}
+    adsense_head = (f'<meta name="google-adsense-account" content="{esc(ad["client"])}"><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={esc(ad["client"])}" crossorigin="anonymous"></script>'
+                    if ad.get("client") and not noindex else "")
     robots = '<meta name="robots" content="noindex,follow">' if noindex else '<meta name="robots" content="index,follow,max-image-preview:large">'
     lds = "".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in (ld or []))
     upd = esc(cat.get("updated") or "")
@@ -257,7 +261,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 <meta property="og:type" content="website"><meta property="og:site_name" content="{esc(c['name'])}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:url" content="{esc(canon)}"><meta property="og:locale" content="ko_KR">
 <meta name="theme-color" content="#2f9e6b">{meta}
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f9e6b'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%23fff'%3E건%3C/text%3E%3C/svg%3E">
-<style>{CSS}</style>{lds}</head><body>
+<style>{CSS}</style>{lds}{adsense_head}</head><body>
 <header><div class="wrap"><div class="top"><a class="logo" href="{up}">김박사 <span>건강몰</span></a><span class="tag">{esc(c['tagline'])}</span></div>
 <nav class="gn" aria-label="메뉴">{''.join(nav)}</nav></div></header>
 <main class="wrap"><p class="disc">{esc(DISCLOSURE)}</p>
@@ -265,6 +269,18 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 <footer><div class="wrap"><p>{esc(DISCLOSURE)} 성분 가이드는 식약처가 인정한 기능성 문구와 공개된 섭취 시 주의사항을 옮겨 정리한 일반 정보이며, 의학적 진단·상담을 대신하지 않습니다. 질환이 있거나 의약품을 복용 중이라면 의사·약사와 먼저 상담하세요.
 상품 목록은 쿠팡 검색·베스트 결과를 자동으로 가져온 것으로 추천·보증이 아니며, 건강기능식품 여부·함량·가격은 쿠팡 상품 페이지의 표시사항이 기준입니다{f" · 상품 갱신 {upd}(한국 시각)" if upd else ""}.</p>
 <p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer></body></html>"""
+
+
+def ad_slot(c: dict) -> str:
+    """애드센스 인아티클 한 개(번호가 있을 때) → 없으면 애드핏 단위(번호가 있을 때) → 없으면 빈칸. 쿠팡 상품 줄과 붙지 않는 자리(주의사항 뒤)."""
+    ad = c.get("adsense") or {}
+    if ad.get("client") and ad.get("slot_in_article"):
+        return (f'<div class="adbox"><ins class="adsbygoogle" style="display:block;text-align:center" data-ad-layout="in-article" data-ad-format="fluid" '
+                f'data-ad-client="{esc(ad["client"])}" data-ad-slot="{esc(ad["slot_in_article"])}"></ins><script>(adsbygoogle=window.adsbygoogle||[]).push({{}});</script></div>')
+    if c.get("adfit_unit"):
+        return (f'<div class="adbox"><ins class="kakao_ad_area" style="display:none;" data-ad-unit="{esc(c["adfit_unit"])}" data-ad-width="320" data-ad-height="100"></ins>'
+                '<script async src="//t1.daumcdn.net/kas/static/ba.min.js"></script></div>')
+    return ""
 
 
 def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
@@ -282,6 +298,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
 <table class="fn"><thead><tr><th>기능성 내용(인정 문구)</th><th>1일 섭취량 기준</th></tr></thead><tbody>{rows}</tbody></table>
 <p class="note">기능성 문구는 그 기능성 원료를 기준 섭취량만큼 넣어 인정받은 '건강기능식품'에만 표시할 수 있습니다. 같은 성분 이름이어도 일반식품에는 이 기능성이 없습니다.</p>
 <h2>섭취 시 주의사항</h2><div class="box"><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['cautions'])}</ul></div>
+{ad_slot(c)}
 <h2>고를 때 확인할 것</h2><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['choose'])}</ul>
 {funnel(c, "guide-" + g["slug"], "guide")}
 {prods}
@@ -361,6 +378,10 @@ def build(c: dict, cat: dict, out: Path) -> int:
     lastmod["about/"] = today
     w("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
       + "".join(f"<url><loc>{esc(base)}/{u}</loc><lastmod>{d}</lastmod></url>" for u, d in lastmod.items()) + "</urlset>")
+    ad = c.get("adsense") or {}
+    if ad.get("client", "").startswith("ca-pub-"):
+        # 하위 도메인 ads.txt(IAB 허용). 본 도메인 ads.txt는 사이트 빌드가 만든다
+        w("ads.txt", f"google.com, {ad['client'][3:]}, DIRECT, f08c47fec0942fa0\n")
     if c.get("indexnow_key"):
         w(f"{c['indexnow_key']}.txt", c["indexnow_key"])
     # /best/ 는 막지 않는다(막으면 noindex를 못 읽음). 페이지의 noindex로 색인에서 뺀다

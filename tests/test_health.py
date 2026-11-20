@@ -50,6 +50,9 @@ def main() -> int:
         assert '<link rel="canonical" href="https://health.drkimworld.com/guide/omega3/">' in g
         assert "noindex" not in g and '"@type": "Article"' in g
         assert "noindex" in (out / "best/index.html").read_text(encoding="utf-8")
+        # 애드센스: 색인 페이지에만 계정 코드, noindex 페이지에는 없음, ads.txt
+        assert "pagead2.googlesyndication.com" in g and "pagead2.googlesyndication.com" not in (out / "best/index.html").read_text(encoding="utf-8")
+        assert (out / "ads.txt").read_text().startswith("google.com, pub-")
         sm = (out / "sitemap.xml").read_text(encoding="utf-8")
         assert "/best/" not in sm and sm.count("<url>") == 3 + len(c["guides"])
         for f in out.rglob("*.html"):
