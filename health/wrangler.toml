@@ -1,0 +1,9 @@
+# 김박사 건강몰 — 정적 페이지만 서비스하는 워커(Workers Static Assets). 김박사 몰(kimworld-mall)과 같은 방식, 다른 워커.
+# 페이지는 health.yml 이 dist-health/ 에 만든다. 주소: kimworld-health.<계정 하위 도메인>.workers.dev → health.drkimworld.com
+name = "kimworld-health"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[assets]
+directory = "../dist-health"
+not_found_handling = "404-page"

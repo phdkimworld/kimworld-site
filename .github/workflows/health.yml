@@ -1,0 +1,73 @@
+# 김박사 건강몰(2026-11-19 운영자 "김박사 건강몰이란걸 하나 만들어서 영양제 위주로 채워줘 … 검색노출 … 서브로 안 겹치게"):
+# 성분 가이드 + 쿠팡 검색 결과 정적 사이트(scripts/health_build.py, 설정 health/health.yaml)를 Cloudflare 워커 정적 자산(kimworld-health)으로 올린다.
+# 하루 4번(한국 03:35·09:35·15:35·21:35) + 손으로. 쿠팡 검색은 한 번에 2회(시간당 10회 한도를 사이트 배포와 나눠 씀), 베스트 1회.
+name: Kimdr health mall
+
+on:
+  schedule:
+    - cron: "35 0,6,12,18 * * *"
+  workflow_dispatch:
+    inputs:
+      fetch:
+        description: "0이면 쿠팡 API를 부르지 않고 저장된 진열로만 다시 올림"
+        required: false
+        default: "1"
+  push:
+    branches: [main]
+    paths: ["health/health.yaml", "scripts/health_build.py", ".github/workflows/health.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kimdr-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+      COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Test, fetch and build
+        run: |
+          pip install -q pyyaml
+          python3 tests/test_health.py
+          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/health_build.py --build dist-health; else python3 scripts/health_build.py --fetch --build dist-health; fi
+      - name: Deploy (Cloudflare Workers static assets)
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error title=김박사 건강몰::Cloudflare 비밀값 없음"; exit 1; }
+          cd health && npx --yes wrangler@3.99.0 deploy 2>&1 | tail -8 | tee ../.deploy.txt
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' ../.deploy.txt | head -1)
+          [ -n "$URL" ] || { echo "::error title=김박사 건강몰 배포::$(tail -3 ../.deploy.txt | tr '\n' ' ' | head -c 300)"; exit 1; }
+          echo "::notice title=김박사 건강몰 배포::$URL"
+      - name: Custom domain (best effort)
+        continue-on-error: true
+        run: |
+          D=$(python3 -c "import yaml;print(yaml.safe_load(open('health/health.yaml')).get('custom_domain') or '')")
+          [ -n "$D" ] || exit 0
+          cd health && cp wrangler.toml wrangler.cd.toml && printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "$D" >> wrangler.cd.toml
+          npx --yes wrangler@3.99.0 deploy -c wrangler.cd.toml 2>&1 | tail -6 > ../.cd.txt || true
+          if grep -q "$D" ../.cd.txt && ! grep -qi "error" ../.cd.txt; then echo "::notice title=김박사 건강몰 도메인::https://$D 연결"; else echo "::notice title=김박사 건강몰 도메인::못 붙임 — $(grep -i error ../.cd.txt | head -1 | head -c 200)"; fi
+      - name: Commit catalog
+        if: always() && inputs.fetch != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          [ -f health/catalog.json ] || exit 0
+          git add health/catalog.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "김박사 건강몰 진열 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

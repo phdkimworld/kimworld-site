@@ -86,6 +86,13 @@ def main() -> int:
                    + f" (합계 {sum(v['clicks'] for v in mb.values())}클릭/{sum(v['commission'] for v in mb.values())}원)"
                    + " | /mall/ 랜딩 " + (" · ".join(f"{l['src']} {l['sess']}" for l in ml) or "0")
                    + f" | 진열 특가 {len(mc.get('deals') or [])} · 카테고리 {len(mc.get('cats') or {})} · 갱신 {mc.get('updated') or '없음'}")
+    # 김박사 건강몰(2026-11-19, health.drkimworld.com): 쿠팡 하위 ID hm…(성분별 hm<코드> · 베스트 hmbest). 이 하위 ID도 쿠팡 칸 '기타'에 들어 있다
+    if c:
+        hb = {k: v for k, v in (c.get("by_sub") or {}).items() if k.startswith("hm")}
+        hc = json.loads((ROOT / "health" / "catalog.json").read_text(encoding="utf-8")) if (ROOT / "health" / "catalog.json").exists() else {}
+        out.append("- 김박사 건강몰: " + (" · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in hb.items()) or "쿠팡 클릭 0")
+                   + f" (합계 {sum(v['clicks'] for v in hb.values())}클릭/{sum(v['commission'] for v in hb.values())}원)"
+                   + f" | 진열 성분 {len(hc.get('products') or {})} · 베스트 {len(hc.get('best') or [])} · 갱신 {hc.get('updated') or '없음'}")
     shop = ROOT / "social" / "youtube" / "shop.json"
     if shop.exists():
         log = json.loads(shop.read_text(encoding="utf-8"))
