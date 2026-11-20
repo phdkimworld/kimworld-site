@@ -57,7 +57,9 @@ def check(c: dict) -> list[str]:
         seen.add(s)
         if not str(g.get("sub", "")).startswith("hm"):
             errs.append(f"{s}: 하위 ID는 hm 으로 시작해야 함")
-        for k in ("name", "keyword", "match", "intro", "functions", "cautions", "choose", "sources", "verified"):
+        if not (g.get("keywords") or g.get("keyword")):
+            errs.append(f"{s}: keywords 없음")
+        for k in ("name", "match", "intro", "functions", "cautions", "choose", "sources", "verified"):
             if not g.get(k):
                 errs.append(f"{s}: {k} 없음")
         text = " ".join([str(g.get("intro", ""))] + [f.get("text", "") + f.get("dose", "") for f in g.get("functions") or []]
@@ -99,11 +101,32 @@ def get(path: str, q: dict, access: str, secret: str) -> dict:
         return json.loads(r.read().decode("utf-8"))
 
 
-def plan(c: dict, cat: dict) -> list[dict]:
-    """가장 오래 전에 받은(또는 한 번도 안 받은) 성분부터 searches_per_run 개."""
+def pairs(c: dict) -> list[tuple[dict, str]]:
+    return [(g, k) for g in c.get("guides") or [] for k in (g.get("keywords") or [g["keyword"]])]
+
+
+def plan(c: dict, cat: dict) -> list[tuple[dict, str]]:
+    """가장 오래 전에 받은(또는 한 번도 안 받은) (성분, 검색어)부터 searches_per_run 개. 같은 성분이 한 번에 두 번 걸리지 않게."""
     at = cat.get("at") or {}
-    gs = sorted(c.get("guides") or [], key=lambda g: at.get(g["slug"], ""))
-    return gs[: int(c.get("searches_per_run") or 2)]
+    out, used = [], set()
+    for g, k in sorted(pairs(c), key=lambda gk: at.get(f"{gk[0]['slug']}|{gk[1]}", "")):
+        if g["slug"] in used:
+            continue
+        out.append((g, k)); used.add(g["slug"])
+        if len(out) >= int(c.get("searches_per_run") or 2):
+            break
+    return out
+
+
+def merge(new: list[dict], old: list[dict], today: str, keep: int, days: int) -> list[dict]:
+    """새로 찾은 상품을 앞에, 예전 상품은 뒤에(이름 기준 중복 제거). days 일 동안 다시 안 잡힌 것은 뺀다."""
+    cut = (dt.date.fromisoformat(today) - dt.timedelta(days=days)).isoformat()
+    out, seen = [], set()
+    for p in [{**x, "seen": today} for x in new] + [{**x, "seen": x.get("seen") or today} for x in old if (x.get("seen") or today) >= cut]:
+        if p["name"] in seen:
+            continue
+        seen.add(p["name"]); out.append(p)
+    return out[:keep]
 
 
 def fetch(c: dict, searcher=None, getter=get) -> dict:
@@ -124,22 +147,24 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
         print(f"::warning title=김박사 건강몰::베스트 실패 {type(e).__name__}")
     prods, at = cat.setdefault("products", {}), cat.setdefault("at", {})
     now = dt.datetime.now(KST).strftime("%Y-%m-%d %H:%M")
-    for g in plan(c, cat):
+    today = now[:10]
+    for g, kw in plan(c, cat):
+        key = f"{g['slug']}|{kw}"
+        at[key] = now  # 실패해도 다음 차례로 넘어가도록 시도 시각은 남긴다
         try:
             if searcher is None:
-                js = getter(cs.SEARCH_PATH, {"keyword": g["keyword"], "limit": int(c.get("per_search") or 20), "subId": g["sub"]}, access, secret)
+                js = getter(cs.SEARCH_PATH, {"keyword": kw, "limit": int(c.get("per_search") or 10), "subId": g["sub"]}, access, secret)
                 raw = cs.parse(js)
                 if not raw:
-                    print(f"::warning title=김박사 건강몰::{g['name']} 검색 0개 rCode={js.get('rCode')} {str(js.get('rMessage') or '')[:80]}")
+                    print(f"::warning title=김박사 건강몰::{kw} 검색 0개 rCode={js.get('rCode')} {str(js.get('rMessage') or '')[:80]}")
             else:
-                raw = searcher(g["keyword"], g["sub"], int(c.get("per_search") or 20), access, secret)
+                raw = searcher(kw, g["sub"], int(c.get("per_search") or 10), access, secret)
             items = clean(raw, drop, g.get("match") or [g["name"]])
-            at[g["slug"]] = now  # 실패해도 다음 차례로 넘어가도록 시도 시각은 남긴다(아래 except에서도)
-            if items:
-                prods[g["slug"]] = items; ok += 1
+            prods[g["slug"]] = merge(items, prods.get(g["slug"]) or [], today, int(c.get("keep_items") or 24), int(c.get("keep_days") or 14))
+            ok += bool(items)
+            print(f"{kw}: 받은 {len(raw)} · 관련 {len(items)} · 쌓인 {len(prods[g['slug']])}")
         except Exception as e:
-            at[g["slug"]] = now
-            print(f"::warning title=김박사 건강몰::{g['name']} 검색 실패 {type(e).__name__} {str(e)[:80]}")
+            print(f"::warning title=김박사 건강몰::{kw} 검색 실패 {type(e).__name__} {str(e)[:80]}")
     if ok:
         cat["updated"] = now
     CAT.parent.mkdir(parents=True, exist_ok=True)
@@ -163,8 +188,8 @@ nav.gn a{flex:none;padding:5px 12px;border:1px solid var(--line);border-radius:9
 .hero{margin:14px 0 6px;padding:22px 18px;border-radius:16px;background:var(--soft)}.hero h1{margin:0 0 6px;font-size:23px;line-height:1.35}.hero p{margin:0;color:var(--muted);font-size:14px}
 h1.t{font-size:24px;line-height:1.35;margin:18px 0 6px}.lead{color:var(--muted);margin:0 0 14px}
 h2{font-size:19px;margin:28px 0 10px}h2 small{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
-.gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-.gc{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none}.gc b{font-size:16px}.gc small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.gc p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.gl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media(min-width:720px){.gl{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}}
+.gc{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none}.gc b{font-size:16px}.gc small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.gc p{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}@media(min-width:720px){.gc p{font-size:13px}}
 table.fn{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
 table.fn th,table.fn td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}table.fn th{background:var(--soft);font-size:13px}
 ul.ck{padding-left:20px}ul.ck li{margin:4px 0}.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
@@ -177,6 +202,11 @@ ul.ck{padding-left:20px}ul.ck li{margin:4px 0}.box{background:var(--card);border
 .ad{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:middle}
 .fnl{margin:22px 0;padding:16px;border-radius:14px;border:2px solid var(--accent);background:var(--card)}.fnl h3{margin:0 0 4px;font-size:17px}.fnl p{margin:0 0 10px;color:var(--muted);font-size:14px}
 .btn{display:inline-block;padding:10px 18px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;text-decoration:none}
+.kicker{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--accent)}.hero .btn{margin-top:14px}
+@media(min-width:720px){.hero{padding:38px 34px}.hero h1{font-size:32px}}
+nav.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}nav.chips a{padding:5px 12px;border:1px solid var(--line);border-radius:999px;text-decoration:none;font-size:13px;background:var(--card)}
+.row h2{display:flex;align-items:baseline;gap:6px;font-size:17px}.row h2 a.more{margin-left:auto;font-size:13px;font-weight:400;color:var(--muted);text-decoration:none}
+h2.sec{margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}.row{scroll-margin-top:110px}
 .crumb{font-size:12px;color:var(--muted);margin:12px 0 0}.crumb a{text-decoration:none}
 footer{margin-top:40px;padding:22px 0 40px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}footer a{color:var(--ink)}
 .empty{color:var(--muted);padding:20px 0}
@@ -234,6 +264,8 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 
 
 def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
+    others = '<h2>다른 성분 가이드</h2><nav class="chips">' + "".join(
+        f'<a href="../{o["slug"]}/">{esc(o["name"])}</a>' for o in c.get("guides") or [] if o["slug"] != g["slug"]) + "</nav>"
     rows = "".join(f"<tr><td>{esc(f['text'])}</td><td>{esc(f['dose'])}</td></tr>" for f in g["functions"])
     items = clean((cat.get("products") or {}).get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
@@ -249,6 +281,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
 <h2>고를 때 확인할 것</h2><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['choose'])}</ul>
 {funnel(c, "guide-" + g["slug"], "guide")}
 {prods}
+{others}
 <h2>출처</h2><ul class="src">{"".join(f'<li><a href="{esc(s["url"])}" rel="nofollow noopener" target="_blank">{esc(s["title"])}</a></li>' for s in g['sources'])}</ul>
 <p class="note">내용 확인일 {esc(g['verified'])}. 기준은 바뀔 수 있으니 제품 표시사항과 식품안전나라에서 함께 확인하세요.</p>"""
     desc = f"{g['name']}({g['aka']}) 식약처 인정 기능성 문구, 1일 섭취량 기준, 섭취 시 주의사항과 고를 때 확인할 것을 한 페이지에 정리했습니다."
@@ -272,8 +305,20 @@ def build(c: dict, cat: dict, out: Path) -> int:
     # 홈
     best = clean(cat.get("best") or [], c.get("drop_words") or [], [m for g in guides for m in g.get("match") or []])
     cat = {**cat, "best_shown": bool(best)}
-    home = [f'<section class="hero"><h1>영양제, 사기 전에 확인할 것만 모았습니다</h1><p>식약처가 인정한 기능성 문구, 하루 섭취량 기준, 섭취 시 주의사항을 성분별로 정리하고, 쿠팡에서 바로 비교할 수 있게 연결합니다.</p></section>',
-            '<h2>성분 가이드</h2>' + gl.replace("{up}", ""), funnel(c, "home")]
+    prods = cat.get("products") or {}
+    chips = '<nav class="chips" aria-label="성분">' + "".join(f'<a href="#{g["slug"]}">{esc(g["name"])}</a>' for g in guides if prods.get(g["slug"])) + "</nav>"
+    home = ['<section class="hero"><p class="kicker">김박사 건강몰</p><h1>영양제, 사기 전에<br>확인할 것만 모았습니다</h1>'
+            '<p>성분마다 식약처가 인정한 기능성 문구, 하루 섭취량 기준, 섭취 시 주의사항을 먼저 정리했습니다. 확인한 다음 쿠팡에서 비교해 보세요.</p>'
+            '<a class="btn" href="guide/">성분 가이드 보기</a></section>',
+            '<h2>성분 가이드<small>기능성·섭취량·주의사항</small></h2>' + gl.replace("{up}", ""), funnel(c, "home")]
+    rows = []
+    for g in guides:
+        items = clean(prods.get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
+        if items:
+            rows.append(f'<section class="row" id="{g["slug"]}"><h2>{esc(g["name"])}<span class="ad">광고</span><a class="more" href="guide/{g["slug"]}/">고르는 법 먼저 보기 ›</a></h2>'
+                        f'<div class="grid">{"".join(card(p) for p in items[:5])}</div></section>')
+    if rows:
+        home.append('<h2 class="sec">성분별 쿠팡 상품<small>쿠팡 검색 결과 · 추천·보증 아님</small></h2>' + chips + "".join(rows))
     if best:
         home.append(f'<h2>헬스·건강식품 베스트<span class="ad">광고</span><small>쿠팡 카테고리 베스트</small></h2><div class="grid">{"".join(card(p) for p in best[:10])}</div><p><a href="best/">전체 보기 ›</a></p>')
     w("index.html", page(c, cat, f"{c['name']} — {c['tagline']}", "".join(home), "", "오메가3·루테인·밀크씨슬·홍삼 등 영양제의 식약처 인정 기능성, 하루 섭취량, 섭취 시 주의사항을 성분별로 정리한 가이드.", "home",
@@ -297,7 +342,8 @@ def build(c: dict, cat: dict, out: Path) -> int:
                   {"@type": "ListItem", "position": 2, "name": "성분 가이드", "item": base + "/guide/"},
                   {"@type": "ListItem", "position": 3, "name": g["name"], "item": base + "/" + p}]}]
         w(p + "index.html", page(c, cat, title, body, p, desc, g["slug"], ld=ld))
-        lastmod[p] = max(g["verified"], ((cat.get("at") or {}).get(g["slug"]) or "")[:10])
+        seen = [x.get("seen", "") for x in (cat.get("products") or {}).get(g["slug"]) or []]
+        lastmod[p] = max([g["verified"]] + seen)
     # 베스트(상품만 있는 페이지 — 검색 색인 제외)
     if best:
         w("best/index.html", page(c, cat, f"헬스·건강식품 베스트 | {c['name']}", f'<h1 class="t">헬스·건강식품 베스트<span class="ad">광고</span></h1><p class="lead">쿠팡 헬스/건강식품 카테고리 베스트를 자동으로 가져옵니다. 추천·보증이 아닙니다.</p><div class="grid">{"".join(card(p) for p in best)}</div>',

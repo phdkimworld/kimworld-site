@@ -27,10 +27,18 @@ def main() -> int:
     assert hb.clean([{"name": "코카콜라 제로", "url": "https://link.coupang.com/a/q"}], c["drop_words"], c["guides"][0]["match"]) == []
     assert [p["url"] for p in kept] == ["https://link.coupang.com/a/y"], kept
     # 검색 순서: 한 번도 안 받은 것 → 오래된 것
-    cat = {"at": {g["slug"]: "2026-11-19 10:00" for g in c["guides"]}}
-    cat["at"]["lutein"] = "2026-11-01 00:00"
-    del cat["at"]["coq10"]
-    assert [g["slug"] for g in hb.plan(c, cat)] == ["coq10", "lutein"]
+    cat = {"at": {f"{g['slug']}|{k}": "2026-11-19 10:00" for g, k in hb.pairs(c)}}
+    cat["at"]["lutein|루테인"] = "2026-11-01 00:00"
+    del cat["at"]["coq10|코큐텐"]
+    assert [(g["slug"], k) for g, k in hb.plan(c, cat)] == [("coq10", "코큐텐"), ("lutein", "루테인")]
+    # 한 번에 같은 성분 두 번 안 함
+    cat2 = {"at": {f"{g['slug']}|{k}": "2026-11-19 10:00" for g, k in hb.pairs(c)}}
+    cat2["at"]["omega3|오메가3"] = cat2["at"]["omega3|rTG 오메가3"] = "2026-11-01 00:00"
+    assert [g["slug"] for g, _ in hb.plan(c, cat2)][0] == "omega3" and len({g["slug"] for g, _ in hb.plan(c, cat2)}) == 2
+    # 누적: 새 것이 앞, 14일 지난 것은 빠짐, 중복 이름 하나
+    old = [{"name": "A", "url": "u", "seen": "2026-11-01"}, {"name": "B", "url": "u", "seen": "2026-11-18"}]
+    m = hb.merge([{"name": "C", "url": "u"}, {"name": "B", "url": "u"}], old, "2026-11-20", 24, 14)
+    assert [x["name"] for x in m] == ["C", "B"] and m[1]["seen"] == "2026-11-20"
     # 빌드: 상품 링크는 sponsored, 대가성 문구, noindex는 best만, sitemap에 best 없음
     cat = {"updated": "2026-11-19 12:00", "best": [{"name": "홍삼정", "url": "https://link.coupang.com/a/b", "price": 30000}],
            "products": {"omega3": kept}, "at": {"omega3": "2026-11-19 12:00"}}
