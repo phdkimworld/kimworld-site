@@ -12,7 +12,7 @@
 - VIDEO_IDS 를 주면 그 영상만 대상으로 한다(같은 검사를 거친다).
 - MODE=revert + VIDEO_IDS: 로그의 옛 설명으로 되돌린다.
 환경 변수: YT_CLIENT_ID·YT_CLIENT_SECRET·YT_REFRESH_TOKEN(값 출력 금지), MODE, LIMIT, VIDEO_IDS, DESC_LOG(기록 파일 경로).
-실행 통로: 유튜브 키가 있는 미디어 저장소 워크플로 `yt-desc.yml`(이 저장소를 체크아웃해 이 스크립트를 부르고, 기록은 미디어 저장소 review/yt_desc_log.json). 사이트 저장소 Actions에는 유튜브 키가 없다(2026-11-19 확인).
+실행 통로: 이 저장소 워크플로 `yt-desc.yml`(2026-11-20 제작팀이 YT_* 비밀값을 넣음, 같은 날 plan 시험으로 확인). 기록은 social/youtube/desc_log.json(미디어 저장소 review/yt_desc_log.json 30건을 이어받음).
 """
 import datetime as dt
 import json
