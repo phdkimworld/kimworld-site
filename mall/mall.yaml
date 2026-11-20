@@ -15,14 +15,14 @@ entry_subid: mallgo
 deal_subid: mallgb
 per_category: 30
 categories:
-  - {id: 1012, slug: food,    name: "식품",        sub: mallfood,  group: "장보기"}
-  - {id: 1014, slug: living,  name: "생활용품",    sub: mallliv,   group: "장보기"}
-  - {id: 1013, slug: kitchen, name: "주방용품",    sub: mallkit,   group: "장보기"}
-  - {id: 1015, slug: interior, name: "홈인테리어", sub: mallhome,  group: "장보기"}
-  - {id: 1016, slug: digital, name: "가전·디지털", sub: malldig,   group: "취향"}
-  - {id: 1017, slug: sports,  name: "스포츠·레저", sub: mallspo,   group: "취향"}
-  - {id: 1019, slug: books,   name: "도서",        sub: mallbook,  group: "취향"}
-  - {id: 1018, slug: car,     name: "자동차용품",  sub: mallcar,   group: "취향"}
-  - {id: 1002, slug: men,     name: "남성패션",    sub: mallmen,   group: "취향"}
-  - {id: 1024, slug: health,  name: "헬스·건강식품", sub: mallhlth, group: "장보기"}
-  - {id: 1029, slug: pet,     name: "반려동물",    sub: mallpet,   group: "장보기"}
+  - {id: 1012, slug: food,    name: "식품",        sub: mallfood,  group: "장보기", icon: "🍚"}
+  - {id: 1014, slug: living,  name: "생활용품",    sub: mallliv,   group: "장보기", icon: "🧻"}
+  - {id: 1013, slug: kitchen, name: "주방용품",    sub: mallkit,   group: "장보기", icon: "🍳"}
+  - {id: 1015, slug: interior, name: "홈인테리어", sub: mallhome,  group: "장보기", icon: "🛋️"}
+  - {id: 1016, slug: digital, name: "가전·디지털", sub: malldig,   group: "취향", icon: "🖥️"}
+  - {id: 1017, slug: sports,  name: "스포츠·레저", sub: mallspo,   group: "취향", icon: "⛳"}
+  - {id: 1019, slug: books,   name: "도서",        sub: mallbook,  group: "취향", icon: "📚"}
+  - {id: 1018, slug: car,     name: "자동차용품",  sub: mallcar,   group: "취향", icon: "🚗"}
+  - {id: 1002, slug: men,     name: "남성패션",    sub: mallmen,   group: "취향", icon: "👔"}
+  - {id: 1024, slug: health,  name: "헬스·건강식품", sub: mallhlth, group: "장보기", icon: "🏃"}
+  - {id: 1029, slug: pet,     name: "반려동물",    sub: mallpet,   group: "장보기", icon: "🐾"}
