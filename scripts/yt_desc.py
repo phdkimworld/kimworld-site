@@ -85,6 +85,25 @@ def line_for(t: str, tk: dict) -> str:
     return f"📊 {name}({t}) 최신 리포트 모음 👉 https://drkimworld.com/t/{t.lower()}/?{q}"
 
 
+MALL = "🛒 김박사 몰(쿠팡 장보기 입구): https://drkimworld.com/mall/?utm_source=youtube&utm_medium=video&utm_campaign=old&utm_content=mall"
+DISC = "※ 이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+
+
+def new_desc(old: str, site_line: str) -> str:
+    """2026-11-19 운영자 "내 모든 컨텐츠에 트래픽 있을거 같은데다가 다 배포해": 맨 위 사이트 링크(없을 때만, 사이트와 안 이어진 영상) +
+    그 바로 아래 김박사 몰 한 줄(없을 때) + 맨 끝 쿠팡 대가성 문구(없을 때). 나머지는 그대로."""
+    lines = old.split("\n") if old else []
+    if site_line:
+        lines = [site_line] + lines
+    if "drkimworld.com/mall" not in old:
+        at = 1 if lines and "drkimworld.com" in lines[0] else 0
+        lines = lines[:at] + [MALL] + lines[at:]
+    out = "\n".join(lines)
+    if "쿠팡 파트너스" not in out:
+        out = out.rstrip() + "\n\n" + DISC
+    return out[:4900]
+
+
 def put(tok, body):
     req = urllib.request.Request(yc.API + "videos?part=snippet", data=json.dumps(body).encode(), method="PUT",
                                  headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"})
@@ -119,8 +138,8 @@ def main() -> int:
         return 0
 
     tk, linked = tickers(), linked_ids()
-    already = {e["id"] for e in log if e.get("action") == "prepend"}
-    cands = [(v, g) for v, g in (gains7() if not want else [(w, 0) for w in want]) if v not in linked and v not in already]
+    already = {e["id"] for e in log if e.get("action") in ("prepend", "mall")}
+    cands = [(v, g) for v, g in (gains7() if not want else [(w, 0) for w in want]) if v not in already]
     picked, seen = [], 0
     for i in range(0, min(len(cands), 120), 50):
         chunk = cands[i:i + 50]
@@ -129,18 +148,19 @@ def main() -> int:
         for v, g in chunk:
             seen += 1
             sn = by.get(v)
-            if not sn or "drkimworld.com" in "\n".join((sn.get("description") or "").splitlines()[:3]):
+            if not sn:
                 continue
-            t = find_ticker(sn, tk)
-            if not t:
-                continue
+            d0 = sn.get("description") or ""
+            t = find_ticker(sn, tk) if v not in linked and "drkimworld.com" not in "\n".join(d0.splitlines()[:3]) else None
+            if "drkimworld.com/mall" in d0 and not t:
+                continue  # 이미 몰 줄이 있고 사이트 줄도 필요 없음
             picked.append((v, g, t, sn))
             if len(picked) >= limit:
                 break
         if len(picked) >= limit:
             break
     for v, g, t, sn in picked:
-        print(f"::notice title=옛 영상 설명 {'바꿈' if mode == 'apply' else '후보'}::{v} {t} +{g}/7일 · {sn.get('title', '')[:50]}")
+        print(f"::notice title=옛 영상 설명 {'바꿈' if mode == 'apply' else '후보'}::{v} {'사이트+' + t if t else '몰만'} +{g}/7일 · {sn.get('title', '')[:50]}")
     if mode != "apply":
         print(f"::notice title=옛 영상 설명::후보 {len(picked)}편(살펴본 {seen}편) — MODE=apply 로 실행하면 바꿈")
         return 0
@@ -148,13 +168,15 @@ def main() -> int:
     for v, g, t, sn in picked:
         body = {"id": v, "snippet": {k: sn[k] for k in WRITABLE if k in sn}}
         old = sn.get("description") or ""
-        body["snippet"]["description"] = (line_for(t, tk) + "\n" + old)[:4900]
+        body["snippet"]["description"] = new_desc(old, line_for(t, tk) if t else "")
+        if body["snippet"]["description"] == old:
+            continue
         try:
             put(tok, body)
         except urllib.error.HTTPError as e:
             print(f"::warning title=옛 영상 설명::{v} HTTP {e.code} {yc.err(e)[:120]}")
             continue
-        log.append({"id": v, "ticker": t, "gain7": g, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "action": "prepend", "old_description": old})
+        log.append({"id": v, "ticker": t, "gain7": g, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "action": "mall", "site_line": bool(t), "old_description": old})
         ok += 1
     LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"::notice title=옛 영상 설명::{ok}편 바꿈 · 기록 social/youtube/desc_log.json")

@@ -136,6 +136,16 @@ def cpas_block() -> str:
             f'<p style="color:#888;font-size:12px;margin:4px 0 0">{CPAS_DISCLOSURE}</p></div>')
 
 
+MALL_MARK = "<!--kw-mall-->"
+
+
+def mall_line() -> str:
+    """김박사 몰 입구 한 줄(2026-11-19 운영자 "김박사 몰부터" → "내 모든 컨텐츠에 … 다 배포해"): 사이트 /mall/ → 쇼핑몰 mall.drkimworld.com.
+    유입은 사이트 통계 utm_source=blogger. backfill_ads가 기존 글에도 넣는다(쿠팡 칸 바로 뒤)."""
+    return (f'{MALL_MARK}<p style="margin:10px 0">🛒 <a href="{BASE}/mall/?utm_source=blogger&amp;utm_medium=post&amp;utm_content=mall" rel="sponsored nofollow">김박사 몰</a>'
+            ' — 쿠팡 장보실 때 이 입구로 들어가 주시면 같은 가격으로 채널 운영에 도움이 됩니다.</p>')
+
+
 ADFIT_MARK = "<!--kw-adfit-->"
 # 애드핏 매체 '김박사 월드 블로그'(phdkimworld.blogspot.com)의 300x250 단위(운영자 생성 2026-11-06). 비우면 넣지 않는다
 # 2026-11-15 운영자 지시 "블로거에선 애드핏 제거"(매체 심사 보류): 기본값을 비워 새 글에 넣지 않고, ads_backfill이 기존 글의 칸을 지운다.
@@ -204,8 +214,7 @@ def body(slug: str, fm: dict) -> str:
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
     parts.append(adfit_block())
     parts.append(cpas_block())
-    # 김박사 몰 입구 한 줄(2026-11-19 운영자 "김박사 몰부터"): 사이트 /mall/ → 김박사 몰 쇼핑몰. 유입은 사이트 통계 utm_source=blogger
-    parts.append(f'<p style="margin:10px 0">🛒 <a href="{BASE}/mall/?utm_source=blogger&amp;utm_medium=post&amp;utm_content=mall" rel="sponsored nofollow">김박사 몰</a> — 쿠팡 장보실 때 이 입구로 들어가 주시면 채널 운영에 도움이 됩니다.</p>')
+    parts.append(mall_line())
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
         "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "
@@ -284,6 +293,10 @@ def backfill_ads(tok: str, limit: int) -> int:
             if CPAS_MARK not in nc:
                 i = nc.rfind('<p style="color:#888;font-size:13px">')
                 nc = (nc[:i] + cpas_block() + nc[i:]) if i >= 0 else (nc + cpas_block())
+            if MALL_MARK not in nc:  # 김박사 몰 한 줄(2026-11-19): 쿠팡 칸 바로 뒤
+                i = nc.find(CPAS_MARK)
+                j = nc.find("</p></div>", i) + len("</p></div>") if i >= 0 and nc.find("</p></div>", i) >= 0 else -1
+                nc = (nc[:j] + mall_line() + nc[j:]) if j > 0 else (nc + mall_line())
             if BLOGGER_ADFIT_UNIT and ADFIT_MARK not in nc:  # 애드핏은 쿠팡 칸 바로 앞(2026-11-06)
                 i = nc.find(CPAS_MARK)
                 nc = nc[:i] + adfit_block() + nc[i:]
@@ -309,7 +322,7 @@ def backfill_ads(tok: str, limit: int) -> int:
         page = js.get("nextPageToken") or ""
         if not page:
             break
-    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건 고침(쿠팡 넣기·애드핏 " + ("넣기·코드 교체" if BLOGGER_ADFIT_UNIT else "지우기") + ")")
+    print(f"::notice title=블로거 쿠팡 칸::기존 글 {done}건 고침(쿠팡·김박사 몰 넣기·애드핏 " + ("넣기·코드 교체" if BLOGGER_ADFIT_UNIT else "지우기") + ")")
     return done
 
 

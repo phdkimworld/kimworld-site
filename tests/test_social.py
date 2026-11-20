@@ -59,7 +59,9 @@ with tempfile.TemporaryDirectory() as d:
     W("c.json", {"text": "글만", "publish_at": past, "channels": ["threads", "instagram"]})
     check("두 채널 게시 성공", sp.main([]) == 0)
     posted = json.loads((sp.POSTED / "a.json").read_text())
-    check("Threads 본문 → 댓글 순서", len(posted["results"]["threads"]["ids"]) == 2)
+    # 2026-11-19 "다 배포해": 사이트 링크가 있는 글은 맨 끝에 김박사 몰 입구 댓글 하나가 더 붙는다(본문 → 댓글 → 몰)
+    check("Threads 본문 → 댓글 → 김박사 몰 순서", len(posted["results"]["threads"]["ids"]) == 3)
+    check("Facebook 첫 댓글에 김박사 몰 줄", "/mall/?utm_source=facebook" in sp.fb_comment_text("댓글 https://drkimworld.com/r/x/?utm_source=threads"))
     th = [l for l in log if l[0] == sp.TH_API and l[2] == "9/threads"]
     check("투표는 Threads 본문에만 poll_attachment 로",
           json.loads(th[0][3].get("poll_attachment", "{}")) == {"option_a": "오른다", "option_b": "내린다", "option_c": "그대로"}

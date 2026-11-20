@@ -784,6 +784,14 @@ with _tf.TemporaryDirectory() as _d:
     _mb.build(_mc, {}, Path(_d))
     check((Path(_d) / "index.html").exists(), "몰: 진열이 없어도 홈은 만든다")
 
+# 김박사 몰 배포(2026-11-19 "다 배포해"): 옛 유튜브 설명란에 몰 줄·대가성 문구, 블로거 글 몰 줄
+import yt_desc as _yd
+_d1 = _yd.new_desc("📊 리포트 https://drkimworld.com/r/x/\n본문", "")
+check(_d1.splitlines()[1].startswith("🛒 김박사 몰") and _d1.rstrip().endswith(_yd.DISC), "옛 영상: 리포트 줄 아래 몰 줄 + 끝에 대가성 문구")
+check(_yd.new_desc(_d1, "") == _d1, "옛 영상: 이미 있으면 그대로")
+import blogger_post as _bp
+check(_bp.MALL_MARK in _bp.mall_line() and "/mall/?utm_source=blogger" in _bp.mall_line(), "블로거: 김박사 몰 한 줄")
+
 print()
 if FAILS:
     print(f"실패 {len(FAILS)}개")

@@ -1309,6 +1309,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
     scorecard = load_yaml(ROOT / "data" / "scorecard.json", {}) or {}
     common = {
         "has_scorecard": bool(scorecard.get("judged")),
+        # 김박사 몰(2026-11-19 "다 배포해"): 하단 메뉴 한 줄(사이트 본문에는 쿠팡 상품을 싣지 않는다 — 몰 입구 링크만)
+        "has_mall": str((load_yaml(ROOT / "mall" / "mall.yaml", {}) or {}).get("url") or "").startswith("https://"),
         "site": site, "base": base_path, "themes": themes, "ads": ads, "ads_head": ads.head_tags(),
         "asset_ver": asset_ver, "year": today.year, "tickers": tickers,
         # 그림 애니메이션 파일(fig.js·GSAP)은 내용이 바뀔 때만 주소가 바뀐다(빌드마다 바뀌는 asset_ver 를 쓰면 재방문 때 다시 받음)
