@@ -357,6 +357,8 @@ def build(c: dict, cat: dict, out: Path) -> int:
     lastmod["about/"] = today
     w("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
       + "".join(f"<url><loc>{esc(base)}/{u}</loc><lastmod>{d}</lastmod></url>" for u, d in lastmod.items()) + "</urlset>")
+    if c.get("indexnow_key"):
+        w(f"{c['indexnow_key']}.txt", c["indexnow_key"])
     # /best/ 는 막지 않는다(막으면 noindex를 못 읽음). 페이지의 noindex로 색인에서 뺀다
     w("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n")
     print(f"김박사 건강몰 만들기: 가이드 {len(guides)} · 상품 있는 가이드 {len(cat.get('products') or {})} · 베스트 {len(best)} → {out}")

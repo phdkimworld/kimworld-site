@@ -1,0 +1,34 @@
+# 김박사 건강몰 검색 등록(2026-11-20 운영자 "검색인덱스도 다 등록해 모든 검색포털에"). 손으로만 실행.
+# 키: 김박사 건강월드 계정 토큰(HEALTH_YT_*, 범위 siteverification·webmasters 포함).
+#  mode=token    구글 사이트 확인 메타 태그 값을 받아 주석으로(공개값 — health.yaml verification.google 에 넣고 배포)
+#  mode=verify   메타 태그로 소유 확인 → 서치 콘솔에 사이트 추가 → 사이트맵 제출
+#  mode=status   서치 콘솔 속성·사이트맵 상태
+#  mode=indexnow 사이트맵의 모든 주소를 IndexNow(빙·네이버·얀덱스 등)로 알림
+name: Health search registration
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "token | verify | status | indexnow"
+        required: true
+        default: status
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CID: ${{ secrets.HEALTH_YT_CLIENT_ID }}
+      CSEC: ${{ secrets.HEALTH_YT_CLIENT_SECRET }}
+      RT: ${{ secrets.HEALTH_YT_REFRESH_TOKEN }}
+      MODE: ${{ inputs.mode }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run
+        run: |
+          pip install -q pyyaml
+          python3 scripts/health_search.py
