@@ -11,6 +11,7 @@
 - 한 번에 최대 LIMIT(기본 10, 상한 15)편. MODE=plan 이면 고르기만 하고 바꾸지 않는다(기본). MODE=apply 일 때만 바꾼다.
 - VIDEO_IDS 를 주면 그 영상만 대상으로 한다(같은 검사를 거친다).
 - MODE=revert + VIDEO_IDS: 로그의 옛 설명으로 되돌린다.
+- MODE=check: 키가 가진 권한 범위와 유튜브 분석 API(최근 7일 채널 조회·구독 증가) 응답 여부만 확인한다(바꾸는 것 없음, 숫자는 주석에 남기지 않음). 2026-11-20 분석 권한 넣은 토큰 확인용.
 환경 변수: YT_CLIENT_ID·YT_CLIENT_SECRET·YT_REFRESH_TOKEN(값 출력 금지), MODE, LIMIT, VIDEO_IDS, DESC_LOG(기록 파일 경로).
 실행 통로: 이 저장소 워크플로 `yt-desc.yml`(2026-11-20 제작팀이 YT_* 비밀값을 넣음, 같은 날 plan 시험으로 확인). 기록은 social/youtube/desc_log.json(미디어 저장소 review/yt_desc_log.json 30건을 이어받음).
 """
@@ -104,6 +105,23 @@ def new_desc(old: str, site_line: str) -> str:
     return out[:4900]
 
 
+def check(tok) -> int:
+    """권한 범위 이름과 분석 API 응답 여부만 주석으로(값·토큰·숫자는 남기지 않는다)."""
+    info = json.load(urllib.request.urlopen("https://oauth2.googleapis.com/tokeninfo?access_token=" + tok, timeout=30))
+    scopes = sorted(s.rsplit("/", 1)[-1] for s in (info.get("scope") or "").split())
+    print(f"::notice title=유튜브 키 권한::{' · '.join(scopes) or '없음'}")
+    end = dt.date.today()
+    q = urllib.parse.urlencode({"ids": "channel==MINE", "startDate": str(end - dt.timedelta(days=7)), "endDate": str(end),
+                                "metrics": "views,subscribersGained", "dimensions": "day"})
+    req = urllib.request.Request("https://youtubeanalytics.googleapis.com/v2/reports?" + q, headers={"Authorization": "Bearer " + tok})
+    try:
+        rows = json.load(urllib.request.urlopen(req, timeout=60)).get("rows") or []
+        print(f"::notice title=유튜브 분석 API::응답 성공 · {len(rows)}일치")
+    except urllib.error.HTTPError as e:
+        print(f"::warning title=유튜브 분석 API::HTTP {e.code} {yc.err(e)[:120]}")
+    return 0
+
+
 def put(tok, body):
     req = urllib.request.Request(yc.API + "videos?part=snippet", data=json.dumps(body).encode(), method="PUT",
                                  headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"})
@@ -119,6 +137,9 @@ def main() -> int:
     want = [x for x in re.split(r"[\s,]+", os.environ.get("VIDEO_IDS") or "") if re.fullmatch(r"[\w-]{11}", x)]
     log = json.loads(LOG.read_text(encoding="utf-8")) if LOG.exists() else []
     tok = yc.token()
+
+    if mode == "check":
+        return check(tok)
 
     if mode == "revert":
         done = 0
