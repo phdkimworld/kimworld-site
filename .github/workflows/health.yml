@@ -36,7 +36,6 @@ jobs:
       COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      HEALTH_ONLY: ${{ inputs.only }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -46,7 +45,7 @@ jobs:
         run: |
           pip install -q pyyaml
           python3 tests/test_health.py
-          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/health_build.py --build dist-health; else python3 scripts/health_build.py --fetch --build dist-health; fi
+          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/health_build.py --build dist-health; else HEALTH_ONLY="${{ inputs.only }}" python3 scripts/health_build.py --fetch --build dist-health; fi
       - name: Deploy (Cloudflare Workers static assets)
         run: |
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error title=김박사 건강몰::Cloudflare 비밀값 없음"; exit 1; }
