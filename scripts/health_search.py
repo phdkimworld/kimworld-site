@@ -64,12 +64,15 @@ def main() -> int:
         key = (CFG.get("indexnow_key") or "").strip()
         if not key:
             print("::error title=IndexNow::health.yaml indexnow_key 없음"); return 1
-        with urllib.request.urlopen(SITEMAP, timeout=20) as r:
-            urls = re.findall(r"<loc>([^<]+)</loc>", r.read().decode())
+        # 사이트맵을 받지 않고 설정에서 주소를 만든다(워커가 기본 UA를 막을 수 있음). sitemap.xml 과 같은 목록
+        urls = [SITE, SITE + "guide/", SITE + "about/"] + [f"{SITE}guide/{g['slug']}/" for g in CFG.get("guides") or []]
         host = urllib.parse.urlparse(SITE).netloc
         body = {"host": host, "key": key, "keyLocation": f"{SITE}{key}.txt", "urlList": urls}
         for ep in ("https://api.indexnow.org/indexnow", "https://searchadvisor.naver.com/indexnow"):
-            s, r = call("POST", ep, body=body, ctype="application/json; charset=utf-8")
+            try:
+                s, r = call("POST", ep, body=body, ctype="application/json; charset=utf-8")
+            except Exception as e:
+                s, r = "실패", {"_err": f"{type(e).__name__} {str(e)[:120]}"}
             note("IndexNow", f"{urllib.parse.urlparse(ep).netloc} {s} · 주소 {len(urls)}개 {r.get('_err','')}")
         return 0
     tok = token()
