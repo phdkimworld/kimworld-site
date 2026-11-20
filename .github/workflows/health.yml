@@ -57,6 +57,12 @@ jobs:
           cd health && cp wrangler.toml wrangler.cd.toml && printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "$D" >> wrangler.cd.toml
           npx --yes wrangler@3.99.0 deploy -c wrangler.cd.toml 2>&1 | tail -6 > ../.cd.txt || true
           if grep -q "$D" ../.cd.txt && ! grep -qi "error" ../.cd.txt; then echo "::notice title=김박사 건강몰 도메인::https://$D 연결"; else echo "::notice title=김박사 건강몰 도메인::못 붙임 — $(grep -i error ../.cd.txt | head -1 | head -c 200)"; fi
+      - name: IndexNow (설정·가이드가 바뀐 push 때만 — 빙·네이버·얀덱스에 주소 알림)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        env:
+          MODE: indexnow
+        run: python3 scripts/health_search.py
       - name: Commit catalog
         if: always() && (github.event_name != 'workflow_dispatch' || inputs.fetch != '0')
         run: |

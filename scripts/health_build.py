@@ -360,7 +360,8 @@ def build(c: dict, cat: dict, out: Path) -> int:
     if c.get("indexnow_key"):
         w(f"{c['indexnow_key']}.txt", c["indexnow_key"])
     # /best/ 는 막지 않는다(막으면 noindex를 못 읽음). 페이지의 noindex로 색인에서 뺀다
-    w("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n")
+    daum = ((c.get("verification") or {}).get("daum") or "").strip()  # 다음 웹마스터도구 PIN 인증 줄(공개값)
+    w("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n" + (f"\n#DaumWebMasterTool:{daum}\n" if daum else ""))
     print(f"김박사 건강몰 만들기: 가이드 {len(guides)} · 상품 있는 가이드 {len(cat.get('products') or {})} · 베스트 {len(best)} → {out}")
     return 0
 
