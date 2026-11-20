@@ -367,7 +367,9 @@ def chart_info(slug: str) -> dict | None:
             w, h = im.size
     except Exception:
         w, h = 1080, 1080
-    return {"src": f"/static/charts/{slug}.png", "w": w, "h": h}
+    # 2026-11-20: 본문 차트처럼 빌드 때 dist에 쓰는 같은 그림의 WebP를 먼저(같은 이름 WebP가 원본에 있으면 다른 그림이라 PNG만)
+    webp = "" if (ROOT / "static" / "charts" / f"{slug}.webp").exists() else f"/static/charts/{slug}.webp"
+    return {"src": f"/static/charts/{slug}.png", "webp": webp, "w": w, "h": h}
 
 
 def wrap_tables(html_in: str, extra: str = "") -> str:

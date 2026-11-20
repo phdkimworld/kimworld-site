@@ -43,7 +43,7 @@
     <span class="card-company">{{ r.company }}</span>
     <h3 class="card-title">{{ r.share_title or r.title }}</h3>
     <p class="card-summary">{{ r.summary }}</p>
-    {% if media and r.chart %}<span class="post-media"><img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}"></span>{% endif %}
+    {% if media and r.chart %}<span class="post-media">{% if r.chart.webp %}<picture><source srcset="{{ r.chart.webp }}" type="image/webp">{% endif %}<img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}">{% if r.chart.webp %}</picture>{% endif %}</span>{% endif %}
   </a>
   {#- 피드 투자 심리 투표(2026-10-14): 종목 화면·리포트와 같은 표. 바로 누르고, 누르면 30일 비율이 열린다(static/js/sentiment.js) #}
   <div class="fpoll" data-fpoll data-ticker="{{ r.ticker }}" hidden>
