@@ -1,0 +1,57 @@
+# 옛 유튜브 영상 설명란: 김박사 몰 줄·대가성 문구(·사이트와 안 이어진 영상엔 종목 페이지 줄) — scripts/yt_desc.py (2026-11-19 운영자 "적극사용"·"다 배포해").
+# 2026-11-20: 제작팀이 이 저장소에도 YT_* 비밀값을 넣어 미디어 저장소에서 이리로 옮김(매일 점검 세션이 미디어 저장소에 쓸 수 없어서). 기록은 social/youtube/desc_log.json(미디어 저장소 review/yt_desc_log.json 30건을 이어받음).
+# 7일 조회 증가 상위의 옛 영상 가운데 사이트로 가는 링크가 없는 것만 고른다. 기본 plan(고르기만), apply일 때만 바꾸고 social/youtube/desc_log.json에 옛 설명을 남긴다.
+# revert + video_ids 로 되돌린다. 세션은 gh api REST로 dispatch, 결과는 주석으로 읽는다.
+name: YouTube old video links
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan(고르기만) · apply(바꿈) · revert(되돌림, video_ids 필요)"
+        required: true
+        default: "plan"
+      limit:
+        description: "최대 편수(기본 10, 상한 15)"
+        required: false
+      video_ids:
+        description: "이 영상들만(쉼표·공백 구분). 비우면 7일 조회 증가 상위에서 자동"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yt-desc
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Old video description links
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          LIMIT: ${{ inputs.limit }}
+          VIDEO_IDS: ${{ inputs.video_ids }}
+        run: |
+          pip install -q pyyaml
+          python3 scripts/yt_desc.py
+      - name: Commit log
+        if: success() && inputs.mode != 'plan'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add social/youtube/desc_log.json 2>/dev/null || exit 0
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "옛 영상 설명란 링크 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          exit 1
