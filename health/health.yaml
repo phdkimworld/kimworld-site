@@ -47,6 +47,7 @@ funnels:
   guide-magnesium: {title: "영상으로 보기: 마그네슘 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/J4-fiNi4lRQ", button: "영상 보기"}
   guide-vitamin-d: {title: "영상으로 보기: 비타민D 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/7lk_a7pd01g", button: "영상 보기"}
   guide-milk-thistle: {title: "영상으로 보기: 밀크씨슬 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/cQB9bo2UZlI", button: "영상 보기"}
+  guide-red-ginseng: {title: "영상으로 보기: 홍삼 고르는 법", text: "상자 뒷면에서 진세노사이드 숫자를 찾는 법을 김박사가 짚어 드립니다.", url: "https://youtu.be/TUg_0uUJ55I", button: "영상 보기"}
 guides:
   - slug: omega3
     name: "오메가3"
