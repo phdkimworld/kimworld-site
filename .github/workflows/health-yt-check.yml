@@ -1,0 +1,55 @@
+# 김박사 건강월드 유튜브 채널 키 확인(2026-11-20 운영자가 HEALTH_YT_* 저장). 손으로만 실행.
+# 토큰을 새로 받아 ① 어떤 권한이 들었는지 ② 어느 채널에 붙었는지 ③ GA4·서치 콘솔이 열리는지 확인해 주석으로만 남긴다(값·토큰은 남기지 않음).
+name: Health YT key check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CID: ${{ secrets.HEALTH_YT_CLIENT_ID }}
+      CSEC: ${{ secrets.HEALTH_YT_CLIENT_SECRET }}
+      RT: ${{ secrets.HEALTH_YT_REFRESH_TOKEN }}
+    steps:
+      - name: Check
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.parse, urllib.request
+          def note(t, m): print(f"::notice title={t}::{m}")
+          def get(url, tok):
+              req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r: return r.status, json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  try: msg = json.loads(e.read()).get("error", {}).get("message", "")
+                  except Exception: msg = ""
+                  return e.code, {"_err": msg[:120]}
+          if not all(os.environ.get(k) for k in ("CID", "CSEC", "RT")):
+              print("::error title=건강월드 키::HEALTH_YT_CLIENT_ID/SECRET/REFRESH_TOKEN 중 빈 값"); raise SystemExit(1)
+          body = urllib.parse.urlencode({"client_id": os.environ["CID"], "client_secret": os.environ["CSEC"], "refresh_token": os.environ["RT"], "grant_type": "refresh_token"}).encode()
+          try:
+              with urllib.request.urlopen(urllib.request.Request("https://oauth2.googleapis.com/token", data=body), timeout=20) as r: tok = json.loads(r.read())
+          except urllib.error.HTTPError as e:
+              print(f"::error title=건강월드 키::토큰 갱신 실패 {e.code} {json.loads(e.read()).get('error','')}"); raise SystemExit(1)
+          at = tok["access_token"]; print(f"::add-mask::{at}")
+          scopes = sorted(s.rsplit("/", 1)[-1] for s in tok.get("scope", "").split())
+          note("건강월드 권한", " ".join(scopes))
+          s, ch = get("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true", at)
+          if s == 200 and ch.get("items"):
+              c = ch["items"][0]
+              note("건강월드 채널", f"{c['snippet']['title']} ({c['id']}) 구독 {c['statistics'].get('subscriberCount','?')} · 영상 {c['statistics'].get('videoCount','?')}")
+          else:
+              note("건강월드 채널", f"채널 없음/실패 {s} {ch.get('_err','')}")
+          s, ya = get("https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=2026-01-01&endDate=2026-11-19&metrics=views", at)
+          note("건강월드 유튜브 분석", f"{s} {'열림' if s == 200 else ya.get('_err','')}")
+          s, ga = get("https://analyticsadmin.googleapis.com/v1beta/accountSummaries", at)
+          note("GA4", f"{s} 계정 {len(ga.get('accountSummaries', []))}개" if s == 200 else f"{s} {ga.get('_err','')}")
+          s, sc = get("https://www.googleapis.com/webmasters/v3/sites", at)
+          note("서치 콘솔", f"{s} 속성 {len(sc.get('siteEntry', []))}개" if s == 200 else f"{s} {sc.get('_err','')}")
+          EOF
