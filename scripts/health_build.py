@@ -109,7 +109,11 @@ def plan(c: dict, cat: dict) -> list[tuple[dict, str]]:
     """가장 오래 전에 받은(또는 한 번도 안 받은) (성분, 검색어)부터 searches_per_run 개. 같은 성분이 한 번에 두 번 걸리지 않게."""
     at = cat.get("at") or {}
     out, used = [], set()
+    # HEALTH_ONLY="magnesium,vitamin-d": 진열이 빈 성분을 먼저 채울 때(손으로 실행할 때만)
+    only = {x.strip() for x in os.environ.get("HEALTH_ONLY", "").split(",") if x.strip()}
     for g, k in sorted(pairs(c), key=lambda gk: at.get(f"{gk[0]['slug']}|{gk[1]}", "")):
+        if only and g["slug"] not in only:
+            continue
         if g["slug"] in used:
             continue
         out.append((g, k)); used.add(g["slug"])

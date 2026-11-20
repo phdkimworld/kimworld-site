@@ -12,6 +12,10 @@ on:
         description: "0이면 쿠팡 API를 부르지 않고 저장된 진열로만 다시 올림"
         required: false
         default: "1"
+      only:
+        description: "이 성분만 검색(쉼표, 예: magnesium,vitamin-d). 비우면 가장 오래된 순"
+        required: false
+        default: ""
   push:
     branches: [main]
     paths: ["health/health.yaml", "scripts/health_build.py", ".github/workflows/health.yml"]
@@ -32,6 +36,7 @@ jobs:
       COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      HEALTH_ONLY: ${{ inputs.only }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
