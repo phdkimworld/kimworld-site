@@ -144,6 +144,12 @@ SLDP:
   exchange: "NASDAQ"
   theme: "전기차·배터리"
   aliases: ["솔리드 파워", "Solid Power"]
+ENVX:
+  name: "에노빅스"
+  name_en: "Enovix Corporation"
+  exchange: "NASDAQ"
+  theme: "전기차·배터리"
+  aliases: ["에노빅스", "Enovix", "인오빅스"]
 QS:
   name: "퀀텀스케이프"
   name_en: "QuantumScape Corporation"
