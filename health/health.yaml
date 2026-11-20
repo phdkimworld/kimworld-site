@@ -18,7 +18,7 @@ name: "김박사 건강몰"
 tagline: "영양제, 고르기 전에 확인할 것만"
 url: "https://health.drkimworld.com"
 custom_domain: health.drkimworld.com
-best_category: 1024          # 쿠팡 '헬스/건강식품'
+best_category: 1024          # 쿠팡 '헬스/건강식품'(2026-11-20 실제 응답은 신선식품이 섞여 옴 — 성분 이름(match)이 든 상품만 남긴다)
 best_subid: hmbest
 per_search: 10            # 쿠팡 검색 API 한 번 최대 10개
 searches_per_run: 2          # 쿠팡 검색 API는 시간당 10회 — 사이트 배포(coupang_sync)가 시간당 8회까지 쓰므로 여기서는 2회만
@@ -26,6 +26,7 @@ verification:                # 서치 콘솔·서치어드바이저에서 이 �
   google: ""
   naver: ""
   bing: ""
+# 상품 이름에 그 가이드의 match 낱말이 하나도 없으면 진열하지 않는다(검색 결과 앞쪽에 무관한 상품이 섞여 옴, 2026-11-20 확인)
 drop_words: ["치료", "완치", "특효", "예방", "처방", "의약품", "약국", "혈압약", "당뇨", "고혈압", "고지혈", "항암", "탈모치료", "다이어트약", "식욕억제", "위고비"]
 banned: ["치료", "완치", "특효", "처방", "효과 보장", "100% 효과", "부작용 없", "먹으면 낫", "약보다"]
 funnels: {}
@@ -34,7 +35,8 @@ guides:
   - slug: omega3
     name: "오메가3"
     aka: "EPA 및 DHA 함유 유지"
-    keyword: "오메가3 건강기능식품"
+    keyword: "오메가3"
+    match: ["오메가3", "오메가 3", "오메가-3", "rTG", "EPA", "DHA", "omega"]
     sub: hmomega
     intro: "오메가3는 건강기능식품 공전에서 'EPA 및 DHA 함유 유지'라는 이름으로 관리됩니다. 기능성마다 필요한 하루 섭취량이 달라서, 앞면 숫자보다 뒷면의 EPA와 DHA 합을 먼저 봐야 합니다."
     functions:
@@ -57,7 +59,8 @@ guides:
   - slug: lutein
     name: "루테인"
     aka: "마리골드꽃추출물"
-    keyword: "루테인 마리골드꽃추출물"
+    keyword: "루테인"
+    match: ["루테인", "마리골드", "lutein"]
     sub: hmlutein
     intro: "루테인은 2023년부터 원료 이름이 '마리골드꽃추출물'로 바뀌었습니다. 원료 전체 무게와 루테인 함량은 다른 숫자이니, 표시된 루테인 양을 확인해야 합니다."
     functions:
@@ -77,7 +80,8 @@ guides:
   - slug: milk-thistle
     name: "밀크씨슬"
     aka: "밀크씨슬(카르두스 마리아누스) 추출물"
-    keyword: "밀크씨슬 실리마린"
+    keyword: "밀크씨슬"
+    match: ["밀크씨슬", "밀크시슬", "실리마린", "milk thistle"]
     sub: hmmilk
     intro: "밀크씨슬은 지표성분 '실리마린' 함량으로 기능성이 정해집니다. 원료 무게가 아니라 1일 섭취량당 실리마린 양을 보는 것이 핵심입니다."
     functions:
@@ -96,7 +100,8 @@ guides:
   - slug: coq10
     name: "코엔자임Q10"
     aka: "코큐텐"
-    keyword: "코엔자임Q10 코큐텐"
+    keyword: "코엔자임Q10"
+    match: ["코엔자임", "코큐텐", "CoQ10", "coq10"]
     sub: hmcoq10
     intro: "코엔자임Q10은 2010년 고시형 원료가 되었고, 2022년 재평가를 거쳤습니다. 기능성을 위한 하루 섭취량 범위가 좁은 편이라 함량을 꼭 확인해야 합니다."
     functions:
@@ -116,7 +121,8 @@ guides:
   - slug: saw-palmetto
     name: "쏘팔메토"
     aka: "쏘팔메토 열매 추출물"
-    keyword: "쏘팔메토 로르산"
+    keyword: "쏘팔메토"
+    match: ["쏘팔메토", "소팔메토", "saw palmetto"]
     sub: hmsaw
     intro: "쏘팔메토 열매 추출물은 지표성분 '로르산' 함량으로 관리됩니다. 식약처는 품질 규격을 강화하고 온라인 부당광고를 집중 점검한 원료이니, 표시사항을 꼼꼼히 보세요."
     functions:
@@ -135,7 +141,8 @@ guides:
   - slug: red-ginseng
     name: "홍삼"
     aka: "홍삼(진세노사이드)"
-    keyword: "홍삼 건강기능식품"
+    keyword: "홍삼"
+    match: ["홍삼"]
     sub: hmginseng
     intro: "홍삼은 지표성분 진세노사이드(Rg1, Rb1, Rg3의 합) 함량에 따라 표시할 수 있는 기능성이 달라집니다. 같은 홍삼이라도 1포당 함량 차이가 크니 표시 함량을 비교하세요."
     functions:
@@ -158,7 +165,8 @@ guides:
   - slug: probiotics
     name: "프로바이오틱스"
     aka: "유산균"
-    keyword: "프로바이오틱스 유산균 건강기능식품"
+    keyword: "프로바이오틱스 유산균"
+    match: ["유산균", "프로바이오틱스", "probiotics"]
     sub: hmprobio
     intro: "프로바이오틱스는 1일 섭취량당 살아 있는 균 수(CFU)로 관리됩니다. 균 수와 보관 방법(냉장·실온)을 함께 보세요."
     functions:
@@ -178,7 +186,8 @@ guides:
   - slug: magnesium
     name: "마그네슘"
     aka: "마그네슘(영양소)"
-    keyword: "마그네슘 영양제"
+    keyword: "마그네슘"
+    match: ["마그네슘", "magnesium"]
     sub: hmmag
     intro: "마그네슘은 기능성 원료가 아니라 고시된 영양성분입니다. 영양소 기능 문구와 하루 섭취량 범위가 정해져 있습니다."
     functions:
@@ -197,7 +206,8 @@ guides:
   - slug: vitamin-d
     name: "비타민D"
     aka: "비타민D(영양소)"
-    keyword: "비타민D 영양제"
+    keyword: "비타민D"
+    match: ["비타민D", "비타민 D", "vitamin d", "D3"]
     sub: hmvitd
     intro: "비타민D는 고시된 영양성분입니다. 제품에는 1일 영양성분 기준치 대비 비율(%)이 함께 적혀 있어 함량을 비교하기 쉽습니다."
     functions:

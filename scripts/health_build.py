@@ -57,7 +57,7 @@ def check(c: dict) -> list[str]:
         seen.add(s)
         if not str(g.get("sub", "")).startswith("hm"):
             errs.append(f"{s}: 하위 ID는 hm 으로 시작해야 함")
-        for k in ("name", "keyword", "intro", "functions", "cautions", "choose", "sources", "verified"):
+        for k in ("name", "keyword", "match", "intro", "functions", "cautions", "choose", "sources", "verified"):
             if not g.get(k):
                 errs.append(f"{s}: {k} 없음")
         text = " ".join([str(g.get("intro", ""))] + [f.get("text", "") + f.get("dose", "") for f in g.get("functions") or []]
@@ -76,11 +76,13 @@ def check(c: dict) -> list[str]:
     return errs
 
 
-def clean(items: list[dict], drop: list[str]) -> list[dict]:
+def clean(items: list[dict], drop: list[str], match: list[str] | None = None) -> list[dict]:
     out, names = [], set()
     for p in items:
         n = p.get("name", "")
         if not n or n in names or any(w in n for w in drop):
+            continue
+        if match is not None and not any(m.lower() in n.lower() for m in match):
             continue
         names.add(n)
         out.append(p)
@@ -114,9 +116,10 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
     ok = 0
     try:
         items, _ = cs.parse_deals(getter(BEST + str(c["best_category"]), {"limit": 50, "subId": c["best_subid"], "imageSize": "230x230"}, access, secret))
-        items = clean(items, drop)
-        if items:
-            cat["best"] = items; ok += 1
+        allm = [m for g in c.get("guides") or [] for m in g.get("match") or []]
+        items = clean(items, drop, allm)
+        cat["best"] = items  # 성분과 무관한 베스트는 비운다(빈 목록이면 화면에서 빠짐)
+        ok += bool(items)
     except Exception as e:
         print(f"::warning title=김박사 건강몰::베스트 실패 {type(e).__name__}")
     prods, at = cat.setdefault("products", {}), cat.setdefault("at", {})
@@ -130,7 +133,7 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
                     print(f"::warning title=김박사 건강몰::{g['name']} 검색 0개 rCode={js.get('rCode')} {str(js.get('rMessage') or '')[:80]}")
             else:
                 raw = searcher(g["keyword"], g["sub"], int(c.get("per_search") or 20), access, secret)
-            items = clean(raw, drop)
+            items = clean(raw, drop, g.get("match") or [g["name"]])
             at[g["slug"]] = now  # 실패해도 다음 차례로 넘어가도록 시도 시각은 남긴다(아래 except에서도)
             if items:
                 prods[g["slug"]] = items; ok += 1
@@ -208,7 +211,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
     canon = f"{base}/{path}"
     nav = [f'<a href="{up}" class="{"on" if on == "home" else ""}">홈</a>', f'<a href="{up}guide/" class="{"on" if on == "guide" else ""}">성분 가이드</a>']
     nav += [f'<a href="{up}guide/{g["slug"]}/" class="{"on" if on == g["slug"] else ""}">{esc(g["name"])}</a>' for g in c.get("guides") or []]
-    if cat.get("best"):
+    if cat.get("best_shown"):
         nav.append(f'<a href="{up}best/" class="{"on" if on == "best" else ""}">건강식품 베스트</a>')
     v = c.get("verification") or {}
     meta = "".join(f'<meta name="{n}" content="{esc(v[k])}">' for k, n in (("google", "google-site-verification"), ("naver", "naver-site-verification"), ("bing", "msvalidate.01")) if v.get(k))
@@ -232,7 +235,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 
 def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     rows = "".join(f"<tr><td>{esc(f['text'])}</td><td>{esc(f['dose'])}</td></tr>" for f in g["functions"])
-    items = (cat.get("products") or {}).get(g["slug"]) or []
+    items = clean((cat.get("products") or {}).get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
              f'<p class="note">쿠팡 검색 결과를 자동으로 보여 줍니다. 추천·보증이 아니며, 건강기능식품 여부·기능성·함량은 상품 페이지의 표시사항에서 위 기준과 비교해 확인하세요.</p>'
              f'<div class="grid">{"".join(card(p) for p in items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
@@ -267,7 +270,8 @@ def build(c: dict, cat: dict, out: Path) -> int:
     gl = '<div class="gl">' + "".join(
         f'<a class="gc" href="{{up}}guide/{g["slug"]}/"><b>{esc(g["name"])}</b><small>{esc(g["aka"])}</small><p>{esc(g["functions"][0]["text"])}</p></a>' for g in guides) + "</div>"
     # 홈
-    best = cat.get("best") or []
+    best = clean(cat.get("best") or [], c.get("drop_words") or [], [m for g in guides for m in g.get("match") or []])
+    cat = {**cat, "best_shown": bool(best)}
     home = [f'<section class="hero"><h1>영양제, 사기 전에 확인할 것만 모았습니다</h1><p>식약처가 인정한 기능성 문구, 하루 섭취량 기준, 섭취 시 주의사항을 성분별로 정리하고, 쿠팡에서 바로 비교할 수 있게 연결합니다.</p></section>',
             '<h2>성분 가이드</h2>' + gl.replace("{up}", ""), funnel(c, "home")]
     if best:

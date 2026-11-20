@@ -23,7 +23,8 @@ def main() -> int:
     items = [{"name": "오메가3 1000 고혈압 예방", "url": "https://link.coupang.com/a/x"},
              {"name": "오메가3 180캡슐", "url": "https://link.coupang.com/a/y", "price": 19900},
              {"name": "오메가3 180캡슐", "url": "https://link.coupang.com/a/z"}]
-    kept = hb.clean(items, c["drop_words"])
+    kept = hb.clean(items, c["drop_words"], c["guides"][0]["match"])
+    assert hb.clean([{"name": "코카콜라 제로", "url": "https://link.coupang.com/a/q"}], c["drop_words"], c["guides"][0]["match"]) == []
     assert [p["url"] for p in kept] == ["https://link.coupang.com/a/y"], kept
     # 검색 순서: 한 번도 안 받은 것 → 오래된 것
     cat = {"at": {g["slug"]: "2026-11-19 10:00" for g in c["guides"]}}
