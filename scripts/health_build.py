@@ -117,7 +117,7 @@ def plan(c: dict, cat: dict) -> list[tuple[dict, str]]:
         if g["slug"] in used:
             continue
         out.append((g, k)); used.add(g["slug"])
-        if len(out) >= int(c.get("searches_per_run") or 2):
+        if len(out) >= int(os.environ.get("HEALTH_SEARCHES") or c.get("searches_per_run") or 2):
             break
     return out
 

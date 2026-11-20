@@ -30,11 +30,11 @@ def main() -> int:
     cat = {"at": {f"{g['slug']}|{k}": "2026-11-19 10:00" for g, k in hb.pairs(c)}}
     cat["at"]["lutein|루테인"] = "2026-11-01 00:00"
     del cat["at"]["coq10|코큐텐"]
-    assert [(g["slug"], k) for g, k in hb.plan(c, cat)] == [("coq10", "코큐텐"), ("lutein", "루테인")]
+    assert [(g["slug"], k) for g, k in hb.plan(c, cat)][:2] == [("coq10", "코큐텐"), ("lutein", "루테인")]
     # 한 번에 같은 성분 두 번 안 함
     cat2 = {"at": {f"{g['slug']}|{k}": "2026-11-19 10:00" for g, k in hb.pairs(c)}}
     cat2["at"]["omega3|오메가3"] = cat2["at"]["omega3|rTG 오메가3"] = "2026-11-01 00:00"
-    assert [g["slug"] for g, _ in hb.plan(c, cat2)][0] == "omega3" and len({g["slug"] for g, _ in hb.plan(c, cat2)}) == 2
+    assert [g["slug"] for g, _ in hb.plan(c, cat2)][0] == "omega3" and len({g["slug"] for g, _ in hb.plan(c, cat2)}) == len(hb.plan(c, cat2))
     # 누적: 새 것이 앞, 14일 지난 것은 빠짐, 중복 이름 하나
     old = [{"name": "A", "url": "u", "seen": "2026-11-01"}, {"name": "B", "url": "u", "seen": "2026-11-18"}]
     m = hb.merge([{"name": "C", "url": "u"}, {"name": "B", "url": "u"}], old, "2026-11-20", 24, 14)

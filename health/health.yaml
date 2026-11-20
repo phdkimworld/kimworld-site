@@ -23,7 +23,7 @@ best_subid: hmbest
 per_search: 10            # 쿠팡 검색 API 한 번 최대 10개
 keep_items: 24            # 성분별로 쌓아 두는 상품 수(새로 찾은 것이 앞)
 keep_days: 14             # 이 기간 동안 검색에 다시 안 잡힌 상품은 뺀다
-searches_per_run: 2          # 2시간마다 실행(health.yml) → 하루 24회 검색, 성분×검색어 한 바퀴 약 1.2일. 쿠팡 검색 API는 시간당 10회 — 사이트 배포(coupang_sync)가 시간당 8회까지 쓰므로 여기서는 2회만
+searches_per_run: 3          # 2시간마다 실행(health.yml) → 하루 36회 검색. 손 실행 때 searches 입력으로 늘릴 수 있음(2026-11-20 운영자 '주요 영양제 상품 채워놔'). 쿠팡 검색 API는 시간당 10회 — 사이트 배포(coupang_sync)가 시간당 8회까지 쓰므로 여기서는 2회만
 indexnow_key: "7a1d6437e712e2a606dfc68baf33f33d"   # IndexNow 공개 키(빙·네이버·얀덱스에 새 주소 알림). 같은 이름의 .txt를 사이트 맨 위에 둔다
 verification:                # 서치 콘솔·서치어드바이저에서 이 사이트(health.drkimworld.com)를 등록하고 받은 HTML 태그 값(공개값)
   google: "MkduUezdSLhoQCWYmilJ2kwYezMuNcJ7YkqMRGiv0rI"   # 건강월드 계정, 2026-11-20 사이트 확인 API로 받음
@@ -235,3 +235,29 @@ guides:
     sources:
       - {title: "식품안전나라 건강기능식품 정보 (영양소 기능)", url: "https://www.foodsafetykorea.go.kr/portal/board/boardDetail.do?menu_no=3811&bbs_no=bbs464&ntctxt_no=1070220"}
     verified: "2026-11-19"
+
+  - slug: vitamin-c
+    name: "비타민C"
+    aka: "비타민C(영양소)"
+    keyword: "비타민C"
+    keywords: ["비타민C", "비타민C 1000mg", "비타민씨 영양제"]
+    match: ["비타민C", "비타민 C", "비타민씨", "vitamin c", "아스코르빈산", "아스코르브산"]
+    sub: hmvitc
+    intro: "비타민C는 고시된 영양성분입니다. 건강기능식품의 하루 섭취량 기준은 30~1,000mg이고, 제품에는 1일 영양성분 기준치 대비 비율(%)이 함께 적혀 있습니다."
+    functions:
+      - {text: "결합조직 형성과 기능유지에 필요", dose: "비타민C로서 30~1,000mg"}
+      - {text: "철의 흡수에 필요", dose: "비타민C로서 30~1,000mg"}
+      - {text: "항산화 작용을 하여 유해산소로부터 세포를 보호하는데 필요", dose: "비타민C로서 30~1,000mg"}
+    cautions:
+      - "한 번에 많은 양을 먹으면 흡수율이 떨어지고 위장 불편이 생길 수 있다는 자료가 있습니다. 표시된 섭취량을 지키세요."
+      - "신장 질환이 있거나 의약품을 복용 중이라면 고함량 제품은 전문가와 먼저 상담하세요."
+      - "제품 표시사항의 섭취 시 주의사항을 확인하세요."
+    choose:
+      - "1일 섭취량당 비타민C 함량(mg)과 기준치 대비 %를 확인하세요."
+      - "종합비타민에 이미 들어 있다면 합산해서 30~1,000mg 범위를 넘지 않는지 보세요."
+      - "같은 비타민C라도 일반의약품과 건강기능식품이 따로 있습니다. 표시를 확인하세요."
+    sources:
+      - {title: "비타민C 일일섭취량(식품안전나라 영양소 기능표 30~1,000mg) 정리", url: "https://braindetox.kr/posts/vitamin_c_megadose_evidence.html"}
+      - {title: "데일리팜: 비타민C 흡수율과 복용법", url: "https://www.dailypharm.com/Users/News/NewsView.html?ID=313428"}
+      - {title: "코스트코: 비타민C 건강기능식품 표시 예시(철 흡수·유해산소로부터 세포 보호)", url: "https://www.costco.co.kr/p/632599"}
+    verified: "2026-11-20"

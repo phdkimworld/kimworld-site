@@ -16,6 +16,10 @@ on:
         description: "이 성분만 검색(쉼표, 예: magnesium,vitamin-d). 비우면 가장 오래된 순"
         required: false
         default: ""
+      searches:
+        description: "이번 실행의 쿠팡 검색 횟수(비우면 health.yaml searches_per_run). 시간당 10회 한도를 사이트 배포와 나눠 씀"
+        required: false
+        default: ""
   push:
     branches: [main]
     paths: ["health/health.yaml", "scripts/health_build.py", ".github/workflows/health.yml"]
@@ -45,7 +49,7 @@ jobs:
         run: |
           pip install -q pyyaml
           python3 tests/test_health.py
-          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/health_build.py --build dist-health; else HEALTH_ONLY="${{ inputs.only }}" python3 scripts/health_build.py --fetch --build dist-health; fi
+          if [ "${{ inputs.fetch }}" = "0" ]; then python3 scripts/health_build.py --build dist-health; else HEALTH_ONLY="${{ inputs.only }}" HEALTH_SEARCHES="${{ inputs.searches }}" python3 scripts/health_build.py --fetch --build dist-health; fi
       - name: Deploy (Cloudflare Workers static assets)
         run: |
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error title=김박사 건강몰::Cloudflare 비밀값 없음"; exit 1; }
