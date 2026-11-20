@@ -41,7 +41,7 @@ if not p:  # 채널 응원 링크(cr, 2026-11-16): 상품 사진 대신 장바�
     d.rounded_rectangle([(cx - 170) * S, (cy - 110) * S, (cx + 170) * S, (cy + 130) * S], radius=28 * S, outline=NAVY, width=14 * S)
     d.arc([(cx - 90) * S, (cy - 210) * S, (cx + 90) * S, (cy - 30) * S], 180, 360, fill=NAVY, width=14 * S)
     d.ellipse([(cx - 22) * S, (cy - 10) * S, (cx + 22) * S, (cy + 34) * S], fill=GOLD)
-    t = "채널 응원"; f = font(FK, 64)
+    t = spec.get("label", "채널 응원"); f = font(FK, 64)  # 회차 맞춤 문구(11-20 운영자: 키트 기본 대신 회차에 맞게)
     d.text(((cx * S) - d.textlength(t, font=f) / 2, (cy + 170) * S), t, font=f, fill=NAVY)
 if p:
     p = p if os.path.isabs(p) else os.path.join(base, p)
