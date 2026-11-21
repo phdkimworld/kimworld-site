@@ -28,7 +28,7 @@ indexnow_key: "7a1d6437e712e2a606dfc68baf33f33d"   # IndexNow 공개 키(빙·�
 verification:                # 서치 콘솔·서치어드바이저에서 이 사이트(health.drkimworld.com)를 등록하고 받은 HTML 태그 값(공개값)
   google: "MkduUezdSLhoQCWYmilJ2kwYezMuNcJ7YkqMRGiv0rI"   # 건강월드 계정, 2026-11-20 사이트 확인 API로 받음
   naver: ""
-  bing: ""
+  bing: "85D43DC5017A2FA2EB2D2711C5B8B4AD"
   daum: ""                   # 다음 웹마스터도구 PIN 인증값 → robots.txt 에 #DaumWebMasterTool: 줄로 들어감
 # 상품 이름에 그 가이드의 match 낱말이 하나도 없으면 진열하지 않는다(검색 결과 앞쪽에 무관한 상품이 섞여 옴, 2026-11-20 확인)
 # 애드센스(2026-11-20 운영자 "애드센스도 등록해"): 사이트 승인은 최상위 도메인(drkimworld.com) 단위 — 하위 주소는 따로 신청하지 않고
