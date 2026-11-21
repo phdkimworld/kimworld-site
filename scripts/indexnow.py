@@ -80,5 +80,25 @@ def submit(list_path: str):
             print(f"::warning::{ep}: {e}")
 
 
+def mall(sitemap_path: str):
+    """김박사 몰(2026-11-20 검색 유입): 몰 사이트맵 주소 전부를 몰 호스트 이름으로 알린다(진열이 매일 바뀌므로 매일). 키는 사이트와 같고 몰에도 /<키>.txt 가 있다."""
+    key = str((site().get("seo") or {}).get("indexnow_key") or "")
+    urls = list(entries(Path(sitemap_path).read_text(encoding="utf-8")))
+    if not key or not urls:
+        print("보낼 것 없음")
+        return
+    base = re.match(r"https?://[^/]+", urls[0]).group(0)
+    body = json.dumps({"host": re.sub(r"^https?://", "", base), "key": key, "keyLocation": f"{base}/{key}.txt", "urlList": urls[:1000]}).encode()
+    for ep in ENDPOINTS:
+        req = urllib.request.Request(ep, data=body, method="POST", headers={"Content-Type": "application/json; charset=utf-8"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                print(f"::notice title=김박사 몰 IndexNow::{ep} {r.status} ({len(urls)}개)")
+        except urllib.error.HTTPError as e:
+            print(f"::warning title=김박사 몰 IndexNow::{ep} HTTP {e.code}")
+        except Exception as e:
+            print(f"::warning title=김박사 몰 IndexNow::{ep} {type(e).__name__}")
+
+
 if __name__ == "__main__":
-    {"diff": diff, "submit": submit}[sys.argv[1]](sys.argv[2])
+    {"diff": diff, "submit": submit, "mall": mall}[sys.argv[1]](sys.argv[2])

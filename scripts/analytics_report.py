@@ -113,6 +113,7 @@ def summarize(a: dict) -> dict:
     # 주석은 공개되므로 종목·회사 이름처럼 생긴 짧은 검색어만 싣는다(이메일·전화번호·긴 문장 등 개인정보가 될 수 있는 것은 뺀다)
     out["search_miss_top"] = [{"q": x.get("q"), "n": x.get("n", 0)} for x in misses if is_name_like(x.get("q") or "")][:20]
     out["searches_total"] = sum(x.get("n", 0) for x in a.get("searches", []))
+    out["mall"] = a.get("mall") or []  # 김박사 몰 추적(2026-11-20, 하루 합계 행 — 비공개 저장소에만)
     return out
 
 

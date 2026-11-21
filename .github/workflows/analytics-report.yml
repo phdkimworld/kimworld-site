@@ -68,6 +68,9 @@ jobs:
               echo "::add-mask::$OPS_PUSH_TOKEN"
               rm -rf .cache/ops && git clone -q --depth 1 -b ops-data "https://x-access-token:${OPS_PUSH_TOKEN}@github.com/phdkimworld/kimworld.git" .cache/ops 2>/dev/null || true
               { python3 scripts/ops_digest.py .cache/analytics.json .cache/ops/stats/coupang.json > .cache/digest.md && scripts/ops_publish.sh .cache/digest.md digest.md; } || echo "::warning title=OPS::운영 요약 만들기 실패"
+              # 김박사 몰 추적 기록(2026-11-20): 날짜별 행을 history.json 에 이어 쓰고 요약 summary.md(채널 깔때기·화면·칸·입구 세부·쿠팡 mall… 하위 ID)
+              { mkdir -p .cache/mall && cp .cache/ops/stats/mall/history.json .cache/mall/history.json 2>/dev/null; python3 scripts/mall_stats.py .cache/an.json .cache/ops/stats/coupang.json .cache/mall/history.json .cache/mall/summary.md \
+                && scripts/ops_publish.sh .cache/mall/history.json mall/history.json && scripts/ops_publish.sh .cache/mall/summary.md mall/summary.md; } || echo "::warning title=OPS::김박사 몰 기록 실패"
               rm -rf .cache/ops
             fi
           else

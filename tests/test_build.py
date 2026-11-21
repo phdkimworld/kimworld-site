@@ -780,6 +780,9 @@ with _tf.TemporaryDirectory() as _d:
     check(len(_as) >= 3 and all('rel="sponsored nofollow noopener"' in t for t in _as), "몰: 모든 쿠팡 링크 rel=sponsored")
     check((Path(_d) / f"c/{_mc['categories'][0]['slug']}/index.html").exists() and (Path(_d) / "search/index.html").exists(), "몰: 카테고리·검색 화면")
     check(all(k["sub"].startswith("mall") for k in _mc["categories"]) and _mc["entry_subid"].startswith("mall"), "몰: 하위 ID mall…")
+    # 추적(2026-11-20): 모든 화면에 화면 종류·추적 스크립트, 쿠팡 링크가 있는 칸은 data-sl
+    check(all('<body data-pg="' in x.read_text(encoding="utf-8") and "/v1/mall" in x.read_text(encoding="utf-8") for x in _pages), "몰 추적: 모든 화면에 data-pg와 추적")
+    check(all(re.search(r'data-sl="[a-z0-9-]+"', x.read_text(encoding="utf-8")) for x in _pages if "link.coupang.com" in x.read_text(encoding="utf-8").split("<script")[0]), "몰 추적: 쿠팡 링크가 있는 화면에 칸 표시")
 with _tf.TemporaryDirectory() as _d:
     _mb.build(_mc, {}, Path(_d))
     check((Path(_d) / "index.html").exists(), "몰: 진열이 없어도 홈은 만든다")

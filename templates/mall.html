@@ -4,13 +4,19 @@
 {% block title %}김박사 몰로 이동 | {{ site.site_name }}{% endblock %}
 {% block description %}김박사 월드 시청자 장보기 입구(쿠팡 파트너스)로 이동합니다.{% endblock %}
 {% block robots %}<meta name="robots" content="noindex,follow">{% endblock %}
-{% block head %}<meta http-equiv="refresh" content="2;url={{ mall_url }}">{% endblock %}
+{% block head %}<noscript><meta http-equiv="refresh" content="2;url={{ mall_url }}"></noscript>{% endblock %}
 {% block main %}
 <div class="wrap narrow" style="padding:40px 16px;text-align:center">
   <h1>김박사 몰로 이동합니다</h1>
   <p class="muted">쿠팡에서 장 보실 때 김박사 몰 입구로 들어가 주시면 무료 리포트와 영상을 만드는 데 도움이 됩니다(가격은 같습니다).</p>
-  <p><a class="btn" href="{{ mall_url }}" rel="nofollow" data-ev="mall_go">바로 가기 ›</a></p>
+  <p><a class="btn" id="mallgo" href="{{ mall_url }}" rel="nofollow" data-ev="mall_go">바로 가기 ›</a></p>
   <p class="muted" style="font-size:.8rem">김박사 몰은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
 </div>
-<script>setTimeout(function(){location.replace({{ mall_url|tojson }})},1500)</script>
+{# 추적(2026-11-20): 도착을 채널(utm_source, 없으면 리퍼러)·세부(utm_content 또는 utm_campaign)별로 /v1/mall 에 보내고, 몰에 ?src= 로 채널을 넘긴다(몰 화면·클릭도 같은 채널로 묶임) #}
+<script>(function(){var M={{ mall_url|tojson }},q=new URLSearchParams(location.search);function cl(x){return String(x||'').toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,30)}
+var s=cl(q.get('utm_source'));if(!s){try{var h=document.referrer?new URL(document.referrer).hostname.replace(/^www\./,''):'';s=!h?'direct':/drkimworld\.com$/.test(h)?'site':cl(h.split('.').slice(-2,-1)[0])}catch(e){s='direct'}}
+var c=cl(q.get('utm_campaign')||q.get('utm_content')).replace(/\./g,'-');
+try{navigator.sendBeacon({{ site.api_url|tojson }}+'/v1/mall',JSON.stringify({k:'land',src:s,pg:'entry',sl:c}))}catch(e){}
+var to=M+(M.indexOf('?')<0?'?':'&')+'src='+encodeURIComponent(s);var a=document.getElementById('mallgo');if(a)a.href=to;
+setTimeout(function(){location.replace(to)},1500)})();</script>
 {% endblock %}

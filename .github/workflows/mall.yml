@@ -56,6 +56,10 @@ jobs:
           cd mall && cp wrangler.toml wrangler.cd.toml && printf '\n[[routes]]\npattern = "%s"\ncustom_domain = true\n' "$D" >> wrangler.cd.toml
           npx --yes wrangler@3.99.0 deploy -c wrangler.cd.toml 2>&1 | tail -6 > ../.cd.txt || true
           if grep -q "$D" ../.cd.txt && ! grep -qi "error" ../.cd.txt; then echo "::notice title=김박사 몰 도메인::https://$D 연결"; else echo "::notice title=김박사 몰 도메인::못 붙임 — $(grep -i error ../.cd.txt | head -1 | head -c 200)"; fi
+      - name: IndexNow (search engines)
+        # 2026-11-20 몰 검색 유입: 배포 뒤 몰 주소(사이트맵 전부)를 빙·네이버 IndexNow에 알린다. 실패해도 배포와 무관
+        continue-on-error: true
+        run: python3 scripts/indexnow.py mall dist-mall/sitemap.xml
       - name: Commit catalog
         if: always() && inputs.fetch != '0'
         run: |

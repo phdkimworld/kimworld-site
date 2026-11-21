@@ -15,6 +15,7 @@ import datetime as dt
 import html
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -32,6 +33,14 @@ BEST = "/v2/providers/affiliate_open_api/apis/openapi/products/bestcategories/"
 DISCLOSURE = "김박사 몰은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
 SITE = "https://drkimworld.com/?utm_source=mall&utm_medium=web"
 YT = "https://www.youtube.com/@drkimworld"
+# 추적(2026-11-20 운영자 "몰 페이지 트래픽 다각화해서 체계적으로 추적해서 저장"): 화면 보기·쿠팡 클릭을 채널(src)·화면(pg)·칸(data-sl)별로
+# 사이트 API /v1/mall 에 하루 합계로 보낸다(D1 mall_ev, 사람 정보 없음). src는 ?src=(사이트 /mall/ 입구가 넘김) > utm_source > 이 탭에서 처음 정한 값 > 리퍼러 묶음 > direct
+TRACK = """<script>(function(){var A='https://api.drkimworld.com/v1/mall',P=document.body.dataset.pg||'other',q=new URLSearchParams(location.search),s;
+function cl(x){return String(x||'').toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,30)}
+s=cl(q.get('src')||q.get('utm_source'));try{if(s)sessionStorage.setItem('kw_src',s);else s=sessionStorage.getItem('kw_src')||''}catch(e){}
+if(!s){try{var h=document.referrer?new URL(document.referrer).hostname.replace(/^www\\./,''):'';if(h&&h!==location.hostname){s=/drkimworld\\.com$/.test(h)?'site':/google\\./.test(h)?'google':/naver\\./.test(h)?'naver':/daum\\.|kakao/.test(h)?'daum':/bing\\./.test(h)?'bing':/youtube|youtu\\.be/.test(h)?'youtube':/threads|instagram|facebook|blogspot|t\\.me/.test(h)?cl(h.split('.')[0]):'ref';try{sessionStorage.setItem('kw_src',s)}catch(e){}}}catch(e){}}
+s=s||'direct';function b(o){o.src=s;o.pg=P;try{navigator.sendBeacon(A,JSON.stringify(o))}catch(e){}}
+b({k:'view'});document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href^="https://link.coupang.com"]');if(!a)return;var w=a.closest('[data-sl]');b({k:'click',sl:w?w.dataset.sl:'other'})},true);})();</script>"""
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
@@ -171,11 +180,12 @@ def page(c: dict, cat: dict, title: str, body: str, on: str = "", desc: str = ""
     tabs = [("home", "", "🏠", "홈"), ("deals", "deals/", "🔥", "특가"), ("cats", "categories/", "☰", "카테고리"), ("search", "search/", "🔍", "검색")]
     tabbar = "".join(f'<a href="{up}{h}" class="{"on" if on == k else ""}"><b>{i}</b>{n}</a>' for k, h, i, n in tabs)
     upd = esc(cat.get("updated") or "")
+    pg = on if on in ("home", "deals", "search", "cats", "about") else (f"c-{on}" if on else "other")
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{esc(title)}</title><meta name="description" content="{esc(desc or c['tagline'])}">
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc or c['tagline'])}"><meta name="theme-color" content="#f5b83d">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f5b83d'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%230e1a2b'%3E몰%3C/text%3E%3C/svg%3E">
-<style>{CSS}</style></head><body>
+<style>{CSS}</style></head><body data-pg="{pg}">
 <header><div class="wrap"><div class="top"><a class="logo" href="{up}">김박사 <span>몰</span></a><span class="tag">{esc(c['tagline'])}</span>
 <form class="q" action="{up}search/" role="search"><input name="q" type="search" placeholder="오늘 뭐 사시나요?" aria-label="상품 찾기"></form></div>
 <nav class="cats" aria-label="카테고리">{''.join(nav)}</nav></div></header>
@@ -183,14 +193,14 @@ def page(c: dict, cat: dict, title: str, body: str, on: str = "", desc: str = ""
 {body}</main>
 <footer><div class="wrap"><p>{esc(DISCLOSURE)} 진열은 쿠팡의 오늘의 특가·카테고리 베스트에서 자동으로 가져오며 추천·보증이 아닙니다. 가격·재고·사양은 쿠팡 상품 페이지에서 확인하세요{f" · 마지막 갱신 {upd}(한국 시각)" if upd else ""}.</p>
 <p>미국 주식 미스터리 무료 리포트 <a href="{SITE}">김박사 월드</a> · <a href="{YT}">유튜브 김박사 월드</a> · <a href="{up}about/">김박사 몰 소개</a></p></div></footer>
-<nav class="tabbar" aria-label="바로가기">{tabbar}</nav></body></html>"""
+<nav class="tabbar" aria-label="바로가기">{tabbar}</nav>{TRACK}</body></html>"""
 
 
 def entry(cat: dict, depth: int = 0) -> str:
     go = (cat.get("entry") or {}).get("go")
     if not go:
         return ""
-    return (f'<section class="entry"><p><b>쿠팡 장보기는 이 문으로</b>들어간 뒤 24시간 안에 무엇을 사시든 같은 가격에 김박사 월드 운영에 도움이 됩니다.</p>'
+    return (f'<section class="entry" data-sl="entry"><p><b>쿠팡 장보기는 이 문으로</b>들어간 뒤 24시간 안에 무엇을 사시든 같은 가격에 김박사 월드 운영에 도움이 됩니다.</p>'
             f'<a class="btn" href="{esc(go)}" {REL}>쿠팡 들어가기</a></section>')
 
 
@@ -215,7 +225,7 @@ function idx(){return Math.round(s.scrollLeft/(s.firstElementChild.offsetWidth+1
 s.addEventListener('scroll',function(){var i=idx();d.forEach(function(x,j){x.classList.toggle('on',j===i)})},{passive:true});
 var t=setInterval(function(){if(document.hidden)return;var n=idx()+1;if(n*(s.firstElementChild.offsetWidth+10)>=s.scrollWidth-5)n=0;s.scrollTo({left:n*(s.firstElementChild.offsetWidth+10),behavior:'smooth'})},5000);
 s.addEventListener('pointerdown',function(){clearInterval(t)},{once:true});})();</script>"""
-    return f'<section class="hero" aria-label="기획전"><div class="slides">{"".join(sl)}</div><div class="dots">{dots}</div></section>{js}'
+    return f'<section class="hero" data-sl="hero" aria-label="기획전"><div class="slides">{"".join(sl)}</div><div class="dots">{dots}</div></section>{js}'
 
 
 def icons(c: dict, cat: dict, up: str = "") -> str:
@@ -238,7 +248,7 @@ def ranking(c: dict, cat: dict) -> str:
         return ""
     rows = "".join(f'<a href="{esc(p["url"])}" {REL}><em>{n}</em><div class="im">' + (f'<img src="{esc(p["image"])}" alt="" loading="lazy" referrerpolicy="no-referrer">' if p.get("image") else "")
                    + f'</div><div class="t"><div>{esc(p["name"])}</div><small>{esc(k["name"])} 베스트 {cats[k["slug"]].index(p) + 1}위</small></div><div class="p">{p["price"]:,}원</div></a>' if p.get("price") else "" for n, (k, p) in enumerate(picks, 1))
-    return f'<section class="sec"><h2>카테고리 베스트 모아보기 <small>쿠팡 카테고리 베스트 순위</small></h2><div class="rank">{rows}</div></section>'
+    return f'<section class="sec" data-sl="rank"><h2>카테고리 베스트 모아보기 <small>쿠팡 카테고리 베스트 순위</small></h2><div class="rank">{rows}</div></section>'
 
 
 SORT_JS = """<div class="sort" role="group" aria-label="정렬"><button class="on" data-s="0">추천순</button><button data-s="p">낮은 가격순</button><button data-s="P">높은 가격순</button><button data-s="r">할인율순</button></div>"""
@@ -256,16 +266,16 @@ def build(c: dict, cat: dict, out: Path) -> int:
     # 홈: 배너 → 카테고리 아이콘 → 입구 띠 → 오늘의 특가(가로) → 카테고리 베스트 모아보기(랭킹) → 카테고리별 가로 줄
     b = [hero(c, cat), icons(c, cat), entry(cat)]
     if deals:
-        b.append(f'<section class="sec"><h2>🔥 오늘의 특가 <small>매일 아침 바뀜</small><a class="more" href="deals/">전체 {len(deals)}개 ›</a></h2><div class="row">' + "".join(card(p) for p in deals[:14]) + "</div></section>")
+        b.append(f'<section class="sec" data-sl="deals"><h2>🔥 오늘의 특가 <small>매일 아침 바뀜</small><a class="more" href="deals/">전체 {len(deals)}개 ›</a></h2><div class="row">' + "".join(card(p) for p in deals[:14]) + "</div></section>")
     b.append(ranking(c, cat))
     for grp in ("장보기", "취향"):
         for k in [k for k in c.get("categories") or [] if k.get("group") == grp and cats.get(k["slug"])]:
-            b.append(f'<section class="sec"><h2>{k.get("icon", "")} {esc(k["name"])} <small>베스트</small><a class="more" href="c/{k["slug"]}/">더보기 ›</a></h2><div class="row">' + "".join(card(p) for p in cats[k["slug"]][:12]) + "</div></section>")
+            b.append(f'<section class="sec" data-sl="row-{k["slug"]}"><h2>{k.get("icon", "")} {esc(k["name"])} <small>베스트</small><a class="more" href="c/{k["slug"]}/">더보기 ›</a></h2><div class="row">' + "".join(card(p) for p in cats[k["slug"]][:12]) + "</div></section>")
     if not deals and not cats:
         b.append('<p class="empty">진열을 준비하고 있습니다. 위 입구로 쿠팡에 들어가실 수 있습니다.</p>')
     w("index.html", page(c, cat, f"{c['name']} — {c['tagline']}", "".join(b), "home", "오늘의 특가와 식품·생활·주방·가전·스포츠·도서 베스트를 매일 모아 둔 김박사 월드 시청자 장보기 입구."))
     # 특가
-    w("deals/index.html", page(c, cat, f"오늘의 특가 | {c['name']}", entry(cat, 1) + f'<section class="sec"><h2>🔥 오늘의 특가 <small>{len(deals)}개 · 매일 아침 바뀜</small></h2>{SORT_JS}<div class="grid">' + "".join(card(p) for p in deals) + "</div></section>" + SORT_RUN, "deals", depth=1))
+    w("deals/index.html", page(c, cat, f"오늘의 특가 | {c['name']}", entry(cat, 1) + f'<section class="sec" data-sl="grid"><h2>🔥 오늘의 특가 <small>{len(deals)}개 · 매일 아침 바뀜</small></h2>{SORT_JS}<div class="grid">' + "".join(card(p) for p in deals) + "</div></section>" + SORT_RUN, "deals", depth=1))
     # 카테고리 모음
     w("categories/index.html", page(c, cat, f"카테고리 | {c['name']}", icons(c, cat, "../") + entry(cat, 1), "cats", depth=1))
     # 카테고리
@@ -274,7 +284,7 @@ def build(c: dict, cat: dict, out: Path) -> int:
         items = cats.get(k["slug"]) or []
         if not items:
             continue
-        w(f"c/{k['slug']}/index.html", page(c, cat, f"{k['name']} 베스트 | {c['name']}", entry(cat, 2) + f'<section class="sec"><h2>{k.get("icon", "")} {esc(k["name"])} 베스트 <small>쿠팡 카테고리 베스트 {len(items)}</small></h2>{SORT_JS}<div class="grid">' + "".join(card(p) for p in items) + "</div></section>" + SORT_RUN, k["slug"], f"쿠팡 {k['name']} 베스트 상품 모음.", depth=2))
+        w(f"c/{k['slug']}/index.html", page(c, cat, f"{k['name']} 베스트 | {c['name']}", entry(cat, 2) + f'<section class="sec" data-sl="grid"><h2>{k.get("icon", "")} {esc(k["name"])} 베스트 <small>쿠팡 카테고리 베스트 {len(items)}</small></h2>{SORT_JS}<div class="grid">' + "".join(card(p) for p in items) + "</div></section>" + SORT_RUN, k["slug"], f"쿠팡 {k['name']} 베스트 상품 모음.", depth=2))
         n += 1
     # 검색(브라우저 안) — 진열 전체를 작은 JSON으로
     idx = [{"n": p["name"], "u": p["url"], "i": p.get("image", ""), "p": p.get("price", 0), "r": p.get("rate", 0), "o": p.get("orig", 0), "k": bool(p.get("rocket"))}
@@ -292,16 +302,23 @@ var m=a.filter(function(x){var n=x.n.toLowerCase();return t.length&&t.every(func
 var e=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 document.getElementById('res').innerHTML=m.slice(0,60).map(function(x){return '<a class="card" href="'+e(x.u)+'" rel="sponsored nofollow noopener" target="_blank"><div class="im">'+(x.i?'<img src="'+e(x.i)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':'')+(x.k?'<span class="badge">로켓배송</span>':'')+'</div><div class="b"><div class="n">'+e(x.n)+'</div>'+(x.p?'<div class="pr">'+(x.r?'<span class="r">'+x.r+'%</span>':'')+x.p.toLocaleString()+'원</div>':'')+'</div></a>'}).join('');
 document.getElementById('none').hidden=m.length>0;});})();</script>"""
-    w("search/index.html", page(c, cat, f"상품 찾기 | {c['name']}", entry(cat, 1) + '<section class="sec"><h2 id="hq">상품 찾기</h2>' + js + "</section>", "search", depth=1))
+    w("search/index.html", page(c, cat, f"상품 찾기 | {c['name']}", entry(cat, 1) + '<section class="sec" data-sl="search"><h2 id="hq">상품 찾기</h2>' + js + "</section>", "search", depth=1))
     w("about/index.html", page(c, cat, f"김박사 몰 소개 | {c['name']}", f"""<section class="sec"><h2>김박사 몰은</h2>
 <p>미국 주식 미스터리 리포트와 영상을 무료로 만드는 <a href="{SITE}">김박사 월드</a>가 운영하는 쿠팡 파트너스 장보기 입구입니다.
 쿠팡에 들어가실 때 이곳의 링크를 거치시면, 같은 가격으로 사시는 물건의 일부가 수수료로 채널 운영에 쓰입니다.</p>
 <p>진열은 쿠팡이 공개하는 오늘의 특가와 카테고리 베스트를 매일 자동으로 가져옵니다. 순위도 쿠팡 카테고리 베스트 순위 그대로입니다. 김박사 월드가 상품을 직접 써 보고 고른 것이 아니며, 효능·품질을 보증하지 않습니다.
-가격·재고·배송·교환·환불은 모두 쿠팡에서 처리됩니다.</p><p>{esc(DISCLOSURE)}</p></section>""", "", depth=1))
+가격·재고·배송·교환·환불은 모두 쿠팡에서 처리됩니다.</p><p>{esc(DISCLOSURE)}</p></section>""", "about", depth=1))
     urls = ["", "deals/", "categories/", "about/"] + [f"c/{k['slug']}/" for k in c.get("categories") or [] if cats.get(k["slug"])]
     base = (c.get("url") or "").rstrip("/")
     if base:
         w("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{base}/{u}</loc></url>" for u in urls) + "</urlset>")
+    # IndexNow 키 파일(2026-11-20 몰 검색 유입): 사이트와 같은 공개 키. mall.yml 이 배포 뒤 몰 주소를 빙·네이버에 알린다
+    try:
+        key = str(((yaml.safe_load((ROOT / "site.yaml").read_text(encoding="utf-8")) or {}).get("seo") or {}).get("indexnow_key") or "")
+    except Exception:
+        key = ""
+    if re.fullmatch(r"[0-9a-f]{8,128}", key):
+        w(f"{key}.txt", key)
     w("robots.txt", "User-agent: *\nAllow: /\n" + (f"Sitemap: {base}/sitemap.xml\n" if base else ""))
     print(f"김박사 몰 만들기: 특가 {len(deals)} · 카테고리 {n} · 검색 {len(uniq)}개 → {out}")
     return 0

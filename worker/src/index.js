@@ -8,7 +8,7 @@ import { queuePush, prefsOf, cleanPrefs, vapidKeys, pushToUser, drainPush, PUSH_
 // 원래 IP는 저장하지 않는다. 그날의 무작위 값으로 만든 해시만 남기고, 그 무작위 값은 이틀 뒤 지운다.
 // 내 댓글·좋아요는 기기에 저장한 무작위 번호(d=)로 구분한다(같은 공용 IP를 쓰는 사람끼리 섞이지 않게).
 
-const ALLOWED_ORIGINS = ["https://drkimworld.com", "https://www.drkimworld.com", "http://localhost:8765"];
+const ALLOWED_ORIGINS = ["https://drkimworld.com", "https://www.drkimworld.com", "https://mall.drkimworld.com", "http://localhost:8765"];  // mall: 김박사 몰 추적(2026-11-20)
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
 const HOLD_PATTERNS = [
   /https?:\/\//i, /www\./i, /\b[a-z0-9-]+\.(com|net|kr|co|io|me|ly|gg)\b/i,
@@ -511,8 +511,10 @@ async function analytics(db, now, daysIn) {
     newv: dS[day]?.newv || 0, signups: dG[day]?.n || 0, board: dC[day]?.board || 0, report: dC[day]?.report || 0,
   }));
   const sum = (k) => series.reduce((a, x) => a + x[k], 0);
+  // 김박사 몰(2026-11-20): 날짜별 그대로(합치기·비교는 ops 쪽에서). 최근 days일
+  const mall = await all("SELECT day, k, src, pg, sl, n, u FROM mall_ev WHERE day >= ? ORDER BY day, k, src, pg, sl LIMIT 3000", since);
   return {
-    days, since, generated: now,
+    days, since, generated: now, mall,
     totals: { pv: sum("pv"), secs: sum("secs"), sess: sum("sess"), multi: sum("multi"), newv: sum("newv"), signups: sum("signups"),
       uv: (await one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ?", since))?.n || 0, mob: daily.reduce((a, x) => a + (x.mob || 0), 0) },
     prev: { pv: prevPage?.pv || 0, secs: prevPage?.secs || 0, sess: prevSrc?.sess || 0, multi: prevSrc?.multi || 0, newv: prevSrc?.newv || 0, uv: prevUv?.n || 0, signups: prevSignups?.n || 0 },
@@ -568,7 +570,7 @@ export default {
     try {
       // API 주소(api.drkimworld.com)는 검색엔진이 긁지 않게: 공유 미리보기(/s/)와 프로필 사진만 허용
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /s/\nAllow: /v1/avatar/\nDisallow: /\n", { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
-      const bot = req.method === "POST" && /^\/v1\/(hit|view|post-views|ad\/events)$/.test(p) ? botWhy(req) : "";
+      const bot = req.method === "POST" && /^\/v1\/(hit|view|post-views|ad\/events|mall)$/.test(p) ? botWhy(req) : "";
       // ---------- 조회수 ----------
       if (p === "/v1/view" && req.method === "POST") {
         const { slug } = await readJson(req);
@@ -669,6 +671,23 @@ export default {
             ON CONFLICT(day, g, slot, seg) DO UPDATE SET imps = imps + excluded.imps, clicks = clicks + excluded.clicks`).bind(today, r.g, r.slot, seg, r.i, r.c)));
         }
         return json(req, { ok: true, n: rows.length });
+      }
+
+      // ---------- 김박사 몰 추적(2026-11-20): 입구 도착·몰 화면·쿠팡 클릭을 채널·화면·칸별 하루 합계로 ----------
+      // 사이트 /mall/ 입구와 mall.drkimworld.com 이 sendBeacon(text/plain)으로 보낸다. 봇은 버리고, 한 IP 하루 300번까지만
+      if (p === "/v1/mall" && req.method === "POST") {
+        const b = await readJson(req);
+        const k = ["land", "view", "click"].includes(b.k) ? b.k : "";
+        if (!k || bot) return json(req, { ok: false });
+        const ok = (x, re, d) => (re.test(String(x ?? "")) ? String(x) : d);
+        const src = ok(String(b.src || "").toLowerCase(), /^[a-z0-9._-]{1,30}$/, "direct");
+        const pg = ok(b.pg, /^[a-z0-9_-]{1,30}$/, "other");
+        const sl = k === "view" ? "-" : ok(String(b.sl || "").toLowerCase(), /^[a-z0-9_:-]{1,30}$/, k === "land" ? "-" : "other");  // land: utm_content·campaign(어느 영상·글에서)
+        if (!(await allow(db, `mall|${ih}`, 300, 864e5, now))) return json(req, { ok: false });
+        const first = await allow(db, `mallu|${ih}|${k}|${src}|${pg}|${sl}`, 1, 864e5, now);
+        await db.prepare(`INSERT INTO mall_ev (day, k, src, pg, sl, n, u) VALUES (?, ?, ?, ?, ?, 1, ?)
+          ON CONFLICT(day, k, src, pg, sl) DO UPDATE SET n = n + 1, u = u + excluded.u`).bind(today, k, src, pg, sl, first ? 1 : 0).run();
+        return json(req, { ok: true });
       }
 
       // ---------- 방문 통계(운영자 애널리틱스용): 페이지를 떠날 때 한 번. 합계만 저장 ----------

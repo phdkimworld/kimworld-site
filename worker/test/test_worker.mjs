@@ -453,6 +453,25 @@ check(r1.data.ok && list.data.comments.some((c) => c.nick === "탈퇴한 사용�
 r1 = await call("GET", "/v1/me", { ip: "80.0.0.1", cookie: LA.cookie });
 check(r1.data.loggedIn === false, "탈퇴하면 로그인도 끝남");
 
+console.log("김박사 몰 추적");
+{
+  const MO = { origin: "https://mall.drkimworld.com" };
+  let m = await call("POST", "/v1/mall", { body: { k: "land", src: "youtube", pg: "entry" }, ip: "93.0.0.1" });
+  check(m.data.ok, "몰 입구 도착 받음");
+  await call("POST", "/v1/mall", { body: { k: "view", src: "youtube", pg: "home" }, ip: "93.0.0.1", ...MO });
+  await call("POST", "/v1/mall", { body: { k: "view", src: "youtube", pg: "home" }, ip: "93.0.0.1", ...MO });
+  await call("POST", "/v1/mall", { body: { k: "click", src: "youtube", pg: "home", sl: "deals" }, ip: "93.0.0.1", ...MO });
+  await call("POST", "/v1/mall", { body: { k: "click", src: "BAD<x>", pg: "c-food", sl: "cat<script>" }, ip: "93.0.0.2", ...MO });
+  await call("POST", "/v1/mall", { body: { k: "hack", src: "youtube" }, ip: "93.0.0.3", ...MO });
+  m = await call("POST", "/v1/mall", { body: { k: "view", src: "x", pg: "home" }, ip: "93.0.0.4", ua: "Googlebot/2.1", ...MO });
+  check(!m.data.ok, "봇은 몰 기록 안 함");
+  const ma = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.mall;
+  const row = (k, src, pg, sl) => ma.find((x) => x.k === k && x.src === src && x.pg === pg && x.sl === sl);
+  check(row("land", "youtube", "entry", "-").n === 1 && row("view", "youtube", "home", "-").n === 2 && row("view", "youtube", "home", "-").u === 1, "몰 화면 보기: 횟수 2, 사람 1");
+  check(row("click", "youtube", "home", "deals").n === 1 && row("click", "direct", "c-food", "other"), "몰 클릭: 칸별, 이상한 값은 direct·other로");
+  check(!ma.some((x) => x.k === "hack") && ma.every((x) => x.k !== "view" || x.src !== "x"), "모르는 종류·봇은 없음");
+}
+
 console.log("운영 통계");
 r = await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", m: 1, n: 1, s: 1, a: 120, sc: 80 }, ip: "91.0.0.1" });
 check(r.data.ok, "방문 기록 받음");
