@@ -8,7 +8,7 @@ import { queuePush, prefsOf, cleanPrefs, vapidKeys, pushToUser, drainPush, PUSH_
 // 원래 IP는 저장하지 않는다. 그날의 무작위 값으로 만든 해시만 남기고, 그 무작위 값은 이틀 뒤 지운다.
 // 내 댓글·좋아요는 기기에 저장한 무작위 번호(d=)로 구분한다(같은 공용 IP를 쓰는 사람끼리 섞이지 않게).
 
-const ALLOWED_ORIGINS = ["https://drkimworld.com", "https://www.drkimworld.com", "https://mall.drkimworld.com", "http://localhost:8765"];  // mall: 김박사 몰 추적(2026-11-20)
+const ALLOWED_ORIGINS = ["https://drkimworld.com", "https://www.drkimworld.com", "https://mall.drkimworld.com", "https://health.drkimworld.com", "http://localhost:8765"];  // mall: 김박사 몰 추적, health: 건강몰 추적(2026-11-20 — 로그인 회원 방문이 origin 403으로 빠지던 것 수정 11-21)
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,60}$/;
 const HOLD_PATTERNS = [
   /https?:\/\//i, /www\./i, /\b[a-z0-9-]+\.(com|net|kr|co|io|me|ly|gg)\b/i,
