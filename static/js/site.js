@@ -839,6 +839,8 @@ window.kwEv = function (name) { window.kwEvents[name] = 1; };
     if (sent) return;
     // 봇 걸러내기: 화면을 한 번도 만지지 않았고 15초도 머물지 않았으면 보내지 않는다(링크 검사·미리보기 봇은 열었다 바로 닫는다)
     if (!human && active < 15) {
+      // 김박사 몰 입구(/mall/)는 1.5초 뒤 넘겨주는 페이지라 '빨리 나감'이 아니다 — 도착은 /v1/mall land 로 따로 센다(2026-11-21: ql:o:yt가 옛 영상 설명란 몰 줄 배포 다음 날부터만 생겨 빠른 이탈을 부풀림)
+      if (location.pathname.indexOf('/mall/') === 0) { sent = true; return; }
       // 15초 안에 화면을 만지지 않고 나간 방문: 페이지뷰로는 세지 않고 '빨리 나감' 합계만 따로 센다(2026-10-19: 애드핏 요청 수가 우리 페이지뷰의 약 7배라 확인용)
       if (!quickSent) { quickSent = true; var qb = JSON.stringify({ p: location.pathname, q: 1, a: active, r: src, s: n }); try { if (!(navigator.sendBeacon && navigator.sendBeacon(API + '/v1/hit', qb))) fetch(API + '/v1/hit', { method: 'POST', body: qb, keepalive: true }); } catch (e) {} }
       return;
