@@ -92,6 +92,16 @@ def clean(items: list[dict], drop: list[str], match: list[str] | None = None) ->
     return out
 
 
+def gclean(c: dict, g: dict, items: list[dict]) -> list[dict]:
+    """가이드 진열: 공통 금지어 + 그 가이드의 exclude(편에 안 맞는 상품 — 예: 오메가3의 임산부용·SDA·대량 묶음) + match,
+    그리고 prefer 낱말이 든 상품을 앞으로(예: rTG·EPA·DHA 고함량). 2026-11-21 운영자 '제품도 신경써서 찾아놓고'."""
+    out = clean(items, (c.get("drop_words") or []) + (g.get("exclude") or []), g.get("match") or [g["name"]])
+    pref = [w.lower() for w in g.get("prefer") or []]
+    if pref:
+        out.sort(key=lambda p: -sum(w in p.get("name", "").lower() for w in pref))
+    return out
+
+
 # ---------- 받기 ----------
 def get(path: str, q: dict, access: str, secret: str) -> dict:
     query = urllib.parse.urlencode(q)
@@ -164,7 +174,7 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
                     print(f"::warning title=김박사 건강몰::{kw} 검색 0개 rCode={js.get('rCode')} {str(js.get('rMessage') or '')[:80]}")
             else:
                 raw = searcher(kw, g["sub"], int(c.get("per_search") or 10), access, secret)
-            items = clean(raw, drop, g.get("match") or [g["name"]])
+            items = clean(raw, drop + (g.get("exclude") or []), g.get("match") or [g["name"]])
             prods[g["slug"]] = merge(items, prods.get(g["slug"]) or [], today, int(c.get("keep_items") or 24), int(c.get("keep_days") or 14))
             ok += bool(items)
             print(f"{kw}: 받은 {len(raw)} · 관련 {len(items)} · 쌓인 {len(prods[g['slug']])}")
@@ -288,7 +298,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     others = '<h2>다른 성분 가이드</h2><nav class="chips">' + "".join(
         f'<a href="../{o["slug"]}/">{esc(o["name"])}</a>' for o in c.get("guides") or [] if o["slug"] != g["slug"]) + "</nav>"
     rows = "".join(f"<tr><td>{esc(f['text'])}</td><td>{esc(f['dose'])}</td></tr>" for f in g["functions"])
-    items = clean((cat.get("products") or {}).get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
+    items = gclean(c, g, (cat.get("products") or {}).get(g["slug"]) or [])
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
              f'<p class="note">쿠팡 검색 결과를 자동으로 보여 줍니다. 추천·보증이 아니며, 건강기능식품 여부·기능성·함량은 상품 페이지의 표시사항에서 위 기준과 비교해 확인하세요.</p>'
              f'<div class="grid" data-sub="g-{g["slug"]}">{"".join(card(p) for p in items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
@@ -335,7 +345,7 @@ def build(c: dict, cat: dict, out: Path) -> int:
             '<h2>성분 가이드<small>기능성·섭취량·주의사항</small></h2>' + gl.replace("{up}", ""), funnel(c, "home")]
     rows = []
     for g in guides:
-        items = clean(prods.get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
+        items = gclean(c, g, prods.get(g["slug"]) or [])
         if items:
             rows.append(f'<section class="row" id="{g["slug"]}"><h2>{esc(g["name"])}<span class="ad">광고</span><a class="more" href="guide/{g["slug"]}/">고르는 법 먼저 보기 ›</a></h2>'
                         f'<div class="grid" data-sub="h-{g["slug"]}">{"".join(card(p) for p in items[:5])}</div></section>')
