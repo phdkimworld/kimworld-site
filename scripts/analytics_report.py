@@ -73,6 +73,7 @@ def summarize(a: dict) -> dict:
     out["events"] = {k: {"now": v, "prev": (a.get("eventsPrev") or {}).get(k, 0)} for k, v in sorted((a.get("events") or {}).items(), key=lambda kv: -kv[1])}
     out["ads"] = [{**pick(x, ("slot", "imps", "clicks")), "ctr_pct": rate(x.get("clicks", 0), x.get("imps", 0), 100, 2)} for x in a.get("ads", [])]
     out["community"] = a.get("community")
+    out["hmall"] = a.get("hmall")  # 김박사 건강몰 방문·클릭(2026-11-20, 워커 mallStats·hm_* 표) → ops_digest 건강몰 줄
     out["actions"] = a.get("actions")
     out["app"] = a.get("app")
     out["topics"] = [pick(x, ("kind", "key", "n")) for x in a.get("topics", [])]

@@ -493,6 +493,27 @@ await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", q: 1, a: 3, r: "y
 await call("POST", "/v1/hit", { body: { p: "/", q: 1, a: 2, r: "direct", s: 2 }, ip: "91.0.0.5" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_land === 1 && an.data.bots["ql:r:yt"] === 1 && !an.data.bots["ql:h:direct"], "빨리 나간 방문: 페이지뷰 제외, quick·첫 페이지 quick_land 합계, 랜딩 종류·유입별(ql:r:yt)");
+
+console.log("건강몰 방문·클릭(본 사이트 통계·김박사 몰 mall_ev 와 분리)");
+const pvBefore = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.totals.pv;
+r = await call("POST", "/v1/mhit", { body: { site: "health", p: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", s: 1, a: 95, sc: 70, m: 1, en: 1, k: [{ k: "coupang", sub: "g-omega3" }, { k: "evil", sub: "x" }] }, ip: "93.0.0.1" });
+check(r.data.ok, "건강몰 방문 받음");
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/", lp: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", s: 2, a: 20, sc: 30, k: [{ k: "coupang", sub: "best" }] }, ip: "93.0.0.1" });
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/guide/lutein/", ch: "search", sd: "naver", s: 1, a: 40, sc: 20, k: [] }, ip: "93.0.0.2" });
+r = await call("POST", "/v1/mhit", { body: { site: "mall", p: "/", ch: "search", s: 1, a: 40 }, ip: "93.0.0.3" });
+check(!r.data.ok, "김박사 몰은 /v1/mhit 로 받지 않음(/v1/mall 이 맡음)");
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/x?<script>", ch: "nope", sd: "BAD HOST!", c: "a b<c>", s: 1, a: 99999, sc: 999 }, ip: "93.0.0.4" });
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/", ch: "direct", s: 1, a: 1 }, ip: "93.0.0.5" });
+an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
+const M = an.data.hmall;
+const ht = M.totals.find((x) => x.site === "health");
+check(ht.sess === 3 && ht.deep === 1 && ht.clicks === 2 && ht.engaged === 1, "건강몰: 세션 3(무반응 1초 방문 뺌)·두 번째 페이지(deep)·쿠팡 클릭 2·참여 1");
+check(M.channels.some((x) => x.ch === "youtube" && x.clicks === 2) && M.channels.some((x) => x.ch === "direct" && x.sess === 1) && M.channels.some((x) => x.ch === "search"), "채널별 세션·클릭(모르는 채널은 direct)");
+check(M.campaigns.some((x) => x.camp === "omega3-long") && M.landings.some((x) => x.lp === "/guide/omega3/" && x.sess === 1), "캠페인·랜딩별");
+check(M.clicks.some((x) => x.sub === "g-omega3" && x.n === 1) && !M.clicks.some((x) => x.kind === "evil"), "자리(data-sub)별 쿠팡 클릭(모르는 종류 버림)");
+const mp = M.pages.find((x) => x.path === "/(기타)");
+check(mp && mp.secs === 1800 && mp.scroll === 100 && M.pages.find((x) => x.path === "/guide/omega3/").coupang === 1, "이상한 주소는 기타, 체류 30분·스크롤 100% 상한, 페이지별 쿠팡 클릭");
+check(an.data.totals.pv === pvBefore && an.data.bots["hmall:idle"] === 1, "본 사이트 페이지뷰에는 안 섞임, 무반응 방문은 봇 합계 hmall:idle");
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", s: 1, a: 40, av: { adfit: 2, coupang: 1, hack: 5, adsense: 999 } }, ip: "91.0.0.7" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const adv = {}; (an.data.eventsDaily || []).forEach((x) => { if (x.ev.startsWith("adv_")) adv[x.ev] = (adv[x.ev] || 0) + x.n; });

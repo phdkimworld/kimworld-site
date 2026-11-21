@@ -26,6 +26,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coupang_sync as cs  # noqa: E402
+import mall_track  # noqa: E402
 
 CFG = ROOT / "health" / "health.yaml"
 CAT = ROOT / "health" / "catalog.json"
@@ -268,7 +269,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 {body}</main>
 <footer><div class="wrap"><p>{esc(DISCLOSURE)} 성분 가이드는 식약처가 인정한 기능성 문구와 공개된 섭취 시 주의사항을 옮겨 정리한 일반 정보이며, 의학적 진단·상담을 대신하지 않습니다. 질환이 있거나 의약품을 복용 중이라면 의사·약사와 먼저 상담하세요.
 상품 목록은 쿠팡 검색·베스트 결과를 자동으로 가져온 것으로 추천·보증이 아니며, 건강기능식품 여부·함량·가격은 쿠팡 상품 페이지의 표시사항이 기준입니다{f" · 상품 갱신 {upd}(한국 시각)" if upd else ""}.</p>
-<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer></body></html>"""
+<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer>{mall_track.snippet("health")}</body></html>"""
 
 
 def ad_slot(c: dict) -> str:
@@ -290,7 +291,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     items = clean((cat.get("products") or {}).get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
              f'<p class="note">쿠팡 검색 결과를 자동으로 보여 줍니다. 추천·보증이 아니며, 건강기능식품 여부·기능성·함량은 상품 페이지의 표시사항에서 위 기준과 비교해 확인하세요.</p>'
-             f'<div class="grid">{"".join(card(p) for p in items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
+             f'<div class="grid" data-sub="g-{g["slug"]}">{"".join(card(p) for p in items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
     body = f"""<p class="crumb"><a href="../../">홈</a> › <a href="../">성분 가이드</a> › {esc(g['name'])}</p>
 <h1 class="t">{esc(g['name'])} 고르는 법: 식약처 기능성·하루 섭취량·주의사항</h1>
 <p class="lead">{esc(g['intro'])}</p>
@@ -337,11 +338,11 @@ def build(c: dict, cat: dict, out: Path) -> int:
         items = clean(prods.get(g["slug"]) or [], c.get("drop_words") or [], g.get("match") or [g["name"]])
         if items:
             rows.append(f'<section class="row" id="{g["slug"]}"><h2>{esc(g["name"])}<span class="ad">광고</span><a class="more" href="guide/{g["slug"]}/">고르는 법 먼저 보기 ›</a></h2>'
-                        f'<div class="grid">{"".join(card(p) for p in items[:5])}</div></section>')
+                        f'<div class="grid" data-sub="h-{g["slug"]}">{"".join(card(p) for p in items[:5])}</div></section>')
     if rows:
         home.append('<h2 class="sec">성분별 쿠팡 상품<small>쿠팡 검색 결과 · 추천·보증 아님</small></h2>' + chips + "".join(rows))
     if best:
-        home.append(f'<h2>헬스·건강식품 베스트<span class="ad">광고</span><small>쿠팡 카테고리 베스트</small></h2><div class="grid">{"".join(card(p) for p in best[:10])}</div><p><a href="best/">전체 보기 ›</a></p>')
+        home.append(f'<h2>헬스·건강식품 베스트<span class="ad">광고</span><small>쿠팡 카테고리 베스트</small></h2><div class="grid" data-sub="best">{"".join(card(p) for p in best[:10])}</div><p><a href="best/">전체 보기 ›</a></p>')
     w("index.html", page(c, cat, f"{c['name']} — {c['tagline']}", "".join(home), "", "오메가3·루테인·밀크씨슬·홍삼 등 영양제의 식약처 인정 기능성, 하루 섭취량, 섭취 시 주의사항을 성분별로 정리한 가이드.", "home",
                          ld=[{"@context": "https://schema.org", "@type": "WebSite", "name": c["name"], "url": base + "/", "inLanguage": "ko-KR", "publisher": org}]))
     # 가이드 목록
@@ -367,7 +368,7 @@ def build(c: dict, cat: dict, out: Path) -> int:
         lastmod[p] = max([g["verified"]] + seen)
     # 베스트(상품만 있는 페이지 — 검색 색인 제외)
     if best:
-        w("best/index.html", page(c, cat, f"헬스·건강식품 베스트 | {c['name']}", f'<h1 class="t">헬스·건강식품 베스트<span class="ad">광고</span></h1><p class="lead">쿠팡 헬스/건강식품 카테고리 베스트를 자동으로 가져옵니다. 추천·보증이 아닙니다.</p><div class="grid">{"".join(card(p) for p in best)}</div>',
+        w("best/index.html", page(c, cat, f"헬스·건강식품 베스트 | {c['name']}", f'<h1 class="t">헬스·건강식품 베스트<span class="ad">광고</span></h1><p class="lead">쿠팡 헬스/건강식품 카테고리 베스트를 자동으로 가져옵니다. 추천·보증이 아닙니다.</p><div class="grid" data-sub="best">{"".join(card(p) for p in best)}</div>',
                                   "best/", "쿠팡 헬스·건강식품 카테고리 베스트.", "best", noindex=True))
     w("about/index.html", page(c, cat, f"김박사 건강몰 소개 | {c['name']}", f"""<h1 class="t">김박사 건강몰은</h1>
 <p>미국 주식 미스터리 리포트를 무료로 만드는 <a href="{SITE}">김박사 월드</a>가 운영하는 영양제 정보·쇼핑 연결 사이트입니다.</p>

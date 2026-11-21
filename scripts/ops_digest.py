@@ -115,6 +115,9 @@ def main() -> int:
         st = json.loads(gs.read_text(encoding="utf-8"))
         out.append("- 블로거 비교 글: " + " · ".join(f"{k} {'게시' if v.get('url') else str(len(v.get('items', {}))) + '개 채움'}" for k, v in st.items()))
 
+    # 건강몰 유입·클릭(2026-11-20): hm_* 표(본 사이트 통계·김박사 몰 mall_ev 와 분리) → 채널 다각화·전환·막힌 페이지
+    import mall_insights
+    out += ["", "## 건강몰 유입·클릭(7일)"] + mall_insights.lines(a.get("hmall"))
     # 애드센스 재신청 기준(예약 작업 '애드센스 재신청 준비 점검'의 기준과 같다)
     nrep = public_reports()
     crit = [

@@ -359,6 +359,25 @@ function countBot(db, today, why) {
 // 리포트 구간 코드(순서 = 글 순서). site.js 의 secCode 와 맞춘다
 const SECS = ["top", "ans", "can", "news", "term", "p1", "p2", "p3", "p4", "p5", "p6", "src", "more", "comm"];
 
+// 건강몰 방문·클릭 요약(hm_* 표). 운영 통계(analytics.json)의 hmall 칸 → digest 건강몰 줄. 합계만
+async function mallStats(db, since, prevSince) {
+  const all = (sql, ...a) => db.prepare(sql).bind(...a).all().then((r) => r.results || []);
+  const [tot, prev, daily, byCh, bySrc, byLp, byCamp, clicks, pages] = await Promise.all([
+    all("SELECT site, SUM(sess) AS sess, SUM(engaged) AS engaged, SUM(deep) AS deep, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY site", since),
+    all("SELECT site, SUM(sess) AS sess, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? AND day < ? GROUP BY site", prevSince, since),
+    all("SELECT day, site, SUM(sess) AS sess, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY day, site ORDER BY day", since),
+    all("SELECT site, ch, SUM(sess) AS sess, SUM(engaged) AS engaged, SUM(deep) AS deep, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY site, ch ORDER BY sess DESC", since),
+    all("SELECT site, ch, src, SUM(sess) AS sess, SUM(engaged) AS engaged, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY site, ch, src ORDER BY sess DESC LIMIT 40", since),
+    all("SELECT site, lp, SUM(sess) AS sess, SUM(engaged) AS engaged, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY site, lp ORDER BY sess DESC LIMIT 40", since),
+    all("SELECT site, src, camp, SUM(sess) AS sess, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? AND camp != '-' GROUP BY site, src, camp ORDER BY sess DESC LIMIT 40", since),
+    all("SELECT site, kind, sub, SUM(n) AS n FROM hm_click WHERE day >= ? GROUP BY site, kind, sub ORDER BY n DESC LIMIT 60", since),
+    all(`SELECT p.site, p.path, SUM(p.pv) AS pv, SUM(p.sess) AS sess, SUM(p.secs) AS secs, SUM(p.engaged) AS engaged, SUM(p.scroll) AS scroll, SUM(p.scroll_n) AS scroll_n,
+           (SELECT COALESCE(SUM(c.n), 0) FROM hm_click c WHERE c.day >= ? AND c.site = p.site AND c.path = p.path AND c.kind = 'coupang') AS coupang
+         FROM hm_page p WHERE p.day >= ? GROUP BY p.site, p.path ORDER BY pv DESC LIMIT 60`, since, since),
+  ]);
+  return { totals: tot, prev, daily, channels: byCh, sources: bySrc, landings: byLp, campaigns: byCamp, clicks, pages };
+}
+
 async function analytics(db, now, daysIn) {
   const days = [7, 30, 90].includes(daysIn) ? daysIn : 30;
   const D = (k) => kstDay(now - k * 864e5);
@@ -513,8 +532,10 @@ async function analytics(db, now, daysIn) {
   const sum = (k) => series.reduce((a, x) => a + x[k], 0);
   // 김박사 몰(2026-11-20): 날짜별 그대로(합치기·비교는 ops 쪽에서). 최근 days일
   const mall = await all("SELECT day, k, src, pg, sl, n, u FROM mall_ev WHERE day >= ? ORDER BY day, k, src, pg, sl LIMIT 3000", since);
+  // 김박사 건강몰(2026-11-20): 채널·랜딩·자리별 요약(hm_* 표, /v1/mhit)
+  const hmall = await mallStats(db, since, prevSince).catch(() => null);
   return {
-    days, since, generated: now, mall,
+    days, since, generated: now, mall, hmall,
     totals: { pv: sum("pv"), secs: sum("secs"), sess: sum("sess"), multi: sum("multi"), newv: sum("newv"), signups: sum("signups"),
       uv: (await one("SELECT COUNT(DISTINCT vh) AS n FROM an_seen WHERE day >= ?", since))?.n || 0, mob: daily.reduce((a, x) => a + (x.mob || 0), 0) },
     prev: { pv: prevPage?.pv || 0, secs: prevPage?.secs || 0, sess: prevSrc?.sess || 0, multi: prevSrc?.multi || 0, newv: prevSrc?.newv || 0, uv: prevUv?.n || 0, signups: prevSignups?.n || 0 },
@@ -570,7 +591,7 @@ export default {
     try {
       // API 주소(api.drkimworld.com)는 검색엔진이 긁지 않게: 공유 미리보기(/s/)와 프로필 사진만 허용
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /s/\nAllow: /v1/avatar/\nDisallow: /\n", { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" } });
-      const bot = req.method === "POST" && /^\/v1\/(hit|view|post-views|ad\/events|mall)$/.test(p) ? botWhy(req) : "";
+      const bot = req.method === "POST" && /^\/v1\/(hit|mhit|view|post-views|ad\/events|mall)$/.test(p) ? botWhy(req) : "";
       // ---------- 조회수 ----------
       if (p === "/v1/view" && req.method === "POST") {
         const { slug } = await readJson(req);
@@ -766,6 +787,38 @@ export default {
           .bind(today, ut(U.s) || "-", ut(U.m) || "-", ut(U.c) || "-", ut(U.t) || "-", s === 1 ? 1 : 0, a, s === 2 ? 1 : 0));
         for (const e of evs) q.push(db.prepare("INSERT INTO an_srcev (day, src, ev, n) VALUES (?, ?, ?, 1) ON CONFLICT(day, src, ev) DO UPDATE SET n = n + 1").bind(today, sd, e));
         // 방문 통계(날짜별 합계·기기 번호를 바꾼 값)는 영구 보관(운영자 지시 2026-11-02, 개인정보 처리방침 함께 고침)
+        await db.batch(q);
+        return json(req, { ok: true });
+      }
+
+      // ---------- 김박사 건강몰 방문·클릭(2026-11-20, hm_* 표). 본 사이트 an_* 와 섞지 않는다(애드센스 재신청 기준 보호). 김박사 몰은 위 /v1/mall ----------
+      // 화면은 페이지를 떠날 때 sendBeacon(text/plain) 한 번: {site, p, ch, sd, c, lp, s, a, sc, m, en, k:[{k,sub}]}
+      if (p === "/v1/mhit" && req.method === "POST") {
+        const b = await readJson(req);
+        const site = b.site === "health" ? "health" : "";  // 김박사 몰은 /v1/mall(mall_ev)이 맡는다
+        if (!site) return json(req, { ok: false });
+        const clean = (x) => { const v = String(x || "/").slice(0, 80).toLowerCase(); return /^\/[a-z0-9\-/]{0,79}$/.test(v) ? v : "/(기타)"; };
+        const path = clean(b.p), lp = clean(b.lp || b.p);
+        const MCH = new Set(["search", "ai", "youtube", "social", "messenger", "community", "referral", "email", "direct", "internal"]);
+        const ch = MCH.has(b.ch) ? b.ch : "direct";
+        const sd = /^[a-z0-9.-]{1,40}$/.test(String(b.sd || "")) ? String(b.sd) : ch;
+        const camp = String(b.c || "").toLowerCase().replace(/[^a-z0-9가-힣_.\-]/g, "").slice(0, 60) || "-";
+        const s = Math.max(1, Math.min(999, parseInt(b.s, 10) || 1)), a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0));
+        const sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0)), m = b.m ? 1 : 0;
+        const KIND = new Set(["coupang", "guide", "youtube", "site", "mall", "other"]);
+        const ks = (Array.isArray(b.k) ? b.k.slice(0, 10) : []).map((x) => ({ k: KIND.has(x?.k) ? x.k : "", sub: /^[a-z0-9_-]{1,30}$/.test(String(x?.sub || "")) ? String(x.sub) : "-" })).filter((x) => x.k);
+        if (bot || (a < 2 && !sc && !ks.length)) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) await countBot(db, today, `hmall:${bot || "idle"}`); return json(req, { ok: true }); }
+        if (!(await allow(db, `mhit|${ih}`, 1500, 864e5, now))) return json(req, { ok: false });
+        const eng = b.en ? 1 : 0, coup = ks.filter((x) => x.k === "coupang").length;
+        const q = [db.prepare(`INSERT INTO hm_page (day, site, path, pv, sess, secs, engaged, scroll, scroll_n, mob) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, site, path) DO UPDATE SET pv = pv + 1, sess = sess + excluded.sess, secs = secs + excluded.secs, engaged = engaged + excluded.engaged,
+            scroll = scroll + excluded.scroll, scroll_n = scroll_n + excluded.scroll_n, mob = mob + excluded.mob`).bind(today, site, path, s === 1 ? 1 : 0, a, eng, sc, sc ? 1 : 0, m)];
+        // 유입 표: 세션 첫 페이지에서 세션 1, 이후 페이지는 같은 칸에 깊이(deep)·클릭만 더한다(랜딩 lp·출처는 화면이 세션 동안 기억)
+        q.push(db.prepare(`INSERT INTO hm_acq (day, site, ch, src, camp, lp, sess, engaged, deep, clicks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, site, ch, src, camp, lp) DO UPDATE SET sess = sess + excluded.sess, engaged = engaged + excluded.engaged, deep = deep + excluded.deep, clicks = clicks + excluded.clicks`)
+          .bind(today, site, ch, sd, camp, lp, s === 1 ? 1 : 0, eng, s === 2 ? 1 : 0, coup));
+        for (const x of ks) q.push(db.prepare(`INSERT INTO hm_click (day, site, path, kind, sub, ch, n) VALUES (?, ?, ?, ?, ?, ?, 1)
+            ON CONFLICT(day, site, path, kind, sub, ch) DO UPDATE SET n = n + 1`).bind(today, site, path, x.k, x.sub, ch));
         await db.batch(q);
         return json(req, { ok: true });
       }
