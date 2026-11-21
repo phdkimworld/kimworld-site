@@ -1,0 +1,37 @@
+name: YT analytics (유튜브 분석 → 비공개 저장소)
+
+# 유튜브 분석 API(새 키, yt-analytics.readonly 포함 — 2026-11-20 운영자가 YT_* 비밀값에 넣음)로 채널 합계·영상별·유입 경로·일별을 받아
+# 비공개 저장소 phdkimworld/kimworld ops-data stats/yt_analytics.json 에만 올린다(scripts/ops_publish.sh, OPS_PUSH_TOKEN).
+# 공개 저장소에는 숫자를 커밋하지 않고 공개 주석에는 개수·HTTP 코드만 남긴다(운영자 2026-10-28 통계 비공개).
+# 읽는 쪽: 미디어 저장소 tools/yt_analytics_read.py. 2026-11-21 운영자 "지금 새 키로 넘어가".
+on:
+  schedule:
+    - cron: "17 9 * * *"   # 매일 09:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yt-analytics
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Fetch YouTube analytics
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          OUT: .cache/yt_analytics.json
+        run: python3 scripts/yt_analytics.py
+      - name: Publish to private repo
+        env:
+          OPS_PUSH_TOKEN: ${{ secrets.OPS_PUSH_TOKEN }}
+        run: |
+          # 토큰이 없으면 공개 주석 대신 실패로 끝낸다(분석 숫자는 공개하지 않는다)
+          scripts/ops_publish.sh .cache/yt_analytics.json yt_analytics
