@@ -663,3 +663,9 @@ KWNOTE:
   theme: "예측 결산"
   series: true
   aliases: ["오답노트", "김박사 월드 오답노트", "예측 결산", "예측 채점"]
+APLD:
+  name: "어플라이드 디지털"
+  name_en: "Applied Digital Corporation"
+  exchange: "NASDAQ"
+  theme: "비트코인·AI 데이터센터"
+  aliases: ["어플라이드 디지털", "Applied Digital", "어플라이드디지털", "APLD"]
