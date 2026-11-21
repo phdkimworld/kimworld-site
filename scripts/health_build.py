@@ -178,6 +178,8 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
             prods[g["slug"]] = merge(items, prods.get(g["slug"]) or [], today, int(c.get("keep_items") or 24), int(c.get("keep_days") or 14))
             ok += bool(items)
             print(f"{kw}: 받은 {len(raw)} · 관련 {len(items)} · 쌓인 {len(prods[g['slug']])}")
+            if raw and not items:  # 관련 0이면 무엇이 왔는지 앞 3개 이름(공개 정보)만 — 2026-11-21 진열이 안 느는 원인 확인용
+                print("   받은 예: " + " | ".join(str(p.get("name", ""))[:40] for p in raw[:3]))
         except Exception as e:
             print(f"::warning title=김박사 건강몰::{kw} 검색 실패 {type(e).__name__} {str(e)[:80]}")
     if ok:
