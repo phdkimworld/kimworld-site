@@ -362,9 +362,9 @@ def main(spec_p, raw, out):
                 if key not in sub_cache:
                     sub_cache[key] = sub_img(g, em)
                 fr.alpha_composite(sub_cache[key], (0, SUB_Y)); break
-        # 마지막 장면 아래 작은 글씨(spec "foot", 영양제 중간광고 9절 5번 — 운영자 11-22 "좀더 적극적으로 팔아"): 자막과 면책 사이
+        # 마지막 장면 아래 작은 글씨(면책 줄 아래, 이모지는 글꼴에 없어 쓰지 않는다 · spec "foot", 영양제 중간광고 9절 5번 — 운영자 11-22 "좀더 적극적으로 팔아"): 자막과 면책 사이
         if spec.get('foot') and si == len(scenes) - 1:
-            ff_ = font(FBD, 34); d3 = ImageDraw.Draw(fr); d3.text((540 - d3.textlength(spec['foot'], font=ff_) / 2, NOTE_Y - 56), spec['foot'], font=ff_, fill=COL['sub'])
+            ff_ = font(FBD, 34); d3 = ImageDraw.Draw(fr); d3.text((540 - d3.textlength(spec['foot'], font=ff_) / 2, NOTE_Y + 58), spec['foot'], font=ff_, fill=COL['sub'])
         # 면책: 처음 2초·마지막 3초
         if t < 2.0 or t >= total - 3.0:
             nf_ = font(FBD, 38); note = '교육용 분석 · 매수·매도 권유 아님'
