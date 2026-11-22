@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import html
+import re
 import json
 import os
 import sys
@@ -214,6 +215,9 @@ ul.ck{padding-left:20px}ul.ck li{margin:4px 0}.box{background:var(--card);border
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}@media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}@media(min-width:900px){.grid{grid-template-columns:repeat(5,1fr)}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none}
 .card .im{aspect-ratio:1;background:#fff;display:flex;align-items:center;justify-content:center}.card img{width:100%;height:100%;object-fit:contain}
+.tgs{display:flex;gap:4px;flex-wrap:wrap}.tg{font-size:11px;padding:1px 6px;border-radius:6px;background:#E8F1FF;color:#1D4ED8}.tg.lo{background:#FFF3B0;color:#7A5B00}.per{font-size:12px;color:var(--muted)}
+.stick{display:none}@media(max-width:640px){.stick{display:block;position:fixed;left:12px;right:12px;bottom:12px;z-index:9;text-align:center;padding:12px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}}
+.btn.jump{display:inline-block;margin:4px 0 8px}
 .card .b{padding:9px 10px 11px;display:flex;flex-direction:column;gap:4px;flex:1}.card .n{font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em}
 .pr{font-weight:800;font-size:15px}.go{margin-top:auto;font-size:12px;color:var(--muted)}
 .ad{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:middle}
@@ -235,11 +239,36 @@ def esc(s) -> str:
     return html.escape(str(s or ""), quote=True)
 
 
-def card(p: dict) -> str:
+UNIT = re.compile(r'(\d{2,4})\s*(캡슐|소프트젤|정|포|알|스틱|개입|T|tab)', re.I)
+
+
+def unit_price(p: dict) -> int | None:
+    """상품명에 적힌 개수(예: '180캡슐', '60정, 1개')로 1알(1포)당 값 — 참고값. 묶음(곽·박스·세트·N개)이 섞여 개수가 애매하면 None
+    (틀린 값을 보이느니 안 보인다, 2026-11-22 판매 강화)"""
+    n = p.get("name", ""); m = UNIT.findall(n)
+    if len(m) != 1 or not p.get("price"):
+        return None
+    if re.search(r'곽|박스|세트|개월|[x×]\s*\d', n) or any(int(k) > 1 for k in re.findall(r'(\d+)\s*개(?!입|월)', n)):
+        return None
+    cnt = int(m[0][0])
+    return round(p["price"] / cnt) if cnt >= 10 else None
+
+
+def card(p: dict, low: bool = False) -> str:
     price = f'<div class="pr">{p["price"]:,}원</div>' if p.get("price") else ""
+    u = unit_price(p)
+    per = f'<div class="per">1{"포" if "포" in p.get("name", "") or "스틱" in p.get("name", "") else "알"}당 약 {u:,}원</div>' if u else ""
+    tags = ("".join([('<span class="tg">로켓배송</span>' if p.get("rocket") else ""), ('<span class="tg lo">1알당 가장 낮음</span>' if low else "")]))
     img = f'<img src="{esc(p["image"])}" alt="" loading="lazy" referrerpolicy="no-referrer">' if p.get("image") else ""
     return (f'<a class="card" href="{esc(p["url"])}" rel="sponsored nofollow noopener" target="_blank">'
-            f'<div class="im">{img}</div><div class="b"><div class="n">{esc(p["name"])}</div>{price}<div class="go">쿠팡에서 보기 ›</div></div></a>')
+            f'<div class="im">{img}</div><div class="b">{("<div class=tgs>" + tags + "</div>") if tags else ""}<div class="n">{esc(p["name"])}</div>{price}{per}<div class="go">쿠팡에서 보기 ›</div></div></a>')
+
+
+def cards(items: list[dict]) -> str:
+    us = [(unit_price(p), i) for i, p in enumerate(items)]
+    ok = [x for x in us if x[0]]
+    low = min(ok)[1] if len(ok) >= 3 else -1
+    return "".join(card(p, i == low) for i, p in enumerate(items))
 
 
 def funnel(c: dict, *slots: str) -> str:
@@ -303,9 +332,11 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     items = gclean(c, g, (cat.get("products") or {}).get(g["slug"]) or [])
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
              f'<p class="note">쿠팡 검색 결과를 자동으로 보여 줍니다. 추천·보증이 아니며, 건강기능식품 여부·기능성·함량은 상품 페이지의 표시사항에서 위 기준과 비교해 확인하세요.</p>'
-             f'<div class="grid" data-sub="g-{g["slug"]}">{"".join(card(p) for p in items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
+             f'<p class="note">1알(1포)당 값은 상품명에 적힌 개수로 나눈 참고값입니다. 하루 몇 알인지는 제품마다 다르니 표시사항을 확인하세요.</p>'
+             f'<div class="grid" data-sub="g-{g["slug"]}">{cards(items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
     body = f"""<p class="crumb"><a href="../../">홈</a> › <a href="../">성분 가이드</a> › {esc(g['name'])}</p>
 <h1 class="t">{esc(g['name'])} 고르는 법: 식약처 기능성·하루 섭취량·주의사항</h1>
+<p><a class="btn jump" href="#items">기준과 제품 비교 바로 보기 ↓</a></p>
 <p class="lead">{esc(g['intro'])}</p>
 <h2>식약처가 인정한 기능성 <small>{esc(g['aka'])}</small></h2>
 <table class="fn"><thead><tr><th>기능성 내용(인정 문구)</th><th>1일 섭취량 기준</th></tr></thead><tbody>{rows}</tbody></table>
@@ -316,6 +347,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
 {funnel(c, "guide-" + g["slug"], "guide")}
 {prods}
 {others}
+<a class="stick" href="#items">제품 비교 보기</a>
 <h2>출처</h2><ul class="src">{"".join(f'<li><a href="{esc(s["url"])}" rel="nofollow noopener" target="_blank">{esc(s["title"])}</a></li>' for s in g['sources'])}</ul>
 <p class="note">내용 확인일 {esc(g['verified'])}. 기준은 바뀔 수 있으니 제품 표시사항과 식품안전나라에서 함께 확인하세요.</p>"""
     desc = f"{g['name']}({g['aka']}) 식약처 인정 기능성 문구, 1일 섭취량 기준, 섭취 시 주의사항과 고를 때 확인할 것을 한 페이지에 정리했습니다."
