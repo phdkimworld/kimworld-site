@@ -1754,3 +1754,9 @@ article.report .sent { margin-top: 14px; }
 /* 김박사 몰 입구 한 줄(리포트 끝, 2026-11-20) */
 .mall-line{margin:18px 0 6px;font-size:.88rem;line-height:1.5}
 .mall-line a{font-weight:700}
+.house-ad{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.ad-group > .ad + .house-ad{margin-top:-1.2em}
+.house-ad .ad-label{display:block}
+.house-ad .ad-disclosure{display:block;margin:6px 0 0}
+.all-list li.all-ad{display:block;padding:4px 0;border-bottom:1px solid var(--line)}
+.all-list li.all-ad .ad{margin:8px 0}

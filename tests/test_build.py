@@ -57,6 +57,8 @@ def make_project(ads_cfg: dict | None = None, extra_reports: dict | None = None,
     if not live_ads:
         _ab = yaml.safe_load((tmp / "ads.yaml").read_text(encoding="utf-8"))
         _ab["placements"] = {**_ab.get("placements", {}), **TEST_PLACEMENTS}
+        # 엔진 검사는 짧은 가짜 리포트로 하므로 2026-11-22 간격·후반 자리 조건은 옛 값으로(실제 배치는 '광고 꽉꽉' 검사가 따로 본다)
+        _ab["report_ad_gap_chars"], _ab["report_late_min_chars"] = 0, 15000
         (tmp / "ads.yaml").write_text(yaml.safe_dump(_ab, allow_unicode=True), encoding="utf-8")
     if ads_cfg is not None:
         base = yaml.safe_load((tmp / "ads.yaml").read_text(encoding="utf-8"))
@@ -480,6 +482,26 @@ _all = (t / "dist/reports/index.html").read_text(encoding="utf-8")
 check('href="/r/zzzz-test-2026-01/"' in _all and "리포트 전체 목록" in _all and "/reports/" in (t / "dist/sitemap.xml").read_text(encoding="utf-8"), "리포트 전체 목록 페이지(사이트맵 포함)")
 _ay = yaml.safe_load((SRC / "ads.yaml").read_text(encoding="utf-8"))["placements"]
 check(not any("coupang" in str(v) for v in _ay.values()), "실제 광고 설정: 사이트 칸에 쿠팡 없음(유튜브·블로거 전용)")
+
+print("8-3) 광고 꽉꽉 + UX 한도(2026-11-22 운영자 \"유저경험 해치지 않는 한도에서 광고 꽉꽉 채워넣어\")")
+check(_ay.get("rail") in (["none"], "none") and _ay.get("report_bottom") in (["none"], "none"), "실제 배치: 따라 내려오는(sticky) 오른쪽 칸 광고 없음, 끝 광고와 붙는 맨 아래 광고 없음")
+check('data-slot="rail"' not in _p and 'data-slot="rail"' not in _h, "리포트·홈에 오른쪽 칸 광고 없음")
+for _nm, _x in (("리포트", _p), ("홈", _h), ("전체 목록", _all)):
+    check(_x.count("kakao_ad_area") <= 4, f"{_nm}: 애드핏 4개 이하({_x.count('kakao_ad_area')})")
+_hb = re.search(r'<div class="ad-group">(.*?)</div>\s*\n', _p, re.S)
+check(_hb is not None and "house-ad" in _hb.group(1) and "health.drkimworld.com/guide/" in _hb.group(1) and 'rel="sponsored noopener"' in _hb.group(1)
+      and "쿠팡 파트너스 활동의 일환" in _hb.group(1) and "광고" in _hb.group(1), "리포트 끝: 끝 광고와 한 묶음인 자체 홍보(건강몰 가이드·김박사 몰, 광고 표시·대가성 문구)")
+check(_p.count("house-ad") == 1 and not re.search(r"치료|완치|예방|특효", _hb.group(1) if _hb else ""), "자체 홍보 한 번, 질병·효능 단정 낱말 없음")
+_bb = __import__("build")
+_bb.AD_GAP_CHARS = 900
+_body = "".join(f"<p>{'가' * 120} {i}</p>" for i in range(40)) + "<h2>숫자로 다시 보기</h2><p>" + "나" * 1200 + "</p>"
+_cuts = [i for i, (k, v) in enumerate(_bb.split_for_ads(_body, True, True, True, story=True)) if k == "ad"]
+_pieces = _bb.split_for_ads(_body, True, True, True, story=True)
+_gaps = [_bb._vis_len("".join(v for k, v in _pieces[a + 1:b] if k == "html")) for a, b in zip(_cuts, _cuts[1:])]
+check(len(_cuts) == 3 and all(g >= 900 for g in _gaps), f"본문 광고 사이 보이는 글자 900자 이상(약 2.5화면, {_gaps})")
+_short = "".join(f"<p>{'가' * 60}</p>" for i in range(8)) + "<h2>부록</h2><p>짧음</p>"
+_sp = [v for k, v in _bb.split_for_ads(_short, True, True, True, story=True) if k == "ad"]
+check(len(_sp) <= 1, f"짧은 본문은 광고를 붙여 넣지 않음({_sp})")
 
 print("8) 조회수·댓글·인기 영역")
 t = make_project()

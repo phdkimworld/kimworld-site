@@ -146,6 +146,23 @@ def mall_line() -> str:
             ' — 쿠팡 장보실 때 이 입구로 들어가 주시면 같은 가격으로 채널 운영에 도움이 됩니다.</p>')
 
 
+HEALTH_MARK = "<!--kw-health-->"
+
+
+def health_line(slug: str) -> str:
+    """김박사 건강몰 가이드 한 줄(2026-11-22 운영자 "유저경험 해치지 않는 한도에서 광고 꽉꽉"): 쿠팡 칸·김박사 몰 줄과 한 묶음(한 화면 광고 한 곳).
+    성분은 사이트 ads.yaml house.health.guides(영상 중간광고 H1~H3과 같은 셋)를 글 slug로 돌려 고른다. 질병명·효능 단정 없이 '고르는 법'만."""
+    import hashlib
+    hh = ((yaml.safe_load((ROOT / "ads.yaml").read_text(encoding="utf-8")) or {}).get("house") or {}).get("health") or {}
+    gs = [g for g in hh.get("guides") or [] if isinstance(g, dict) and g.get("slug") and g.get("name")]
+    if not (gs and str(hh.get("base") or "").startswith("https://")):
+        return ""
+    g = gs[int(hashlib.md5(slug.encode("utf-8")).hexdigest(), 16) % len(gs)]
+    u = f'{str(hh["base"]).rstrip("/")}/guide/{g["slug"]}/?utm_source=blogger&amp;utm_medium=post&amp;utm_campaign={slug}#items'
+    return (f'{HEALTH_MARK}<p style="margin:6px 0 10px">💊 <a href="{u}" rel="sponsored nofollow">{html.escape(str(g["name"]))} 고르는 법</a>'
+            ' — 식약처 인정 문구와 연구 숫자로 정리한 김박사 건강몰 가이드(건강몰 상품 링크도 쿠팡 파트너스 수수료를 받습니다).</p>')
+
+
 ADFIT_MARK = "<!--kw-adfit-->"
 # 애드핏 매체 '김박사 월드 블로그'(phdkimworld.blogspot.com)의 300x250 단위(운영자 생성 2026-11-06). 비우면 넣지 않는다
 # 2026-11-15 운영자 지시 "블로거에선 애드핏 제거"(매체 심사 보류): 기본값을 비워 새 글에 넣지 않고, ads_backfill이 기존 글의 칸을 지운다.
@@ -215,6 +232,7 @@ def body(slug: str, fm: dict) -> str:
     parts.append(adfit_block())
     parts.append(cpas_block())
     parts.append(mall_line())
+    parts.append(health_line(slug))
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '
         "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "
@@ -297,6 +315,12 @@ def backfill_ads(tok: str, limit: int) -> int:
                 i = nc.find(CPAS_MARK)
                 j = nc.find("</p></div>", i) + len("</p></div>") if i >= 0 and nc.find("</p></div>", i) >= 0 else -1
                 nc = (nc[:j] + mall_line() + nc[j:]) if j > 0 else (nc + mall_line())
+            if HEALTH_MARK not in nc and MALL_MARK in nc:  # 건강몰 가이드 한 줄(2026-11-22): 김박사 몰 줄 바로 뒤
+                m = re.search(r"/r/([a-z0-9-]+)/", nc)
+                hl = health_line(m.group(1) if m else str(it.get("id")))
+                i = nc.find(MALL_MARK); j = nc.find("</p>", i) + len("</p>") if i >= 0 else -1
+                if hl and j > 0:
+                    nc = nc[:j] + hl + nc[j:]
             if BLOGGER_ADFIT_UNIT and ADFIT_MARK not in nc:  # 애드핏은 쿠팡 칸 바로 앞(2026-11-06)
                 i = nc.find(CPAS_MARK)
                 nc = nc[:i] + adfit_block() + nc[i:]

@@ -37,6 +37,17 @@ def front(p: Path) -> dict:
     return (yaml.safe_load(m.group(1)) or {}) if m else {}
 
 
+def health_guide(slug: str):
+    """사이트 ads.yaml house.health.guides 중 하나(글 slug로 돌림) → (이름, 주소) 또는 None."""
+    import hashlib
+    hh = ((yaml.safe_load((ROOT / "ads.yaml").read_text(encoding="utf-8")) or {}).get("house") or {}).get("health") or {}
+    gs = [g for g in hh.get("guides") or [] if isinstance(g, dict) and g.get("slug") and g.get("name")]
+    if not (gs and str(hh.get("base") or "").startswith("https://")):
+        return None
+    g = gs[int(hashlib.md5(slug.encode("utf-8")).hexdigest(), 16) % len(gs)]
+    return str(g["name"]), f'{str(hh["base"]).rstrip("/")}/guide/{g["slug"]}/?utm_source=telegram&utm_medium=channel&utm_campaign={slug}#items'
+
+
 def caption(slug: str, fm: dict) -> str:
     e = lambda x: html.escape(x, quote=False)
     tk = str(fm.get("ticker") or "")
@@ -48,7 +59,10 @@ def caption(slug: str, fm: dict) -> str:
     lines += [f"• {e(x)}" for x in kp]
     # 2026-11-19 운영자 "김박사 몰부터": 응원 링크 대신 김박사 몰 입구(사이트 /mall/ → 김박사 몰 쇼핑몰, 유입은 사이트 통계 utm_source=telegram)
     cheer = [f'🛒 <a href="{html.escape(MALL)}">김박사 몰</a> — 쿠팡 장보실 때 이 입구로 들어가 주시면 채널 운영에 도움이 됩니다'] if CHEER else []
-    tail = [f"#{e(tk)} #{e(name.replace(' ', ''))} #미국주식", "<i>투자 권유가 아닌 공개 자료 정리입니다." + (" 쿠팡 파트너스 활동으로 일정액의 수수료를 받습니다." if CHEER else "") + "</i>"]
+    hg = health_guide(slug)  # 2026-11-22 "광고 꽉꽉": 김박사 건강몰 가이드 한 줄(영상 중간광고와 같은 세 성분, 질병명·효능 단정 없음)
+    if hg:
+        cheer.append(f'💊 <a href="{html.escape(hg[1])}">{e(hg[0])} 고르는 법</a> — 식약처 인정 문구와 연구 숫자로 정리한 건강몰 가이드')
+    tail = [f"#{e(tk)} #{e(name.replace(' ', ''))} #미국주식", "<i>투자 권유가 아닌 공개 자료 정리입니다." + (" 쿠팡 파트너스 활동으로 일정액의 수수료를 받습니다." if cheer else "") + "</i>"]
     lines += ["", f'👉 <a href="{html.escape(u)}">전체 리포트 무료로 보기</a>'] + cheer + [""] + tail
     c = "\n".join(lines)
     while len(c) > 1000 and kp:  # 사진 설명 한도 1024자

@@ -231,7 +231,15 @@
     </section>
     {% endif %}
 
+    <div class="ad-group">
     {{ end_ad|safe }}
+    {# 자체 홍보 상자 — 출처 아래 끝 광고와 한 묶음(휴대폰 한 화면 광고 1개: 따로 두면 맨 아래 상자와 끝 광고가 0.3~1.9화면 거리)(2026-11-22 운영자 "유저경험 해치지 않는 한도에서 광고 꽉꽉"): 김박사 몰 줄 + 김박사 건강몰 가이드 한 줄을 '광고' 표시 하나로 묶는다.
+       글자 줄 두 개(그림·스크립트 없음, 높이 고정)라 레이아웃이 밀리지 않는다. 질병명·효능 단정 없이 '고르는 법'만. 추적은 utm_campaign=house_health(건강몰 통계 '김박사 월드 내부') #}
+    {% if has_mall or house %}<aside class="mall-line house-ad" aria-label="광고"><span class="ad-label">광고 · 김박사 몰·건강몰</span>
+      {% if house %}<a href="{{ house.url }}" rel="sponsored noopener" target="_blank">💊 {{ house.name }} 고르는 법</a> <span class="muted">{{ house.line or '식약처 인정 문구와 연구 숫자로 정리한 고르는 기준' }}</span><br>{% endif %}
+      {% if has_mall %}<a href="{{ base }}/mall/?utm_source=site&amp;utm_medium=report&amp;utm_campaign=report_end&amp;utm_content={{ r.ticker|lower }}" rel="nofollow" data-ev="mall_go">🛒 쿠팡 장보기는 김박사 몰 입구로</a> <span class="muted">같은 가격에 무료 리포트 운영에 도움이 됩니다.</span>{% endif %}
+      <span class="ad-disclosure">{% if house and has_mall %}건강몰·김박사 몰의{% elif house %}건강몰의{% else %}김박사 몰의{% endif %} 상품 링크는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다. 의사·약사의 상담을 대신하지 않습니다.</span></aside>{% endif %}
+    </div>
 
     {% if r.related %}
     <section class="more next-theme" aria-labelledby="more-r">
@@ -274,7 +282,6 @@
     {{ page_bottom|safe }}
 
     {# 김박사 몰 입구 한 줄(2026-11-20 운영자 "몰 트래픽 다각화"): 상품은 싣지 않고 입구 링크만(11-16 결정). 추적은 utm_campaign=report_end → /v1/mall land #}
-    {% if has_mall %}<p class="mall-line"><a href="{{ base }}/mall/?utm_source=site&amp;utm_medium=report&amp;utm_campaign=report_end&amp;utm_content={{ r.ticker|lower }}" rel="nofollow" data-ev="mall_go">🛒 쿠팡 장보기는 김박사 몰 입구로</a> <span class="muted">같은 가격에 무료 리포트 운영에 도움이 됩니다. 쿠팡 파트너스 활동으로 수수료를 받습니다.</span></p>{% endif %}
 
     <section class="disclaimer-box">
       <h2>투자 유의 고지</h2>

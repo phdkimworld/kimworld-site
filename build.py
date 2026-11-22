@@ -514,6 +514,17 @@ def shape_for_reading(body_html: str) -> str:
     return out
 
 
+# 광고 사이 최소 본문 양(2026-11-22 운영자 "유저경험 해치지 않는 한도에서 광고 꽉꽉" — UX 한도 '광고 사이 본문 2~3화면').
+# 390x844 실측(189편): 보이는 글자 1자 ≈ 2.5px, 그림 한 장 ≈ 글자 400자. 900자 ≈ 2.5화면. 접힌 상자·틀·스크립트 안 글자는 안 셈
+AD_GAP_CHARS = 900
+
+
+def _vis_len(fragment: str) -> int:
+    f = re.sub(r"<(details|template|script|style)[\s>].*?</\1>", "", fragment, flags=re.S)
+    figs = len(re.findall(r"<(?:figure|img)[\s>]", f))
+    return len(re.sub(r"\s+", "", html.unescape(re.sub(r"<[^>]+>", "", f)))) + 400 * figs
+
+
 def _story_ad_cuts(body_html: str, want_mid: bool, want_products: bool, want_late: bool) -> list[tuple[int, str]]:
     """이야기형(소제목 없는 본문) 광고 자리: 부록 '숫자로 다시 보기' 앞까지의 바깥 문단 사이를 문단 개수로 나눈다.
     가운데 광고는 문단 3분의 1, 상품 광고는 3분의 2 지점, 긴 리포트의 추가 자리는 부록 제목 앞. 함께 읽기 줄 옆·인용·목록·표 안은 피한다."""
@@ -535,12 +546,15 @@ def _story_ad_cuts(body_html: str, want_mid: bool, want_products: bool, want_lat
         if want_mid:
             cuts.append((gaps[max(0, round(len(gaps) / 3) - 1)], "report_mid"))
         if want_products and n >= 7:
-            p = gaps[min(len(gaps) - 1, round(len(gaps) * 2 / 3))]
-            if all(p != c for c, _ in cuts):
-                cuts.append((p, "report_products"))
+            # 3분의 2에 가장 가까우면서 앞 광고·부록 앞 광고와 각각 AD_GAP_CHARS 이상 떨어진 문단 사이(없으면 이 자리는 비운다)
+            prev = cuts[-1][0] if cuts else 0
+            tail = end if (want_late and h2) else len(body_html)
+            ok = [g for g in gaps if g > prev and _vis_len(body_html[prev:g]) >= AD_GAP_CHARS and _vis_len(body_html[g:tail]) >= AD_GAP_CHARS]
+            if ok:
+                cuts.append((min(ok, key=lambda g: abs(g - gaps[min(len(gaps) - 1, round(len(gaps) * 2 / 3))])), "report_products"))
     elif want_mid and h2:
         cuts.append((end, "report_mid"))
-    if want_late and h2 and all(end != c for c, _ in cuts):
+    if want_late and h2 and all(end != c for c, _ in cuts) and _vis_len(body_html[(cuts[-1][0] if cuts else 0):end]) >= AD_GAP_CHARS:
         cuts.append((end, "report_late"))
     return cuts
 
@@ -585,7 +599,11 @@ def split_for_ads(body_html: str, want_mid: bool, want_products: bool, want_late
         cands = [p for p in h2 if p > max(mid, prod) + 1 and p < len(body_html) * 0.9]
         if cands:
             late = min(cands, key=lambda p: abs(p - len(body_html) * 0.75))
-    cuts = sorted([(p, n) for p, n in ((mid, "report_mid"), (prod, "report_products"), (late, "report_late")) if p >= 0])
+    cuts, kept = sorted([(p, n) for p, n in ((mid, "report_mid"), (prod, "report_products"), (late, "report_late")) if p >= 0]), []
+    for p, n in cuts:  # 광고 사이 본문이 AD_GAP_CHARS보다 적으면 뒤 광고를 뺀다(2026-11-22 UX 한도)
+        if not kept or _vis_len(body_html[kept[-1][0]:p]) >= AD_GAP_CHARS:
+            kept.append((p, n))
+    cuts = kept
     out, last = [], 0
     for p, n in cuts:
         if p > last:
@@ -680,6 +698,18 @@ class Ads:
             if v and not ADFIT_RE.match(v):
                 log.err(f"ads.yaml adfit.units.{k} 형식 오류(DAN-로 시작)")
                 self.adfit_units[k] = ""
+        # 긴 리포트만 쓰던 4분의 3 지점(report_late)의 최소 글자 수(2026-11-22 '광고 꽉꽉 + UX 한도': 0이면 모든 리포트).
+        self.late_min_chars = int(self.cfg.get("report_late_min_chars", 15000) or 0)
+        global AD_GAP_CHARS  # 본문 광고 사이 최소 글자(ads.yaml report_ad_gap_chars, 없으면 900)
+        AD_GAP_CHARS = int(self.cfg.get("report_ad_gap_chars", 900) or 0)
+        # 자체 홍보(김박사 건강몰 가이드, 2026-11-22): 리포트 끝 김박사 몰 줄과 한 상자. 광고 네트워크가 아니라 애드핏 4개에 세지 않는다.
+        # 성분은 health/health.yaml 가이드 slug 가운데 ads.yaml house.health.guides 만(식약처 기능성 문구가 있는 것). 리포트 slug로 돌려 고른다
+        hh = ((self.cfg.get("house") or {}).get("health") or {})
+        self.house_base = str(hh.get("base") or "").rstrip("/")
+        self.house_guides = [g for g in (hh.get("guides") or []) if isinstance(g, dict) and re.fullmatch(r"[a-z0-9-]{2,40}", str(g.get("slug") or "")) and g.get("name")]
+        if self.house_base and not re.fullmatch(r"https://[a-z0-9.-]+\.drkimworld\.com", self.house_base):
+            log.err("ads.yaml house.health.base 는 https://<하위>.drkimworld.com 만(자체 홍보)")
+            self.house_base = ""
         # 데이블(추천 콘텐츠 광고): 승인 뒤 받은 서비스 이름·위젯 번호를 넣으면 켜진다. 비어 있으면 아무것도 출력하지 않는다
         dbl = self.cfg.get("dable") or {}
         self.dable_service = str(dbl.get("service") or "").strip()
@@ -775,6 +805,14 @@ class Ads:
     # 자리 → 광고 종류
     ADFIT_KEY = {"adfit_report_mid": "report_mid", "adfit_report_end": "report_end", "adfit_feed": "feed", "adfit_feed2": "feed2",
                  "adfit_rail": "rail", "adfit_bottom": "bottom"}
+
+    def house_pick(self, key: str, ticker: str = "") -> dict | None:
+        """리포트 끝 자체 홍보 상자에 넣을 건강몰 가이드 하나(없으면 None). 같은 리포트는 늘 같은 성분(빌드마다 바뀌지 않게)."""
+        if not (self.on and self.house_base and self.house_guides):
+            return None
+        g = self.house_guides[int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % len(self.house_guides)]
+        q = urllib.parse.urlencode({"utm_source": "site", "utm_medium": "report", "utm_campaign": "house_health", "utm_content": (ticker or key).lower()})
+        return {"name": str(g["name"]), "line": str(g.get("line") or ""), "url": f"{self.house_base}/guide/{g['slug']}/?{q}#items"}
 
     def begin_page(self) -> None:
         """새 페이지를 그리기 시작: 이 페이지에서 쓴 애드핏 단위 기록을 비운다(한 페이지 4개·같은 단위 한 번)."""
@@ -1377,7 +1415,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         prod_html = ads.render("report_products", ad_ctx)
         # 긴 리포트(본문 1만 5천 자 이상)만 4분의 3 지점에 한 자리 더. 본문 상자와 겹치지 않게 다른 테마 상품에서
         far_ctx = {"theme": "*", "skip_theme": r["theme"], "exclude": exclude}
-        late_html = ads.render("report_late", far_ctx) if r["chars"] >= 15000 else ""
+        late_html = ads.render("report_late", far_ctx) if r["chars"] >= ads.late_min_chars else ""
         slot_html = {"report_mid": mid_html, "report_products": prod_html, "report_late": late_html}
         for kind, val in split_for_ads(body, bool(mid_html), bool(prod_html), bool(late_html), story=r["story"]):
             if kind == "html":
@@ -1397,6 +1435,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         thread_ad = ads.render("thread_inline", {"theme": "*", "skip_theme": r["theme"], "exclude": exclude})
         write(f"r/{r['slug']}/index.html", "report.html", r=r, body_pieces=pieces, end_ad=end_html, thread_ad=thread_ad, rail_ad=rail_html,
               bottom_ad=bottom_html, page_bottom=page_bottom, has_coupang=has_coupang, terms=used_terms, today=today,
+              house=None if r["sponsor"] else ads.house_pick(r["slug"], r.get("ticker") or ""),
               gl_links=[gl_pages[t["term"]] for t in used_terms if t["term"] in gl_pages][:12],
               stale=(today - r["data_as_of"]).days > int(site.get("stale_days", 180)))
 
@@ -1425,7 +1464,9 @@ def build(drafts=False, strict=False, out: Path = DIST):
           page_bottom=ads.render("page_bottom", home_ctx), is_home=True, gl_count=len(gl_pages),
           feed_more_ad=ads.render("thread_inline", {"theme": "*"}))  # '글 더 보기'로 이어 불러온 글 사이(애드센스·쿠팡만, 애드핏은 정책상 불가)
     ads.begin_page()
-    write("reports/index.html", "reports.html", rs=public, page_bottom=ads.render("page_bottom", {}))  # 2026-11-16 개편: 리포트 전체 목록
+    # 리포트 전체 목록(2026-11-22 광고 꽉꽉 + UX 한도): 휴대폰 20화면이 넘는 고정 목록이라 n번째 줄 뒤 고정 자리(처음 HTML, 애드핏 허용)
+    _la = [(int(n), ads.render(k, {})) for k, n in (("reports_list", 15), ("reports_list2", 65), ("reports_list3", 120)) if len(public) > int(n) + 10]
+    write("reports/index.html", "reports.html", rs=public, list_ads={n: h for n, h in _la if h}, page_bottom=ads.render("page_bottom", {}))  # 2026-11-16 개편: 리포트 전체 목록
     # 김박사 몰 입구(2026-11-19): 쇼핑몰 사이트(mall/mall.yaml url, Cloudflare Pages)로 넘기는 /mall/(noindex, 사이트맵 제외).
     # 몰 주소가 아직 없으면 쿠팡 입구 단축 링크(mall/catalog.json entry.go)로. 둘 다 없으면 만들지 않는다
     _mc = load_yaml(ROOT / "mall" / "mall.yaml", {}) or {}
@@ -1435,7 +1476,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
         write("mall/index.html", "mall.html", mall_url=_mall_url)
     if scorecard.get("judged"):
         ads.begin_page()
-        write("scorecard/index.html", "scorecard.html", scorecard=scorecard, page_bottom=ads.render("page_bottom", {}))
+        write("scorecard/index.html", "scorecard.html", scorecard=scorecard, mid_ad=ads.render("scorecard_mid", {}), page_bottom=ads.render("page_bottom", {}))
     ads.begin_page()
     ex_ctx = {"theme": "*"}
     write("search/index.html", "search.html", rs=public, ticker_list=ticker_list, explore_ad=ads.render("explore", ex_ctx),

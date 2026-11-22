@@ -21,11 +21,12 @@
       <button class="btn btn-primary" type="submit">찾기</button>
     </form>
   </header>
+  {% set ns = namespace(i=0) %}
   {% for g in rs|groupby_month %}
   <section class="all-month" aria-labelledby="m-{{ g.key }}">
     <h2 id="m-{{ g.key }}" class="section-title">{{ g.label }} <span class="muted ins-sub">{{ g.rows|length }}편</span></h2>
     <ul class="all-list">
-      {% for r in g.rows %}<li><a href="{{ base }}/r/{{ r.slug }}/"><span class="all-tk">{{ r.ticker }}</span><span class="all-t">{{ r.share_title or r.title }}</span></a><time class="muted" datetime="{{ r.date|iso }}">{{ r.date.month }}.{{ r.date.day }}</time></li>{% endfor %}
+      {% for r in g.rows %}<li><a href="{{ base }}/r/{{ r.slug }}/"><span class="all-tk">{{ r.ticker }}</span><span class="all-t">{{ r.share_title or r.title }}</span></a><time class="muted" datetime="{{ r.date|iso }}">{{ r.date.month }}.{{ r.date.day }}</time></li>{% set ns.i = ns.i + 1 %}{% if list_ads and list_ads.get(ns.i) %}<li class="all-ad">{{ list_ads[ns.i]|safe }}</li>{% endif %}{% endfor %}
     </ul>
   </section>
   {% endfor %}

@@ -74,13 +74,13 @@ placements:
   # 2026-11-16 운영자 지시 "사이트 개편"(검색 자료실 중심): 사이트 칸의 쿠팡(상품 상자·오늘의 특가·다이내믹 배너)을 모두 뺐다.
   # 근거: 10-28 이후 사이트 칸 쿠팡 클릭 0(쿠팡 수수료는 전부 '기타' 링크), 읽기 방해만 남음. 쿠팡은 유튜브 영상(yt-shop)과 블로거에만. 아래 주석의 '없으면 쿠팡'은 옛 설명
   report_mid: [adfit_report_mid]   # 본문 세 번째 소제목 앞(초반, 가장 많이 보이는 자리). 애드핏 300x250 번호가 있으면 애드핏, 없으면 쿠팡
-  report_products: [none]     # "운영자 판단" 섹션 뒤, 없으면 본문 끝(다 읽은 지점). 2026-10-30부터 쿠팡 골드박스 '오늘의 특가' 한 장(하위 ID deal), 특가가 없으면 상품 상자. 2주 뒤(11-13) 상자 대비 클릭·수익 비교
+  report_products: [adfit_feed2]   # 2026-11-22 운영자 "유저경험 해치지 않는 한도에서 광고 꽉꽉": 휴대폰에서 중간 광고와 끝 광고 사이가 13~17화면 비어 있어(390x844 실측) 본문 3분의 2 지점에 애드핏 300x250(홈에서만 쓰던 feed2 단위). 아래는 옛 설명 — "운영자 판단" 섹션 뒤, 없으면 본문 끝(다 읽은 지점). 2026-10-30부터 쿠팡 골드박스 '오늘의 특가' 한 장(하위 ID deal), 특가가 없으면 상품 상자. 2주 뒤(11-13) 상자 대비 클릭·수익 비교
   report_recommend: dable_report        # 출처 목록 아래, 쿠팡 상자 바로 위: 데이블 '같이 볼 만한 글' 위젯(번호가 없으면 아무것도 없음)
   report_end: [adfit_list]   # 출처 목록 아래. 2026-11-11 광고 배치 자동 판정: 쿠팡 상품 상자(14일 클릭 0) → 애드핏 '홈·목록'(320x100) 단위. 한 페이지 4개·단위 한 번을 넘으면 쿠팡 상자. 11-25 재판정
-  report_bottom: [adfit_report_end]  # 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡
+  report_bottom: [none]  # 2026-11-22: 끝 광고(출처 아래)와 1.2~1.9화면 거리(189편 중 69편이 2화면 미만, 390x844 실측)라 뺐다. 이 단위는 report_late가 모든 리포트에서 쓴다. 옛 설명 — 면책 고지 위. 짧은 리포트는 애드핏 '리포트 하단'(320x100), 4분의 3 지점에서 이미 썼으면 쿠팡
   list: [adfit_list]  # 홈·테마·종목 목록 페이지 (한 개만). 애드핏 320x100
   report_late: [adfit_report_end]  # 긴 리포트(본문 1만 5천 자 이상)만: 본문 4분의 3 지점 소제목 앞. 2026-10-19 애드핏 '리포트 하단'을 맨 아래(보이는 비율 1%)에서 이 자리로 올림. 단위는 한 페이지 한 번이라 이 자리에 쓰면 맨 아래는 쿠팡
-  rail: [adfit_rail]  # 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
+  rail: [none]  # 2026-11-22 UX 한도 '끈적이(sticky) 광고 금지': 리포트 목차 칸·홈 오른쪽 칸이 position:sticky라 따라 내려오는 광고가 됨 → 끔(PC는 본문 3분의 2 지점 광고가 대신). 옛 설명 — 넓은 화면(PC) 오른쪽 칸 아래에 따라 내려오는 상자. 휴대폰에서는 안 보임(리포트: 목차 아래, 홈: 인사이트 아래)
   feed_inline: [adfit_feed, adfit_feed2, adsense_in_article]   # 홈 피드 사이(처음 HTML의 고정 자리, 아래 rhythm.home_feed): 애드핏 피드 → 애드핏 피드2 → 애드센스 → 쿠팡. 목록 광고(list)가 첫 자리
   page_bottom: [adfit_bottom]   # (애드핏 '하단' 단위가 있고 그 페이지 애드핏이 4개 미만이면 애드핏) 페이지 맨 아래: 리포트(면책 위, 애드핏 하단 뒤)·홈 피드 끝·종목·테마 목록 아래. 쿠팡 다이내믹 배너
   explore: [adfit_list]   # 검색·탐색: 첫 탭(인기 종목)의 '요즘 많이 찾는 종목' 아래, 전체 종목 목록 위(한 개)
@@ -88,7 +88,34 @@ placements:
   profile_inline: [adsense_in_article]      # 프로필 글 목록 4번째 글 뒤(글이 5개 이상일 때만, 화면에서 끼워 넣는 자리)
   dm_list: [adfit_list]   # 쪽지함 대화 목록 아래(대화 화면에는 없음)
   post_detail: [adfit_list]   # 글 상세: 원글과 답글 사이(한 개)
+  scorecard_mid: [adfit_list]   # 2026-11-22: 예측 성적표 '판정 끝난 예측' 목록 앞(휴대폰 약 4화면 아래). 맨 아래 page_bottom과 합쳐 2개
+  reports_list: [adfit_list]     # 2026-11-22: 리포트 전체 목록(휴대폰 22화면, 광고는 맨 아래 하나뿐이었음) 15번째 줄 뒤
+  reports_list2: [adfit_feed]    #             65번째 줄 뒤(300x250)
+  reports_list3: [adfit_feed2]   #             120번째 줄 뒤(300x250). 맨 아래 page_bottom(애드핏 하단)과 합쳐 4개
   thread_inline: [adsense_in_article]   # 커뮤니티 목록·답글 사이(글이 쌓였을 때만, 아래 rhythm). 화면에서 끼워 넣고 더 보기로 계속 채우는 자리라 애드핏 불가(운영정책) → 애드센스 인피드/인아티클, 없으면 쿠팡
+
+# 2026-11-22: 4분의 3 지점(report_late) 광고를 모든 리포트에(전에는 본문 1만 5천 자 이상만). 휴대폰 리포트가 22~31화면이라 짧은 리포트도 자리가 충분하다
+report_late_min_chars: 0
+
+# 광고 UX 가드(2026-11-22 운영자 "유저경험 해치지 않는 한도에서"): 매일 운영 요약(scripts/ops_digest.py)이 지금 7일과 아래 기준(변경 전 7일 11-16~11-22)을 비교.
+# 판정일 뒤 하나라도 max_drop_pct 넘게 나빠지면 '되돌릴 것'을 이상 신호로 → 매일 점검이 last_change를 되돌리고 ops-log·미디어 review/experiments.md(AD1)에 남긴다.
+# 새 광고를 더하면 baseline을 그 직전 7일로, judge를 7일 뒤로, last_change를 새 변경으로 고친다
+guard:
+  baseline: {report_secs: 80.5, report_scroll: 38.3, pages_per_sess: 1.45}
+  judge: "2026-11-30"
+  max_drop_pct: 10
+  min_report_pv: 60
+  last_change: "11-22 광고 꽉꽉: report_products 애드핏(본문 3분의 2) + report_late 모든 리포트 + 끝 광고 옆 건강몰 자체 홍보 + 전체 목록 3개·성적표 1개 (되돌리기: report_products [none], report_late_min_chars 15000, house 지우기, reports_list*·scorecard_mid [none])"
+
+# 자체 홍보(광고 네트워크 아님, 애드핏 4개에 안 셈): 리포트 맨 끝 김박사 몰 줄과 한 상자에 '광고' 표시로 김박사 건강몰 가이드 한 줄.
+# 성분은 식약처 기능성 문구가 있고 영상 중간광고(health_midroll.md H1~H3)와 같은 셋만. 리포트마다 돌려 고른다. 질병명·효능 단정 금지(line도)
+house:
+  health:
+    base: "https://health.drkimworld.com"
+    guides:
+      - {slug: omega3, name: 오메가3}
+      - {slug: lutein, name: 루테인}
+      - {slug: probiotics, name: 유산균}
 
 # 글 사이 광고 리듬: first번째 글 뒤부터 every개마다, 최대 max개. 글이 적을 때는 광고를 넣지 않는다(내용보다 광고가 먼저 보이지 않게).
 # 간격은 5개 이상, 최대 개수는 아래 값이 상한(빌드가 검사).

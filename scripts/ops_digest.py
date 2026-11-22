@@ -35,6 +35,54 @@ def public_reports() -> int:
     return n
 
 
+def guard_now(a: dict) -> dict:
+    """리포트 평균 체류(초/PV)·스크롤 깊이(%)는 리포트 PV 가중 평균, 페이지/세션은 전체."""
+    rs = [r for r in a.get("reports") or [] if r.get("secs/pv") is not None and r.get("scroll_pct") is not None]
+    pv = sum(r["pv"] for r in rs)
+    return {"report_pv": pv,
+            "report_secs": round(sum(r["pv"] * r["secs/pv"] for r in rs) / pv, 1) if pv else None,
+            "report_scroll": round(sum(r["pv"] * r["scroll_pct"] for r in rs) / pv, 1) if pv else None,
+            "pages_per_sess": (a.get("totals") or {}).get("pages_per_sess")}
+
+
+def guard_lines(a: dict, today) -> list:
+    txt = (ROOT / "ads.yaml").read_text(encoding="utf-8")
+    try:
+        import yaml
+        gd = (yaml.safe_load(txt) or {}).get("guard") or {}
+    except ImportError:  # 실행 환경에 PyYAML이 없으면 guard 칸만 글자로 읽는다
+        m = re.search(r"(?m)^guard:\n((?:  .*\n)+)", txt)
+        blk = m.group(1) if m else ""
+        f = lambda k: (re.search(rf"(?m)^  {k}:\s*\"?([^\"\n]*)", blk) or [None, ""])[1].strip()
+        bl = dict((k, float(v)) for k, v in re.findall(r"(\w+):\s*([\d.]+)", (re.search(r"baseline:\s*\{([^}]*)\}", blk) or [None, ""])[1]))
+        gd = {"baseline": bl, "judge": f("judge"), "max_drop_pct": f("max_drop_pct") or 10, "min_report_pv": f("min_report_pv") or 60, "last_change": f("last_change")} if bl else {}
+    base, now = gd.get("baseline") or {}, guard_now(a)
+    if not base:
+        return ["기준 없음(ads.yaml guard)"]
+    judge = dt.date.fromisoformat(str(gd.get("judge")))
+    names = {"report_secs": "리포트 평균 체류(초)", "report_scroll": "스크롤 깊이(%)", "pages_per_sess": "페이지/세션"}
+    worse, parts = [], []
+    for k, n in names.items():
+        b, x = base.get(k), now.get(k)
+        if not b or x is None:
+            continue
+        ch = (x - b) / b * 100
+        parts.append(f"{n} {x} (기준 {b}, {ch:+.0f}%)")
+        if ch < -float(gd.get("max_drop_pct", 10)):
+            worse.append(n)
+    small = now["report_pv"] < int(gd.get("min_report_pv", 60))
+    tail = f"마지막 추가분: {gd.get('last_change', '')}"
+    if today < judge:
+        head = f"관찰 중(판정 {judge})"
+    elif small:
+        head = f"표본 부족(리포트 PV {now['report_pv']} < {gd.get('min_report_pv', 60)}) — 판정 미룸"
+    elif worse:
+        head = f"되돌릴 것 — {'·'.join(worse)} 10% 넘게 나빠짐"
+    else:
+        head = "유지(세 지표 모두 기준 대비 -10% 이내)"
+    return [head, "- " + " · ".join(parts) + f" · 리포트 PV {now['report_pv']}", "- " + tail]
+
+
 def main() -> int:
     a = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     c = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")) if len(sys.argv) > 2 and Path(sys.argv[2]).exists() else {}
@@ -131,7 +179,14 @@ def main() -> int:
     ok = sum(1 for _, v, _ in crit if v)
     out += ["", f"## 애드센스 재신청: {'준비됨' if ok == 5 else '준비 중'} {ok}/5 — " + " · ".join(f"{n} {'○' if v else '×'}({x})" for n, v, x in crit)]
 
+    # 광고 UX 가드(2026-11-22 운영자 "유저경험 해치지 않는 한도에서 광고 꽉꽉"): ads.yaml guard의 기준(변경 전 7일)과 지금 7일을 비교.
+    # 판정일 뒤 리포트 평균 체류·스크롤 깊이·페이지/세션 가운데 하나라도 10% 넘게 나빠지면 '마지막 추가분 되돌리기'를 이상 신호로 올린다
+    gw = guard_lines(a, today)
+    out += ["", "## 광고 UX 가드: " + gw[0]] + gw[1:]
+
     warn = []
+    if gw[0].startswith("되돌릴 것"):
+        warn.append("광고 UX 가드: " + gw[0])
     if ad and (today - dt.date.fromisoformat(max(x["day"] for x in ad))).days > 2:
         warn.append("애드핏 기록이 이틀 넘게 끊김(전달 앱 확인)")
     if cp and (today - dt.date.fromisoformat(cp[-1]["day"])).days > 3:
