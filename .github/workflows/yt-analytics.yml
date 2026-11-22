@@ -1,32 +1,40 @@
-# 유튜브 분석 숫자(일별 조회·구독·시청 시간, 최근 14일 영상별)를 비공개 ops-data stats/youtube/ 에 쌓는다 — scripts/yt_analytics.py.
-# 2026-11-22: vidIQ 크레딧이 떨어져 구독 1,000회당을 못 읽게 돼서, 11-20 넣은 분석 권한으로 직접 읽는다(읽기만, 공개 콘텐츠는 바꾸지 않음).
-# 매일 태평양 자정 뒤(쿼터 새로 찬 뒤) 한 번. 공개 주석에는 줄 수만.
-name: YouTube analytics (private)
+name: YT analytics (유튜브 분석 → 비공개 저장소)
 
+# 유튜브 분석 API(새 키, yt-analytics.readonly 포함 — 2026-11-20 운영자가 YT_* 비밀값에 넣음)로 채널 합계·영상별·유입 경로·일별을 받아
+# 비공개 저장소 phdkimworld/kimworld ops-data stats/yt_analytics.json 에만 올린다(scripts/ops_publish.sh, OPS_PUSH_TOKEN).
+# 공개 저장소에는 숫자를 커밋하지 않고 공개 주석에는 개수·HTTP 코드만 남긴다(운영자 2026-10-28 통계 비공개).
+# 읽는 쪽: 미디어 저장소 tools/yt_analytics_read.py. 2026-11-21 운영자 "지금 새 키로 넘어가".
+# 2026-11-22: 최근 14일 롱폼 시청 유지 곡선(retention)·7일 비교 요약(stats/youtube/summary.md, 구독 전환 시험 기준선)을 더함.
+#   (같은 날 한 커밋이 이 파일을 간단판으로 덮어써 stats/yt_analytics.json 갱신이 멈췄던 것을 되돌림)
 on:
   schedule:
-    - cron: "23 9 * * *"
+    - cron: "17 9 * * *"   # 매일 09:17 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: yt-analytics
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Read analytics
+      - name: Fetch YouTube analytics
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: python3 scripts/yt_analytics.py .cache/yt
-      - name: Publish (private)
+          OUT: .cache/yt_analytics.json
+        run: python3 scripts/yt_analytics.py
+      - name: Publish to private repo
         env:
           OPS_PUSH_TOKEN: ${{ secrets.OPS_PUSH_TOKEN }}
         run: |
-          [ -f .cache/yt/analytics.json ] || exit 0
-          scripts/ops_publish.sh .cache/yt/analytics.json youtube/analytics.json
-          scripts/ops_publish.sh .cache/yt/summary.md youtube/summary.md
+          # 토큰이 없으면 공개 주석 대신 실패로 끝낸다(분석 숫자는 공개하지 않는다)
+          scripts/ops_publish.sh .cache/yt_analytics.json yt_analytics
+          scripts/ops_publish.sh .cache/yt_summary.md youtube/summary.md

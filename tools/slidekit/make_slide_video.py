@@ -232,8 +232,8 @@ def sfx_events():
         prev = key
     if ev and ev[0][1] != 'boom': ev.insert(0, (0.05, 'boom'))
     return ev
-# 4.5) 쿠팡 짧은 띠(운영자 지시 2026-11-11 "짧게 여러번"): deck 'shop_strip' = 띠 문구(28자 이하). 영상 1/3·2/3 지점과 쿠팡 카드 직전에 6초씩 3번,
-# 화면 아래(자막·재생바 위, y 860~944)에 얇은 띠를 겹친다. 첫 30초(훅)·outro·전체 화면 미드롤·쿠팡 카드·사이트 안내 배너 구간과 겹치지 않게 슬라이드 전환 지점에 맞춘다
+# 4.5) 쿠팡 짧은 띠(운영자 지시 2026-11-11 "짧게 여러번", 11-22 UX 한도로 축소): deck 'shop_strip' = 띠 문구(28자 이하). 영상 1/3·2/3 지점 근처에 6초씩 0~2번,
+# 화면 아래(자막·재생바 위, y 860~944)에 얇은 띠를 겹친다. 첫 30초(훅)·브랜드 스팅·outro(엔드카드)를 피하고, 광고(사이트 안내·카드·중간광고 문단)와는 앞뒤 60초를 띄운다
 STRIP_SEC = 6.0
 # 4.4) 구독 버튼 띠(운영자 지시 2026-11-17 "1 3만 수행" — 구독 전환 시험): 문단 'sub' = [문장 번호] 한 문장 동안 화면 아래(y 860)에 '구독' 띠.
 # 문구는 deck 'sub_text'(없으면 기본). 쿠팡 띠는 이 구간을 피한다. check_slides.py SUB가 영상 전체 1문장·'구독'이 들어간 문장인지 본다
@@ -241,19 +241,36 @@ sub_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end']
 # 4.6) 이어 보기 띠(운영자 지시 2026-11-18 "종목 간 교차 링크 필수"): 문단 'next' = [문장 번호] 그 문장 동안 '이어 보기' 띠.
 # 문구는 deck 'next_text'(예: '실스크(LAES) 편 · 설명란 링크'). 구독 띠와 겹치면 안 된다(check_slides NEXTSUB)
 next_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('next', []) if k < len(P[pi]['sents'])]
+AD_GAP = 60.0   # 광고 사이 최소 간격(초) — 미디어 tools/ad_gap_check.py 규칙 3과 같은 값
 def strip_windows():
+    # 2026-11-22 "광고 꽉꽉" UX 한도(미디어 review/ads_max_slidekit_todo.md): 띠는 다른 광고와 60초 이상 떨어뜨리고,
+    # 광고 화면 합계 상한 = min(영상 길이 12%, 75초). 자리가 없으면 띠를 뺀다(0~2개). '카드 직전' 띠는 없앴다(카드가 중간광고 문단 안이라 광고가 붙음)
     if not deck.get('shop_strip'): return []
-    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k) or isbr(k)] + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
+    # 광고 구간: 사이트 안내(전체·배너)·카드 + 영양제 중간광고 문단 전체(문단 'shop'이 있는 문단)
+    adw = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4]
+    for pi, pd in enumerate(D):
+        if pd.get('shop'):
+            adw.append((P[pi]['start'], P[pi]['sents'][-1]['end']))
+    busy = [(a - AD_GAP, b + AD_GAP) for a, b in adw] \
+         + [(a, b) for a, k, b, _ in segs if isanim(k)] \
+         + [(a - 2.0, b + 2.0) for a, k, b, _ in segs if isbr(k)] \
+         + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·브랜드 스팅·엔드카드(outro)·구독/이어 보기 띠 위에도 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
-    shop_t = [a for a, k, b, _ in segs if isad(k) and k[1] == 'shop']
-    targets = [total / 3, total * 2 / 3] + ([shop_t[0] - STRIP_SEC - 1.0] if shop_t else [])
+    targets = [total / 3, total * 2 / 3]
+    union = []  # 겹치는 광고(중간광고 문단 안의 카드 등)는 한 번만 센다 — ad_gap_check.py 합계와 같은 방식
+    for a, b in sorted(adw):
+        if union and a <= union[-1][1] + 0.5: union[-1][1] = max(union[-1][1], b)
+        else: union.append([a, b])
+    cap = min(total * 0.12, 75.0) - sum(b - a for a, b in union)   # 광고 화면 합계 상한에서 남은 초
     wins = []
     for tg in targets:
+        if cap < STRIP_SEC: break
         cand = [c for c in cuts if tg - 25 <= c <= tg + 40] + [tg]
         cand.sort(key=lambda c: abs(c - tg) + (0 if c in cuts else 8))  # 슬라이드 전환 지점 우선
         for c in cand:
-            if c >= 0 and free(c) and all(abs(c - w) >= 30 for w in wins): wins.append(round(c, 2)); break
+            if c >= 0 and free(c) and all(abs(c - w) >= AD_GAP + STRIP_SEC for w in wins):
+                wins.append(round(c, 2)); cap -= STRIP_SEC; break
     return sorted(wins)
 def make_strip(text, path):
     from PIL import ImageDraw, ImageFont

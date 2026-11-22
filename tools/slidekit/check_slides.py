@@ -48,6 +48,11 @@ if not pl: print('POLL 마지막 두 문단에 poll 화면이 없음: 끝에서 
 for x in pl:
     o=x.get('options',[])
     if not 2<=len(o)<=4 or any(len(str(i.get('text','')))>12 for i in o): print('POLL 보기는 2~4개, 각 12자 이하:',[i.get('text') for i in o]);ok=False
+# ADGAP(2026-11-22 UX 한도, 경고만): 사이트 안내(ad) 문단과 shop 문단이 문단 번호로 1 이하로 붙으면 광고가 60초 안에 연달아 뜰 위험. 최종 판정은 합성 뒤 미디어 tools/ad_gap_check.py --strict
+_adp=[i for i,p in enumerate(s['paras']) if p.get('ad')]; _shp=[i for i,p in enumerate(s['paras']) if p.get('shop')]
+for _i in _shp:
+    for _j in _adp:
+        if abs(_i-_j)<=1: print('WARN ADGAP 사이트 안내 문단 p%d과 shop 문단 p%d이 붙어 있음(광고 사이 60초 위험)'%(_j+1,_i+1))
 # SHOP: 쿠팡 상품 카드(운영자 지시 2026-11-10). deck에 "shop"이 있으면 정확히 한 문장에 표시, 그 문장은 '설명란'이나 '고정 댓글'을 말하고 사이트 안내(ad)와 겹치지 않으며 12초 이하
 if s.get('shop'):
     sh=[(i,k) for i,p in enumerate(s['paras']) for k in p.get('shop',[])]
@@ -62,7 +67,7 @@ if s.get('shop'):
         if i>=len(s['paras'])-1: print('SHOP 마지막 문단(outro)에는 넣지 않음');ok=False
         else: print('shop p%d[%d]'%(i+1,k),st['text'][:45])
     st_txt=str(s.get('shop_strip') or '')
-    if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침: 1/3·2/3·카드 직전 6초씩)');ok=False
+    if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침, 11-22 UX 한도: 1/3·2/3 근처 6초씩 0~2번)');ok=False
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
