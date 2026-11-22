@@ -1,12 +1,37 @@
 {
- "generated": "2026-11-22T08:25:58+00:00",
- "since": "2026-11-15T08:25:58+00:00",
+ "generated": "2026-11-22T11:11:32+00:00",
+ "since": "2026-11-15T11:11:32+00:00",
  "platforms": {
   "threads": {
    "ok": true,
    "me": "phdkimworld",
    "my_replies_24h": 1,
-   "open": []
+   "open": [
+    {
+     "platform": "threads",
+     "kind": "top",
+     "replyTo": "17958934131276245",
+     "commentId": "17958934131276245",
+     "postId": "18130839733873741",
+     "postPermalink": "https://www.threads.com/@phdkimworld/post/DgCaBm0luBY",
+     "postText": "BTQ 테크놀로지스(BTQ) -16.3%, 아이온큐 -16.6%. 11월 17일부터 20일까지 3거래일, 두 종목은 거의 같은 폭으로 내렸다. BTQ가 낸 새 SEC 서류는 0건.\n\n그런데 더 길게 보면 그림이 다르다. 2025년 9월 상장 뒤 새 최저 종가를 쓴 날 18일 중, 20거래일 뒤 더 높았던 날은 4일(22%). 20% 넘게 더 내린 날이 9일",
+     "slug": "btq-2026-11",
+     "author": "ii989130772026",
+     "text": "스치니 BTQ·아이온큐 같은 낙폭 뒤에 SEC 서류 0건까지 숫자로 파고드는 집요함, 리서치 맛집이다\n작가야, 『주식시장에 나와서는 안 될 비법서』\nhttps://www.yes24.com/product/goods/198010598",
+     "publishedAt": "2026-11-22T08:57:56+0000",
+     "likeCount": 0,
+     "followups": [],
+     "context": [
+      {
+       "author": "ii989130772026",
+       "isMe": false,
+       "text": "스치니 BTQ·아이온큐 같은 낙폭 뒤에 SEC 서류 0건까지 숫자로 파고드는 집요함, 리서치 맛집이다\n작가야, 『주식시장에 나와서는 안 될 비법서』\nhttps://www.yes24.com/product/goods/198010598",
+       "publishedAt": "2026-11-22T08:57:56+0000"
+      }
+     ],
+     "my_replies_in_thread_24h": 0
+    }
+   ]
   },
   "instagram": {
    "ok": true,
@@ -21,5 +46,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-22T08:28Z"
+ "saved_utc": "2026-11-22T11:13Z"
 }
