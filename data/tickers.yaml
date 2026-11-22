@@ -663,6 +663,13 @@ KWNOTE:
   theme: "예측 결산"
   series: true
   aliases: ["오답노트", "김박사 월드 오답노트", "예측 결산", "예측 채점"]
+KWPAT:
+  name: "김박사 월드 패턴 결산"
+  name_en: "Dr. Kim World Weekly Pattern Review"
+  exchange: "연재"
+  theme: "패턴 결산"
+  series: true
+  aliases: ["패턴 결산", "주간 패턴 결산", "김박사 월드 패턴 결산", "주간 통섭 결산"]
 APLD:
   name: "어플라이드 디지털"
   name_en: "Applied Digital Corporation"

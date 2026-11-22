@@ -53,3 +53,6 @@
 - name: "예측 결산"
   slug: "prediction-review"
   description: "판정이 끝난 지난 예측을 장부로 공개 채점하고, 틀린 이유와 고친 예측 규칙을 기록하는 결산 리포트."
+- name: "패턴 결산"
+  slug: "pattern-review"
+  description: "한 주 동안 다룬 종목들의 공시·종가·판정을 하나의 질문으로 묶어, 종목을 넘어 반복되는 패턴과 기저율을 정리하는 주간 결산 리포트."
