@@ -1,7 +1,7 @@
 # 김박사 건강월드 유튜브 작업(업로드·썸네일·주제별 통계·재생목록·채널 정보·댓글)을 이 저장소의 HEALTH_YT_* 비밀값으로 실행(운영자 2026-11-20 "깃헙에서 갖다써").
 # 키는 이 저장소 밖으로 나가지 않는다(값·토큰을 출력하지 않음). 영상·도구·메타는 운영자 맥(healthworld-ops 실행기)이 이 저장소의
 # 릴리스(tag 입력, 예: hw-2026-11-20)에 자산으로 올리고 이 워크플로를 손 실행한다. 결과(영상 id 장부·댓글 목록)는 같은 릴리스 자산으로 돌려준다.
-# 도구 원본: 비공개 phdkimworld/healthworld-ops tools/hw_upload.py·hw_channel.py·hw_comments.py (채널 ID가 건강월드가 아니면 아무것도 안 함).
+# 도구 원본: 비공개 phdkimworld/healthworld-ops tools/hw_upload.py·hw_channel.py·hw_comments.py·hw_stats.py·hw_reach.py (채널 ID가 건강월드가 아니면 아무것도 안 함).
 name: Health YT run
 
 on:
@@ -11,7 +11,7 @@ on:
         description: "자산이 있는 릴리스 태그(예: hw-2026-11-20)"
         required: true
       mode:
-        description: "upload | thumbs | stats | channel | comments | reply"
+        description: "upload | thumbs | stats | reach | channel | comments | reply"
         required: true
         default: upload
 
@@ -54,8 +54,9 @@ jobs:
               for f in *__*.jpg; do [ -e "$f" ] || continue; s=${f%%__*}; mkdir -p out/$s; cp "$f" "out/$s/${f#*__}"; done
               python3 hw_upload.py meta.json out uploaded.json --thumbs ;;
             stats) python3 hw_stats.py uploaded.json stats.json && gh release upload "$TAG" stats.json --clobber -R "$GITHUB_REPOSITORY" ;;
+            reach) python3 hw_reach.py uploaded.json reach.json && gh release upload "$TAG" reach.json --clobber -R "$GITHUB_REPOSITORY" ;;  # 노출·CTR(Reporting API, 2026-11-22)
             channel) python3 hw_channel.py ;;
             comments) python3 hw_comments.py fetch comments.json && gh release upload "$TAG" comments.json --clobber -R "$GITHUB_REPOSITORY" ;;
             reply) python3 hw_comments.py reply replies.json replied.json; [ -s replied.json ] && gh release upload "$TAG" replied.json --clobber -R "$GITHUB_REPOSITORY" ;;
-            *) echo "::error::mode는 upload|thumbs|stats|channel|comments|reply"; exit 1 ;;
+            *) echo "::error::mode는 upload|thumbs|stats|reach|channel|comments|reply"; exit 1 ;;
           esac
