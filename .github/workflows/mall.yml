@@ -61,7 +61,8 @@ jobs:
         continue-on-error: true
         run: python3 scripts/indexnow.py mall dist-mall/sitemap.xml
       - name: Commit catalog
-        if: always() && inputs.fetch != '0'
+        # 2026-11-22: 예약 실행에선 inputs.fetch가 null이고 GitHub 식에서 null == '0'(둘 다 숫자 0)이라 이 단계가 늘 건너뛰어졌다(진열 11-20 이후 저장 안 됨)
+        if: always() && (github.event_name == 'schedule' || inputs.fetch != '0')
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
