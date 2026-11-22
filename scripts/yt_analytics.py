@@ -11,13 +11,14 @@ phdkimworld/kimworld ops-data 브랜치 stats/yt_analytics.json 에만 올린다
   - totals.d28 / totals.d7: views, estimatedMinutesWatched, averageViewDuration, averageViewPercentage, subscribersGained, subscribersLost
   - videos: 영상별(dimensions=video, 최근 28일, maxResults 200, sort -views) views, estimatedMinutesWatched,
             averageViewDuration, averageViewPercentage, subscribersGained (+ 제목은 Data API로 되면)
+            + 상위 200편에 없는 최근 업로드 RECENT(기본 50)편을 filters=video==ID로 더 받아 top200=false 로 붙인다
   - traffic.channel: 채널 전체 유입 경로(insightTrafficSourceType, 28일)
   - traffic.videos[영상ID]: 조회 상위 TOP_TRAFFIC 편의 유입 경로(28일)
   - daily: 일별(dimensions=day, 28일) views, subscribersGained
 노출수(impressions)·노출 클릭률(CTR)은 YouTube Studio에만 있고 공개 Analytics API에는 없다(그래서 받지 않는다).
 분석 자료는 2~3일 늦게 차므로 끝 날짜는 어제(UTC)로 둔다.
 
-환경 변수: YT_CLIENT_ID·YT_CLIENT_SECRET·YT_REFRESH_TOKEN(값 출력 금지), OUT(기본 .cache/yt_analytics.json), TOP_TRAFFIC(기본 15).
+환경 변수: YT_CLIENT_ID·YT_CLIENT_SECRET·YT_REFRESH_TOKEN(값 출력 금지), OUT(기본 .cache/yt_analytics.json), TOP_TRAFFIC(기본 15), RECENT(기본 50).
 실패하면 HTTP 코드와 짧은 오류만 ::notice 로 남긴다. 영상별 표를 못 받으면 0이 아닌 값으로 끝나 게시하지 않는다.
 """
 import datetime as dt
@@ -86,6 +87,17 @@ def titles(tok, ids: list[str]) -> dict:
     return out
 
 
+def recent_uploads(tok, n: int) -> list[str]:
+    """채널 업로드 재생목록의 최근 n편 영상 ID(Data API)."""
+    def get(url, **q):
+        req = urllib.request.Request(url + "?" + urllib.parse.urlencode(q), headers={"Authorization": "Bearer " + tok})
+        return json.load(urllib.request.urlopen(req, timeout=60))
+    ch = get("https://www.googleapis.com/youtube/v3/channels", part="contentDetails", mine="true")
+    pl = ch["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    items = get("https://www.googleapis.com/youtube/v3/playlistItems", part="contentDetails", playlistId=pl, maxResults=min(n, 50))
+    return [it["contentDetails"]["videoId"] for it in items.get("items", [])]
+
+
 def main() -> int:
     if not all(os.environ.get(k) for k in KEYS):
         notice("YT 분석", "YT_* 비밀값 없음")
@@ -128,6 +140,16 @@ def main() -> int:
     if r is None:
         return 1
     vids = as_dicts(r)
+    # 상위 200편은 조회순이라 조회가 적은 최근 롱폼이 빠진다 → 최근 업로드 RECENT편을 영상 ID로 따로 묻는다(top200=False 표시)
+    have = {v["video"] for v in vids}
+    recent = run("recent_uploads", lambda: recent_uploads(tok, int(os.environ.get("RECENT") or 50))) or []
+    miss = [x for x in recent if x not in have]
+    if miss:
+        r2 = run("videos_recent", lambda: report(tok, s28, end, VIDEO_METRICS, dimensions="video", filters="video==" + ",".join(miss),
+                                                 maxResults=200, sort="-views"))
+        for v in as_dicts(r2) if r2 else []:
+            v["top200"] = False
+            vids.append(v)
     meta = run("titles", lambda: titles(tok, [v["video"] for v in vids])) or {}
     for v in vids:
         v.update(meta.get(v["video"], {}))
@@ -152,7 +174,7 @@ def main() -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     # 공개 로그에는 개수만(숫자 값은 남기지 않는다)
-    notice("YT 분석", f"영상 {len(vids)}편 · 유입 경로 {len(out['traffic']['videos'])}편 · 일별 {len(out['daily'])}일 · 오류 {len(out['errors'])}건")
+    notice("YT 분석", f"영상 {len(vids)}편(최근 업로드 추가 {len(vids) - len(have)}) · 유입 경로 {len(out['traffic']['videos'])}편 · 일별 {len(out['daily'])}일 · 오류 {len(out['errors'])}건")
     return 0
 
 
