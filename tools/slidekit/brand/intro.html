@@ -9,9 +9,14 @@ svg{position:absolute;inset:0}
 #wm{display:inline-block;font-size:176px;font-weight:900;color:#F5B83D;letter-spacing:-4px;line-height:1.1;text-shadow:0 10px 40px rgba(0,0,0,.55)}
 #bar{margin:34px auto 0;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(245,184,61,0),#F5B83D 20%,#F5B83D 80%,rgba(245,184,61,0))}
 #idl{margin-top:40px;font-size:60px;font-weight:700;color:#E6EDF5;letter-spacing:-1px}
+/* 회차 질문 한 줄(2026-11-22 운영자 "인트로로 브랜드를 각인" → 0초 인트로): 브랜드가 주인공, 질문은 아래 작게. 0초부터 그대로(움직이지 않음, 첫 3초 이탈 대비) */
+#q{position:absolute;left:0;right:0;top:812px;text-align:center;display:none}
+#q span{display:inline-block;max-width:1400px;padding:14px 38px;border-radius:40px;background:rgba(11,21,36,.72);border:2px solid rgba(230,237,245,.22);
+  font-size:46px;font-weight:700;color:#DCE5EE;letter-spacing:-.5px;white-space:nowrap}
 </style></head><body>
 <div id="bg"></div>
 <svg width="1920" height="1080" id="net"></svg>
+<div id="q"><span></span></div>
 <div id="wrap"><div id="wm">김박사 월드</div><div id="bar"></div><div id="idl">통섭으로 읽는 주가 패턴</div></div>
 <script>
 const N=[[250,250],[520,140],[430,840],[180,640],[1680,220],[1430,120],[1520,860],[1760,620],[960,960],[960,120]];
@@ -25,13 +30,15 @@ function frame(t){
   N.forEach((p,i)=>{document.getElementById('n'+i).setAttribute('fill-opacity',(0.55*eo((t-0.04*i)/0.25)).toFixed(3))});
   E.forEach((e,i)=>{const k=eo((t-0.1-0.07*i)/0.35),a=N[e[0]],b=N[e[1]],l=document.getElementById('e'+i);
     l.setAttribute('x2',a[0]+(b[0]-a[0])*k);l.setAttribute('y2',a[1]+(b[1]-a[1])*k)});
-  // 워드마크: 0초부터 보이며(빈 화면 없음) 0.45초 동안 아래에서 올라와 자리 잡음
+  // 워드마크: 0초부터 거의 다 보이며(0초 프레임 = 브랜드, 11-22 0초 인트로) 0.45초 동안 아래에서 올라와 자리 잡음
   const w=eo(t/0.45),wm=document.getElementById('wm');
-  wm.style.opacity=(0.35+0.65*w).toFixed(3);wm.style.transform=`translateY(${(1-w)*36}px) scale(${(0.94+0.06*w).toFixed(4)})`;wm.style.letterSpacing=(-4+6*(1-w)).toFixed(2)+'px';
+  wm.style.opacity=(0.8+0.2*w).toFixed(3);wm.style.transform=`translateY(${(1-w)*36}px) scale(${(0.94+0.06*w).toFixed(4)})`;wm.style.letterSpacing=(-4+6*(1-w)).toFixed(2)+'px';
   document.getElementById('bar').style.width=(900*eo((t-0.25)/0.5)).toFixed(1)+'px';
   const d=eo((t-0.7)/0.45),il=document.getElementById('idl');il.style.opacity=d.toFixed(3);il.style.transform=`translateY(${(1-d)*20}px)`;
   // 마지막까지 아주 느린 확대(정지처럼 보이지 않게)
   document.getElementById('wrap').style.transform=`scale(${(1+0.025*cl((t-0.45)/1.95)).toFixed(4)})`;
 }
+function setQ(q){const b=document.getElementById('q');b.style.display=q?'block':'none';b.firstChild.textContent=q||'';
+  return q?b.firstChild.getBoundingClientRect().width:0}
 frame(0);
 </script></body></html>

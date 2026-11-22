@@ -1,6 +1,9 @@
 # 김박사 월드 브랜드 인트로·엔드카드(운영자 지시 2026-11-22 "인트로 영상을 만들어서 브랜드를 각인하고 아웃트로 영상도 넣어서 홍보장으로 활용")
-# - 인트로: brand/intro.mp4(2.4초, 목소리 없음, 워드마크 + 정체성 한 줄) — 모든 롱폼에 같은 파일. make_slide_video.py가 첫 훅 문단 끝 슬라이드 전환 자리에
-#   끼우고, 음성에도 같은 길이를 비워 소리 로고(sfx.logo)를 넣는다(뒤 나레이션은 통째로 2.4초 밀림 → slides_out/timing_video.json, segments.json 'brand_intro')
+# - 인트로: brand/intro.mp4(2.4초, 목소리 없음, 워드마크 + 정체성 한 줄) — 모든 롱폼에 같은 그림. make_slide_video.py가 **영상 맨 앞(0초)**에 놓고
+#   (운영자 2026-11-22 "인트로로 브랜드를 각인하라고 했잖아" — 첫 훅 문단 뒤 15초대 스팅은 인트로로 인식되지 않음), 음성 앞에도 같은 길이를 비워
+#   소리 로고(sfx.logo)를 넣는다(나레이션 전체가 2.4초 밀림 → slides_out/timing_video.json, segments.json 'brand_intro' = [0, 2.4]).
+#   회차 질문 한 줄(intro_question: deck "intro_q" > 제목의 '○○ 지금 사도 될까?' 부분)이 있으면 intro.html을 그 줄과 함께 다시 찍는다(길이 같음, 브랜드가 주인공).
+#   예전처럼 훅 뒤에 끼우려면 deck "brand_intro_para": 문단 번호(1~끝에서 두 번째) 또는 "hook"(시작 15초 이상인 첫 문단)
 # - 엔드카드: outro 슬라이드 자리. 왼쪽 열에 워드마크·정체성 한 줄·홍보 칸 2개, 오른쪽은 유튜브 최종 화면 요소 자리(지침 A10)
 #   홍보 칸: ① 그 회차 영양제 중간광고 코드(H1~H3)의 건강 가이드(설명란 둘째 줄과 같은 말) ② 회차마다 돌리는 칸(성적표·실시간 알림·김박사 몰)
 #   slides.json "outro_promo": ["health"|"scorecard"|"alert"|"mall"|{tag,title,sub,url,note}] 로 직접 고른다(없으면 자동, []면 홍보 칸 없음)
@@ -95,12 +98,53 @@ async def render_endcard(pw, cards, outdir, sec=0.7, gl_args=None):
     return fr
 
 
-def intro_frames(outdir):
-    """brand/intro.mp4를 프레임 PNG로 풀어 목록으로(같은 파일을 매 회차 재사용 — 각인)"""
+Q_MAX = 28  # 질문 줄 글자 수 상한(46px 한 줄, 화면 폭 1400px 안)
+
+
+def _q_from_title(t):
+    """제목에서 첫 '?'까지(예: '블룸 에너지(BE) 지금 사도 될까?'). 길거나 '?'가 없으면 None"""
+    t = str(t or '').strip(); i = t.find('?')
+    q = t[:i + 1].strip() if i > 0 else ''
+    return q if 0 < len(q) <= Q_MAX else None
+
+
+def intro_question(deck, base='.'):
+    """인트로 화면 회차 질문 한 줄: deck "intro_q"(""/false면 없음) > 같은 폴더 mk_meta.py TITLE > upload_meta.json title.
+    제목의 첫 '?'까지가 Q_MAX자 이하일 때만 쓴다(미스터리형 긴 제목은 질문 줄 없이 브랜드만)"""
+    if 'intro_q' in deck:
+        q = str(deck.get('intro_q') or '').strip()
+        return q[:Q_MAX] if q else None
+    mk = os.path.join(base, 'mk_meta.py')
+    if os.path.exists(mk):
+        m = re.search(r'^TITLE\s*=\s*[fr]?([\'"])(.+?)\1', open(mk, encoding='utf-8').read(), re.M)
+        if m and _q_from_title(m.group(2)): return _q_from_title(m.group(2))
+    um = os.path.join(base, 'upload_meta.json')
+    if os.path.exists(um):
+        try: return _q_from_title(json.load(open(um, encoding='utf-8')).get('title'))
+        except (OSError, ValueError): pass
+    return None
+
+
+def intro_frames(outdir, q=None):
+    """인트로 프레임 PNG 목록(72장 = 2.4초). 질문 줄이 없으면 brand/intro.mp4를 그대로 푼다(매 회차 같은 그림 — 각인),
+    있으면 intro.html을 그 줄과 함께 1/30초씩 다시 찍는다(워드마크·정체성·움직임은 intro.mp4와 같음). 질문 줄이 넘치면 BRAND_FAIL"""
     os.makedirs(outdir, exist_ok=True)
     for f in os.listdir(outdir):
         if f.endswith('.png'): os.remove(os.path.join(outdir, f))
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', INTRO, '-vf', 'scale=1920:1080,fps=30', os.path.join(outdir, 'i%03d.png')], check=True)
+    if not q:
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', INTRO, '-vf', 'scale=1920:1080,fps=30', os.path.join(outdir, 'i%03d.png')], check=True)
+    else:
+        # 문구 검사는 하지 않는다: 그 회차 제목(V4 제목 검사를 이미 통과)의 앞부분이고, 회사 이름에 'AI' 같은 BAN 낱말이 들어갈 수 있다
+        from playwright.sync_api import sync_playwright
+        n = 72
+        with sync_playwright() as p:
+            br = p.chromium.launch(); pg = br.new_page(viewport={'width': 1920, 'height': 1080})
+            pg.goto('file://' + os.path.join(BD, 'intro.html')); pg.wait_for_timeout(300)
+            w = pg.evaluate('q=>setQ(q)', q)
+            if w > 1400: br.close(); sys.exit(f'BRAND_FAIL 인트로 질문 줄이 넘침({w:.0f}px > 1400): {q}')
+            for i in range(n):
+                pg.evaluate('t=>frame(t)', i / FPS); pg.screenshot(path=os.path.join(outdir, f'i{i + 1:03d}.png'))
+            br.close()
     return sorted(os.path.join(outdir, f) for f in os.listdir(outdir) if f.endswith('.png'))
 
 

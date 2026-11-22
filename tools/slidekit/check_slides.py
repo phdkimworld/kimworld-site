@@ -137,16 +137,21 @@ print('ANIMRATIO anim %d컷 · 문단 %d/%d (%.0f%%) · 본문 %d/%d (%.0f%%, �
 if anim_b<0.6*body: print('ANIMLOW 데이터 anim 문단 %d/%d < 60%%: 숫자·비교·흐름이 있는 문단마다 anim 틀(fromfig 6틀)을 넣는다(WARN ANIMCAND 목록부터)'%(anim_b,body));ok=False
 if not mo: print('ANIMLOW slides.json "motion": false — 정지 슬라이드의 가벼운 움직임을 끄지 않는다(운영자 11-16 최대 적용)');ok=False
 # BRAND(운영자 지시 2026-11-22 "인트로 영상을 만들어서 브랜드를 각인하고 아웃트로 영상도 넣어서 홍보장으로 활용", brand.py):
-# 인트로 스팅 자리(첫 훅 문단 끝, 기본 = 시작이 15초 이상인 첫 문단 앞)와 엔드카드 홍보 칸. "outro_promo"는 2개 이하, 이름은 health·scorecard·alert·mall 또는
+# 인트로 자리(운영자 11-22 "인트로로 브랜드를 각인하라고 했잖아" → 기본 0초 = 영상 맨 앞, 화면에 회차 질문 한 줄)와 엔드카드 홍보 칸. "outro_promo"는 2개 이하, 이름은 health·scorecard·alert·mall 또는
 # {tag,title,sub,url,note}. 문구는 brand.problems(글자 수·금지 표현·URL은 도메인+경로)를 통과해야 한다. 'health'를 골랐는데 영양제 코드가 없으면 실패
+# 예전 방식(훅 뒤 스팅)은 "brand_intro_para": 문단 번호 또는 "hook"(시작 15초 이상인 첫 문단). 질문 줄은 "intro_q"(""면 없음) > 제목 첫 '?'까지(28자 이하)
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 import brand
 if s.get('brand_intro',True) is not False:
-    bp=s.get('brand_intro_para') or next((i for i in range(1,len(tm)-1) if tm[i]['start']>=15.0),None)
-    if not bp or not 0<bp<len(tm)-1: print('BRAND 인트로 자리 없음: brand_intro_para는 1 ~ 끝에서 두 번째 문단');ok=False
+    bp=s.get('brand_intro_para') or 0
+    if bp=='hook': bp=next((i for i in range(1,len(tm)-1) if tm[i]['start']>=15.0),None)
+    if bp==0:
+        q=brand.intro_question(s,d)
+        print('brand intro 0초(+2.4초, 나레이션 전체 밀림) · 질문 줄 %s'%(repr(q) if q else '없음(브랜드만)'))
+        if 'intro_q' in s and s['intro_q'] and len(str(s['intro_q']))>brand.Q_MAX: print('BRAND intro_q %d자 > %d자'%(len(str(s['intro_q'])),brand.Q_MAX));ok=False
+    elif not isinstance(bp,int) or not 0<bp<len(tm)-1: print('BRAND 인트로 자리 없음: brand_intro_para는 0(기본, 영상 맨 앞)·"hook"·1 ~ 끝에서 두 번째 문단');ok=False
     else:
-        print('brand intro p%d 앞 %.1f초(+2.4초 스팅)'%(bp+1,tm[bp]['start']))
-        if tm[bp]['start']<15: print('WARN BRAND 인트로가 15초 전(%.1f초): 0초 훅·표지를 가리지 않게 첫 훅 문단 뒤로'%tm[bp]['start'])
+        print('brand intro p%d 앞 %.1f초(+2.4초 스팅, 예전 방식)'%(bp+1,tm[bp]['start']))
         if tm[bp]['start']>90: print('WARN BRAND 인트로가 90초 뒤(%.1f초): 첫 훅 문단 끝에 둔다'%tm[bp]['start'])
 if s.get('brand_end',True) is not False:
     op=s.get('outro_promo')

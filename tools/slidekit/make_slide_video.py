@@ -8,9 +8,11 @@
 #   그 슬라이드 구간 전체를 anim.py로 프레임 캡처해 넣는다(박자 = 문장 시작 시각). segments.json 'anim'에 [시작, 움직임 끝, 구간 끝, 틀]을 남겨
 #   video_check·'최장 정지' 지표가 움직이는 구간을 정지로 세지 않는다. 장면마다 slides_out/anim_*/preview.png(다섯 장)를 눈으로 확인
 #   브랜드(2026-11-22 운영자 "인트로 영상을 만들어서 브랜드를 각인하고 아웃트로 영상도 넣어서 홍보장으로 활용", brand.py):
-#   ① 인트로 스팅 brand/intro.mp4(2.4초, 목소리 없음)를 첫 훅 문단이 끝난 슬라이드 전환 자리에 끼우고 음성에도 같은 길이를 비워 소리 로고를 넣는다.
-#      뒤 나레이션은 2.4초 밀린다 → 영상 시간축 문장 시각은 slides_out/timing_video.json, segments.json 'brand_intro' = [끼운 시각, 길이]
-#      (자막 yt_captions.py·설명란 챕터 brand_shift.py가 이걸 읽는다). 자리: deck "brand_intro_para"(문단 번호, 기본 = 시작이 15초 이상인 첫 문단)
+#   ① 인트로 brand/intro.mp4(2.4초, 목소리 없음)를 **영상 맨 앞(0초)**에 놓고 음성 앞에도 같은 길이를 비워 소리 로고를 넣는다
+#      (운영자 2026-11-22 "인트로로 브랜드를 각인하라고 했잖아" — 훅 뒤 15초대 스팅은 인트로로 인식되지 않았다). 화면에는 회차 질문 한 줄을 작게(brand.intro_question).
+#      나레이션 전체가 2.4초 밀린다 → 영상 시간축 문장 시각은 slides_out/timing_video.json, segments.json 'brand_intro' = [0, 길이]
+#      (자막 yt_captions.py·설명란 챕터 brand_shift.py가 이걸 읽는다 — 챕터 첫 항목 00:00은 그대로, 나머지 +길이). 인트로 직후 첫 장면은 예전 0초 표지처럼
+#      움직임 없이 컷으로 뜬다. 예전 방식(훅 뒤 스팅): deck "brand_intro_para": 문단 번호(1~끝에서 두 번째) 또는 "hook"(시작 15초 이상인 첫 문단)
 #   ② outro 슬라이드 → 브랜드 엔드카드(워드마크·정체성·홍보 칸 2개, deck "outro_promo"). 끄기: NO_BRAND=1(둘 다), deck "brand_intro": false / "brand_end": false
 import json, sys, os, asyncio, subprocess, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -28,15 +30,18 @@ import brand
 BRAND = not os.environ.get('NO_BRAND')
 brand_at, brand_sec = None, 0.0  # 인트로를 끼운 시각(원래 음성 기준 = 영상 기준)과 길이
 if BRAND and deck.get('brand_intro', True) is not False and os.path.exists(brand.INTRO) and len(P) > 2:
-    bp = deck.get('brand_intro_para') or next((i for i in range(1, len(P) - 1) if P[i]['start'] >= 15.0), None)
-    if bp and 0 < bp < len(P) - 1:
-        brand_at = round(P[bp]['start'], 3)
-        brand_fr = brand.intro_frames(os.path.join(os.path.dirname(out), 'slides_out', 'brand_intro'))
+    bp = deck.get('brand_intro_para') or 0  # 0(기본) = 영상 맨 앞
+    if bp == 'hook': bp = next((i for i in range(1, len(P) - 1) if P[i]['start'] >= 15.0), None)
+    if bp == 0 or (isinstance(bp, int) and 0 < bp < len(P) - 1):
+        brand_at = 0.0 if bp == 0 else round(P[bp]['start'], 3)
+        brand_q = brand.intro_question(deck, base) if bp == 0 else None  # 회차 질문 한 줄은 0초 인트로에만
+        brand_fr = brand.intro_frames(os.path.join(os.path.dirname(out), 'slides_out', 'brand_intro'), brand_q)
         brand_sec = len(brand_fr) / anim.FPS
         for p_ in P[bp:]:  # 뒤 문단을 통째로 미룬다(나레이션은 그대로, 사이에 스팅)
             p_['start'] += brand_sec; p_['end'] += brand_sec
             for s_ in p_['sents']: s_['start'] += brand_sec; s_['end'] += brand_sec
         tm['duration'] += brand_sec
+cover_t = brand_sec if brand_at == 0.0 else 0.0  # 첫 장면(표지 역할)이 뜨는 시각: 0초 인트로면 인트로 끝
 BRAND_END = BRAND and deck.get('brand_end', True) is not False
 promo = brand.pick(deck) if BRAND_END else []
 isbr = lambda k: k[0] == 'BR'
@@ -64,7 +69,7 @@ full_used = 0.0  # 전체 화면 미드롤 합계가 30초를 넘게 되는 문�
 for pi, (pt, pd) in enumerate(zip(P, D)):
     ads = set(pd.get('ad', [])); sl = sorted(pd['slides'], key=lambda s: s.get('from', 0))
     for si, s in enumerate(pt['sents']):
-        t0 = 0.0 if (pi == 0 and si == 0) else (pt['start'] if si == 0 else s['start'])
+        t0 = cover_t if (pi == 0 and si == 0) else (pt['start'] if si == 0 else s['start'])
         k = max(i for i, x in enumerate(sl) if x.get('from', 0) <= si) if any(x.get('from', 0) <= si for x in sl) else 0
         sdur = s['end'] - s['start']
         if BRAND_END and sl[k].get('layout') == 'outro': key = ('BR', 'end')  # 브랜드 엔드카드(나레이션 outro 문단은 그대로 위에)
@@ -75,7 +80,7 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         elif si in ads: key = (pi, k, si, 'B')
         else: key = (pi, k, si)
         seq.append((t0, key, sl))
-if brand_at is not None:  # 인트로 스팅 구간: 첫 훅 문단 끝 ~ 다음 문단 시작(밀린 시각)
+if brand_at is not None:  # 인트로 구간: 0초 ~ 첫 장면(기본) 또는 훅 문단 끝 ~ 다음 문단 시작(밀린 시각)
     seq.insert(next(i for i, x in enumerate(seq) if x[0] >= brand_at + brand_sec - 1e-6), (brand_at, ('BR', 'intro'), []))
 segs = []
 for i, (t0, key, sl) in enumerate(seq):
@@ -111,14 +116,14 @@ async def render():
         shot = sum(len(set(fr)) for fr, _, _, _ in res); tot = sum(len(fr) for fr, _, _, _ in res)
         print(f'움직이는 장면 {len(jobs)}개 · 프레임 {tot}(새로 찍음 {shot}) · 일꾼 {anim.WORKERS} · {_t.time() - _s:.0f}초', flush=True)
     # 정지 슬라이드: 가벼운 움직임(MOTION, 11-16 "최대한 애니메이션") — 슬라이드가 새로 뜨면 덩어리가 차례로 들어오고, 문장마다 새로 드러난 요소만 들어온다.
-    # 0.3~0.8초 움직인 뒤 끝 상태(= 예전 정지 그림)로 남는다. 영상 0초(표지)는 움직이지 않는다. 끄기: NO_MOTION=1 또는 deck "motion": false
+    # 0.3~0.8초 움직인 뒤 끝 상태(= 예전 정지 그림)로 남는다. 첫 장면(영상 0초, 0초 인트로면 인트로 직후)은 움직이지 않는다. 끄기: NO_MOTION=1 또는 deck "motion": false
     todo, prev = [], None
     for t0, key, _, sl in segs:
         if key in files or isad(key) or isbr(key):
             if isad(key) and key not in files: files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll
             prev = key; continue
         pi, k, si = key[:3]; first = prev is None or isad(prev) or prev[:2] != (pi, k)
-        if key not in [x[0] for x in todo]: todo.append((key, sl[k], first and t0 > 0.01, MOTION and t0 > 0.01))
+        if key not in [x[0] for x in todo]: todo.append((key, sl[k], first and t0 > cover_t + 0.01, MOTION and t0 > cover_t + 0.01))
         prev = key
     q = asyncio.Queue()
     for x in todo: q.put_nowait(x)
@@ -211,8 +216,9 @@ def sfx_events():
             prev = key; continue
         pi, k, si = key[:3]; d = sl[k]
         new_slide = prev is None or isad(prev) or prev[:2] != (pi, k)
+        after_intro = cover_t > 0 and abs(t0 - cover_t) < 0.01  # 0초 인트로 직후 첫 장면: 예전 0초처럼 boom, 상승음 없음(소리 로고와 겹침)
         if isanim(key):  # 장면 시작은 화면 전환 소리, 박자(사건 점·숫자)마다 딸깍
-            kind = d.get('sfx', 'boom' if d['anim']['tpl'] == 'chalk_hook' else 'whoosh')
+            kind = d.get('sfx', 'boom' if d['anim']['tpl'] == 'chalk_hook' or after_intro else 'whoosh')
             if kind != 'none': ev.append((t0, kind)); last_t = t0
             for bt in anim_info[key][1]:
                 if bt - last_t >= 1.2 and bt < t1: ev.append((bt, 'tick')); last_t = bt
@@ -220,7 +226,8 @@ def sfx_events():
         kind = None
         if new_slide:
             kick = str(d.get('kicker', ''))
-            if d.get('layout') == 'hero': ev.append((t0, 'riser')); kind = 'boom'
+            if after_intro: kind = 'boom'
+            elif d.get('layout') == 'hero': ev.append((t0, 'riser')); kind = 'boom'
             elif d.get('layout') in ('outro', 'poll'): kind = 'chime'
             elif kick.startswith(('미스터리', '단서', '반전')) or (d.get('layout') == 'quote' and kick): kind = 'boom'
             else: kind = 'whoosh'
@@ -230,7 +237,7 @@ def sfx_events():
         if kind and (kind != 'whoosh' or t0 - last_t >= 2.5) and (kind != 'tick' or t0 - last_t >= 1.5):
             ev.append((t0, kind)); last_t = t0
         prev = key
-    if ev and ev[0][1] != 'boom': ev.insert(0, (0.05, 'boom'))
+    if ev and ev[0][1] not in ('boom', 'logo'): ev.insert(0, (0.05, 'boom'))  # 0초 인트로면 소리 로고가 첫 소리
     return ev
 # 4.5) 쿠팡 짧은 띠(운영자 지시 2026-11-11 "짧게 여러번", 11-22 UX 한도로 축소): deck 'shop_strip' = 띠 문구(28자 이하). 영상 1/3·2/3 지점 근처에 6초씩 0~2번,
 # 화면 아래(자막·재생바 위, y 860~944)에 얇은 띠를 겹친다. 첫 30초(훅)·브랜드 스팅·outro(엔드카드)를 피하고, 광고(사이트 안내·카드·중간광고 문단)와는 앞뒤 60초를 띄운다
