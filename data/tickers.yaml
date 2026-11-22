@@ -676,3 +676,9 @@ APLD:
   exchange: "NASDAQ"
   theme: "비트코인·AI 데이터센터"
   aliases: ["어플라이드 디지털", "Applied Digital", "어플라이드디지털", "APLD"]
+BE:
+  name: "블룸 에너지"
+  name_en: "Bloom Energy Corporation"
+  exchange: "NYSE"
+  theme: "원자력·에너지"
+  aliases: ["블룸에너지", "블룸 에너지", "Bloom Energy", "블룸"]
