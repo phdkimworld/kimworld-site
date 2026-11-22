@@ -131,6 +131,30 @@ mo=s.get('motion',True) is not False
 print('ANIMRATIO anim %d컷 · 문단 %d/%d (%.0f%%) · 본문 %d/%d (%.0f%%, 기준 60%%) · 가벼운 움직임 %s · 숫자 장면 중 정지 %d'%(na,anim_p,np_,100*anim_p/max(1,np_),anim_b,body,100*anim_b/body,'켬' if mo else '끔',len(cand)))
 if anim_b<0.6*body: print('ANIMLOW 데이터 anim 문단 %d/%d < 60%%: 숫자·비교·흐름이 있는 문단마다 anim 틀(fromfig 6틀)을 넣는다(WARN ANIMCAND 목록부터)'%(anim_b,body));ok=False
 if not mo: print('ANIMLOW slides.json "motion": false — 정지 슬라이드의 가벼운 움직임을 끄지 않는다(운영자 11-16 최대 적용)');ok=False
+# BRAND(운영자 지시 2026-11-22 "인트로 영상을 만들어서 브랜드를 각인하고 아웃트로 영상도 넣어서 홍보장으로 활용", brand.py):
+# 인트로 스팅 자리(첫 훅 문단 끝, 기본 = 시작이 15초 이상인 첫 문단 앞)와 엔드카드 홍보 칸. "outro_promo"는 2개 이하, 이름은 health·scorecard·alert·mall 또는
+# {tag,title,sub,url,note}. 문구는 brand.problems(글자 수·금지 표현·URL은 도메인+경로)를 통과해야 한다. 'health'를 골랐는데 영양제 코드가 없으면 실패
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
+import brand
+if s.get('brand_intro',True) is not False:
+    bp=s.get('brand_intro_para') or next((i for i in range(1,len(tm)-1) if tm[i]['start']>=15.0),None)
+    if not bp or not 0<bp<len(tm)-1: print('BRAND 인트로 자리 없음: brand_intro_para는 1 ~ 끝에서 두 번째 문단');ok=False
+    else:
+        print('brand intro p%d 앞 %.1f초(+2.4초 스팅)'%(bp+1,tm[bp]['start']))
+        if tm[bp]['start']<15: print('WARN BRAND 인트로가 15초 전(%.1f초): 0초 훅·표지를 가리지 않게 첫 훅 문단 뒤로'%tm[bp]['start'])
+        if tm[bp]['start']>90: print('WARN BRAND 인트로가 90초 뒤(%.1f초): 첫 훅 문단 끝에 둔다'%tm[bp]['start'])
+if s.get('brand_end',True) is not False:
+    op=s.get('outro_promo')
+    if op is not None and (not isinstance(op,list) or len(op)>2 or any(not isinstance(x,dict) and x not in ('health',*brand.PROMOS) for x in op)): print('OUTRO_PROMO는 2개 이하 목록, 이름은 health·scorecard·alert·mall 또는 {tag,title,sub,url}:',op);ok=False
+    elif op and 'health' in op and not brand.health_code(s): print('OUTRO_PROMO "health"를 골랐는데 영양제 중간광고 코드가 없음(deck "health": "H1|H2|H3" 또는 쿠팡 카드 h1_card.png)');ok=False
+    else:
+        ch=brand.pick(s)
+        for k,c in ch:
+            pr=brand.problems(c)
+            if pr: print('OUTRO_PROMO',k,' / '.join(pr));ok=False
+        print('brand end',[k for k,_ in ch] or '홍보 칸 없음')
+        if brand.health_code(s) and any(k=='mall' for k,_ in ch): print('OUTRO_PROMO 영양제 광고 회차에 김박사 몰 칸(설명란 몰 줄과 같은 회차에 두지 않음, health_midroll 3절 5번)');ok=False
+    if not any(x.get('layout')=='outro' for x in s['paras'][-1]['slides']): print('WARN BRAND 마지막 문단에 outro 슬라이드가 없어 엔드카드가 뜨지 않음')
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')

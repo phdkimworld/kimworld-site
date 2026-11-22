@@ -24,6 +24,9 @@
 #  0초 표지 자동 검사(cover_check): 렌더 전에 0초 프레임을 그려 shorts_out/cover0.png로 저장하고 ① 첫 장면 0초 요소에 160px 이상 숫자·이름표
 #    ② 핵심 영역이 비지 않음 ③ 좌우 끝·핵심 영역 위아래 끝에 글자가 걸리지 않음(잘림) ④ 큰 글자 높이를 본다. 실패면 COVER_FAIL로 멈춘다
 #    (옛 회차를 다시 렌더할 때만 SHORTS_COVER=warn).
+#  브랜드 끝 표시(2026-11-22 운영자 "인트로 영상을 만들어서 브랜드를 각인", slidekit/brand.py): 쇼츠에는 인트로가 없다(0초 표지 그대로).
+#    마지막 1.0초에 위쪽 띠(진행 바 자리)에 작은 워드마크 '김박사 월드' + 소리 로고 끝 두 음(sfx.logo_tail, 효과음 3~5개 상한과 따로).
+#    길이를 늘리지 않고 마지막 문장 끝에 겹친다(끝 무음·반복 재생 그대로). 끄기: NO_BRAND=1 또는 shorts.json "brand_end": false
 import json, os, re, subprocess, sys, wave
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'slidekit'))
@@ -303,6 +306,8 @@ def main(spec_p, raw, out):
         for a_, k_ in (sc.get('anim') or {}).get('sfx', []):
             ev.append((starts[i] + a_ * (ends[i] - starts[i]), k_))
     assert len(ev) <= 5, f'효과음 {len(ev)}개 — 지침은 3~5개'
+    MARK = 1.0 if not os.environ.get('NO_BRAND') and spec.get('brand_end', True) is not False and total > 8 else 0.0
+    if MARK: ev.append((total - MARK, 'logo_tail'))  # 소리 로고 끝부분: 영상 끝에 맞춰 끝난다
     mixed = os.path.join(wd, 'mix.wav')
     sfx.mix(norm, ev, mixed, bed_on=True, bed_db=-19)
     # 3) 자막 일정: 문장 길이에 비례해 어절 묶음을 나누고 0.1초 먼저 띄운다
@@ -333,9 +338,16 @@ def main(spec_p, raw, out):
         # 진행 바·단서·채널
         d.rounded_rectangle([60, 170, 1020, 180], radius=5, fill=(40, 54, 76, 255))
         d.rounded_rectangle([60, 170, 60 + 960 * t / total, 180], radius=5, fill=COL['yellow'] + (255,))
-        if sc.get('progress'):
-            d.text((60, 200), sc['progress'], font=tagf, fill=COL['yellow'])
-        tag = f"김박사 월드 · {spec['ticker']}"; d.text((1020 - d.textlength(tag, font=tagf), 200), tag, font=tagf, fill=COL['sub'])
+        if MARK and t >= total - MARK:  # 브랜드 끝 표시: 위쪽 띠의 글자를 작은 워드마크로 바꾼다(안전 영역 밖, 핵심 영역·자막 그대로)
+            k_ = ease((t - (total - MARK)) / 0.3); wf = font(FB, 64); wm = '김박사 월드'; ww = d.textlength(wm, font=wf)
+            lay = Image.new('RGBA', (W, 120), (0, 0, 0, 0)); dl = ImageDraw.Draw(lay)
+            dl.text((540 - ww / 2, 8), wm, font=wf, fill=COL['yellow'] + (255,))
+            dl.rounded_rectangle([540 - ww / 2 * k_, 98, 540 + ww / 2 * k_, 104], radius=3, fill=COL['yellow'] + (255,))
+            lay.putalpha(lay.getchannel('A').point(lambda v: int(v * (0.25 + 0.75 * k_)))); fr.alpha_composite(lay, (0, 184))
+        else:
+            if sc.get('progress'):
+                d.text((60, 200), sc['progress'], font=tagf, fill=COL['yellow'])
+            tag = f"김박사 월드 · {spec['ticker']}"; d.text((1020 - d.textlength(tag, font=tagf), 200), tag, font=tagf, fill=COL['sub'])
         # 핵심 영역(천천히 줌인 105→115%)
         core = Image.new('RGBA', (W, CORE_H), (0, 0, 0, 0))
         if sc.get('title'):
@@ -390,7 +402,7 @@ def main(spec_p, raw, out):
     for i, x in enumerate(sheet):
         sh.paste(x, ((i % cols) * 270, (i // cols) * 480))
     sh.save(os.path.join(wd, 'contact.png'))
-    print(f'saved {out} | 장면 {len(scenes)} | 움직이는 장면(anim) {len(anim_fr)}/{len(scenes)} | 길이 {total:.1f}초 | 효과음 {len(ev)} | 시트 2.5초 간격')
+    print(f'saved {out} | 장면 {len(scenes)} | 움직이는 장면(anim) {len(anim_fr)}/{len(scenes)} | 길이 {total:.1f}초 | 효과음 {len(ev)} | 브랜드 끝 표시 {MARK:.1f}초 | 시트 2.5초 간격')
 
 
 if __name__ == '__main__':

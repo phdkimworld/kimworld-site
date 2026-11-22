@@ -7,6 +7,11 @@
 #   움직이는 장면(2026-11-16): 슬라이드에 "anim": {"tpl": "live_chart|chalk_hook", "data": {..., "beats": [문장 번호…]}}이 있으면
 #   그 슬라이드 구간 전체를 anim.py로 프레임 캡처해 넣는다(박자 = 문장 시작 시각). segments.json 'anim'에 [시작, 움직임 끝, 구간 끝, 틀]을 남겨
 #   video_check·'최장 정지' 지표가 움직이는 구간을 정지로 세지 않는다. 장면마다 slides_out/anim_*/preview.png(다섯 장)를 눈으로 확인
+#   브랜드(2026-11-22 운영자 "인트로 영상을 만들어서 브랜드를 각인하고 아웃트로 영상도 넣어서 홍보장으로 활용", brand.py):
+#   ① 인트로 스팅 brand/intro.mp4(2.4초, 목소리 없음)를 첫 훅 문단이 끝난 슬라이드 전환 자리에 끼우고 음성에도 같은 길이를 비워 소리 로고를 넣는다.
+#      뒤 나레이션은 2.4초 밀린다 → 영상 시간축 문장 시각은 slides_out/timing_video.json, segments.json 'brand_intro' = [끼운 시각, 길이]
+#      (자막 yt_captions.py·설명란 챕터 brand_shift.py가 이걸 읽는다). 자리: deck "brand_intro_para"(문단 번호, 기본 = 시작이 15초 이상인 첫 문단)
+#   ② outro 슬라이드 → 브랜드 엔드카드(워드마크·정체성·홍보 칸 2개, deck "outro_promo"). 끄기: NO_BRAND=1(둘 다), deck "brand_intro": false / "brand_end": false
 import json, sys, os, asyncio, subprocess, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sfx, anim
@@ -19,6 +24,22 @@ tm = json.load(open(os.path.splitext(raw)[0] + '_timing.json', encoding='utf-8')
 P = tm['paras']; D = deck['paras']
 assert len(P) == len(D), f'문단 수 불일치: 음성 {len(P)} / slides.json {len(D)}'
 absp = lambda p: p if os.path.isabs(p) else os.path.join(base, p)
+import brand
+BRAND = not os.environ.get('NO_BRAND')
+brand_at, brand_sec = None, 0.0  # 인트로를 끼운 시각(원래 음성 기준 = 영상 기준)과 길이
+if BRAND and deck.get('brand_intro', True) is not False and os.path.exists(brand.INTRO) and len(P) > 2:
+    bp = deck.get('brand_intro_para') or next((i for i in range(1, len(P) - 1) if P[i]['start'] >= 15.0), None)
+    if bp and 0 < bp < len(P) - 1:
+        brand_at = round(P[bp]['start'], 3)
+        brand_fr = brand.intro_frames(os.path.join(os.path.dirname(out), 'slides_out', 'brand_intro'))
+        brand_sec = len(brand_fr) / anim.FPS
+        for p_ in P[bp:]:  # 뒤 문단을 통째로 미룬다(나레이션은 그대로, 사이에 스팅)
+            p_['start'] += brand_sec; p_['end'] += brand_sec
+            for s_ in p_['sents']: s_['start'] += brand_sec; s_['end'] += brand_sec
+        tm['duration'] += brand_sec
+BRAND_END = BRAND and deck.get('brand_end', True) is not False
+promo = brand.pick(deck) if BRAND_END else []
+isbr = lambda k: k[0] == 'BR'
 midroll = absp(deck['midroll'])
 # 운영자 지시 2026-10-21: 미드롤에서 리포트 말고 사이트·앱 기능도 광고한다.
 # deck에 'midroll_app'(사이트·앱 기능 이미지)이 있으면 마지막 전체 화면 안내(닫기)에 그 이미지를 띄운다
@@ -46,13 +67,16 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         t0 = 0.0 if (pi == 0 and si == 0) else (pt['start'] if si == 0 else s['start'])
         k = max(i for i, x in enumerate(sl) if x.get('from', 0) <= si) if any(x.get('from', 0) <= si for x in sl) else 0
         sdur = s['end'] - s['start']
-        if shop_img and si in set(pd.get('shop', [])): key = ('AD', 'shop')
+        if BRAND_END and sl[k].get('layout') == 'outro': key = ('BR', 'end')  # 브랜드 엔드카드(나레이션 outro 문단은 그대로 위에)
+        elif shop_img and si in set(pd.get('shop', [])): key = ('AD', 'shop')
         elif si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
             key = ('AD', 'app' if midroll_app and pi == ad_paras[-1] else 'rep'); full_used += sdur
         elif sl[k].get('anim'): key = (pi, k, 'anim')  # 움직이는 장면: 슬라이드 전체가 한 구간(배너 안내 문장도 장면 그대로)
         elif si in ads: key = (pi, k, si, 'B')
         else: key = (pi, k, si)
         seq.append((t0, key, sl))
+if brand_at is not None:  # 인트로 스팅 구간: 첫 훅 문단 끝 ~ 다음 문단 시작(밀린 시각)
+    seq.insert(next(i for i, x in enumerate(seq) if x[0] >= brand_at + brand_sec - 1e-6), (brand_at, ('BR', 'intro'), []))
 segs = []
 for i, (t0, key, sl) in enumerate(seq):
     t1 = seq[i + 1][0] if i + 1 < len(seq) else tm['duration']
@@ -67,6 +91,7 @@ motion_keys = set()  # 가벼운 움직임 프레임 목록을 쓰는 정지 슬
 still = lambda f: f[-1] if isinstance(f, list) else f
 async def render():
     files = {}
+    if brand_at is not None: files[('BR', 'intro')] = brand_fr
     # 움직이는 장면은 먼저 모아 anim.render_many로 한꺼번에(코어 수만큼 브라우저, 정지 구간은 한 장) 찍는다
     jobs, keys = [], []
     for _, key, _, sl in segs:
@@ -89,7 +114,7 @@ async def render():
     # 0.3~0.8초 움직인 뒤 끝 상태(= 예전 정지 그림)로 남는다. 영상 0초(표지)는 움직이지 않는다. 끄기: NO_MOTION=1 또는 deck "motion": false
     todo, prev = [], None
     for t0, key, _, sl in segs:
-        if key in files or isad(key):
+        if key in files or isad(key) or isbr(key):
             if isad(key) and key not in files: files[key] = {'app': midroll_app, 'shop': shop_img}.get(key[1]) or midroll
             prev = key; continue
         pi, k, si = key[:3]; first = prev is None or isad(prev) or prev[:2] != (pi, k)
@@ -118,6 +143,8 @@ async def render():
                 await pg.screenshot(path=f); files[key] = f
         await pg.close()
     async with async_playwright() as p:
+        if BRAND_END and any(isbr(k) and k[1] == 'end' for _, k, _, _ in segs):
+            files[('BR', 'end')] = await brand.render_endcard(p, [c for _, c in promo], os.path.join(wd, 'brand_end'), gl_args=anim.GL_ARGS); motion_keys.add(('BR', 'end'))
         W = max(1, min(anim.WORKERS, 8, len(todo) or 1))
         brs = [await p.chromium.launch(args=anim.GL_ARGS) for _ in range(W)]
         await asyncio.gather(*[worker(b) for b in brs])
@@ -176,6 +203,9 @@ with open(lst, 'w') as fo:
 def sfx_events():
     ev, last_t, prev = [], -99.0, None
     for t0, key, t1, sl in segs:
+        if isbr(key):  # 인트로 = 소리 로고(2.4초, 나레이션 없음), 엔드카드 = 예전 outro처럼 종소리
+            ev.append((t0, 'logo' if key[1] == 'intro' else 'chime')); last_t = t0 + (brand_sec if key[1] == 'intro' else 0)
+            prev = key; continue
         if isad(key):
             if prev is None or not isad(prev): ev.append((t0, 'chime'))
             prev = key; continue
@@ -213,7 +243,7 @@ sub_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end']
 next_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('next', []) if k < len(P[pi]['sents'])]
 def strip_windows():
     if not deck.get('shop_strip'): return []
-    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k)] + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
+    busy = [(a, b) for a, k, b, _ in segs if isad(k) or len(k) == 4 or isanim(k) or isbr(k)] + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·구독 띠 위에도 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
     shop_t = [a for a, k, b, _ in segs if isad(k) and k[1] == 'shop']
@@ -271,8 +301,14 @@ voice = os.path.join(wd, 'voice.wav'); mixed = os.path.join(wd, 'mix.wav')
 subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af',
     'highpass=f=60,equalizer=f=140:t=q:w=1:g=2,acompressor=threshold=-20dB:ratio=2.5:attack=10:release=200,loudnorm=I=-16:TP=-1.5:LRA=11',
     '-ar', '44100', '-ac', '2', '-c:a', 'pcm_s16le', voice], check=True)
+if brand_at is not None:  # 음성에도 인트로 길이만큼 빈칸(소리 로고 자리) — 뒤 나레이션이 화면과 같이 밀린다
+    import numpy as np
+    va = sfx.read_wav(voice); i0 = int(round(brand_at * sfx.SR))
+    sfx.write_wav(voice, np.concatenate([va[:i0], np.zeros((int(round(brand_sec * sfx.SR)), 2), np.float32), va[i0:]]))
+    json.dump(tm, open(os.path.join(wd, 'timing_video.json'), 'w'), ensure_ascii=False)
+elif os.path.exists(os.path.join(wd, 'timing_video.json')): os.remove(os.path.join(wd, 'timing_video.json'))
 events = [] if os.environ.get('NO_SFX') else sfx_events()
-sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'))
+sfx.mix(voice, events, mixed, bed_on=not os.environ.get('NO_SFX'), duck=[(brand_at, brand_at + brand_sec)] if brand_at is not None else None)
 # 화면 아래 띠(쿠팡·구독): 있는 것만 차례로 겹친다
 layers = [(strip_png, [(t, t + STRIP_SEC) for t in strip_at])] if strip_at else []
 if sub_win: layers.append((sub_png, sub_win))
@@ -298,7 +334,7 @@ def hsh(f):
     return hv[f]
 static, run = [], None
 for a, k, b, _ in segs:
-    if isad(k) or a >= outro_t0: run = None; continue
+    if isad(k) or isbr(k) or a >= outro_t0: run = None; continue
     if isanim(k):  # 움직이는 동안은 정지가 아니다. 움직임이 끝난 뒤 마지막 프레임 유지 구간만 센다
         h = hsh(still(files[k])); run = [min(b, a + anim_info[k][0]), b, h]; static.append(run); continue
     h = hsh(still(files[k]))
@@ -308,7 +344,7 @@ longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
 json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'sub_at': sub_win, 'next_at': next_win,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)],
-           'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
+           'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'brand_intro': [brand_at, round(brand_sec, 3)] if brand_at is not None else None, 'brand_end': [k for k, _ in promo] if BRAND_END else None, 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
 print('saved', out, '| 화면', len(order), '| 구간', len(segs), '| 미드롤 전체화면', full_ad, '초', ad, '| 배너 문단', banners, '| 쿠팡 카드', shop_sec, '초', '| 쿠팡 띠', strip_at, '| 구독 띠', sub_win, '| 이어 보기 띠', next_win, '| 움직이는 장면', [f'{a:.0f}~{min(b, a + anim_info[k][0]):.0f}초 {anim_info[k][2]}' for a, k, b, _ in segs if isanim(k)],
-      '| 가벼운 움직임 %d화면' % len(motion_keys), '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))
+      '| 가벼운 움직임 %d화면' % len(motion_keys), '| 브랜드 인트로 %s' % (f'{brand_at:.1f}초 +{brand_sec:.1f}초' if brand_at is not None else '없음'), '| 엔드카드 %s' % ([k for k, _ in promo] if BRAND_END else '없음'), '| 최장 정지 %.1f초(%.0f~%.0f)' % (longest[1] - longest[0], longest[0], longest[1]), '| outro %.1f초' % (total - outro_t0), '| 효과음', dict(Counter(k for _, k in events)))
