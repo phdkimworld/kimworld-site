@@ -210,6 +210,12 @@ INJ:
   exchange: "Binance"
   theme: "코인·블록체인"
   aliases: ["인젝티브", "인젝티브 프로토콜", "Injective", "Injective Protocol"]
+ACHR:
+  name: "아처 에비에이션"
+  name_en: "Archer Aviation"
+  exchange: "NYSE"
+  theme: "우주항공·방산"
+  aliases: ["아처 에비에이션", "아처", "Archer", "Archer Aviation"]
 JOBY:
   name: "조비 에비에이션"
   name_en: "Joby Aviation"
