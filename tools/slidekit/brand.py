@@ -2,7 +2,7 @@
 # - 인트로: brand/intro.mp4(2.4초, 목소리 없음, 워드마크 + 정체성 한 줄) — 모든 롱폼에 같은 그림. make_slide_video.py가 **영상 맨 앞(0초)**에 놓고
 #   (운영자 2026-11-22 "인트로로 브랜드를 각인하라고 했잖아" — 첫 훅 문단 뒤 15초대 스팅은 인트로로 인식되지 않음), 음성 앞에도 같은 길이를 비워
 #   소리 로고(sfx.logo)를 넣는다(나레이션 전체가 2.4초 밀림 → slides_out/timing_video.json, segments.json 'brand_intro' = [0, 2.4]).
-#   회차 질문 한 줄(intro_question: deck "intro_q" > 제목의 '○○ 지금 사도 될까?' 부분)이 있으면 intro.html을 그 줄과 함께 다시 찍는다(길이 같음, 브랜드가 주인공).
+#   회차 질문 한 줄(intro_question: deck "intro_q" > 제목의 매매 질문 부분 — '○○ 지금 사도 될까?'·'○○ 지금 팔아야 될까?'·'○○ 실적 전에 살까, 뒤에 살까?' 등 미디어 skill/runbooks/angles.md 목록, '?'로 끝나는 첫 마디)이 있으면 intro.html을 그 줄과 함께 다시 찍는다(길이 같음, 브랜드가 주인공).
 #   예전처럼 훅 뒤에 끼우려면 deck "brand_intro_para": 문단 번호(1~끝에서 두 번째) 또는 "hook"(시작 15초 이상인 첫 문단)
 # - 엔드카드: outro 슬라이드 자리. 왼쪽 열에 워드마크·정체성 한 줄·홍보 칸 2개, 오른쪽은 유튜브 최종 화면 요소 자리(지침 A10)
 #   홍보 칸: ① 그 회차 영양제 중간광고 코드(H1~H3)의 건강 가이드(설명란 둘째 줄과 같은 말) ② 회차마다 돌리는 칸(성적표·실시간 알림·김박사 몰)
@@ -101,11 +101,28 @@ async def render_endcard(pw, cards, outdir, sec=0.7, gl_args=None):
 Q_MAX = 28  # 질문 줄 글자 수 상한(46px 한 줄, 화면 폭 1400px 안)
 
 
+_NAME = re.compile(r'[가-힣A-Za-z0-9&.\- ]{1,20}\([A-Z][A-Z0-9.]{0,5}\)')  # '블룸 에너지(BE)'
+
+
 def _q_from_title(t):
-    """제목에서 첫 '?'까지(예: '블룸 에너지(BE) 지금 사도 될까?'). 길거나 '?'가 없으면 None"""
-    t = str(t or '').strip(); i = t.find('?')
+    """제목에서 회차 질문 한 줄. 첫 '?'까지(예: '블룸 에너지(BE) 지금 사도 될까?', '아처 에비에이션(ACHR) 물타기 해도 될까?').
+    질문 종류는 가리지 않는다(2026-11-22 매매 질문 회전, 미디어 skill/runbooks/angles.md). 첫 '?'까지가 Q_MAX자를 넘으면
+    (사건 머리말 '어닝 쇼크 다음 날, 블룸 에너지(BE) 팔아야 될까?') 종목명(티커)부터, 없으면 마지막 ', '·' — ' 뒤부터 다시 잘라 본다.
+    그래도 길거나 '?'가 없으면 None(긴 2지선다 질문은 slides.json "intro_q"에 줄인 질문을 직접 쓴다)"""
+    t = str(t or '').strip().replace('？', '?'); i = t.find('?')
     q = t[:i + 1].strip() if i > 0 else ''
-    return q if 0 < len(q) <= Q_MAX else None
+    if not q: return None
+    if len(q) <= Q_MAX: return q
+    cands = [m.group(0).strip() for m in _NAME.finditer(q)]
+    for c in cands:
+        r = q[q.index(c):]
+        if len(r) <= Q_MAX: return r
+    if cands: return None  # 종목명이 든 질문을 잘라 반쪽 질문('뒤에 살까?')을 띄우지 않는다 → deck "intro_q"로 직접
+    for sep in (', ', ' — ', ' - '):
+        if sep in q:
+            r = q.rsplit(sep, 1)[1].strip()
+            if 8 <= len(r) <= Q_MAX: return r
+    return None
 
 
 def intro_question(deck, base='.'):
