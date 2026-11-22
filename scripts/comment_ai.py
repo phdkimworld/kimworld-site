@@ -187,6 +187,7 @@ question·opinion 일 때만 reply 를 쓰고, 나머지는 reply 를 빈 글자
 - 숫자에는 무엇과 비교한 값인지를 같은 문장에 붙입니다(예: '9월 말 장부 7.13달러보다 약 23% 높은 값').
 - 용어를 쓰면 한 구절로 풉니다. 화살표, 가운뎃점(·) 나열, 이모지, 해시태그, 마크다운을 쓰지 않습니다.
 - 답이 있는 자리를 '리포트 N부 <표 이름>'처럼 알려 줍니다(리포트에 있는 부·표 이름만).
+- section 에는 답이 있는 리포트 소제목(## 또는 ### 줄)의 글자를 # 없이 그대로 옮깁니다. 없으면 빈 글자.
 - 마지막은 한 단어로 답할 수 있는 짧은 질문 하나로 끝낼 수 있습니다.
 - 금지: 매수·매도 권유, 목표가, 수익 약속, 긴급성, 베팅 표현(올인·몰빵 등), 보유 여부 언급, 자동 답글·기계·인공지능 언급,
   회원 가입 안내, '사기' 단정, 빚·대출로 투자하라는 말, 다른 시청자 비난, 정기 업데이트·개인 연락 약속, 지금 가격·미래 주가 예측.
@@ -195,7 +196,33 @@ question·opinion 일 때만 reply 를 쓰고, 나머지는 reply 를 빈 글자
 
 SCHEMA = {"type": "object", "properties": {
     "category": {"type": "string", "enum": ["question", "opinion", "request", "vote", "ai_question", "spam", "thanks", "other"]},
-    "reply": {"type": "string"}}, "required": ["category", "reply"], "additionalProperties": False}
+    "reply": {"type": "string"},
+    "section": {"type": "string"}}, "required": ["category", "reply", "section"], "additionalProperties": False}
+
+
+def section_anchor(full, name):
+    """2026-11-22: 답글 링크를 답이 있는 절로 바로 보낸다(유튜브 답글 링크 8세션 모두 1쪽).
+    리포트에 실제로 있는 ##/### 소제목일 때만 build.py 목차와 같은 방식(slugify_unicode)으로 #id, 아니면 빈 글자."""
+    name = re.sub(r"\s+", " ", (name or "").strip().lstrip("#").strip())
+    if not name:
+        return ""
+    for line in (full or "").splitlines():
+        m = re.match(r"^#{2,3}\s+(.+?)\s*$", line)
+        if not m:
+            continue
+        h = m.group(1)
+        a = re.search(r"\{#([^}\s]+)\}\s*$", h)
+        h = re.sub(r"\s*\{[^}]*\}\s*$", "", h).strip()
+        if re.sub(r"\s+", " ", h) == name:
+            if a:
+                return "#" + a.group(1)
+            try:
+                from markdown.extensions.toc import slugify_unicode
+            except ImportError:
+                return ""
+            sid = slugify_unicode(h, "-")
+            return "#" + sid if sid else ""
+    return ""
 
 
 def generate(rep, comment, where):
@@ -243,7 +270,7 @@ def handle(item, rep, st, key, dry, results):
         st["items"][key] = {"status": "left", "reason": "검사 " + "; ".join(errs)[:200], "at": now, "draft": text[:300]}
         print(f"  넘김 {key}: {'; '.join(errs)[:120]}")
         return None
-    return text + f"\nhttps://drkimworld.com/r/{rep['slug']}/"
+    return text + f"\nhttps://drkimworld.com/r/{rep['slug']}/" + section_anchor(rep.get("full"), r["json"].get("section"))
 
 
 def run(dry=False, max_n=MAX_PER_RUN):
