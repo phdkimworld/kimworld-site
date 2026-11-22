@@ -11,9 +11,13 @@ on:
         description: "자산이 있는 릴리스 태그(예: hw-2026-11-20)"
         required: true
       mode:
-        description: "upload | thumbs | stats | reach | channel | comments | reply"
+        description: "upload | thumbs | stats | reach | channel | comments | reply | hide | unhide"
         required: true
         default: upload
+      videos:
+        description: "hide/unhide 용 영상 id(쉼표로 여러 개, 최대 10). 건강월드 채널 영상만 바뀐다"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -33,14 +37,46 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
       MODE: ${{ inputs.mode }}
+      VIDEOS: ${{ inputs.videos }}
     steps:
       - name: Get assets
+        if: inputs.mode != 'hide' && inputs.mode != 'unhide'
         run: |
           mkdir -p a && cd a && gh release download "$TAG" -R "$GITHUB_REPOSITORY" --clobber
           ls -la
       - name: Run
         run: |
           pip install -q google-api-python-client google-auth
+          if [ "$MODE" = hide ] || [ "$MODE" = unhide ]; then
+            # 잘못 올라간 편 숨기기(비공개) / 되돌리기(공개). 지우지 않는다(되돌릴 수 있게). 2026-11-22 운영자 "제작팀이 권한이 없다는데"
+            python3 - <<'PY'
+          import os, re, sys
+          from google.oauth2.credentials import Credentials
+          from googleapiclient.discovery import build
+          CH = "UCNh9LrCUc0nTPKLMWPhnviw"
+          ids = [x.strip() for x in os.environ.get("VIDEOS", "").split(",") if x.strip()]
+          if not ids or len(ids) > 10 or not all(re.fullmatch(r"[A-Za-z0-9_-]{11}", x) for x in ids):
+              print("::error::videos 에 영상 id 1~10개(11자)를 쉼표로"); sys.exit(1)
+          cr = Credentials(None, refresh_token=os.environ["HEALTH_YT_REFRESH_TOKEN"], token_uri="https://oauth2.googleapis.com/token",
+                           client_id=os.environ["HEALTH_YT_CLIENT_ID"], client_secret=os.environ["HEALTH_YT_CLIENT_SECRET"])
+          yt = build("youtube", "v3", credentials=cr, cache_discovery=False)
+          to = "private" if os.environ["MODE"] == "hide" else "public"
+          bad = 0
+          for v in yt.videos().list(part="snippet,status", id=",".join(ids)).execute().get("items", []):
+              if v["snippet"]["channelId"] != CH:
+                  print(f"::error::{v['id']} 은 건강월드 영상이 아님 — 건드리지 않음"); bad += 1; continue
+              W = ("embeddable", "license", "publicStatsViewable", "selfDeclaredMadeForKids", "containsSyntheticMedia")
+              st = {k: v["status"][k] for k in W if k in v["status"]}  # 쓸 수 있는 칸만 그대로 두고 공개 상태만 바꿈
+              st["privacyStatus"] = to
+              yt.videos().update(part="status", body={"id": v["id"], "status": st}).execute()
+              print(f"::notice::{v['id']} → {to}")
+              ids.remove(v["id"])
+          for x in ids:
+              print(f"::warning::{x} 를 찾지 못함"); bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+            exit $?
+          fi
           cd a
           case "$MODE" in
             upload)
@@ -58,5 +94,5 @@ jobs:
             channel) python3 hw_channel.py ;;
             comments) python3 hw_comments.py fetch comments.json && gh release upload "$TAG" comments.json --clobber -R "$GITHUB_REPOSITORY" ;;
             reply) python3 hw_comments.py reply replies.json replied.json; [ -s replied.json ] && gh release upload "$TAG" replied.json --clobber -R "$GITHUB_REPOSITORY" ;;
-            *) echo "::error::mode는 upload|thumbs|stats|reach|channel|comments|reply"; exit 1 ;;
+            *) echo "::error::mode는 upload|thumbs|stats|reach|channel|comments|reply|hide|unhide"; exit 1 ;;
           esac
