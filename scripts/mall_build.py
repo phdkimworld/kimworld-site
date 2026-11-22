@@ -34,13 +34,14 @@ DISCLOSURE = "김박사 몰은 쿠팡 파트너스 활동의 일환으로, 이�
 SITE = "https://drkimworld.com/?utm_source=mall&utm_medium=web"
 YT = "https://www.youtube.com/@drkimworld"
 # 추적(2026-11-20 운영자 "몰 페이지 트래픽 다각화해서 체계적으로 추적해서 저장"): 화면 보기·쿠팡 클릭을 채널(src)·화면(pg)·칸(data-sl)별로
-# 사이트 API /v1/mall 에 하루 합계로 보낸다(D1 mall_ev, 사람 정보 없음). src는 ?src=(사이트 /mall/ 입구가 넘김) > utm_source > 이 탭에서 처음 정한 값 > 리퍼러 묶음 > direct
+# 사이트 API /v1/mall 에 하루 합계로 보낸다(D1 mall_ev, 사람 정보 없음). 화면 보기는 2.5초 넘게 보이거나 스크롤·터치·클릭이 있을 때만 센다(2026-11-22: 링크 검사기·미리보기가 여는 순간 보기는 빼고 사이트 통계와 같은 눈높이로). src는 ?src=(사이트 /mall/ 입구가 넘김) > utm_source > 이 탭에서 처음 정한 값 > 리퍼러 묶음 > direct
 TRACK = """<script>(function(){var A='https://api.drkimworld.com/v1/mall',P=document.body.dataset.pg||'other',q=new URLSearchParams(location.search),s;
 function cl(x){return String(x||'').toLowerCase().replace(/[^a-z0-9._-]/g,'').slice(0,30)}
 s=cl(q.get('src')||q.get('utm_source'));try{if(s)sessionStorage.setItem('kw_src',s);else s=sessionStorage.getItem('kw_src')||''}catch(e){}
 if(!s){try{var h=document.referrer?new URL(document.referrer).hostname.replace(/^www\\./,''):'';if(h&&h!==location.hostname){s=/drkimworld\\.com$/.test(h)?'site':/google\\./.test(h)?'google':/naver\\./.test(h)?'naver':/daum\\.|kakao/.test(h)?'daum':/bing\\./.test(h)?'bing':/youtube|youtu\\.be/.test(h)?'youtube':/threads|instagram|facebook|blogspot|t\\.me/.test(h)?cl(h.split('.')[0]):'ref';try{sessionStorage.setItem('kw_src',s)}catch(e){}}}catch(e){}}
 s=s||'direct';function b(o){o.src=s;o.pg=P;try{navigator.sendBeacon(A,JSON.stringify(o))}catch(e){}}
-b({k:'view'});document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href^="https://link.coupang.com"]');if(!a)return;var w=a.closest('[data-sl]');b({k:'click',sl:w?w.dataset.sl:'other'})},true);})();</script>"""
+var V=0;function v(){if(!V){V=1;b({k:'view'})}}setTimeout(function(){if(!document.hidden)v()},2500);['scroll','pointerdown','keydown'].forEach(function(t){addEventListener(t,v,{once:true,passive:true})});
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href^="https://link.coupang.com"]');if(!a)return;v();var w=a.closest('[data-sl]');b({k:'click',sl:w?w.dataset.sl:'other'})},true);})();</script>"""
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
