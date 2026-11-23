@@ -42,15 +42,15 @@ adfit_unit: ""
 drop_words: ["치료", "완치", "특효", "예방", "처방", "의약품", "약국", "혈압약", "당뇨", "고혈압", "고지혈", "항암", "탈모치료", "다이어트약", "식욕억제", "위고비"]
 banned: ["치료", "완치", "특효", "처방", "효과 보장", "100% 효과", "부작용 없", "먹으면 낫", "약보다"]
 funnels:
-  guide-omega3: {title: "영상으로 보기: 오메가3 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/rCdhzv9OaNg", button: "영상 보기"}
-  guide-lutein: {title: "영상으로 보기: 루테인 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/xzuRga7BHkk", button: "영상 보기"}
-  guide-magnesium: {title: "영상으로 보기: 마그네슘 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/J4-fiNi4lRQ", button: "영상 보기"}
-  guide-vitamin-d: {title: "영상으로 보기: 비타민D 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/7lk_a7pd01g", button: "영상 보기"}
+  guide-omega3: {title: "오메가3 뒷면 숫자, 1분 쇼츠", text: "EPA+DHA 합을 하루 기준으로 읽는 법을 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/UwUiifHLZl4", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
+  guide-lutein: {title: "루테인 뒷면 숫자, 1분 쇼츠", text: "마리골드꽃추출물 숫자와 루테인 함량을 구분하는 법을 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/ZprNRi33nyM", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
+  guide-magnesium: {title: "마그네슘 뒷면 숫자, 1분 쇼츠", text: "큰 숫자가 정말 마그네슘의 양인지, 원소량 읽는 법을 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/Rp3UgyysLJA", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
+  guide-vitamin-d: {title: "비타민D 뒷면 250%, 1분 쇼츠", text: "기준치 대비 %가 무슨 숫자인지 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/3xepFms92Cw", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
   guide-milk-thistle: {title: "영상으로 보기: 밀크씨슬 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/cQB9bo2UZlI", button: "영상 보기"}
   guide-red-ginseng: {title: "영상으로 보기: 홍삼 고르는 법", text: "상자 뒷면에서 진세노사이드 숫자를 찾는 법을 김박사가 짚어 드립니다.", url: "https://youtu.be/TUg_0uUJ55I", button: "영상 보기"}
-  guide-coq10: {title: "영상으로 보기: 코엔자임Q10 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/M6I83oStREE", button: "영상 보기"}
+  guide-coq10: {title: "코엔자임Q10 뒷면 숫자, 1분 쇼츠", text: "하루 기준 90~100mg을 뒷면에서 확인하는 법을 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/En7X7NKps-Q", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
   guide-saw-palmetto: {title: "영상으로 보기: 쏘팔메토 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/-Gwa7EFnMWg", button: "영상 보기"}
-  guide-probiotics: {title: "영상으로 보기: 프로바이오틱스 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/mrggyZVvPUE", button: "영상 보기"}
+  guide-probiotics: {title: "변비가 잦다면? 1분 쇼츠", text: "식이섬유와 유산균, 연구에서 무엇이 먼저였는지 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/kTOjHcBPams", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
   guide-vitamin-c: {title: "영상으로 보기: 비타민C 고르는 법", text: "뒷면에서 무엇을 봐야 하는지 김박사가 식약처 기준으로 짚어 드립니다.", url: "https://youtu.be/H4pzxcIIr9U", button: "영상 보기"}
 guides:
   - slug: omega3
