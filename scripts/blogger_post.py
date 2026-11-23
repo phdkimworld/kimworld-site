@@ -231,7 +231,7 @@ def body(slug: str, fm: dict) -> str:
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
     parts.append(adfit_block())
     parts.append(cpas_block())
-    parts.append(mall_line())
+    # 김박사 몰 줄은 새 글에 넣지 않는다(2026-11-23 운영자 "랜딩페이지를 하나만 쓰자" — 모든 채널은 사이트 리포트 하나로, 몰은 사이트 안에서만)
     parts.append(health_line(slug))
     parts.append(
         f'<p style="color:#888;font-size:13px">숫자 기준일 {e(str(fm.get("data_as_of") or ""))}. '

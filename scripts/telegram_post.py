@@ -58,7 +58,7 @@ def caption(slug: str, fm: dict) -> str:
     lines = [f"<b>{e(title)}</b>", ""]
     lines += [f"• {e(x)}" for x in kp]
     # 2026-11-19 운영자 "김박사 몰부터": 응원 링크 대신 김박사 몰 입구(사이트 /mall/ → 김박사 몰 쇼핑몰, 유입은 사이트 통계 utm_source=telegram)
-    cheer = [f'🛒 <a href="{html.escape(MALL)}">김박사 몰</a> — 쿠팡 장보실 때 이 입구로 들어가 주시면 채널 운영에 도움이 됩니다'] if CHEER else []
+    cheer = []  # 김박사 몰 줄 뺌(2026-11-23 운영자 "랜딩페이지를 하나만 쓰자" — 몰은 사이트 안에서만)
     hg = health_guide(slug)  # 2026-11-22 "광고 꽉꽉": 김박사 건강몰 가이드 한 줄(영상 중간광고와 같은 세 성분, 질병명·효능 단정 없음)
     if hg:
         cheer.append(f'💊 <a href="{html.escape(hg[1])}">{e(hg[0])} 고르는 법</a> — 식약처 인정 문구와 연구 숫자로 정리한 건강몰 가이드')

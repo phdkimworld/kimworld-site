@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "plan(고르기만) · apply(바꿈) · revert(되돌림, video_ids 필요)"
+        description: "plan(고르기만) · apply(사이트 줄 넣기) · unmall(몰 줄 빼기, 2026-11-23 단일 랜딩) · revert(되돌림, video_ids 필요)"
         required: true
         default: "plan"
       limit:

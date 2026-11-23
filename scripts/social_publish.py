@@ -318,8 +318,7 @@ def do_threads(post, res, save):
     res.pop("waiting", None)
     parts = [{"text": text_for(post, "threads"), "link_attachment": post.get("link_attachment"), "poll": post.get("poll"), "topic_tag": tag, "image_urls": imgs}] + list(post.get("replies", []) or [])
     # 김박사 몰(2026-11-19 운영자 "내 모든 컨텐츠에 트래픽 있을거 같은데다가 다 배포해"): 사이트 링크가 있는 글이면 맨 끝에 몰 입구 댓글 하나
-    if any("drkimworld.com" in json.dumps(x, ensure_ascii=False) for x in parts) and not any("/mall/" in json.dumps(x, ensure_ascii=False) for x in parts):
-        parts.append(dict(MALL_TH))
+    # (2026-11-23 운영자 "랜딩페이지를 하나만 쓰자": 몰 입구 댓글은 더 달지 않는다 — 사이트 리포트 링크 하나만)
     ids = res.setdefault("ids", [])
     for i in range(len(ids), len(parts)):
         ids.append(th_publish_one(parts[i], uid, token, reply_to=ids[-1] if ids else None))
@@ -468,7 +467,7 @@ MALL_FB = "🛒 김박사 몰(쿠팡 장보기 입구): https://drkimworld.com/m
 
 def fb_comment_text(text):
     t = text.replace("utm_source=threads", "utm_source=facebook")
-    return t if "/mall/" in t else f"{t.rstrip()}\n\n{MALL_FB}"  # 김박사 몰(2026-11-19 "다 배포해")
+    return t  # 몰 줄은 붙이지 않는다(2026-11-23 운영자 "랜딩페이지를 하나만 쓰자")
 
 
 def do_facebook(post, res, save, now, live_used):

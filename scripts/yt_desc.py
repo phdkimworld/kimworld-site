@@ -91,38 +91,23 @@ DISC = "※ 이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따
 
 
 def new_desc(old: str, site_line: str) -> str:
-    """2026-11-19 운영자 "내 모든 컨텐츠에 트래픽 있을거 같은데다가 다 배포해": 맨 위 사이트 링크(없을 때만, 사이트와 안 이어진 영상) +
-    그 바로 아래 김박사 몰 한 줄(없을 때) + 맨 끝 쿠팡 대가성 문구(없을 때). 나머지는 그대로."""
+    """맨 위 사이트 링크 한 줄(없을 때만, 사이트와 안 이어진 영상). 2026-11-23 운영자 "랜딩페이지를 하나만 쓰자":
+    김박사 몰 줄·쿠팡 대가성 줄은 더 넣지 않는다(몰은 사이트 안에서만). 나머지는 그대로."""
     lines = old.split("\n") if old else []
     if site_line:
         lines = [site_line] + lines
-    if "drkimworld.com/mall" not in old:
-        # 2026-11-23: 사이트 링크가 둘째·셋째 줄에 있는 영상(11-21 2편)은 몰 줄이 그 위로 올라가 리포트 링크를 '더보기' 아래로 밀었다
-        # → 첫 세 줄 안 사이트 링크가 있으면 그 바로 아래에 넣는다(리포트 링크가 늘 몰 줄보다 위).
-        hit = [i for i, l in enumerate(lines[:3]) if "drkimworld.com" in l]
-        at = hit[0] + 1 if hit else 0
-        lines = lines[:at] + [MALL] + lines[at:]
+    return "\n".join(lines)[:4900]
+
+
+def unmall(cur: str, old: str) -> str:
+    """이 도구가 넣었던 몰 줄(drkimworld.com/mall)과, 원래 설명에 없던 쿠팡 대가성 줄을 뺀다. 사이트 링크 줄은 남긴다."""
+    lines = [l for l in cur.split("\n") if "drkimworld.com/mall" not in l]
+    if "쿠팡 파트너스" not in (old or ""):
+        lines = [l for l in lines if l.strip() != DISC]
     out = "\n".join(lines)
-    if "쿠팡 파트너스" not in out:
-        out = out.rstrip() + "\n\n" + DISC
-    return out[:4900]
-
-
-def check(tok) -> int:
-    """권한 범위 이름과 분석 API 응답 여부만 주석으로(값·토큰·숫자는 남기지 않는다)."""
-    info = json.load(urllib.request.urlopen("https://oauth2.googleapis.com/tokeninfo?access_token=" + tok, timeout=30))
-    scopes = sorted(s.rsplit("/", 1)[-1] for s in (info.get("scope") or "").split())
-    print(f"::notice title=유튜브 키 권한::{' · '.join(scopes) or '없음'}")
-    end = dt.date.today()
-    q = urllib.parse.urlencode({"ids": "channel==MINE", "startDate": str(end - dt.timedelta(days=7)), "endDate": str(end),
-                                "metrics": "views,subscribersGained", "dimensions": "day"})
-    req = urllib.request.Request("https://youtubeanalytics.googleapis.com/v2/reports?" + q, headers={"Authorization": "Bearer " + tok})
-    try:
-        rows = json.load(urllib.request.urlopen(req, timeout=60)).get("rows") or []
-        print(f"::notice title=유튜브 분석 API::응답 성공 · {len(rows)}일치")
-    except urllib.error.HTTPError as e:
-        print(f"::warning title=유튜브 분석 API::HTTP {e.code} {yc.err(e)[:120]}")
-    return 0
+    while "\n\n\n" in out:
+        out = out.replace("\n\n\n", "\n\n")
+    return out.rstrip()
 
 
 def put(tok, body):
@@ -143,6 +128,30 @@ def main() -> int:
 
     if mode == "check":
         return check(tok)
+
+    if mode == "unmall":  # 2026-11-23 단일 랜딩: 몰 줄을 넣었던 옛 영상에서 몰 줄·대가성 줄만 빼기(하루 LIMIT편)
+        done_ids = {e["id"] for e in log if e.get("action") == "unmall"}
+        todo = [e for e in log if e.get("action") == "mall" and e["id"] not in done_ids][:limit]
+        ok = 0
+        for e in todo:
+            sn = yc.call(tok, "videos", part="snippet", id=e["id"]).get("items", [{}])[0].get("snippet")
+            if not sn:
+                continue
+            body = {"id": e["id"], "snippet": {k: sn[k] for k in WRITABLE if k in sn}}
+            cur = sn.get("description") or ""
+            body["snippet"]["description"] = unmall(cur, e.get("old_description", ""))
+            if body["snippet"]["description"] != cur:
+                try:
+                    put(tok, body)
+                except urllib.error.HTTPError as er:
+                    print(f"::warning title=몰 줄 빼기::{e['id']} HTTP {er.code} {yc.err(er)[:120]}")
+                    continue
+            log.append({"id": e["id"], "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "action": "unmall"})
+            ok += 1
+        LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+        left = len({e["id"] for e in log if e.get("action") == "mall"} - {e["id"] for e in log if e.get("action") == "unmall"})
+        print(f"::notice title=몰 줄 빼기::{ok}편 · 남은 {left}편")
+        return 0
 
     if mode == "revert":
         done = 0
@@ -176,8 +185,8 @@ def main() -> int:
                 continue
             d0 = sn.get("description") or ""
             t = find_ticker(sn, tk) if v not in linked and "drkimworld.com" not in "\n".join(d0.splitlines()[:3]) else None
-            if "drkimworld.com/mall" in d0 and not t:
-                continue  # 이미 몰 줄이 있고 사이트 줄도 필요 없음
+            if not t:
+                continue  # 사이트 줄이 필요 없는 영상은 건드리지 않음(2026-11-23 단일 랜딩 — 몰 줄은 더 넣지 않음)
             picked.append((v, g, t, sn))
             if len(picked) >= limit:
                 break
@@ -200,7 +209,7 @@ def main() -> int:
         except urllib.error.HTTPError as e:
             print(f"::warning title=옛 영상 설명::{v} HTTP {e.code} {yc.err(e)[:120]}")
             continue
-        log.append({"id": v, "ticker": t, "gain7": g, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "action": "mall", "site_line": bool(t), "old_description": old})
+        log.append({"id": v, "ticker": t, "gain7": g, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "action": "prepend", "site_line": True, "old_description": old})
         ok += 1
     LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"::notice title=옛 영상 설명::{ok}편 바꿈 · 기록 social/youtube/desc_log.json")

@@ -811,9 +811,12 @@ with _tf.TemporaryDirectory() as _d:
 
 # 김박사 몰 배포(2026-11-19 "다 배포해"): 옛 유튜브 설명란에 몰 줄·대가성 문구, 블로거 글 몰 줄
 import yt_desc as _yd
-_d1 = _yd.new_desc("📊 리포트 https://drkimworld.com/r/x/\n본문", "")
-check(_d1.splitlines()[1].startswith("🛒 김박사 몰") and _d1.rstrip().endswith(_yd.DISC), "옛 영상: 리포트 줄 아래 몰 줄 + 끝에 대가성 문구")
-check(_yd.new_desc(_d1, "") == _d1, "옛 영상: 이미 있으면 그대로")
+# 2026-11-23 단일 랜딩: 몰 줄은 더 넣지 않고, 넣었던 것은 unmall 이 뺀다(사이트 링크 줄은 남김)
+_d1 = _yd.new_desc("본문", "📊 리포트 https://drkimworld.com/t/x/")
+check(_d1 == "📊 리포트 https://drkimworld.com/t/x/\n본문" and "/mall" not in _d1, "옛 영상: 사이트 줄만, 몰 줄 없음")
+_m = "📊 리포트 https://drkimworld.com/r/x/\n" + _yd.MALL + "\n본문\n\n" + _yd.DISC
+check(_yd.unmall(_m, "본문") == "📊 리포트 https://drkimworld.com/r/x/\n본문", "몰 줄 빼기: 몰 줄·대가성 줄만 빠짐")
+check(_yd.DISC in _yd.unmall(_m, "원래 쿠팡 파트너스 문구"), "몰 줄 빼기: 원래 있던 대가성 문구는 남김")
 import blogger_post as _bp
 check(_bp.MALL_MARK in _bp.mall_line() and "/mall/?utm_source=blogger" in _bp.mall_line(), "블로거: 김박사 몰 한 줄")
 
