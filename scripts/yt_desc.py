@@ -97,7 +97,10 @@ def new_desc(old: str, site_line: str) -> str:
     if site_line:
         lines = [site_line] + lines
     if "drkimworld.com/mall" not in old:
-        at = 1 if lines and "drkimworld.com" in lines[0] else 0
+        # 2026-11-23: 사이트 링크가 둘째·셋째 줄에 있는 영상(11-21 2편)은 몰 줄이 그 위로 올라가 리포트 링크를 '더보기' 아래로 밀었다
+        # → 첫 세 줄 안 사이트 링크가 있으면 그 바로 아래에 넣는다(리포트 링크가 늘 몰 줄보다 위).
+        hit = [i for i, l in enumerate(lines[:3]) if "drkimworld.com" in l]
+        at = hit[0] + 1 if hit else 0
         lines = lines[:at] + [MALL] + lines[at:]
     out = "\n".join(lines)
     if "쿠팡 파트너스" not in out:
