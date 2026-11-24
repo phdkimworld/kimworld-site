@@ -34,8 +34,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          cd www && npx --yes wrangler@3.99.0 deploy 2>&1 | tail -6 > ../.w.txt || true
-          echo "::notice title=www 워커 출력::$(tr '\n' ' ' < ../.w.txt | sed 's/[^[:print:]]//g' | tail -c 600)"
+          cd www && npx --yes wrangler@3.99.0 deploy 2>&1 | grep -v -i telemetry | tail -25 > ../.w.txt || true
+          echo "::notice title=www 워커 출력::$(tr '\n' ' ' < ../.w.txt | sed 's/[^[:print:]]//g' | head -c 900)"
       - name: Zone
         if: inputs.mode != 'www'
         run: |
