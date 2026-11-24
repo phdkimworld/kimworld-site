@@ -88,7 +88,10 @@ def check(c: dict) -> list[str]:
         for s in pr.get("guides") or []:
             if s not in gs:
                 errs.append(f"프로필 {code}: 없는 가이드 {s}")
-        text = " ".join([str(pr.get("name", "")), str(pr.get("food", ""))] + [str(x) for x in pr.get("steps") or []])
+        text = " ".join([str(pr.get("name", "")), str(pr.get("food", ""))] + [str(x) for x in pr.get("steps") or []]
+                        + [f'{m.get("who", "")} {m.get("pick", "")}' for m in pr.get("match") or []])
+        if not pr.get("match"):
+            errs.append(f"프로필 {code}: match(이런 분 → 이런 조건의 제품) 없음")
         for w in banned:
             if w in text:
                 errs.append(f"프로필 {code}: 금지 낱말 '{w}'")
@@ -290,7 +293,8 @@ table.fn th{background:var(--soft)}h1.t{font-weight:900;letter-spacing:-.5px}
 .pq button.on,.sortbar button.on{background:var(--brand);color:var(--hl)}.pq .res{display:none;margin-top:8px;padding:10px;border-radius:10px;background:var(--soft);font-size:14px;line-height:1.55}
 .pq .res.on{display:block}.pn{margin:8px 0 0;font-size:14px}.pn a{display:inline-block;margin:4px 6px 0 0;padding:5px 12px;border-radius:999px;background:var(--brand);color:#fff;text-decoration:none}
 .pn a.cur{background:#fff;color:#111;border:1px solid #111}.pnext{margin:18px 0;padding:14px 16px;border-radius:14px;background:var(--soft);font-weight:700}
-.pnext a{color:var(--brand)}.sortbar{margin:4px 0 10px}.card.hide{display:none}
+.pnext a{color:var(--brand)}table.pm{width:100%;border-collapse:collapse;margin:6px 0 4px;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
+table.pm th{background:var(--brand);color:var(--hl);text-align:left;padding:8px 10px}table.pm td{padding:8px 10px;border-top:1px solid #eee;vertical-align:top}table.pm td:first-child{width:40%}table.pm td:last-child{font-weight:700}.sortbar{margin:4px 0 10px}.card.hide{display:none}
 """
 
 EMBLEM = '''<svg width="{px}" height="{px}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#0F3D2E"/><g transform="rotate(-35 86 88)"><rect x="52" y="70" width="68" height="36" rx="18" fill="#F6F1E4"/><rect x="86" y="70" width="34" height="36" rx="18" fill="#FFC845"/><rect x="86" y="70" width="14" height="36" fill="#FFC845"/></g><circle cx="86" cy="88" r="46" fill="none" stroke="#5EE0A0" stroke-width="12"/><line x1="120" y1="122" x2="152" y2="154" stroke="#5EE0A0" stroke-width="16" stroke-linecap="round"/></svg>'''
@@ -408,8 +412,11 @@ def profile_box(c: dict, g: dict) -> str:
              '<p>③ 고를 때 가장 중요한 것은?</p><button data-q="3" data-a="dose">기준에 맞는 함량</button><button data-q="3" data-a="unit">1알당 값</button><button data-q="3" data-a="fast">빠른 배송</button>'
              '<div class="res"></div></div>')
         attr = ' data-def="1"' if code == dflt else " hidden"
+        # 수요-공급 연결(운영자 2026-11-24 "어떤 조건·상황의 사람에게 어떤 조건·특성의 제품이 연결되는지"): 이런 분 → 고를 조건
+        mrows = "".join(f'<tr><td>{esc(m["who"])}</td><td>{esc(m["pick"])}</td></tr>' for m in pr.get("match") or [])
+        mt = (f'<table class="pm"><thead><tr><th>이런 분이라면</th><th>이런 조건의 제품</th></tr></thead><tbody>{mrows}</tbody></table>') if mrows else ""
         out.append(f'<section class="pf" data-pf="{code}"{attr}><p class="pk" data-n="{esc(pr["name"])}">{esc(pr["name"])}에 관심 있다면</p>'
-                   f'<h2>이 순서로 확인하세요</h2><ol>{steps}</ol>{q}<nav class="pn">같은 관심의 가이드 {nxt}</nav></section>')
+                   f'<h2>이 순서로 확인하세요</h2><ol>{steps}</ol>{mt}{q}<nav class="pn">같은 관심의 가이드 {nxt}</nav></section>')
     return "".join(out)
 
 
