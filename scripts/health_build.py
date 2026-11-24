@@ -232,7 +232,38 @@ h2.sec{margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}.row{sc
 footer{margin-top:40px;padding:22px 0 40px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}footer a{color:var(--ink)}
 .empty{color:var(--muted);padding:20px 0}
 .adbox{margin:22px 0;min-height:1px;text-align:center}
+/* ── 건강몰 디자인 v2(운영자 2026-11-24 "페이지 디자인이 조악 — 대형 채널 배워서"): 썸네일 v3·영상 슬라이드와 같은 크림·딥그린·노랑, 엠블럼, 성분 색 아이콘 ── */
+:root{--bg:#F6F1E4;--card:#fff;--ink:#0F1B2D;--muted:#5B6878;--line:#E3DCCB;--accent:#0F8A5F;--accent-ink:#fff;--soft:#FFF8DC;--brand:#0F3D2E;--hl:#FFE600}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1714;--card:#17211d;--ink:#eef3ef;--muted:#a3b1aa;--line:#2a3832;--accent:#3ccf8e;--accent-ink:#06120c;--soft:#1d2a24;--brand:#0F3D2E;--hl:#FFE600}}
+header{background:var(--brand);border-bottom:0}header .logo{color:#fff;display:flex;align-items:center;gap:8px;font-size:20px}header .logo span{color:var(--hl)}header .tag{color:#cfe3d8}
+nav.gn a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}nav.gn a.on{background:var(--hl);color:#111;border-color:var(--hl)}
+.hero{position:relative;overflow:hidden;background:var(--brand);color:#fff;border-radius:22px;padding:26px 20px 24px}
+.hero .kicker{color:var(--hl)}.hero h1{font-size:28px;line-height:1.3;color:#fff;letter-spacing:-.5px}.hero h1 em{font-style:normal;color:#111;background:linear-gradient(transparent 12%,var(--hl) 12%,var(--hl) 92%,transparent 92%);padding:0 4px}
+.hero p{color:#d7e7de}.hero .btn{background:var(--hl);color:#111;box-shadow:4px 4px 0 #000}
+.hero>*{position:relative;z-index:1}.hero .pills{position:absolute;z-index:0;right:-36px;bottom:-30px;width:170px;height:170px;opacity:.35;pointer-events:none}
+.hero .pills i{position:absolute;width:96px;height:52px;border-radius:26px;background:radial-gradient(28px 14px at 35% 30%,#fff9,#fff0 70%),radial-gradient(circle at 50% 60%,#ffd54a,#e09b00 70%,#9a6200);transform:rotate(-30deg)}
+.hero .pills i:nth-child(2){left:70px;top:70px;transform:rotate(20deg);background:radial-gradient(28px 14px at 35% 30%,#fff,#fff0 70%),radial-gradient(circle,#fff,#dfe6ee 75%,#b9c4d0);width:70px;height:70px;border-radius:50%}
+.hero .pills i:nth-child(3){left:10px;top:110px;transform:rotate(60deg);background:linear-gradient(90deg,#5EE0A0 50%,#fff 50%)}
+.trust{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.trust span{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+@media(min-width:720px){.hero{padding:40px 36px}.hero p{max-width:620px}.hero h1{font-size:38px}.hero .pills{right:30px;top:40px;bottom:auto;width:240px;height:240px;opacity:.95}}
+h2{font-weight:900;letter-spacing:-.3px}
+.gc{position:relative;padding:44px 14px 14px;border-radius:16px;border:2px solid var(--line);transition:transform .12s,box-shadow .12s}
+.gc:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,27,45,.10)}
+.gc:before{content:"";position:absolute;left:16px;top:16px;width:36px;height:20px;border-radius:10px;background:linear-gradient(90deg,var(--c,#0F8A5F) 50%,#fff 50%);border:2px solid var(--c,#0F8A5F);transform:rotate(-30deg)}
+.gc b{font-size:17px;font-weight:900}
+.card{border-radius:16px;border:2px solid var(--line);transition:transform .12s,box-shadow .12s}.card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,27,45,.12)}
+.pr{font-size:17px;font-weight:900}.tg{font-weight:700}.tg.lo{background:var(--hl);color:#111}
+.btn{background:var(--brand);color:var(--hl);box-shadow:3px 3px 0 #000}
+.stick{background:var(--brand)!important;color:var(--hl)!important;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.fnl{border:0;background:var(--brand);color:#fff;border-radius:18px;padding:18px 18px 18px 74px;position:relative}
+.fnl:before{content:"";position:absolute;left:18px;top:20px;width:42px;height:30px;border-radius:8px;background:#ff0033}
+.fnl:after{content:"";position:absolute;left:34px;top:27px;border-left:13px solid #fff;border-top:8px solid transparent;border-bottom:8px solid transparent}
+.fnl h3{color:#fff}.fnl p{color:#d7e7de}.fnl .btn{background:var(--hl);color:#111}
+table.fn th{background:var(--soft)}h1.t{font-weight:900;letter-spacing:-.5px}
 """
+
+EMBLEM = '''<svg width="{px}" height="{px}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#0F3D2E"/><g transform="rotate(-35 86 88)"><rect x="52" y="70" width="68" height="36" rx="18" fill="#F6F1E4"/><rect x="86" y="70" width="34" height="36" rx="18" fill="#FFC845"/><rect x="86" y="70" width="14" height="36" fill="#FFC845"/></g><circle cx="86" cy="88" r="46" fill="none" stroke="#5EE0A0" stroke-width="12"/><line x1="120" y1="122" x2="152" y2="154" stroke="#5EE0A0" stroke-width="16" stroke-linecap="round"/></svg>'''
+GCOL = {"omega3": "#0b5cad", "lutein": "#e85d04", "milk-thistle": "#6d28d9", "coq10": "#c1121f", "saw-palmetto": "#4d7c0f", "red-ginseng": "#7f1d1d", "probiotics": "#0096c7", "magnesium": "#3d4f8f", "vitamin-d": "#ff9f0a", "vitamin-c": "#ff7a00"}
 
 
 def esc(s) -> str:
@@ -304,7 +335,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 <meta name="theme-color" content="#2f9e6b">{meta}
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f9e6b'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%23fff'%3E건%3C/text%3E%3C/svg%3E">
 <style>{CSS}</style>{lds}{adsense_head}</head><body>
-<header><div class="wrap"><div class="top"><a class="logo" href="{up}">김박사 <span>건강몰</span></a><span class="tag">{esc(c['tagline'])}</span></div>
+<header><div class="wrap"><div class="top"><a class="logo" href="{up}">{EMBLEM.format(px=30)}김박사 <span>건강몰</span></a><span class="tag">{esc(c['tagline'])}</span></div>
 <nav class="gn" aria-label="메뉴">{''.join(nav)}</nav></div></header>
 <main class="wrap"><p class="disc">{esc(DISCLOSURE)}</p>
 {body}</main>
@@ -367,15 +398,15 @@ def build(c: dict, cat: dict, out: Path) -> int:
     guides = c.get("guides") or []
     org = {"@type": "Organization", "name": "김박사 월드", "url": "https://drkimworld.com/"}
     gl = '<div class="gl">' + "".join(
-        f'<a class="gc" href="{{up}}guide/{g["slug"]}/"><b>{esc(g["name"])}</b><small>{esc(g["aka"])}</small><p>{esc(g["functions"][0]["text"])}</p></a>' for g in guides) + "</div>"
+        f'<a class="gc" style="--c:{GCOL.get(g["slug"], "#0F8A5F")}" href="{{up}}guide/{g["slug"]}/"><b>{esc(g["name"])}</b><small>{esc(g["aka"])}</small><p>{esc(g["functions"][0]["text"])}</p></a>' for g in guides) + "</div>"
     # 홈
     best = clean(cat.get("best") or [], c.get("drop_words") or [], [m for g in guides for m in g.get("match") or []])
     cat = {**cat, "best_shown": bool(best)}
     prods = cat.get("products") or {}
     chips = '<nav class="chips" aria-label="성분">' + "".join(f'<a href="#{g["slug"]}">{esc(g["name"])}</a>' for g in guides if prods.get(g["slug"])) + "</nav>"
-    home = ['<section class="hero"><p class="kicker">김박사 건강몰</p><h1>영양제, 사기 전에<br>확인할 것만 모았습니다</h1>'
+    home = ['<section class="hero"><div class="pills" aria-hidden="true"><i></i><i></i><i></i></div><p class="kicker">김박사 건강몰</p><h1>영양제, 사기 전에<br><em>확인할 것만</em> 모았습니다</h1>'
             '<p>성분마다 식약처가 인정한 기능성 문구, 하루 섭취량 기준, 섭취 시 주의사항을 먼저 정리했습니다. 확인한 다음 쿠팡에서 비교해 보세요.</p>'
-            '<a class="btn" href="guide/">성분 가이드 보기</a></section>',
+            '<a class="btn" href="guide/">성분 가이드 보기</a><div class="trust"><span>식약처 인정 문구 그대로</span><span>PubMed 논문 근거</span><span>1알당 값 비교</span></div></section>',
             '<h2>성분 가이드<small>기능성·섭취량·주의사항</small></h2>' + gl.replace("{up}", ""), funnel(c, "home")]
     rows = []
     for g in guides:
