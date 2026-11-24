@@ -34,7 +34,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          echo "::add-mask::$CLOUDFLARE_API_TOKEN"
           cd www && npx --yes wrangler@3.99.0 deploy 2>&1 | grep -v -i telemetry | tail -25 > ../.w.txt || true
+          # 라우트 권한이 없어 wrangler가 실패해도, 계정 수준 사용자 지정 도메인 API로 직접 붙여 본다(김박사 몰과 같은 권한)
+          Z=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/zones?name=drkimworld.com" | jq -r '.result[0].id // empty')
+          R=$(curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/domains" --data "{\"hostname\":\"www.drkimworld.com\",\"service\":\"kimworld-www\",\"zone_id\":\"$Z\",\"environment\":\"production\",\"override_existing_dns_record\":true}")
+          echo "::notice title=www 도메인 붙이기::$(echo "$R" | jq -c '[.success, (.errors // [] | map({code,message}))]' | head -c 400)"
           echo "::notice title=www 워커 출력::$(tr '\n' ' ' < ../.w.txt | sed 's/[^[:print:]]//g' | head -c 900)"
       - name: Zone
         if: inputs.mode != 'www'
