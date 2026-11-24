@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check · fix"
+        description: "check · fix · www(넘겨주기 워커 배포)"
         required: true
         default: "check"
 
@@ -22,7 +22,22 @@ jobs:
       CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       MODE: ${{ inputs.mode }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: inputs.mode == 'www'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: inputs.mode == 'www'
+        with:
+          node-version: "22"
+      - name: www 넘겨주기 워커(토큰에 DNS 권한이 없어 워커 라우트로)
+        if: inputs.mode == 'www'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd www && npx --yes wrangler@3.99.0 deploy 2>&1 | tail -6 > ../.w.txt || true
+          if grep -q "www.drkimworld.com" ../.w.txt && ! grep -qi "error" ../.w.txt; then echo "::notice title=www 워커::배포됨 — www.drkimworld.com/* → https://drkimworld.com 301"; else echo "::warning title=www 워커::$(grep -i -m1 error ../.w.txt | head -c 200)"; fi
       - name: Zone
+        if: inputs.mode != 'www'
         run: |
           set -u
           echo "::add-mask::$CF"

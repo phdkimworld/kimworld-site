@@ -1,0 +1,5 @@
+name = "kimworld-www"
+main = "index.js"
+compatibility_date = "2024-11-01"
+workers_dev = false
+routes = [{ pattern = "www.drkimworld.com/*", zone_name = "drkimworld.com" }]
