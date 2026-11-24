@@ -124,7 +124,8 @@ def main() -> int:
             out.append("- 유튜브 카테고리(보고서 기간): " + " · ".join(f"{k} 클릭{v.get('clicks')}/수수료{v.get('commission')}" for k, v in yc.items()))
         bs = c.get("by_sub") or {}
         if bs:
-            out.append("- 하위 ID 상위: " + " · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in list(bs.items())[:8]))
+            rg = c.get("range") or []  # 2026-11-24: by_sub는 7일이 아니라 쿠팡 보고서 기간 누적 — 위 7일 클릭과 헷갈리지 않게 기간을 붙인다
+            out.append(f"- 하위 ID 상위(보고서 기간 {'~'.join(str(x) for x in rg[:2]) or '?'}): " + " · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in list(bs.items())[:8]))
     def mall_funnel(rows):
         """2026-11-20 추적(D1 mall_ev): 채널별 입구 도착 → 몰 화면 → 쿠팡 클릭. 자세한 것은 ops-data stats/mall/summary.md"""
         f = {}
