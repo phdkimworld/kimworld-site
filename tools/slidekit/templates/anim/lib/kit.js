@@ -3,12 +3,12 @@
 // 항목 i(1부터)는 beats[i-1]초에 뜬다(내레이션 문장 시작). 없으면 1.2초부터 고르게.
 const A = window.ANIM || {data: {}, t: {}, dur: 9}, d = A.data || {}, T = A.t || {}, $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
-const COL = {gold: '#F5B83D', red: '#FF4D5E', green: '#3DDC97', blue: '#4FA3FF', ink: '#E6EDF5', white: '#ffffff', mute: '#9FB3CC', dim: '#6F829B', line: '#22385A', bar: '#4A6688', panel: 'rgba(22,37,59,.92)'};
+const COL = {gold: '#F5B83D', red: '#FF4D5E', green: '#3DDC97', blue: '#4FA3FF', ink: '#E6EDF5', white: '#ffffff', mute: '#9FB3CC', soft: '#C9D6E6', dim: '#6F829B', line: '#22385A', bar: '#4A6688', panel: 'rgba(22,37,59,.92)'};
 function el(t, a, p, txt) { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) e.textContent = txt; (p || $('sv')).appendChild(e); return e; }
 function frame() {
   const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
   document.body.insertAdjacentHTML('afterbegin', `<div class="bg"></div><div class="grid"></div>
-<div class="hdr"><span class="brand">김박사 월드</span>${A.ticker ? `<span class="tk">${esc(A.ticker)}</span>` : ''}<span>${esc(A.name)}</span>${d.kicker ? `<span class="kick">${esc(d.kicker)}</span>` : ''}</div>
+<div class="hdr">${A.ticker ? `<span class="tk">${esc(A.ticker)}</span>` : ''}<span>${esc(A.name)}</span>${d.kicker ? `<span class="kick">${esc(d.kicker)}</span>` : ''}<span class="brand">김박사 월드</span></div>
 <h1 data-box>${esc(Array.isArray(d.title) ? d.title.join(' ') : d.title)}</h1>${d.sub ? `<div class="sub" data-box>${esc(d.sub)}</div>` : ''}
 <svg class="stage" id="sv" width="1920" height="1080" viewBox="0 0 1920 1080"></svg><div class="ftr">${esc([d.note, d.source].filter(Boolean).join(' · '))}</div>`);
 }
@@ -20,7 +20,9 @@ function fmtv(v, unit, dec, text) {
   if (unit === '%') return (v > 0 ? '+' : v < 0 ? '-' : '') + s + '%';
   return (v < 0 ? '-' : '') + s + (unit || '');
 }
-function signCol(v, hi) { if (hi) return COL.gold; if ((d.unit || '') !== '%' || !v) return COL.white; return v < 0 ? COL.red : COL.green; }
+// 숫자 색(2026-11-24): 강조 항목(hi)이 있으면 그것만 금색, 나머지는 맥락 회색(강조색 하나 — 대형 채널·BBC 그래프 원칙). 강조가 없을 때만 퍼센트 부호 색
+const ANY_HI = (d.items || d.series || []).some(x => x && x.hi);
+function signCol(v, hi) { if (hi) return COL.gold; if (ANY_HI) return COL.soft; if ((d.unit || '') !== '%' || !v) return COL.white; return v < 0 ? COL.red : COL.green; }
 // 박자 시각표: at[0]=0(첫 항목은 첫 프레임부터), at[i]=beats[i-1](없으면 고르게), 서로 0.5초 이상 띄움
 function times(n, first, gap) {
   const bt = (T.beats || []).filter(x => x != null), at = [0];

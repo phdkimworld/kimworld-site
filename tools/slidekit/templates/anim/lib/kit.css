@@ -1,12 +1,16 @@
 /* anim 공통 화면(live_chart·slide.html과 같은 색·글꼴·머리줄). 데이터 틀(compare_bars·relative_lines·record_bars·scenario_bars·trend_line)이 쓴다 */
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1920px;height:1080px;overflow:hidden;background:#0B1524;font-family:'Noto Sans CJK KR',sans-serif;color:#E6EDF5;word-break:keep-all}
-.bg{position:absolute;inset:0;background:radial-gradient(900px 600px at 85% 15%,rgba(79,163,255,.16),transparent 70%),radial-gradient(800px 600px at 10% 95%,rgba(245,184,61,.10),transparent 70%),#0B1524}
-.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:80px 80px}
-.hdr{position:absolute;left:96px;right:96px;top:52px;display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
-.brand{color:#F5B83D}.tk{padding:4px 16px;border:2px solid #F5B83D;border-radius:10px;color:#F5B83D;font-weight:900}
-.kick{margin-left:auto;padding:8px 22px;border-radius:999px;background:rgba(245,184,61,.14);color:#F5B83D;font-weight:900}
-h1{position:absolute;left:96px;top:124px;max-width:1700px;font-weight:900;font-size:58px;line-height:1.15;color:#fff;letter-spacing:-1px}
+.bg{position:absolute;inset:0;background:radial-gradient(1100px 760px at 78% 42%,rgba(79,163,255,.10),transparent 70%),linear-gradient(180deg,#0D182A 0%,#0B1524 60%,#091220 100%)}
+.grid{display:none}
+/* 머리줄(2026-11-24 화면 개편, slide.html과 같음): 왼쪽 티커·이름·꼬리표, 오른쪽 작은 브랜드 */
+.hdr{position:absolute;left:96px;right:96px;top:50px;display:flex;align-items:center;gap:16px;font-size:30px;font-weight:700;color:#9FB3CC}
+.tk{color:#F5B83D;font-weight:900;letter-spacing:.5px}
+.kick{display:flex;align-items:center;gap:16px;color:#F5B83D;font-weight:900}
+.kick:before{content:"";width:2px;height:28px;background:rgba(159,179,204,.22)}
+.brand{margin-left:auto;display:flex;align-items:center;gap:12px;color:#C9D6E6;font-weight:900;font-size:28px}
+.brand:before{content:"";width:14px;height:14px;border-radius:50%;background:#F5B83D}
+h1{position:absolute;left:96px;top:124px;max-width:1700px;font-weight:900;font-size:60px;line-height:1.15;color:#fff;letter-spacing:-1.5px}
 .sub{position:absolute;left:98px;top:202px;font-size:32px;font-weight:700;color:#9FB3CC}
 svg.stage{position:absolute;left:0;top:0}
 .ftr{position:absolute;left:96px;right:96px;bottom:36px;font-size:24px;color:#6F829B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

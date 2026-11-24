@@ -1,112 +1,135 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
+/* 2026-11-24 화면 개편(운영자 "영상 내 각 페이지들도 개선해", 미디어 review/slide_design_study.md):
+   ① 상자 대신 면·여백·가는 선(카드 테두리·VS 원·큰 물음표 없앰) ② 강조색 하나(금색 = 지금 말하는 것), 맥락 값은 회색 계열
+   ③ 위계 셋: 머리줄(작게) → 제목(주장 한 줄) → 주인공(큰 숫자 하나) ④ 브랜드는 오른쪽 위 작게 늘 같은 자리(썸네일 T7) ⑤ 바탕 격자 무늬 없음 */
+:root{--bg:#0B1524;--ink:#E6EDF5;--soft:#C9D6E6;--mute:#9FB3CC;--dim:#6F829B;--rule:rgba(159,179,204,.22);--gold:#F5B83D;--up:#3DDC97;--down:#FF4D5E;--blue:#6CB4FF;--panel:rgba(22,37,59,.55)}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:1920px;height:1080px;overflow:hidden;background:#0B1524;word-break:keep-all;font-family:'Noto Sans CJK KR',sans-serif;color:#E6EDF5}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);word-break:keep-all;font-family:'Noto Sans CJK KR',sans-serif;color:var(--ink)}
 #stage{position:absolute;inset:0;overflow:hidden}
-.bg{position:absolute;inset:0;background:
- radial-gradient(900px 600px at 85% 15%,rgba(79,163,255,.16),transparent 70%),
- radial-gradient(800px 600px at 10% 95%,rgba(245,184,61,.10),transparent 70%),#0B1524}
-.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:80px 80px}
+.bg{position:absolute;inset:0;background:radial-gradient(1100px 760px at 78% 42%,rgba(79,163,255,.10),transparent 70%),linear-gradient(180deg,#0D182A 0%,#0B1524 60%,#091220 100%)}
 .photo{position:absolute;inset:0;background-size:cover;background-position:center}
 .photo:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,10,20,.92) 0%,rgba(6,10,20,.72) 55%,rgba(6,10,20,.45) 100%)}
-.hdr{position:absolute;left:96px;right:96px;top:52px;display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
-.brand{color:#F5B83D}.tk{padding:4px 16px;border:2px solid #F5B83D;border-radius:10px;color:#F5B83D;font-weight:900}
-.kick{margin-left:auto;padding:8px 22px;border-radius:999px;background:rgba(245,184,61,.14);color:#F5B83D;font-weight:900}
-.ftr{position:absolute;left:96px;bottom:40px;font-size:22px;color:#6F829B}
+/* 머리줄: 왼쪽 티커·이름·꼬리표, 오른쪽 브랜드(작게, 늘 같은 자리) */
+.hdr{position:absolute;left:96px;right:96px;top:50px;display:flex;align-items:center;gap:16px;font-size:30px;font-weight:700;color:var(--mute)}
+.tk{color:var(--gold);font-weight:900;letter-spacing:.5px}
+.kick{display:flex;align-items:center;gap:16px;color:var(--gold);font-weight:900}
+.kick:before{content:"";width:2px;height:28px;background:var(--rule)}
+.brand{margin-left:auto;display:flex;align-items:center;gap:12px;color:var(--soft);font-weight:900;font-size:28px}
+.brand:before{content:"";width:14px;height:14px;border-radius:50%;background:var(--gold)}
+.ftr{position:absolute;left:96px;bottom:40px;font-size:22px;color:var(--dim)}
 .body{position:absolute;left:96px;right:96px;top:150px;bottom:110px;display:flex;flex-direction:column}
-h1{font-weight:900;font-size:64px;line-height:1.2;color:#fff;margin-bottom:44px;letter-spacing:-1px}
+h1{font-weight:900;font-size:66px;line-height:1.2;color:#fff;margin-bottom:40px;letter-spacing:-1.5px}
 .hid{visibility:hidden}
-.up{color:#3DDC97}.down{color:#FF4D5E}.gold{color:#F5B83D}.blue{color:#4FA3FF}.white{color:#fff}
-.new{animation:none}
+.up{color:var(--up)}.down{color:var(--down)}.gold{color:var(--gold)}.blue{color:var(--blue)}.white{color:#fff}
+.word{color:#fff!important}
+/* 지금 읽는 요소 표시: 테두리 대신 숫자 위 금색 짧은 막대(한 화면 강조 하나) */
+.mk{display:block;width:88px;height:8px;border-radius:4px;background:transparent;margin-bottom:26px}
+.now>.mk{background:var(--gold)}
 /* hero */
 .hero{justify-content:center}
 .hero .ln{font-weight:900;font-size:110px;line-height:1.18;letter-spacing:-3px;color:#fff;text-shadow:0 8px 30px rgba(0,0,0,.6)}
-.hero .ln.gold{color:#F5B83D}
-.hero .sub{margin-top:40px;font-size:44px;color:#C9D6E6;font-weight:700}
-/* stat */
-.stats{display:flex;gap:40px;flex:1;align-items:stretch}
-.st{flex:1;min-width:0;background:rgba(22,37,59,.92);border:2px solid #22385A;border-radius:28px;padding:48px 44px;display:flex;flex-direction:column;justify-content:center}
-.st.now{border-color:#F5B83D;box-shadow:0 0 0 4px rgba(245,184,61,.18),0 20px 60px rgba(0,0,0,.4)}
-.st .big{font-weight:900;font-size:150px;line-height:1.15;letter-spacing:-4px;white-space:nowrap}
-.st .lab{margin-top:30px;font-size:44px;font-weight:900;color:#fff;line-height:1.25}
-.st .note{margin-top:16px;font-size:32px;color:#9FB3CC;line-height:1.35}
+.hero .ln.gold{color:var(--gold)}
+.hero .sub{margin-top:40px;font-size:44px;color:var(--soft);font-weight:700}
+/* stat: 상자 없이 열과 가는 세로선 */
+.stats{display:flex;flex:1;align-items:center}
+.st{flex:1;min-width:0;padding:0 56px;display:flex;flex-direction:column;justify-content:center;border-left:2px solid var(--rule)}
+.st:first-child{padding-left:0;border-left:0}
+.st .big{font-weight:900;font-size:150px;line-height:1.1;letter-spacing:-4px;white-space:nowrap}
+.st .big.word{font-size:110px;letter-spacing:-3px}
+.st .lab{margin-top:26px;font-size:44px;font-weight:900;color:#fff;line-height:1.25}
+.st .note{margin-top:14px;font-size:32px;color:var(--mute);font-weight:700;line-height:1.35}
+/* 카드 1개: 가운데 크게(상자 없음, 숫자 뒤 은은한 빛) */
+.stats.one{justify-content:center;position:relative}
+.stats.one:before{content:"";position:absolute;left:50%;top:50%;width:1300px;height:620px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(245,184,61,.07),transparent)}
+.stats.one .st{flex:0 1 1600px;align-items:center;text-align:center;padding:0;border:0}
+.stats.one .st .mk{margin-left:auto;margin-right:auto}
+.stats.one .st .big{font-size:220px}
+.stats.one .st .big.word{font-size:150px}
+.stats.one .st .lab{font-size:56px}
+.stats.one .st .note{font-size:38px}
 /* timeline */
-.tl{position:relative;display:flex;gap:36px;padding-top:0;margin:auto 0}
-.tl:before{content:"";position:absolute;left:0;right:0;top:22px;height:6px;background:#22385A;border-radius:3px}
+.tl{position:relative;display:flex;gap:36px;margin:auto 0}
+.tl:before{content:"";position:absolute;left:0;right:0;top:22px;height:4px;background:var(--rule);border-radius:2px}
 .ti{flex:1;min-width:0;position:relative;padding-top:80px}
-.ti:before{content:"";position:absolute;left:0;top:6px;width:38px;height:38px;border-radius:50%;background:#4FA3FF;border:6px solid #0B1524}
-.ti.now:before{background:#F5B83D;box-shadow:0 0 0 8px rgba(245,184,61,.25)}
-.ti .dt{font-size:50px;font-weight:900;color:#F5B83D}
-.ti .val{margin-top:16px;font-size:96px;white-space:nowrap;font-weight:900;line-height:1.05;letter-spacing:-2px}
-.ti .tx{margin-top:20px;font-size:42px;line-height:1.35;color:#C9D6E6;font-weight:700}
+.ti:before{content:"";position:absolute;left:0;top:7px;width:34px;height:34px;border-radius:50%;background:#3A5378;border:6px solid var(--bg)}
+.ti.now:before{background:var(--gold);box-shadow:0 0 0 8px rgba(245,184,61,.22)}
+.ti .dt{font-size:44px;font-weight:900;color:var(--mute)}
+.ti.now .dt{color:var(--gold)}
+.ti .val{margin-top:14px;font-size:96px;white-space:nowrap;font-weight:900;line-height:1.05;letter-spacing:-2px}
+.ti .tx{margin-top:18px;font-size:40px;line-height:1.35;color:var(--soft);font-weight:700}
 /* chart */
 .chart{flex:1;position:relative}
 .chart svg{position:absolute;inset:0;overflow:visible}
-/* compare */
-.cmp{flex:1;display:flex;gap:40px;align-items:stretch;position:relative}
-.cmp .side{flex:1;min-width:0;background:rgba(22,37,59,.92);border:2px solid #22385A;border-radius:28px;padding:50px}
-.cmp .side.now{border-color:#F5B83D}
-.cmp .hd{font-size:42px;font-weight:900;color:#9FB3CC}
-.cmp .big{margin-top:24px;font-size:140px;font-weight:900;line-height:1;letter-spacing:-4px;white-space:nowrap}
-.cmp .ls{margin-top:30px;font-size:36px;line-height:1.45;color:#E6EDF5;font-weight:700}
-.cmp .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:110px;height:110px;border-radius:50%;background:#F5B83D;color:#0E1A2B;font-weight:900;font-size:44px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 12px #0B1524}
-/* list */
-.list{flex:1;display:flex;flex-direction:column;gap:26px;justify-content:center}
-.li{display:flex;gap:30px;align-items:center;background:rgba(22,37,59,.85);border-left:10px solid #22385A;border-radius:18px;padding:30px 40px}
-.li.now{border-left-color:#F5B83D;background:rgba(32,52,82,.95)}
-.li.old{opacity:.62}
-.li .no{flex:none;width:76px;height:76px;border-radius:50%;background:#16253B;border:3px solid #F5B83D;color:#F5B83D;font-weight:900;font-size:40px;display:flex;align-items:center;justify-content:center}
+/* compare: 두 열 + 가운데 가는 선(VS 원 없음), 내용은 세로 가운데 */
+.cmp{flex:1;display:flex;align-items:center;position:relative}
+.cmp .side{flex:1;min-width:0;padding:0 64px 0 0}
+.cmp .side+.side{padding:0 0 0 72px}
+.cmp .hd{font-size:40px;font-weight:900;color:var(--mute)}
+.cmp .now .hd{color:var(--gold)}
+.cmp .big{margin-top:20px;font-size:140px;font-weight:900;line-height:1.05;letter-spacing:-4px;white-space:nowrap}
+.cmp .big.word{font-size:96px;letter-spacing:-2px}
+.cmp .ls{margin-top:26px;font-size:36px;line-height:1.45;color:var(--soft);font-weight:700}
+.cmp .vs{position:absolute;left:50%;top:6%;bottom:6%;width:2px;background:var(--rule);transform:translateX(-50%)}
+.cmp .vs span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:10px 0;background:var(--bg);color:var(--dim);font-size:30px;font-weight:900;letter-spacing:2px}
+/* list: 줄 상자 없이 번호 + 가는 밑줄, 지난 줄은 흐리게 */
+.list{flex:1;display:flex;flex-direction:column;justify-content:center}
+.li{display:flex;gap:36px;align-items:baseline;padding:30px 0;border-bottom:2px solid var(--rule)}
+.li:last-child{border-bottom:0}
+.li.old{opacity:.5}
+.li .no{flex:none;width:72px;font-weight:900;font-size:52px;color:var(--dim);font-variant-numeric:tabular-nums}
+.li.now .no{color:var(--gold)}
 .li .t{font-size:52px;font-weight:900;color:#fff;line-height:1.25}
-.li .s{margin-top:8px;font-size:36px;color:#9FB3CC;line-height:1.35;font-weight:700}
-/* quote */
+.li .s{margin-top:8px;font-size:36px;color:var(--mute);line-height:1.35;font-weight:700}
+/* quote: 큰 물음표 대신 금색 짧은 막대. 강조 줄(**…**)은 크게 금색, 나머지 줄은 작게 회색(이끄는 말) */
 .quote{justify-content:center;align-items:center;text-align:center}
-.quote .q{white-space:pre-line;font-weight:900;font-size:92px;line-height:1.28;color:#fff;letter-spacing:-2px}
-.quote .q em{font-style:normal;color:#F5B83D}
-.quote .sub{margin-top:44px;font-size:42px;color:#9FB3CC;font-weight:700}
-.mark{font-size:200px;line-height:.6;color:#F5B83D;font-weight:900;margin-bottom:30px}
+.quote .q{font-weight:900;color:#fff;letter-spacing:-2px}
+.quote .q .qa{display:block;font-size:92px;line-height:1.28}
+.quote .q .qe{display:block;font-size:100px;line-height:1.25;color:var(--gold)}
+.quote .q .ql{display:block;font-size:56px;line-height:1.4;color:var(--soft);font-weight:700;letter-spacing:-1px;margin-bottom:10px}
+.quote .q em{font-style:normal;color:var(--gold)}
+.quote .sub{margin-top:44px;font-size:42px;color:var(--mute);font-weight:700}
+.mark{width:120px;height:8px;border-radius:4px;background:var(--gold);margin-bottom:56px}
 /* outro(A10): 왼쪽 위에만 글자, 오른쪽·아래는 엔드 스크린 자리 */
 .outro{justify-content:flex-start;align-items:flex-start;text-align:left;right:auto;width:860px;bottom:auto;height:560px}
-.outro .b{font-size:110px;font-weight:900;color:#F5B83D;letter-spacing:-3px}
-.outro .l{margin-top:22px;font-size:44px;color:#E6EDF5;font-weight:700;line-height:1.45}
-/* 카드 1개(A5): 가운데 크게 */
-.stats.one{justify-content:center}
-.stats.one .st{flex:0 1 1500px;align-items:center;text-align:center;padding:60px 80px}
-.stats.one .st .big{font-size:220px}
-.stats.one .st .lab{font-size:56px}
-/* 인용 카드(A9): 실제 자료 한 줄 + 출처·날짜 */
+.outro .b{font-size:110px;font-weight:900;color:var(--gold);letter-spacing:-3px}
+.outro .l{margin-top:22px;font-size:44px;color:var(--ink);font-weight:700;line-height:1.45}
+/* 인용 카드(A9): 실제 자료 한 줄 + 출처·날짜 — 테두리 없이 왼쪽 금색 띠 하나 */
 .source{justify-content:center}
-.src{background:rgba(22,37,59,.95);border:2px solid #22385A;border-left:14px solid #F5B83D;border-radius:24px;padding:60px 70px}
-.src .kd{font-size:36px;font-weight:900;color:#F5B83D;letter-spacing:1px}
-.src .orig{margin-top:26px;font-size:60px;font-weight:900;color:#fff;line-height:1.3}
-.src .tr{margin-top:22px;font-size:44px;font-weight:700;color:#C9D6E6;line-height:1.4}
-.src .by{margin-top:34px;font-size:36px;font-weight:700;color:#9FB3CC}
+.src{background:var(--panel);border-left:12px solid var(--gold);border-radius:6px 20px 20px 6px;padding:60px 72px}
+.src .kd{font-size:34px;font-weight:900;color:var(--gold);letter-spacing:1px}
+.src .orig{margin-top:24px;font-size:60px;font-weight:900;color:#fff;line-height:1.3}
+.src .tr{margin-top:22px;font-size:44px;font-weight:700;color:var(--soft);line-height:1.4}
+.src .by{margin-top:34px;font-size:34px;font-weight:700;color:var(--mute)}
 /* 하단 배너 미드롤(A6): 높이 15% 이하 */
 .banner{position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(90deg,#F5B83D,#FFD27A);color:#0E1A2B;display:flex;align-items:center;justify-content:center;gap:28px;font-size:52px;font-weight:900;letter-spacing:-1px}
 .banner .pill{padding:6px 22px;border-radius:999px;background:#0E1A2B;color:#F5B83D;font-size:38px}
 /* poll: Threads 투표처럼 보기 막대(운영자 지시 2026-10-16 "영상 마지막에 쓰레드 같은 폴") — 끝에서 두 번째 문단 */
 .pollb{justify-content:center;align-items:center}
-.pcard{width:1360px;background:rgba(22,37,59,.96);border:2px solid #22385A;border-radius:36px;padding:56px 64px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
-.pcard .ph{display:flex;align-items:center;gap:18px;font-size:34px;font-weight:900;color:#F5B83D}
-.pcard .ph .dot{width:18px;height:18px;border-radius:50%;background:#F5B83D;box-shadow:0 0 0 8px rgba(245,184,61,.2)}
+.pcard{width:1360px;background:rgba(22,37,59,.9);border:2px solid rgba(159,179,204,.18);border-radius:36px;padding:56px 64px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.pcard .ph{display:flex;align-items:center;gap:18px;font-size:34px;font-weight:900;color:var(--gold)}
+.pcard .ph .dot{width:18px;height:18px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 8px rgba(245,184,61,.2)}
 .pcard .pq{margin-top:22px;font-size:62px;font-weight:900;color:#fff;line-height:1.25;letter-spacing:-1px}
 .pcard .opts{margin-top:40px;display:flex;flex-direction:column;gap:22px}
 .pcard .op{display:flex;align-items:center;gap:28px;border:3px solid #3A5378;border-radius:999px;padding:22px 40px;font-size:50px;font-weight:900;color:#fff}
-.pcard .op .n{flex:none;width:72px;height:72px;border-radius:50%;border:3px solid #9FB3CC;color:#9FB3CC;display:flex;align-items:center;justify-content:center;font-size:40px}
-.pcard .op.now{border-color:#F5B83D;background:rgba(245,184,61,.12)}.pcard .op.now .n{border-color:#F5B83D;background:#F5B83D;color:#0E1A2B}
-.pcard .pf{margin-top:36px;font-size:40px;font-weight:900;color:#F5B83D;text-align:center}
+.pcard .op .n{flex:none;width:72px;height:72px;border-radius:50%;border:3px solid var(--mute);color:var(--mute);display:flex;align-items:center;justify-content:center;font-size:40px}
+.pcard .op.now{border-color:var(--gold);background:rgba(245,184,61,.12)}.pcard .op.now .n{border-color:var(--gold);background:var(--gold);color:#0E1A2B}
+.pcard .pf{margin-top:36px;font-size:40px;font-weight:900;color:var(--gold);text-align:center}
 .pcard .pf.hid{visibility:hidden}
-
 </style></head><body><div id="stage"></div>
 <script>
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*\*(.+?)\*\*/g,'<em>$1</em>');
+const W=s=>/\d/.test(String(s??''))?'':'word';  // 숫자 없는 큰 글자(예: '보안 반도체')는 흰색·한 단계 작게 — 색은 숫자에만
+// 인용: 줄마다 나눠 **강조 줄**은 크게 금색, 강조가 있는 화면의 나머지 줄은 작게(이끄는 말). 강조가 없으면 모든 줄 크게 흰색
+function qlines(t){const ls=String(t??'').split('\n');const hasE=ls.some(l=>/^\s*\*\*.+\*\*\s*$/.test(l));return ls.map(l=>{const e=/^\s*\*\*(.+)\*\*\s*$/.exec(l);return e?`<span class="qe">${esc(e[1])}</span>`:`<span class="${hasE?'ql':'qa'}">${esc(l)}</span>`}).join('')}
 function vis(at,step){at=at??0;return at>step?'hid':(at===step?'now':'old')}
 function fit(el,min){let s=parseFloat(getComputedStyle(el).fontSize);while(el.scrollWidth>el.clientWidth+2&&s>min){s-=4;el.style.fontSize=s+'px'}}
 const L={
 hero(d,st){return `<div class="body hero">${(d.lines||[]).map(l=>`<div class="ln ${l.tone||''} ${vis(l.at,st)}">${esc(l.text)}</div>`).join('')}${d.sub?`<div class="sub ${vis(d.sub_at,st)}">${esc(d.sub)}</div>`:''}</div>`},
-stat(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="stats${d.stats.length===1?' one':''}">${d.stats.map(s=>`<div class="st ${vis(s.at,st)}"><div class="big ${s.tone||'gold'}">${esc(s.big)}</div><div class="lab">${esc(s.label)}</div>${s.note?`<div class="note">${esc(s.note)}</div>`:''}</div>`).join('')}</div></div>`},
+stat(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="stats${d.stats.length===1?' one':''}">${d.stats.map(s=>`<div class="st ${vis(s.at,st)}"><span class="mk"></span><div class="big ${s.tone||'gold'} ${W(s.big)}">${esc(s.big)}</div><div class="lab">${esc(s.label)}</div>${s.note?`<div class="note">${esc(s.note)}</div>`:''}</div>`).join('')}</div></div>`},
 timeline(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="tl">${d.items.map(i=>`<div class="ti ${vis(i.at,st)}"><div class="dt">${esc(i.date)}</div>${i.value?`<div class="val ${i.tone||'white'}">${esc(i.value)}</div>`:''}<div class="tx">${esc(i.text)}</div></div>`).join('')}</div></div>`},
-compare(d,st){const sd=s=>`<div class="side ${vis(s.at,st)}"><div class="hd">${esc(s.head)}</div><div class="big ${s.tone||'gold'}">${esc(s.big)}</div><div class="ls">${(s.lines||[]).map(esc).join('<br>')}</div></div>`;return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="cmp">${sd(d.left)}${sd(d.right)}<div class="vs ${vis(d.right.at,st)}">VS</div></div></div>`},
+compare(d,st){const sd=s=>`<div class="side ${vis(s.at,st)}"><div class="hd">${esc(s.head)}</div><div class="big ${s.tone||'gold'} ${W(s.big)}">${esc(s.big)}</div><div class="ls">${(s.lines||[]).map(esc).join('<br>')}</div></div>`;return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="cmp">${sd(d.left)}${sd(d.right)}<div class="vs ${vis(d.right.at,st)}"><span>VS</span></div></div></div>`},
 list(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="list">${d.items.map((i,k)=>`<div class="li ${vis(i.at,st)}"><div class="no">${esc(i.no??k+1)}</div><div><div class="t">${esc(i.text)}</div>${i.sub?`<div class="s">${esc(i.sub)}</div>`:''}</div></div>`).join('')}</div></div>`},
-quote(d,st){return `<div class="body quote"><div class="mark">?</div><div class="q ${vis(d.at,st)}">${esc(d.text)}</div>${d.sub?`<div class="sub ${vis(d.sub_at,st)}">${esc(d.sub)}</div>`:''}</div>`},
+quote(d,st){return `<div class="body quote"><div class="mark"></div><div class="q ${vis(d.at,st)}">${qlines(d.text)}</div>${d.sub?`<div class="sub ${vis(d.sub_at,st)}">${esc(d.sub)}</div>`:''}</div>`},
 source(d,st){return `<div class="body source">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="src ${vis(d.at,st)}"><div class="kd">${esc(d.kind||'원문')}</div><div class="orig">${esc(d.orig)}</div>${d.tr?`<div class="tr">${esc(d.tr)}</div>`:''}<div class="by">${esc(d.src)} · ${esc(d.date)}</div></div></div>`},
 poll(d,st){const N=['①','②','③','④'];return `<div class="body pollb"><div class="pcard"><div class="ph"><span class="dot"></span>${esc(d.head||'투표')}</div><div class="pq ${vis(d.at,st)}">${esc(d.question)}</div><div class="opts">${d.options.map((o,k)=>`<div class="op ${vis(o.at,st)}"><span class="n">${N[k]}</span>${esc(o.text)}</div>`).join('')}</div><div class="pf ${vis(d.foot_at,st)}">${esc(d.foot||'댓글에 번호 하나만 남겨 주세요')}</div></div></div>`},
 outro(d,st){return `<div class="body outro"><div class="b">김박사 월드</div>${(d.lines||[]).map(l=>`<div class="l ${vis(l.at,st)}">${esc(l.text)}</div>`).join('')}</div>`},
@@ -117,18 +140,18 @@ function drawChart(d,st){
  const lg=d.log, f=v=>lg?Math.log(v):v;const vs=P.map(p=>f(p.value));const lo=Math.min(...vs),hi=Math.max(...vs);
  const x=i=>140+(W-280)*i/(P.length-1), y=v=>H-90-(H-190)*((f(v)-lo)/((hi-lo)||1));
  let s=`<svg width="${W}" height="${H}">`;
- for(let k=0;k<5;k++){const yy=100+(H-190)*k/4;s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="#1C2C44" stroke-width="2"/>`}
+ for(let k=0;k<5;k++){const yy=100+(H-190)*k/4;s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="rgba(159,179,204,.12)" stroke-width="2"/>`}
  if(d.ref){const yy=y(d.ref.value);s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="#4FA3FF" stroke-width="4" stroke-dasharray="16 12"/><text x="${W}" y="${yy-16}" text-anchor="end" font-size="32" font-weight="700" fill="#4FA3FF">${esc(d.ref.label)}</text>`}
  const shown=P.map((p,i)=>(p.at??0)<=st);
- for(let i=1;i<P.length;i++){if(shown[i]&&shown[i-1]){const dn=P[i].value<P[i-1].value;s+=`<line x1="${x(i-1)}" y1="${y(P[i-1].value)}" x2="${x(i)}" y2="${y(P[i].value)}" stroke="${dn?'#FF4D5E':'#3DDC97'}" stroke-width="10" stroke-linecap="round"/>`}}
+ for(let i=1;i<P.length;i++){if(shown[i]&&shown[i-1]){const dn=P[i].value<P[i-1].value;s+=`<line x1="${x(i-1)}" y1="${y(P[i-1].value)}" x2="${x(i)}" y2="${y(P[i].value)}" stroke="${dn?'#FF4D5E':'#3DDC97'}" stroke-width="8" stroke-linecap="round"/>`}}
  P.forEach((p,i)=>{if(!shown[i])return;const now=(p.at??0)===st;const cx=x(i),cy=y(p.value);const above=cy>H*0.45;
   s+=`<circle cx="${cx}" cy="${cy}" r="${now?20:14}" fill="${now?'#F5B83D':'#E6EDF5'}" stroke="#0B1524" stroke-width="6"/>`;
   const ty=above?cy-44:cy+78;s+=`<text x="${cx}" y="${ty}" text-anchor="middle" font-size="${now?64:52}" font-weight="900" stroke="#0B1524" stroke-width="14" paint-order="stroke" stroke-linejoin="round" fill="${now?'#F5B83D':'#fff'}">${esc(p.label_value??p.value)}</text>`;
   s+=`<text x="${cx}" y="${H-20}" text-anchor="middle" font-size="32" font-weight="700" fill="#9FB3CC">${esc(p.label)}</text>`});
  box.innerHTML=s+'</svg>'}
 window.render=function(deck,d,st,banner){
- const bg=d.bg?`<div class="photo" style="background-image:url('${d.bg}')"></div>`:'<div class="bg"></div><div class="grid"></div>';
- document.getElementById('stage').innerHTML=bg+`<div class="hdr"><span class="brand">김박사 월드</span><span class="tk">${esc(deck.ticker)}</span><span style="color:#C9D6E6">${esc(deck.name)}</span>${d.kicker?`<span class="kick">${esc(d.kicker)}</span>`:''}</div>`+L[d.layout](d,st)+(banner?`<div class="banner"><span class="pill">무료 리포트</span>${esc(deck.banner||'숫자와 대응 전략은 고정 댓글 링크에')}</div>`:`<div class="ftr">공개 자료를 정리한 교육용 분석 · 특정 종목의 매수·매도 권유가 아닙니다</div>`);
+ const bg=d.bg?`<div class="photo" style="background-image:url('${d.bg}')"></div>`:'<div class="bg"></div>';
+ document.getElementById('stage').innerHTML=bg+`<div class="hdr"><span class="tk">${esc(deck.ticker)}</span><span>${esc(deck.name)}</span>${d.kicker?`<span class="kick">${esc(d.kicker)}</span>`:''}<span class="brand">김박사 월드</span></div>`+L[d.layout](d,st)+(banner?`<div class="banner"><span class="pill">무료 리포트</span>${esc(deck.banner||'숫자와 대응 전략은 고정 댓글 링크에')}</div>`:`<div class="ftr">공개 자료를 정리한 교육용 분석 · 특정 종목의 매수·매도 권유가 아닙니다</div>`);
  if(d.layout==='chart')drawChart(d,st);
  document.querySelectorAll('.st .big,.cmp .big,.ti .val').forEach(e=>{fit(e,48)});
  const b=document.querySelector('.body');let g=0;while(b.scrollHeight>b.clientHeight+2&&g++<30){document.querySelectorAll('.body *').forEach(e=>{const fs=parseFloat(getComputedStyle(e).fontSize);if(fs>40)e.style.fontSize=Math.max(40,fs*0.95)+'px'})}
@@ -146,13 +169,14 @@ function fmtN(n,v){let s=Math.abs(v).toLocaleString('en-US',{minimumFractionDigi
 window.prep=function(first,ban){
  MO=[];const sel=first?'.body>h1,.hero .ln,.hero .sub,.st,.ti,.cmp .side,.cmp .vs,.li,.quote .mark,.quote .q,.quote .sub,.src,.pcard,.pcard .op,.pcard .pf,.outro .b,.outro .l,.chart':'.body .now';
  const els=[...document.querySelectorAll(sel)].filter(e=>!e.classList.contains('hid')&&!e.closest('.hid'));
- els.forEach((e,k)=>{const pop=e.matches('.vs,.mark');MO.push({e,d:Math.min(k,6)*0.07,L:pop?0.35:0.4,kind:e.matches('.chart')?'draw':(pop?'pop':'up')});
+ els.forEach((e,k)=>{const pop=e.matches('.mark');MO.push({e,d:Math.min(k,6)*0.07,L:pop?0.35:0.4,kind:e.matches('.chart')?'draw':(e.matches('.vs')?'fade':(pop?'pop':'up'))});
   e.querySelectorAll('.big,.val').forEach(b=>{const n=numParts(b.textContent);if(n)MO.push({e:b,d:Math.min(k,6)*0.07+0.05,L:0.6,kind:'count',n,txt:b.textContent})})});
  if(ban){const b=document.querySelector('.banner');if(b)MO.push({e:b,d:0,L:0.35,kind:'banner'})}
  return MO.length?Math.max(...MO.map(m=>m.d+m.L)):0}
 window.motion=function(t){MO.forEach(m=>{const x=ease3((t-m.d)/m.L),s=m.e.style;
  if(m.kind==='up'){s.opacity=0.6+0.4*x;s.transform=`translateY(${(1-x)*36}px)`}
- else if(m.kind==='pop'){s.opacity=0.6+0.4*x;s.transform=(m.e.matches('.vs')?'translate(-50%,-50%) ':'')+`scale(${0.7+0.3*x})`}
+ else if(m.kind==='pop'){s.opacity=0.6+0.4*x;s.transform=`scaleX(${0.3+0.7*x})`}
+ else if(m.kind==='fade'){s.opacity=0.4+0.6*x}
  else if(m.kind==='draw'){s.clipPath=`inset(0 ${(1-x)*100}% 0 0)`}
  else if(m.kind==='banner'){s.transform=`translateY(${(1-x)*150}px)`}
  else if(m.kind==='count'){m.e.textContent=x>=1?m.txt:fmtN(m.n,m.n.v*x)}})}

@@ -9,14 +9,19 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1920px;height:1080px;overflow:hidden;background:#0B1524;font-family:'Noto Sans CJK KR',sans-serif;color:#E6EDF5;word-break:keep-all}
-.bg{position:absolute;inset:0;background:radial-gradient(900px 600px at 85% 15%,rgba(79,163,255,.16),transparent 70%),radial-gradient(800px 600px at 10% 95%,rgba(245,184,61,.10),transparent 70%),#0B1524}
-.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:80px 80px}
-.hdr{position:absolute;left:96px;right:96px;top:52px;display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
-.brand{color:#F5B83D}.tk{padding:4px 16px;border:2px solid #F5B83D;border-radius:10px;color:#F5B83D;font-weight:900}
-.kick{margin-left:auto;padding:8px 22px;border-radius:999px;background:rgba(245,184,61,.14);color:#F5B83D;font-weight:900}
+.bg{position:absolute;inset:0;background:radial-gradient(1100px 760px at 78% 42%,rgba(79,163,255,.10),transparent 70%),linear-gradient(180deg,#0D182A 0%,#0B1524 60%,#091220 100%)}
+.grid{display:none}
+/* 머리줄(2026-11-24 화면 개편, slide.html·kit.css와 같음) */
+.hdr{position:absolute;left:96px;right:96px;top:50px;display:flex;align-items:center;gap:16px;font-size:30px;font-weight:700;color:#9FB3CC}
+.tk{color:#F5B83D;font-weight:900;letter-spacing:.5px}
+.kick{display:flex;align-items:center;gap:16px;color:#F5B83D;font-weight:900}
+.kick:before{content:"";width:2px;height:28px;background:rgba(159,179,204,.22)}
+.kick:empty{display:none}
+.brand{margin-left:auto;display:flex;align-items:center;gap:12px;color:#C9D6E6;font-weight:900;font-size:28px}
+.brand:before{content:"";width:14px;height:14px;border-radius:50%;background:#F5B83D}
 h1{position:absolute;left:96px;top:130px;max-width:1380px;font-weight:900;font-size:60px;line-height:1.15;color:#fff;letter-spacing:-1px}
 svg{position:absolute;left:0;top:0}
-.panel{position:absolute;left:1515px;top:300px;width:365px;padding:34px 26px;border-radius:28px;background:rgba(22,37,59,.92);border:2px solid #22385A}
+.panel{position:absolute;left:1515px;top:300px;width:365px;padding:20px 0 20px 34px;border-left:2px solid rgba(159,179,204,.22)}
 .panel .lab{font-size:32px;font-weight:700;color:#9FB3CC;white-space:nowrap}
 .panel .big{font-size:88px;font-weight:900;letter-spacing:-3px;color:#fff;line-height:1.1;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .panel .big small{font-size:46px;letter-spacing:0;margin-left:4px}
@@ -26,7 +31,7 @@ svg{position:absolute;left:0;top:0}
 .down{color:#FF4D5E}.up{color:#3DDC97}
 </style></head><body>
 <div class="bg"></div><div class="grid"></div>
-<div class="hdr"><span class="brand">김박사 월드</span><span class="tk" id="tk"></span><span id="nm"></span><span class="kick" id="kick"></span></div>
+<div class="hdr"><span class="tk" id="tk"></span><span id="nm"></span><span class="kick" id="kick"></span><span class="brand">김박사 월드</span></div>
 <h1 id="ttl" data-box></h1>
 <svg id="sv" width="1920" height="1080" viewBox="0 0 1920 1080">
   <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
@@ -60,7 +65,7 @@ const raw=(hi-lo)/5,mag=Math.pow(10,Math.floor(Math.log10(raw))),step=[1,2,2.5,5
 const Y0=880,Y1=400,XL=300,XR=1400, X=i=>XL+i*(XR-XL)/(n-1), Y=v=>Y0-(v-lo)/(hi-lo)*(Y0-Y1);
 const NS='http://www.w3.org/2000/svg', el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e};
 const ax=$('axes'),dots=$('dots'),tdec=step<0.1?2:(step<1?2:(step<10?1:0));
-for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step){el('line',{x1:250,x2:XR+60,y1:Y(v),y2:Y(v),stroke:'#22385A','stroke-width':2},ax);const t=el('text',{x:236,y:Y(v)+11,'text-anchor':'end','font-size':30,fill:'#6F829B','font-weight':700},ax);t.textContent=v.toFixed(tdec)}
+for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step){el('line',{x1:250,x2:XR+60,y1:Y(v),y2:Y(v),stroke:'rgba(159,179,204,.12)','stroke-width':2},ax);const t=el('text',{x:236,y:Y(v)+11,'text-anchor':'end','font-size':30,fill:'#6F829B','font-weight':700},ax);t.textContent=v.toFixed(tdec)}
 P.forEach((p,i)=>{const t=el('text',{x:X(i),y:992,'text-anchor':'middle','font-size':38,'font-weight':900,fill:i==n-1?'#fff':'#9FB3CC','data-box':''},ax);t.textContent=p[0]});
 if(d.base){$('baseLine').setAttribute('x1',XL);$('baseLine').setAttribute('x2',XR);$('baseLine').setAttribute('y1',Y(d.base.value));$('baseLine').setAttribute('y2',Y(d.base.value));
   const bt=$('baseTxt');bt.textContent=d.base.label||'';bt.setAttribute('x',XR);bt.setAttribute('text-anchor','end');bt.setAttribute('y',Y(d.base.value)+(fall?44:-18));}
@@ -92,7 +97,7 @@ for(let i=1;i<n;i++){const t1=at[i],t0=Math.max(at[i-1]+.05,t1-Math.min(1.1,(at[
 let end=at[n-1]+1.0;
 if(d.bracket){const tb=T.bracket_beat!=null?Math.max(T.bracket_beat,at[n-1]+.3):at[n-1]+1.0;
   tl.to('#brk',{opacity:1,duration:.2},tb).to(bp,{strokeDashoffset:0,duration:.7,ease:'power2.inOut'},tb).from('#brkTxt',{opacity:0,y:20,duration:.5},tb+.3);end=Math.max(end,tb+1.0)}
-tl.to('#panel',{borderColor:COL,boxShadow:'0 0 0 6px '+(fall?'rgba(255,77,94,.25)':'rgba(61,220,151,.25)')+',0 20px 60px rgba(0,0,0,.45)',duration:.4},at[n-1]+.6)
+tl.to('#panel',{borderLeftColor:COL,borderLeftWidth:6,duration:.4},at[n-1]+.6)
   .fromTo('#pv',{scale:1},{scale:1.12,duration:.25,yoyo:true,repeat:1,transformOrigin:'0% 50%'},at[n-1]+.7);
 end=Math.max(end,at[n-1]+1.3);tl.to({},{duration:.01},end);
 const pv=$('pv'),pp=$('pp'),plab=$('plab'),head=$('head'),rr=$('revealRect');

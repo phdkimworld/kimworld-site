@@ -4,7 +4,7 @@
 // 계약: window.scene = {dur, ready, seek(t), beats, spans, frame:[0,0,1080,768], cover()}
 const A = window.ANIM || {data: {}, t: {}, dur: 5}, d = A.data || {}, T = A.t || {}, COVER = !!A.cover, DUR = A.dur || 5;
 const W = 1080, H = 768, SAFE_Y = 576, SAFE_X = 900, NS = 'http://www.w3.org/2000/svg';
-const COL = {red: '#FF4D4D', green: '#39D98A', gold: '#F5B83D', white: '#ffffff', mute: '#B0BED0', bar: '#4A6688', line: '#283B57'};
+const COL = {red: '#FF4D5E', green: '#3DDC97', gold: '#F5B83D', white: '#ffffff', mute: '#B0BED0', bar: '#4A6688', line: '#283B57'};
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 // 글자 하나: 가운데 cx, 위 y, 크기 size(최대 폭 maxw 넘으면 줄이되 min 아래로는 안 줄임). 아래 안전 구역(y ≥ 576)이면 가운데 450·폭 820으로
 function txt(text, o) {

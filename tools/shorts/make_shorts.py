@@ -37,7 +37,8 @@ W, H, FPS = 1080, 1920, 30
 CORE_Y, CORE_H = 288, 768
 SUB_Y, NOTE_Y = 1080, 1272
 BG = (12, 20, 34)
-COL = {'red': (255, 77, 77), 'green': (57, 217, 138), 'yellow': (245, 184, 61), 'white': (255, 255, 255), 'sub': (176, 190, 208)}
+COL = {'red': (255, 77, 94), 'green': (61, 220, 151),  # 롱폼 slide.html과 같은 색(2026-11-24 한 체계)
+       'yellow': (245, 184, 61), 'white': (255, 255, 255), 'sub': (176, 190, 208)}
 FB = '/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc'
 FBD = '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc'
 _fc = {}

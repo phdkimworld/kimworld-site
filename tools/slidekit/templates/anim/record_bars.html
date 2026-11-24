@@ -22,6 +22,8 @@ const R = I.map((it, i) => {
   else { y1 = Math.min(Y(it.value), Y0); h = Math.abs(Y(it.value) - Y0);
     bar = el('rect', {x: cx - bw / 2, y: y1, width: bw, height: h, rx: 8, fill: c, opacity: it.hi ? 1 : .88}, g);
     val = el('text', {x: cx, y: it.value < 0 ? Y0 + h + 50 : y1 - 18, 'text-anchor': 'middle', 'font-size': n <= 5 ? 48 : 40, 'font-weight': 900, fill: it.hi ? COL.gold : c, 'data-box': ''}, g, fmtv(it.value, d.unit === undefined ? '%' : d.unit, undefined, it.text)); }
+  // 항목이 많으면(10개 넘게) 숫자가 옆 칸과 겹치지 않게 칸 폭에 맞춰 줄인다(2026-11-24, JOBY 16칸 -12.4%·-10.7% 겹침)
+  { const w = val.getBBox().width; if (w > cw - 10) val.setAttribute('font-size', Math.max(22, +val.getAttribute('font-size') * (cw - 10) / w)); }
   return {g, lab, sub, bar, val, y1, h, nul};
 });
 let tal = null; if (d.tally) tal = el('text', {x: 960, y: 1000, 'text-anchor': 'middle', 'font-size': 46, 'font-weight': 900, fill: COL.gold, 'data-box': ''}, null, d.tally);

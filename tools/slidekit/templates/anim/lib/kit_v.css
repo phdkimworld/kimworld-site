@@ -6,7 +6,7 @@ html,body{width:1080px;height:768px;overflow:hidden;background:transparent;font-
 .band{position:absolute;border-radius:22px;background:rgba(245,184,61,.22);border:4px solid rgba(245,184,61,.75)}
 .lab{font-weight:700;color:#fff}
 .sub{font-weight:700;color:#B0BED0}
-.red{color:#FF4D4D}.green{color:#39D98A}.gold{color:#F5B83D}.white{color:#fff}.mute{color:#B0BED0}
+.red{color:#FF4D5E}.green{color:#3DDC97}.gold{color:#F5B83D}.white{color:#fff}.mute{color:#B0BED0}
 .stamp{position:absolute;padding:14px 30px;border:10px solid currentColor;border-radius:16px;font-weight:900;white-space:nowrap;transform:rotate(-8deg)}
 .box{position:absolute;border-radius:18px;background:rgba(245,184,61,.27);border:5px solid #F5B83D}
 svg.stage{position:absolute;left:0;top:0}
