@@ -120,7 +120,8 @@ def clean(items: list[dict], drop: list[str], match: list[str] | None = None) ->
 def gclean(c: dict, g: dict, items: list[dict]) -> list[dict]:
     """가이드 진열: 공통 금지어 + 그 가이드의 exclude(편에 안 맞는 상품 — 예: 오메가3의 임산부용·SDA·대량 묶음) + match,
     그리고 prefer 낱말이 든 상품을 앞으로(예: rTG·EPA·DHA 고함량). 2026-11-21 운영자 '제품도 신경써서 찾아놓고'."""
-    out = clean(items, (c.get("drop_words") or []) + (g.get("exclude") or []), g.get("match") or [g["name"]])
+    # not_supplement(2026-11-24 운영자 "제품이 그 설명에 정확히 충족하는지 확실히"): 반려동물 간식·요거트·음료처럼 영양제가 아닌 상품은 모든 가이드에서 뺀다
+    out = clean(items, (c.get("drop_words") or []) + (c.get("not_supplement") or []) + (g.get("exclude") or []), g.get("match") or [g["name"]])
     pref = [w.lower() for w in g.get("prefer") or []]
     if pref:
         out.sort(key=lambda p: -sum(w in p.get("name", "").lower() for w in pref))

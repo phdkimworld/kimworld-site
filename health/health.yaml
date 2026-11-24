@@ -40,6 +40,8 @@ adsense:
 # 카카오 애드핏: 건강몰은 애드핏 '매체'로 따로 등록·심사가 필요(운영자 몫, 애드핏 > 게재 설정 > 매체 추가). 단위 번호(DAN-…)를 받으면 여기에.
 adfit_unit: ""
 drop_words: ["치료", "완치", "특효", "예방", "처방", "의약품", "약국", "혈압약", "당뇨", "고혈압", "고지혈", "항암", "탈모치료", "다이어트약", "식욕억제", "위고비"]
+# 영양제가 아닌 상품(2026-11-24 확인: 유산균 가이드에 반려동물 간식·요거트·우유, 비타민C 가이드에 음료가 섞여 있었음) — 모든 가이드 진열에서 뺀다
+not_supplement: ["반려", "강아지", "고양이", "펫", "간식", "요거트", "요구르트", "우유", "음료", "드링크", "주스", "오란씨", "젤리", "사탕", "캔디", "ml(", "ML(", "mL("]   # ml(N입) = 병·팩 음료
 banned: ["치료", "완치", "특효", "처방", "효과 보장", "100% 효과", "부작용 없", "먹으면 낫", "약보다"]
 funnels:
   guide-omega3: {title: "오메가3 뒷면 숫자, 1분 쇼츠", text: "EPA+DHA 합을 하루 기준으로 읽는 법을 1분으로 짚어 드립니다.", url: "https://youtube.com/shorts/UwUiifHLZl4", button: "쇼츠 보기"}  # 2026-11-23 조회 상위 쇼츠로(쇼츠→몰 길, 운영 분석 8번)
@@ -216,6 +218,7 @@ profile_map:
   vitc-how-much: immune
   vitc-multi-label: immune
   milkthistle-silymarin-label2: liver
+  fattyliver-milkthistle: liver
   # 첫 주(11-20~21) 성분 이름 slug 편 = 성분 기본 프로필
   omega3: blood
   coq10: blood

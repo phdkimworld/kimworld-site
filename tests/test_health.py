@@ -85,6 +85,12 @@ def main() -> int:
     bad["profiles"][0]["steps"] = ["치료에 좋습니다"]
     errs = hb.check(bad)
     assert any("profile_map" in e for e in errs) and any("금지 낱말" in e for e in errs), errs
+    # 영양제가 아닌 상품은 진열에서 빠진다(2026-11-24)
+    gp = next(x for x in c["guides"] if x["slug"] == "probiotics")
+    junk = [{"name": "궁 반려동물 유산균 동결건조간식", "url": "https://link.coupang.com/a", "price": 1000}, {"name": "서울우유 요거트 프로바이오틱스", "url": "https://link.coupang.com/b", "price": 1000},
+            {"name": "락토핏 생유산균 프로바이오틱스 60포", "url": "https://link.coupang.com/c", "price": 1000}]
+    kept = [p["name"] for p in hb.gclean(c, gp, junk)]
+    assert kept == ["락토핏 생유산균 프로바이오틱스 60포"], kept
     print("health ok")
     return 0
 
