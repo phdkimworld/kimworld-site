@@ -35,7 +35,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd www && npx --yes wrangler@3.99.0 deploy 2>&1 | tail -6 > ../.w.txt || true
-          if grep -q "www.drkimworld.com" ../.w.txt && ! grep -qi "error" ../.w.txt; then echo "::notice title=www 워커::배포됨 — www.drkimworld.com/* → https://drkimworld.com 301"; else echo "::warning title=www 워커::$(grep -i -m1 error ../.w.txt | head -c 200)"; fi
+          echo "::notice title=www 워커 출력::$(tr '\n' ' ' < ../.w.txt | sed 's/[^[:print:]]//g' | tail -c 600)"
       - name: Zone
         if: inputs.mode != 'www'
         run: |
