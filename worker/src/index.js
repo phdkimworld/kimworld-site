@@ -362,7 +362,7 @@ const SECS = ["top", "ans", "can", "news", "term", "p1", "p2", "p3", "p4", "p5",
 // 건강몰 방문·클릭 요약(hm_* 표). 운영 통계(analytics.json)의 hmall 칸 → digest 건강몰 줄. 합계만
 async function mallStats(db, since, prevSince) {
   const all = (sql, ...a) => db.prepare(sql).bind(...a).all().then((r) => r.results || []);
-  const [tot, prev, daily, byCh, bySrc, byLp, byCamp, clicks, pages] = await Promise.all([
+  const [tot, prev, daily, byCh, bySrc, byLp, byCamp, clicks, pages, profs, profEv] = await Promise.all([
     all("SELECT site, SUM(sess) AS sess, SUM(engaged) AS engaged, SUM(deep) AS deep, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY site", since),
     all("SELECT site, SUM(sess) AS sess, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? AND day < ? GROUP BY site", prevSince, since),
     all("SELECT day, site, SUM(sess) AS sess, SUM(clicks) AS clicks FROM hm_acq WHERE day >= ? GROUP BY day, site ORDER BY day", since),
@@ -374,8 +374,11 @@ async function mallStats(db, since, prevSince) {
     all(`SELECT p.site, p.path, SUM(p.pv) AS pv, SUM(p.sess) AS sess, SUM(p.secs) AS secs, SUM(p.engaged) AS engaged, SUM(p.scroll) AS scroll, SUM(p.scroll_n) AS scroll_n,
            (SELECT COALESCE(SUM(c.n), 0) FROM hm_click c WHERE c.day >= ? AND c.site = p.site AND c.path = p.path AND c.kind = 'coupang') AS coupang
          FROM hm_page p WHERE p.day >= ? GROUP BY p.site, p.path ORDER BY pv DESC LIMIT 60`, since, since),
+    // 시청자 프로필별(2026-11-24): 세션·쪽수·체류·참여·깊이·쿠팡 클릭·화면 안 행동
+    all("SELECT site, prof, SUM(sess) AS sess, SUM(pv) AS pv, SUM(secs) AS secs, SUM(engaged) AS engaged, SUM(deep) AS deep, SUM(coupang) AS coupang, SUM(ui) AS ui FROM hm_prof WHERE day >= ? GROUP BY site, prof ORDER BY sess DESC", since),
+    all("SELECT site, prof, kind, sub, SUM(n) AS n FROM hm_prof_ev WHERE day >= ? GROUP BY site, prof, kind, sub ORDER BY n DESC LIMIT 80", since),
   ]);
-  return { totals: tot, prev, daily, channels: byCh, sources: bySrc, landings: byLp, campaigns: byCamp, clicks, pages };
+  return { totals: tot, prev, daily, channels: byCh, sources: bySrc, landings: byLp, campaigns: byCamp, clicks, pages, profiles: profs, profile_events: profEv };
 }
 
 async function analytics(db, now, daysIn) {
@@ -805,11 +808,13 @@ export default {
         const camp = String(b.c || "").toLowerCase().replace(/[^a-z0-9가-힣_.\-]/g, "").slice(0, 60) || "-";
         const s = Math.max(1, Math.min(999, parseInt(b.s, 10) || 1)), a = Math.max(0, Math.min(1800, parseInt(b.a, 10) || 0));
         const sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0)), m = b.m ? 1 : 0;
-        const KIND = new Set(["coupang", "guide", "youtube", "site", "mall", "other"]);
+        const KIND = new Set(["coupang", "guide", "youtube", "site", "mall", "other", "ui"]);  // ui = 화면 안 행동(프로필 상자·자가 점검·정렬, 2026-11-24)
         const ks = (Array.isArray(b.k) ? b.k.slice(0, 10) : []).map((x) => ({ k: KIND.has(x?.k) ? x.k : "", sub: /^[a-z0-9_-]{1,30}$/.test(String(x?.sub || "")) ? String(x.sub) : "-" })).filter((x) => x.k);
         if (bot || (a < 2 && !sc && !ks.length)) { if (await allow(db, `bot|${ih}`, 3000, 864e5, now)) await countBot(db, today, `hmall:${bot || "idle"}`); return json(req, { ok: true }); }
         if (!(await allow(db, `mhit|${ih}`, 1500, 864e5, now))) return json(req, { ok: false });
-        const eng = b.en ? 1 : 0, coup = ks.filter((x) => x.k === "coupang").length;
+        const eng = b.en ? 1 : 0, coup = ks.filter((x) => x.k === "coupang").length, uiN = ks.filter((x) => x.k === "ui").length;
+        // 시청자 프로필(영상의 관심 분야 코드, 사람 정보 아님): 링크 aud= 또는 영상 slug → profile_map. 모르면 '-'
+        const prof = /^[a-z]{2,8}$/.test(String(b.pf || "")) ? String(b.pf) : "-";
         const q = [db.prepare(`INSERT INTO hm_page (day, site, path, pv, sess, secs, engaged, scroll, scroll_n, mob) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, site, path) DO UPDATE SET pv = pv + 1, sess = sess + excluded.sess, secs = secs + excluded.secs, engaged = engaged + excluded.engaged,
             scroll = scroll + excluded.scroll, scroll_n = scroll_n + excluded.scroll_n, mob = mob + excluded.mob`).bind(today, site, path, s === 1 ? 1 : 0, a, eng, sc, sc ? 1 : 0, m)];
@@ -817,8 +822,13 @@ export default {
         q.push(db.prepare(`INSERT INTO hm_acq (day, site, ch, src, camp, lp, sess, engaged, deep, clicks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, site, ch, src, camp, lp) DO UPDATE SET sess = sess + excluded.sess, engaged = engaged + excluded.engaged, deep = deep + excluded.deep, clicks = clicks + excluded.clicks`)
           .bind(today, site, ch, sd, camp, lp, s === 1 ? 1 : 0, eng, s === 2 ? 1 : 0, coup));
-        for (const x of ks) q.push(db.prepare(`INSERT INTO hm_click (day, site, path, kind, sub, ch, n) VALUES (?, ?, ?, ?, ?, ?, 1)
+        for (const x of ks) if (x.k !== "ui") q.push(db.prepare(`INSERT INTO hm_click (day, site, path, kind, sub, ch, n) VALUES (?, ?, ?, ?, ?, ?, 1)
             ON CONFLICT(day, site, path, kind, sub, ch) DO UPDATE SET n = n + 1`).bind(today, site, path, x.k, x.sub, ch));
+        q.push(db.prepare(`INSERT INTO hm_prof (day, site, prof, camp, sess, pv, secs, engaged, deep, coupang, ui) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, site, prof, camp) DO UPDATE SET sess = sess + excluded.sess, pv = pv + 1, secs = secs + excluded.secs, engaged = engaged + excluded.engaged,
+            deep = deep + excluded.deep, coupang = coupang + excluded.coupang, ui = ui + excluded.ui`).bind(today, site, prof, camp, s === 1 ? 1 : 0, a, eng, s === 2 ? 1 : 0, coup, uiN));
+        for (const x of ks) q.push(db.prepare(`INSERT INTO hm_prof_ev (day, site, prof, kind, sub, n) VALUES (?, ?, ?, ?, ?, 1)
+            ON CONFLICT(day, site, prof, kind, sub) DO UPDATE SET n = n + 1`).bind(today, site, prof, x.k, x.sub));
         await db.batch(q);
         return json(req, { ok: true });
       }

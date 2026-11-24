@@ -71,6 +71,19 @@ def main() -> int:
         hb.build(c2, cat, Path(d))
         assert 'data-slot="guide-omega3"' in (Path(d) / "guide/omega3/index.html").read_text(encoding="utf-8")
         assert 'data-slot' not in (Path(d) / "guide/lutein/index.html").read_text(encoding="utf-8")
+    # 시청자 프로필(2026-11-24): 가이드마다 기본 프로필 상자는 보이고 나머지는 숨김, 진열 정렬 버튼, 추적에 프로필 표(aud·profile_map), 쿠팡 하위 ID에 p<코드>
+    with tempfile.TemporaryDirectory() as d:
+        hb.build(c, cat, Path(d))
+        g = (Path(d) / "guide/omega3/index.html").read_text(encoding="utf-8")
+        assert '<section class="pf" data-pf="blood" data-def="1">' in g and '<section class="pf" data-pf="eye" hidden>' in g
+        assert 'class="sortbar"' in g and 'data-per=' in g and 'id="cautions"' in g and 'id="fn"' in g
+        assert '"dryeye-omega3":"eye"' in g and "'p'+PFX" in g and "hmEv" in g
+        assert g.index('class="pf"') < g.index('id="items"'), "프로필 상자는 상품 진열보다 위(상품 옆에 질병 문장 없음)"
+    bad = json.loads(json.dumps(c))
+    bad["profile_map"] = {"x-long": "nope"}
+    bad["profiles"][0]["steps"] = ["치료에 좋습니다"]
+    errs = hb.check(bad)
+    assert any("profile_map" in e for e in errs) and any("금지 낱말" in e for e in errs), errs
     print("health ok")
     return 0
 

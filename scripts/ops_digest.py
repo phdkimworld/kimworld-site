@@ -14,6 +14,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# 건강몰 시청자 프로필 코드(health.yaml profiles, 2026-11-24) — 쿠팡 하위 ID 끝 p<코드> 를 프로필로 읽는다
+PROFILES = {"blood", "eye", "energy", "bone", "gut", "liver", "male", "brain", "immune"}
+try:
+    import yaml as _yaml
+    PROFILES = {p["code"] for p in (_yaml.safe_load((ROOT / "health" / "health.yaml").read_text(encoding="utf-8")) or {}).get("profiles") or []} or PROFILES
+except Exception:  # noqa: BLE001
+    pass
 
 
 def pct(now, prev):
@@ -150,6 +157,17 @@ def main() -> int:
         out.append("- 김박사 건강몰: " + (" · ".join(f"{k} {v['clicks']}클릭/{v['commission']}원" for k, v in hb.items()) or "쿠팡 클릭 0")
                    + f" (합계 {sum(v['clicks'] for v in hb.values())}클릭/{sum(v['commission'] for v in hb.values())}원)"
                    + f" | 진열 성분 {len(hc.get('products') or {})} · 베스트 {len(hc.get('best') or [])} · 갱신 {hc.get('updated') or '없음'}")
+        # 시청자 프로필별 쿠팡 실적(2026-11-24): 하위 ID 끝 p<프로필>(화면이 클릭 순간 붙임, health.yaml profiles)
+        import re as _re
+        pf: dict = {}
+        for k, v in hb.items():
+            mm = _re.fullmatch(r"hm[a-z0-9]+?p([a-z]{2,8})", k)
+            if mm and mm.group(1) in PROFILES:
+                d = pf.setdefault(mm.group(1), {"clicks": 0, "orders": 0, "commission": 0})
+                for f in d:
+                    d[f] += int(v.get(f) or 0)
+        if pf:
+            out.append("- 건강몰 프로필별 쿠팡: " + " · ".join(f"{k} {d['clicks']}클릭/{d['orders']}주문/{d['commission']}원" for k, d in sorted(pf.items(), key=lambda kv: -kv[1]["clicks"])))
     shop = ROOT / "social" / "youtube" / "shop.json"
     if shop.exists():
         log = json.loads(shop.read_text(encoding="utf-8"))

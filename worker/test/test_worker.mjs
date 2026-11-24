@@ -496,13 +496,13 @@ check(an.data.totals.pv === 3 && an.data.bots.quick === 2 && an.data.bots.quick_
 
 console.log("건강몰 방문·클릭(본 사이트 통계·김박사 몰 mall_ev 와 분리)");
 const pvBefore = (await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" })).data.totals.pv;
-r = await call("POST", "/v1/mhit", { body: { site: "health", p: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", s: 1, a: 95, sc: 70, m: 1, en: 1, k: [{ k: "coupang", sub: "g-omega3" }, { k: "evil", sub: "x" }] }, ip: "93.0.0.1" });
+r = await call("POST", "/v1/mhit", { body: { site: "health", p: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", pf: "blood", s: 1, a: 95, sc: 70, m: 1, en: 1, k: [{ k: "coupang", sub: "g-omega3" }, { k: "evil", sub: "x" }, { k: "ui", sub: "pf-next" }] }, ip: "93.0.0.1" });
 check(r.data.ok, "건강몰 방문 받음");
-await call("POST", "/v1/mhit", { body: { site: "health", p: "/", lp: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", s: 2, a: 20, sc: 30, k: [{ k: "coupang", sub: "best" }] }, ip: "93.0.0.1" });
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/", lp: "/guide/omega3/", ch: "youtube", sd: "youtube", c: "omega3-long", pf: "blood", s: 2, a: 20, sc: 30, k: [{ k: "coupang", sub: "best" }] }, ip: "93.0.0.1" });
 await call("POST", "/v1/mhit", { body: { site: "health", p: "/guide/lutein/", ch: "search", sd: "naver", s: 1, a: 40, sc: 20, k: [] }, ip: "93.0.0.2" });
 r = await call("POST", "/v1/mhit", { body: { site: "mall", p: "/", ch: "search", s: 1, a: 40 }, ip: "93.0.0.3" });
 check(!r.data.ok, "김박사 몰은 /v1/mhit 로 받지 않음(/v1/mall 이 맡음)");
-await call("POST", "/v1/mhit", { body: { site: "health", p: "/x?<script>", ch: "nope", sd: "BAD HOST!", c: "a b<c>", s: 1, a: 99999, sc: 999 }, ip: "93.0.0.4" });
+await call("POST", "/v1/mhit", { body: { site: "health", p: "/x?<script>", ch: "nope", sd: "BAD HOST!", c: "a b<c>", pf: "EVIL<x>", s: 1, a: 99999, sc: 999 }, ip: "93.0.0.4" });
 await call("POST", "/v1/mhit", { body: { site: "health", p: "/", ch: "direct", s: 1, a: 1 }, ip: "93.0.0.5" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });
 const M = an.data.hmall;
@@ -513,6 +513,11 @@ check(M.campaigns.some((x) => x.camp === "omega3-long") && M.landings.some((x) =
 check(M.clicks.some((x) => x.sub === "g-omega3" && x.n === 1) && !M.clicks.some((x) => x.kind === "evil"), "자리(data-sub)별 쿠팡 클릭(모르는 종류 버림)");
 const mp = M.pages.find((x) => x.path === "/(기타)");
 check(mp && mp.secs === 1800 && mp.scroll === 100 && M.pages.find((x) => x.path === "/guide/omega3/").coupang === 1, "이상한 주소는 기타, 체류 30분·스크롤 100% 상한, 페이지별 쿠팡 클릭");
+const pb = M.profiles.find((x) => x.prof === "blood"); if (!pb || pb.sess !== 1) console.log(JSON.stringify(M.profiles));
+check(pb && pb.sess === 1 && pb.pv === 2 && pb.secs === 115 && pb.deep === 1 && pb.coupang === 2 && pb.ui === 1 && M.profiles.some((x) => x.prof === "-" && x.sess === 2),
+  "시청자 프로필별 세션·쪽수·체류·깊이·쿠팡 클릭·화면 안 행동(모르는·이상한 프로필은 '-')");
+check(M.profile_events.some((x) => x.prof === "blood" && x.kind === "ui" && x.sub === "pf-next") && M.profile_events.some((x) => x.prof === "blood" && x.kind === "coupang" && x.sub === "best")
+  && !M.clicks.some((x) => x.kind === "ui"), "프로필별 행동(ui·쿠팡 자리), 화면 안 행동은 바깥 클릭 표에 안 섞임");
 check(an.data.totals.pv === pvBefore && an.data.bots["hmall:idle"] === 1, "본 사이트 페이지뷰에는 안 섞임, 무반응 방문은 봇 합계 hmall:idle");
 await call("POST", "/v1/hit", { body: { p: "/r/rgti-2026-10/", r: "youtube", s: 1, a: 40, av: { adfit: 2, coupang: 1, hack: 5, adsense: 999 } }, ip: "91.0.0.7" });
 an = await call("GET", "/v1/admin/analytics?days=7", { auth: "Bearer adm" });

@@ -102,6 +102,9 @@ def main() -> None:
             r = data.setdefault(d, {c: 0 for c in COLS if c not in ("day", "click_addtags")})
             w = where(x)
             _s = str(first(x, "subId", "subid", "sub_id", "subParam", default="")).lower() or "(없음)"
+            if kind == "orders":  # 하위 ID별 주문 줄 수(2026-11-24 건강몰 프로필별 구매 전환: hm<성분>p<프로필>)
+                bysub.setdefault(_s, {"clicks": 0, "commission": 0}).setdefault("orders", 0)
+                bysub[_s]["orders"] += 1
             if kind in ("clicks", "commission"):  # 하위 ID별 클릭·수수료(비공개 요약 by_sub, 2026-11-16: 텔레그램 tgcheer·블로거 비교 글 bg… 등 채널별 비교)
                 bs = bysub.setdefault(_s, {"clicks": 0, "commission": 0})
                 if kind == "clicks":

@@ -63,6 +63,13 @@ def lines(m: dict | None) -> list[str]:
         blocks = [x for x in m.get("clicks") or [] if x["site"] == site and x["kind"] == "coupang"][:4]
         if blocks:
             out.append("  - 클릭 많은 자리: " + " · ".join(f"{x['sub']} {x['n']}" for x in blocks))
+        # 시청자 프로필별(2026-11-24, hm_prof): 세션·참여·평균 체류·2페이지+·쿠팡 클릭률·자가 점검 완료
+        pfs = [x for x in m.get("profiles") or [] if x["site"] == site and x.get("sess")]
+        if pfs:
+            qd = {x["prof"]: x["n"] for x in m.get("profile_events") or [] if x["site"] == site and x["kind"] == "ui" and x["sub"] == "quiz-done"}
+            out.append("  - 프로필: " + " · ".join(
+                f"{x['prof']} {x['sess']}(참여 {_rate(x.get('engaged') or 0, x['sess'])}·{round((x.get('secs') or 0) / x['sess'])}초·2p+ {_rate(x.get('deep') or 0, x['sess'])}·쿠팡 {_rate(x.get('coupang') or 0, x['sess'])}·점검 {qd.get(x['prof'], 0)})"
+                for x in pfs[:8]))
         stuck = [x for x in m.get("pages") or [] if x["site"] == site and (x.get("pv") or 0) >= 20 and not x.get("coupang")][:3]
         if stuck:
             out.append("  - 클릭 없는 페이지(PV 20+): " + " · ".join(f"{x['path']} {x['pv']}" for x in stuck))

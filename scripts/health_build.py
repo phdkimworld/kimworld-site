@@ -77,6 +77,27 @@ def check(c: dict) -> list[str]:
         for src in g.get("sources") or []:
             if not str(src.get("url", "")).startswith("https://"):
                 errs.append(f"{s}: 출처 주소는 https:// 만")
+    # 시청자 프로필(2026-11-24): 코드 형식·가이드 존재·금지 낱말, profile_map 은 있는 코드만
+    codes = set()
+    gs = {g.get("slug") for g in c.get("guides") or []}
+    for pr in c.get("profiles") or []:
+        code = str(pr.get("code", ""))
+        if not re.fullmatch(r"[a-z]{2,8}", code) or code in codes:
+            errs.append(f"프로필 코드 '{code}': 영문 소문자 2~8자, 중복 금지")
+        codes.add(code)
+        for s in pr.get("guides") or []:
+            if s not in gs:
+                errs.append(f"프로필 {code}: 없는 가이드 {s}")
+        text = " ".join([str(pr.get("name", "")), str(pr.get("food", ""))] + [str(x) for x in pr.get("steps") or []])
+        for w in banned:
+            if w in text:
+                errs.append(f"프로필 {code}: 금지 낱말 '{w}'")
+    for k, v in (c.get("profile_map") or {}).items():
+        if v not in codes:
+            errs.append(f"profile_map {k}: 없는 프로필 {v}")
+    for k, v in (c.get("guide_profile") or {}).items():
+        if k not in gs or v not in codes:
+            errs.append(f"guide_profile {k}: 가이드·프로필 확인")
     return errs
 
 
@@ -260,6 +281,16 @@ h2{font-weight:900;letter-spacing:-.3px}
 .fnl:after{content:"";position:absolute;left:34px;top:27px;border-left:13px solid #fff;border-top:8px solid transparent;border-bottom:8px solid transparent}
 .fnl h3{color:#fff}.fnl p{color:#d7e7de}.fnl .btn{background:var(--hl);color:#111}
 table.fn th{background:var(--soft)}h1.t{font-weight:900;letter-spacing:-.5px}
+/* 시청자 프로필 상자·자가 점검·정렬(2026-11-24) */
+.pf{margin:18px 0;padding:16px 16px 14px;border-radius:18px;background:#FFF8D6;border:2px solid #111;box-shadow:4px 4px 0 #111}
+.pf .pk{margin:0;font-size:13px;font-weight:800;color:var(--brand)}.pf h2{margin:2px 0 8px;font-size:20px;border:0;padding:0}
+.pf ol{margin:0 0 10px;padding-left:22px}.pf ol li{margin:4px 0;line-height:1.5}
+.pq{background:#fff;border-radius:12px;padding:12px;margin:10px 0}.pq p{margin:8px 0 6px;font-weight:700;font-size:15px}
+.pq button,.sortbar button{font:inherit;font-size:14px;padding:7px 12px;margin:0 6px 6px 0;border-radius:999px;border:1.5px solid #111;background:#fff;cursor:pointer}
+.pq button.on,.sortbar button.on{background:var(--brand);color:var(--hl)}.pq .res{display:none;margin-top:8px;padding:10px;border-radius:10px;background:var(--soft);font-size:14px;line-height:1.55}
+.pq .res.on{display:block}.pn{margin:8px 0 0;font-size:14px}.pn a{display:inline-block;margin:4px 6px 0 0;padding:5px 12px;border-radius:999px;background:var(--brand);color:#fff;text-decoration:none}
+.pn a.cur{background:#fff;color:#111;border:1px solid #111}.pnext{margin:18px 0;padding:14px 16px;border-radius:14px;background:var(--soft);font-weight:700}
+.pnext a{color:var(--brand)}.sortbar{margin:4px 0 10px}.card.hide{display:none}
 """
 
 EMBLEM = '''<svg width="{px}" height="{px}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#0F3D2E"/><g transform="rotate(-35 86 88)"><rect x="52" y="70" width="68" height="36" rx="18" fill="#F6F1E4"/><rect x="86" y="70" width="34" height="36" rx="18" fill="#FFC845"/><rect x="86" y="70" width="14" height="36" fill="#FFC845"/></g><circle cx="86" cy="88" r="46" fill="none" stroke="#5EE0A0" stroke-width="12"/><line x1="120" y1="122" x2="152" y2="154" stroke="#5EE0A0" stroke-width="16" stroke-linecap="round"/></svg>'''
@@ -291,7 +322,7 @@ def card(p: dict, low: bool = False) -> str:
     per = f'<div class="per">1{"포" if "포" in p.get("name", "") or "스틱" in p.get("name", "") else "알"}당 약 {u:,}원</div>' if u else ""
     tags = ("".join([('<span class="tg">로켓배송</span>' if p.get("rocket") else ""), ('<span class="tg lo">1알당 가장 낮음</span>' if low else "")]))
     img = f'<img src="{esc(p["image"])}" alt="" loading="lazy" referrerpolicy="no-referrer">' if p.get("image") else ""
-    return (f'<a class="card" href="{esc(p["url"])}" rel="sponsored nofollow noopener" target="_blank">'
+    return (f'<a class="card" data-per="{u or 0}" data-rk="{1 if p.get("rocket") else 0}" href="{esc(p["url"])}" rel="sponsored nofollow noopener" target="_blank">'
             f'<div class="im">{img}</div><div class="b">{("<div class=tgs>" + tags + "</div>") if tags else ""}<div class="n">{esc(p["name"])}</div>{price}{per}<div class="go">쿠팡에서 보기 ›</div></div></a>')
 
 
@@ -341,7 +372,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 {body}</main>
 <footer><div class="wrap"><p>{esc(DISCLOSURE)} 성분 가이드는 식약처가 인정한 기능성 문구와 공개된 섭취 시 주의사항을 옮겨 정리한 일반 정보이며, 의학적 진단·상담을 대신하지 않습니다. 질환이 있거나 의약품을 복용 중이라면 의사·약사와 먼저 상담하세요.
 상품 목록은 쿠팡 검색·베스트 결과를 자동으로 가져온 것으로 추천·보증이 아니며, 건강기능식품 여부·함량·가격은 쿠팡 상품 페이지의 표시사항이 기준입니다{f" · 상품 갱신 {upd}(한국 시각)" if upd else ""}.</p>
-<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 건강월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer>{mall_track.snippet("health")}</body></html>"""
+<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 건강월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer>{mall_track.snippet("health", [x["code"] for x in c.get("profiles") or []], c.get("profile_map") or {})}{PF_JS}</body></html>"""
 
 
 def ad_slot(c: dict) -> str:
@@ -356,6 +387,70 @@ def ad_slot(c: dict) -> str:
     return ""
 
 
+def gname(c: dict, slug: str) -> str:
+    return next((g["name"] for g in c.get("guides") or [] if g["slug"] == slug), slug)
+
+
+def profile_box(c: dict, g: dict) -> str:
+    """시청자 프로필 상자(운영자 2026-11-24). 이 가이드를 쓰는 프로필마다 하나씩 만들고, 화면이 <html data-pf> 에 맞는 것만 보인다
+    (영상 프로필이 없으면 성분 기본 프로필). 확인 순서 3단계 → 1분 자가 점검(약·음식·고르는 기준 → 정렬·거르기) → 같은 관심의 다음 가이드.
+    상품 링크와 떨어진 위쪽 자리, 질병 효능 문장 없음(banned 검사)."""
+    dflt = (c.get("guide_profile") or {}).get(g["slug"])
+    out = []
+    for pr in c.get("profiles") or []:
+        if g["slug"] not in pr.get("guides", []) and pr["code"] != dflt:
+            continue
+        code = pr["code"]
+        steps = "".join(f"<li>{esc(x)}</li>" for x in pr.get("steps") or [])
+        nxt = "".join(f'<a class="{"cur" if s == g["slug"] else ""}" href="../{s}/" onclick="hmEv&&hmEv(\'pf-next\')">{esc(gname(c, s))}</a>' for s in pr.get("guides") or [])
+        q = (f'<div class="pq" data-food="{esc(pr.get("food", "음식"))}"><p>1분 자가 점검 ① 지금 드시는 약이 있나요?</p><button data-q="1" data-a="y">예</button><button data-q="1" data-a="n">아니요</button>'
+             f'<p>② {esc(pr.get("food", "음식"))}을(를) 자주 드시나요?</p><button data-q="2" data-a="y">예</button><button data-q="2" data-a="n">아니요</button>'
+             '<p>③ 고를 때 가장 중요한 것은?</p><button data-q="3" data-a="dose">기준에 맞는 함량</button><button data-q="3" data-a="unit">1알당 값</button><button data-q="3" data-a="fast">빠른 배송</button>'
+             '<div class="res"></div></div>')
+        attr = ' data-def="1"' if code == dflt else " hidden"
+        out.append(f'<section class="pf" data-pf="{code}"{attr}><p class="pk" data-n="{esc(pr["name"])}">{esc(pr["name"])}에 관심 있다면</p>'
+                   f'<h2>이 순서로 확인하세요</h2><ol>{steps}</ol>{q}<nav class="pn">같은 관심의 가이드 {nxt}</nav></section>')
+    return "".join(out)
+
+
+def profile_next(c: dict, g: dict) -> str:
+    """진열 아래 '같은 관심의 다음 가이드' 한 줄(체류 늘리기). 프로필마다 하나, 화면이 맞는 것만 보인다."""
+    dflt = (c.get("guide_profile") or {}).get(g["slug"])
+    out = []
+    for pr in c.get("profiles") or []:
+        gs = pr.get("guides") or []
+        if g["slug"] not in gs and pr["code"] != dflt:
+            continue
+        rest = [s for s in gs if s != g["slug"]]
+        if not rest:
+            continue
+        i = (gs.index(g["slug"]) + 1) % len(gs) if g["slug"] in gs else 0
+        nx = gs[i] if gs[i] != g["slug"] else rest[0]
+        attr = ' data-def="1"' if pr["code"] == dflt else " hidden"
+        out.append(f'<p class="pnext" data-pf="{pr["code"]}"{attr}>{esc(pr["name"])}, 다음으로 볼 것: '
+                   f'<a href="../{nx}/" onclick="hmEv&&hmEv(\'pf-next2\')">{esc(gname(c, nx))} 고르는 법 ›</a></p>')
+    return "".join(out)
+
+
+PF_JS = r"""<script>(function(){try{var pf=document.documentElement.getAttribute('data-pf')||'-',E=window.hmEv||function(){};
+var bx=document.querySelectorAll('[data-pf]:not(html)'),has=0;bx.forEach(function(b){if(b.getAttribute('data-pf')===pf)has=1});
+if(has)bx.forEach(function(b){b.hidden=b.getAttribute('data-pf')!==pf;if(!b.hidden&&b.classList.contains('pf')){var k=b.querySelector('.pk');if(k)k.textContent='영상에서 오셨네요 · '+k.getAttribute('data-n')}});
+var grid=document.querySelector('#items ~ .grid'),cards=grid?[].slice.call(grid.children):[];
+function sortBy(m){if(!grid)return;cards.forEach(function(c){c.classList.toggle('hide',m==='fast'&&c.getAttribute('data-rk')!=='1')});
+var l=cards.slice();if(m==='unit')l.sort(function(a,b){var x=+a.getAttribute('data-per')||1e9,y=+b.getAttribute('data-per')||1e9;return x-y});
+l.forEach(function(c){grid.appendChild(c)});document.querySelectorAll('.sortbar button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m)})}
+document.querySelectorAll('.sortbar button').forEach(function(b){b.addEventListener('click',function(){var m=b.getAttribute('data-m');sortBy(m);E('sort-'+m)})});
+document.querySelectorAll('.pq').forEach(function(q){var A={},r=q.querySelector('.res'),food=q.getAttribute('data-food');
+q.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){var n=b.getAttribute('data-q'),a=b.getAttribute('data-a');A[n]=a;
+q.querySelectorAll('button[data-q="'+n+'"]').forEach(function(x){x.classList.toggle('on',x===b)});E('q'+n+'-'+a);
+var t=[];if(A[1]==='y')t.push('드시는 약이 있다면 <a href="#cautions">섭취 시 주의사항</a>을 먼저 보고 의사·약사와 상담하세요.');
+if(A[2]==='y')t.push(food+'(으)로 들어오는 양이 있으니, 함께 생각해 1일 섭취량 기준 범위 안에서 고르세요.');if(A[2]==='n')t.push('음식으로 들어오는 양이 적다면, 먼저 식단을 늘려 보고 보충은 1일 섭취량 기준 범위 안인지 확인하세요.');
+if(A[3]){sortBy(A[3]==='dose'?'base':A[3]);t.push(A[3]==='dose'?'<a href="#fn">식약처 기준 표</a>의 1일 섭취량과 상품 표시사항의 함량을 비교하세요.':A[3]==='unit'?'아래 제품을 1알당 값이 낮은 순으로 바꿔 두었습니다.':'아래 제품을 로켓배송만 남겨 두었습니다.');
+t.push('<a class="btn" href="#items">제품 비교 보기 ↓</a>')}
+if(A[1]&&A[2]&&A[3]&&!q.dataset.done){q.dataset.done=1;E('quiz-done')}r.innerHTML=t.join('<br>');r.classList.toggle('on',t.length>0)})})});
+}catch(e){}})();</script>"""
+
+
 def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     others = '<h2>다른 성분 가이드</h2><nav class="chips">' + "".join(
         f'<a href="../{o["slug"]}/">{esc(o["name"])}</a>' for o in c.get("guides") or [] if o["slug"] != g["slug"]) + "</nav>"
@@ -364,19 +459,22 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     prods = (f'<h2 id="items">쿠팡 검색 결과: {esc(g["keyword"])}<span class="ad">광고</span></h2>'
              f'<p class="note">쿠팡 검색 결과를 자동으로 보여 줍니다. 추천·보증이 아니며, 건강기능식품 여부·기능성·함량은 상품 페이지의 표시사항에서 위 기준과 비교해 확인하세요.</p>'
              f'<p class="note">1알(1포)당 값은 상품명에 적힌 개수로 나눈 참고값입니다. 하루 몇 알인지는 제품마다 다르니 표시사항을 확인하세요.</p>'
+             '<div class="sortbar"><button data-m="base" class="on">기본 순</button><button data-m="unit">1알당 값 낮은 순</button><button data-m="fast">로켓배송만</button></div>'
              f'<div class="grid" data-sub="g-{g["slug"]}">{cards(items[:20])}</div>') if items else '<p class="empty">상품 목록을 준비하고 있습니다.</p>'
     body = f"""<p class="crumb"><a href="../../">홈</a> › <a href="../">성분 가이드</a> › {esc(g['name'])}</p>
 <h1 class="t">{esc(g['name'])} 고르는 법: 식약처 기능성·하루 섭취량·주의사항</h1>
 <p><a class="btn jump" href="#items">기준과 제품 비교 바로 보기 ↓</a></p>
 <p class="lead">{esc(g['intro'])}</p>
-<h2>식약처가 인정한 기능성 <small>{esc(g['aka'])}</small></h2>
+{profile_box(c, g)}
+<h2 id="fn">식약처가 인정한 기능성 <small>{esc(g['aka'])}</small></h2>
 <table class="fn"><thead><tr><th>기능성 내용(인정 문구)</th><th>1일 섭취량 기준</th></tr></thead><tbody>{rows}</tbody></table>
 <p class="note">기능성 문구는 그 기능성 원료를 기준 섭취량만큼 넣어 인정받은 '건강기능식품'에만 표시할 수 있습니다. 같은 성분 이름이어도 일반식품에는 이 기능성이 없습니다.</p>
-<h2>섭취 시 주의사항</h2><div class="box"><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['cautions'])}</ul></div>
+<h2 id="cautions">섭취 시 주의사항</h2><div class="box"><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['cautions'])}</ul></div>
 {ad_slot(c)}
 <h2>고를 때 확인할 것</h2><ul class="ck">{"".join(f"<li>{esc(x)}</li>" for x in g['choose'])}</ul>
 {funnel(c, "guide-" + g["slug"], "guide")}
 {prods}
+{profile_next(c, g)}
 {others}
 <a class="stick" href="#items">제품 비교 보기</a>
 <h2>출처</h2><ul class="src">{"".join(f'<li><a href="{esc(s["url"])}" rel="nofollow noopener" target="_blank">{esc(s["title"])}</a></li>' for s in g['sources'])}</ul>
