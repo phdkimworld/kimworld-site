@@ -1,0 +1,55 @@
+# drkimworld.com 영역 설정 점검·고치기(2026-11-24 운영자 "해결" — SEO 점검: www 522, http→https 안 넘어감).
+# mode=check: www DNS 기록·Always Use HTTPS 값만 주석으로. mode=fix: www를 apex로 301(www CNAME → drkimworld.com 프록시 + 리디렉트 규칙), Always Use HTTPS 켬.
+# 토큰 권한이 없으면 HTTP 코드만 남기고 끝난다(운영자가 대시보드에서). 토큰 값은 출력하지 않는다.
+name: Cloudflare zone (www·https)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check · fix"
+        required: true
+        default: "check"
+
+permissions:
+  contents: read
+
+jobs:
+  zone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      MODE: ${{ inputs.mode }}
+    steps:
+      - name: Zone
+        run: |
+          set -u
+          echo "::add-mask::$CF"
+          api() { curl -sS --max-time 30 -H "Authorization: Bearer $CF" -H "Content-Type: application/json" "$@"; }
+          Z=$(api "https://api.cloudflare.com/client/v4/zones?name=drkimworld.com" | jq -r '.result[0].id // empty')
+          [ -n "$Z" ] || { echo "::warning title=CF::영역 id를 못 읽음(토큰에 Zone Read 없음?)"; exit 0; }
+          B=https://api.cloudflare.com/client/v4/zones/$Z
+          echo "::notice title=CF www DNS::$(api "$B/dns_records?name=www.drkimworld.com" | jq -c '[.success, (.result // [] | map({type,content,proxied}))]')"
+          echo "::notice title=CF apex DNS::$(api "$B/dns_records?name=drkimworld.com" | jq -c '[.success, (.result // [] | map({type,content,proxied}))]')"
+          echo "::notice title=CF Always HTTPS::$(api "$B/settings/always_use_https" | jq -c '[.success, .result.value, (.errors // [] | map(.code))]')"
+          echo "::notice title=CF SSL mode::$(api "$B/settings/ssl" | jq -c '[.success, .result.value]')"
+          [ "$MODE" = "fix" ] || exit 0
+          # 1) www CNAME → drkimworld.com (프록시)
+          ID=$(api "$B/dns_records?name=www.drkimworld.com" | jq -r '.result[0].id // empty')
+          BODY='{"type":"CNAME","name":"www","content":"drkimworld.com","proxied":true,"ttl":1,"comment":"www → apex 301 (2026-11-24)"}'
+          if [ -n "$ID" ]; then R=$(api -X PUT "$B/dns_records/$ID" --data "$BODY"); else R=$(api -X POST "$B/dns_records" --data "$BODY"); fi
+          echo "::notice title=CF www CNAME::$(echo "$R" | jq -c '[.success, (.errors // [] | map(.code))]')"
+          # 2) 리디렉트 규칙: www → https://drkimworld.com 경로·쿼리 유지 301
+          RS=$(api "$B/rulesets/phases/http_request_dynamic_redirect/entrypoint")
+          RULE='{"description":"www to root (2026-11-24)","expression":"(http.host eq \"www.drkimworld.com\")","action":"redirect","action_parameters":{"from_value":{"status_code":301,"preserve_query_string":true,"target_url":{"expression":"concat(\"https://drkimworld.com\", http.request.uri.path)"}}}}'
+          if echo "$RS" | jq -e '.success' >/dev/null; then
+            RULES=$(echo "$RS" | jq --argjson r "$RULE" '[.result.rules // [] | .[] | select(.description != "www to root (2026-11-24)") | {description,expression,action,action_parameters,enabled}] + [$r]')
+          else
+            RULES=$(jq -n --argjson r "$RULE" '[$r]')
+          fi
+          R=$(api -X PUT "$B/rulesets/phases/http_request_dynamic_redirect/entrypoint" --data "$(jq -n --argjson rules "$RULES" '{rules:$rules}')")
+          echo "::notice title=CF 리디렉트 규칙::$(echo "$R" | jq -c '[.success, (.errors // [] | map(.code))]')"
+          # 3) Always Use HTTPS
+          R=$(api -X PATCH "$B/settings/always_use_https" --data '{"value":"on"}')
+          echo "::notice title=CF Always HTTPS 켬::$(echo "$R" | jq -c '[.success, .result.value, (.errors // [] | map(.code))]')"
