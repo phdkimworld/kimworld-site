@@ -42,16 +42,28 @@ def front(p: Path) -> dict:
 
 def short_title(fm: dict) -> str:
     """검색형 제목: '<이름>(<티커>) 주가 분석 — <훅>'. 블로거 글 33건이 7일 동안 사이트 세션 0(2026-10-26 통합 인사이트)이라
-    블로그 검색에서 사람들이 치는 말(이름·티커·주가)을 맨 앞에 둔다(사이트 검색 제목 seo_fields와 같은 꼴)."""
+    블로그 검색에서 사람들이 치는 말(이름·티커·주가)을 맨 앞에 둔다(사이트 검색 제목 seo_fields와 같은 꼴).
+    2026-11-24: 리포트 제목이 '<이름> <매매 질문>? — <모순>' 꼴로 바뀐 뒤 '아이렌 급등 다음 날(IREN) … — … — …'처럼 이름 자리가 틀리고
+    줄표가 두 번 들어갔다 → 이름은 tickers.yaml에서, 훅은 첫 ' — ' 앞(질문)만."""
     t = str(fm.get("title") or "").split(" | ")[0].strip()
     tk = str(fm.get("ticker") or "").strip()
-    m = re.match(r"^([^,，]{1,20})[,，]\s*(.+)$", t)
-    if not (m and tk):
+    if not tk:
         return t[:140]
-    name, hook = m.group(1).strip(), m.group(2).strip()
+    name = str((tickers_yaml().get(tk) or {}).get("name") or "").strip()
+    hook = t.split(" — ")[0].strip()
+    if name and hook.startswith(name):
+        hook = hook[len(name):].lstrip(" ,，·")
+    else:
+        m = re.match(r"^([^,，]{1,20})[,，]\s*(.+)$", hook)
+        if m and not name:
+            name, hook = m.group(1).strip(), m.group(2).strip()
+    rest = t.split(" — ", 1)[1].strip() if " — " in t else ""
+    if rest and len(hook) < 16:  # '지금 사도 될까?'만으로는 검색어가 모자라 뒤 모순 한 줄을 잇는다
+        hook = f"{hook} {rest}"
+    name = name or tk
     kind = "코인 시세" if "가격" in str(fm.get("title") or "") else "주가"
     head = name if name.upper() == tk.upper() else f"{name}({tk})"
-    return f"{head} {kind} 분석 — {hook}"[:140]
+    return f"{head} {kind} 분석 — {hook}"[:140] if hook else f"{head} {kind} 분석"
 
 
 def tickers_yaml() -> dict:
@@ -201,31 +213,47 @@ def body(slug: str, fm: dict) -> str:
     # 대표 그림 alt: 종목명·티커·핵심 사건(지침 7.2③)
     alt = f"{name}({tk}) 주가 분석 - {hook}{rel_txt}"
     # v2.9 2.5②(운영자 11-02 LAES 블로그 검수): 블로거 기본 테마에서도 본문과 구분되게 인라인 스타일 고정
-    box = lambda label: (f'<div style="margin:22px 0;padding:16px;background-color:#f8f9fa;border-left:4px solid #ff6b00;border-radius:6px">'
-                         f'<p style="margin:0 0 8px 0;font-weight:bold">{label}</p>'
-                         f'<a href="{u}" style="display:inline-block;padding:9px 16px;background-color:#ff6b00;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:4px">전체 분석 리포트 무료로 보기 →</a></div>')
+    # 2026-11-24 SNS 디자인 학습(운영자 "조악… 대형채널 배워" → "다른 SNS도"): 테마와 상관없이 브랜드(남색 #0B1524·금색 #F5B83D)가 보이는
+    # 대표 그림(이미 워드마크·질문·대비 숫자가 있는 공유 카드) → '한눈에' 상자(이름표 붙은 핵심 3줄, 답 먼저) → 도입 → 본문 17px·줄간격 1.8
+    # → 폭 꽉 찬 48px 버튼(휴대폰 엄지 자리) 꼴. 같은 질문을 머리 카드로 한 번 더 쓰면 그림과 겹쳐서 넣지 않는다.
+    # 버튼 문구·위치(상·하단 두 번)는 K10 그대로. 면책 <p style="color:#888;font-size:13px"> 표시는 backfill_ads가 찾으므로 바꾸지 않는다.
+    BTN = ('display:block;box-sizing:border-box;width:100%;min-height:48px;padding:13px 16px;background-color:#0B1524;color:#F5B83D;'
+           'text-align:center;text-decoration:none;font-weight:bold;font-size:17px;border-radius:10px')
+    box = lambda label: (f'<div style="margin:26px 0;padding:16px;background-color:#f6f7f9;border:1px solid #e3e7ee;border-radius:12px">'
+                         f'<p style="margin:0 0 10px 0;font-weight:bold;color:#1b2533">{label}</p>'
+                         f'<a href="{u}" style="{BTN}">전체 분석 리포트 무료로 보기 →</a></div>')
+    H2 = 'margin:34px 0 12px;padding-left:12px;border-left:5px solid #F5B83D;font-size:21px;line-height:1.4;color:#111'
     intro = str(fm.get("blog_intro") or fm.get("summary") or "")
     parts = [
-        f'<p><a href="{u}"><img src="{BASE}/og/{slug}.png" alt="{e(alt)}" style="max-width:100%;height:auto;border-radius:8px"></a></p>',
-        f"<p>{e(intro)}</p>",
+        '<div style="font-size:17px;line-height:1.8;color:#222;word-break:keep-all">',
+        f'<p><a href="{u}"><img src="{BASE}/og/{slug}.png" alt="{e(alt)}" style="max-width:100%;height:auto;border-radius:12px"></a></p>',
     ]
     kp = [str(x) for x in (fm.get("key_points") or [])][:3]
     if kp:
-        parts.append(f"<h3>📊 {name}({tk}) 핵심 3줄 요약</h3><ul>" + "".join(f"<li>{e(x)}</li>" for x in kp) + "</ul>")
+        def kp_li(x):
+            head, sep, rest = x.partition(": ")
+            if sep and len(head) <= 8:
+                return f'<li style="margin:0 0 10px"><strong style="color:#0B1524">{e(head)}</strong> {e(rest)}</li>'
+            return f'<li style="margin:0 0 10px">{e(x)}</li>'
+        parts.append(f'<div style="margin:0 0 22px;padding:16px 18px 6px;background-color:#fbf7ec;border-left:5px solid #F5B83D;border-radius:10px">'
+                     f'<p style="margin:0 0 8px;font-weight:bold;color:#111">📊 {name}({tk}) 핵심 3줄 요약</p>'
+                     f'<ul style="margin:0;padding-left:20px">' + "".join(kp_li(x) for x in kp) + "</ul></div>")
+    parts.append(f"<p>{e(intro)}</p>")
     parts.append(box(f"📈 날짜별 기록표와 시나리오별 가능성은 리포트에서"))
     qs = faq(fm, slug)
     if qs:
-        parts.append("<h3>🔍 이 리포트가 답하는 3가지 질문</h3><ol>" + "".join(f"<li><strong>{e(q)}</strong> {e(a)}</li>" for q, a in qs) + "</ol>")
+        parts.append(f'<h2 style="{H2}">🔍 이 리포트가 답하는 3가지 질문</h2><ol style="padding-left:22px">' + "".join(
+            f'<li style="margin:0 0 12px"><strong>{e(q_)}</strong><br>{e(a_)}</li>' for q_, a_ in qs) + "</ol>")
     yid = str(fm.get("youtube_id") or "").strip()
     if len(yid) == 11:
         parts.append(
-            f"<h3>🎥 영상으로 보는 {name}({tk}) 주가 미스터리</h3>"
+            f'<h2 style="{H2}">🎥 영상으로 보는 {name}({tk}) 주가 미스터리</h2>'
             f'<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin-bottom:20px">'
             f'<iframe src="https://www.youtube.com/embed/{yid}" title="{name}({tk}) 주가 분석 영상" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen></iframe></div>'
         )
     more = more_reports(slug, fm)
     if more:
-        parts.append(f"<h3>📚 함께 보면 좋은 {name}·{e(str(fm.get('theme') or '같은 테마'))} 리포트</h3><ul>" + "".join(
+        parts.append(f'<h2 style="{H2}">📚 함께 보면 좋은 {name}·{e(str(fm.get("theme") or "같은 테마"))} 리포트</h2><ul style="padding-left:20px">' + "".join(
             f'<li><a href="{BASE}/r/{s}/?utm_source=blogger&amp;utm_medium=post&amp;utm_campaign={slug}&amp;utm_content=related">{e(t)}</a></li>'
             for s, t in more) + "</ul>")
     parts.append(box("🧾 매매 전 체크리스트와 지난 예측 성적표까지 무료"))
@@ -238,6 +266,7 @@ def body(slug: str, fm: dict) -> str:
         "공개 공시와 시세를 정리한 교육용 글이며 특정 종목의 매수·매도를 권하지 않습니다. "
         f'다른 미국주식 분석: <a href="{BASE}/?utm_source=blogger&utm_medium=post">김박사 월드 홈페이지</a></p>'
     )
+    parts.append("</div>")
     out = "\n".join(parts)
     n = len(re.sub(r"<[^>]+>", "", html.unescape(out)))
     if n < 700:

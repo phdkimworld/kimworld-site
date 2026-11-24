@@ -48,30 +48,58 @@ def health_guide(slug: str):
     return str(g["name"]), f'{str(hh["base"]).rstrip("/")}/guide/{g["slug"]}/?utm_source=telegram&utm_medium=channel&utm_campaign={slug}#items'
 
 
+def _short(kp: str, n: int = 110) -> str:
+    """핵심 줄 하나를 휴대폰 두세 줄로: 첫 문장만, ' · ' 나열은 앞 세 개만(숫자는 원문 그대로 — 새 숫자를 만들지 않는다)."""
+    x = re.split(r"(?<=[.다])\s", kp.strip(), maxsplit=1)[0]
+    head, sep, rest = x.partition(": ")
+    body = rest if sep else x
+    items = body.split(" · ")
+    if len(items) > 3:
+        body = " · ".join(items[:3]) + " 등"
+    out = (head + sep + body) if sep else body
+    if len(out) <= n:
+        return out
+    cut = out[:n]  # 쉼표 경계에서 자르고 '등'(날짜·값 범위를 반쪽만 남기지 않게)
+    i = max(cut.rfind(", "), cut.rfind(" · "))
+    return cut[:i] + " 등" if i > n // 2 else cut.rsplit(" ", 1)[0] + "…"
+
+
 def caption(slug: str, fm: dict) -> str:
+    """2026-11-24 SNS 디자인 학습: 굵은 첫 줄(종목·질문) → 모순 한 줄 → 이름표 붙은 핵심 세 줄(각 두세 줄 이내) → 해시태그·고지.
+    리포트 주소는 글 속 링크 대신 아래 버튼(reply_markup, button())으로 — 큰 채널들이 쓰는 '글은 짧게, 행동은 버튼 하나' 꼴."""
     e = lambda x: html.escape(x, quote=False)
     tk = str(fm.get("ticker") or "")
     name = str((TICK.get(tk) or {}).get("name") or fm.get("company") or tk)
     title = str(fm.get("title") or "").split(" | ")[0].strip()
-    u = f"{BASE}/r/{slug}/?utm_source=telegram&utm_medium=channel&utm_campaign={slug}"
+    q, _, why = title.partition(" — ")
     kp = [str(x) for x in (fm.get("key_points") or [])][:3]
-    lines = [f"<b>{e(title)}</b>", ""]
-    lines += [f"• {e(x)}" for x in kp]
-    # 2026-11-19 운영자 "김박사 몰부터": 응원 링크 대신 김박사 몰 입구(사이트 /mall/ → 김박사 몰 쇼핑몰, 유입은 사이트 통계 utm_source=telegram)
-    cheer = []  # 김박사 몰 줄 뺌(2026-11-23 운영자 "랜딩페이지를 하나만 쓰자" — 몰은 사이트 안에서만)
+    lines = [f"<b>{e(q)}</b>"] + ([e(why)] if why else []) + [""]
+    for x in kp:
+        head, sep, rest = _short(x).partition(": ")
+        lines.append(f"▪️ <b>{e(head)}</b> {e(rest)}" if sep and len(head) <= 8 else f"▪️ {e(_short(x))}")
+    # 2026-11-19 운영자 "김박사 몰부터" → 2026-11-23 "랜딩페이지를 하나만 쓰자": 몰 줄 뺌(몰은 사이트 안에서만)
+    cheer = []
     hg = health_guide(slug)  # 2026-11-22 "광고 꽉꽉": 김박사 건강몰 가이드 한 줄(영상 중간광고와 같은 세 성분, 질병명·효능 단정 없음)
     if hg:
         cheer.append(f'💊 <a href="{html.escape(hg[1])}">{e(hg[0])} 고르는 법</a> — 식약처 인정 문구와 연구 숫자로 정리한 건강몰 가이드')
     tail = [f"#{e(tk)} #{e(name.replace(' ', ''))} #미국주식", "<i>투자 권유가 아닌 공개 자료 정리입니다." + (" 쿠팡 파트너스 활동으로 일정액의 수수료를 받습니다." if cheer else "") + "</i>"]
-    lines += ["", f'👉 <a href="{html.escape(u)}">전체 리포트 무료로 보기</a>'] + cheer + [""] + tail
-    c = "\n".join(lines)
-    while len(c) > 1000 and kp:  # 사진 설명 한도 1024자
-        kp.pop(); lines = [f"<b>{e(title)}</b>", ""] + [f"• {e(x)}" for x in kp] + lines[-(5 + len(cheer)):]; c = "\n".join(lines)
+    c = "\n".join(lines + [""] + cheer + ([""] if cheer else []) + tail)
+    while len(c) > 1000 and len(lines) > 2:  # 사진 설명 한도 1024자
+        lines.pop(); c = "\n".join(lines + [""] + cheer + [""] + tail)
     return c
 
 
+def report_url(slug: str) -> str:
+    return f"{BASE}/r/{slug}/?utm_source=telegram&utm_medium=channel&utm_campaign={slug}"
+
+
+def button(slug: str) -> str:
+    """글 아래 버튼 하나(전체 리포트). 텔레그램 Bot API inline_keyboard url 버튼."""
+    return json.dumps({"inline_keyboard": [[{"text": "📊 전체 리포트 무료로 보기", "url": report_url(slug)}]]}, ensure_ascii=False)
+
+
 def send(token: str, chat: str, slug: str, fm: dict) -> int:
-    data = urllib.parse.urlencode({"chat_id": chat, "photo": f"{BASE}/og/{slug}.png", "caption": caption(slug, fm), "parse_mode": "HTML"}).encode()
+    data = urllib.parse.urlencode({"chat_id": chat, "photo": f"{BASE}/og/{slug}.png", "caption": caption(slug, fm), "parse_mode": "HTML", "reply_markup": button(slug)}).encode()
     try:
         with urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{token}/sendPhoto", data=data), timeout=60) as r:
             return int(json.load(r)["result"]["message_id"])
@@ -80,7 +108,7 @@ def send(token: str, chat: str, slug: str, fm: dict) -> int:
         if ex.code == 400 and ("HTTP URL content" in body or "wrong type of the web page content" in body or "IMAGE_PROCESS_FAILED" in body):
             # 텔레그램이 대표 그림(/og/<slug>.png)을 못 받아 오면 같은 글을 그림 없이(링크 미리보기로) 보낸다(2026-11-17: btq-2026-11-3에서 5회 연속 실패)
             print(f"::warning title=텔레그램 그림 실패::{slug} 그림 없이 글로 보냄")
-            msg = urllib.parse.urlencode({"chat_id": chat, "text": caption(slug, fm), "parse_mode": "HTML"}).encode()
+            msg = urllib.parse.urlencode({"chat_id": chat, "text": caption(slug, fm), "parse_mode": "HTML", "reply_markup": button(slug)}).encode()
             try:
                 with urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=msg), timeout=60) as r:
                     return int(json.load(r)["result"]["message_id"])

@@ -374,7 +374,9 @@ def do_instagram(post, res, save, now):
             if m.get("cover"):
                 prm["cover_url"] = public_url(m["cover"])
             # 체험 릴스(운영자 지시 2026-10-20): 팔로워 3명 계정이라 팔로워 아닌 사람에게 먼저 보이고, 반응이 좋으면 자동으로 일반 릴스가 된다
-            if m.get("trial", True):
+            # 2026-11-24 기본 끔(SNS 디자인 학습): 팔로워 688명이 된 뒤에도 모든 릴스가 체험으로 올라가 팔로워 피드·프로필 격자에 안 보였다
+            # (10-25~ 체험 수락, 21일 릴스 32편 조회 중앙 0·최고 2 vs 일반 캐러셀 18편 중앙 7.5). 시험할 때만 media.trial=true
+            if m.get("trial", False):
                 prm["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE"})
             try:
                 cid = call(IG_API, "POST", f"{uid}/media", prm, token)["id"]
