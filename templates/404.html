@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}페이지를 찾을 수 없습니다 | {{ site.site_name }}{% endblock %}
 {% block robots %}<meta name="robots" content="noindex">{% endblock %}
+{# 404 화면은 어느 주소에서나 보이므로 canonical을 달지 않는다(/404.html을 가리키면 엉뚱한 주소를 대표로 알림) #}
+{% block canonical %}{% endblock %}
 {% block main %}
 <div class="wrap narrow empty-404">
   <h1>페이지를 찾을 수 없습니다</h1>

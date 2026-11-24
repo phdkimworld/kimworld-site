@@ -4,7 +4,8 @@
 {% set nm = rs[0].seo_name %}{% set kd = rs[0].seo_kind %}
 {% set tname = nm if nm|upper == code else nm ~ '(' ~ code ~ ')' %}
 {% block title %}{{ tname }} {{ kd }} 분석·전망 리포트 | {{ site.site_name }}{% endblock %}
-{% block description %}{{ tname }} {{ kd }} 분석 리포트 {{ rs|length }}개({{ rs[0].date|kdate }} 최신). {{ rs[0].summary }}{% endblock %}
+{#- 검색 설명은 160자 안(SEO 점검 2026-11-24: 요약 전체를 붙이면 최대 312자로 잘렸다) → 최신 리포트의 검색 설명(120자 안)을 쓴다 #}
+{% block description %}{{ (tname ~ " " ~ kd ~ " 분석 리포트 " ~ rs|length ~ "개. " ~ (rs[0].seo_desc or rs[0].summary))|truncate(158, True, "…", 0) }}{% endblock %}
 {#- 리포트가 하나뿐인 종목 화면은 그 리포트와 내용이 거의 같아 검색에서는 리포트 쪽만 남긴다(2026-10-21 애드센스 '가치가 낮은 콘텐츠' 대응) #}
 {% block robots %}{% if rs|length < 2 %}<meta name="robots" content="noindex,follow">{% endif %}{% endblock %}
 {% block og_image %}{{ rs[0].og_image }}{% endblock %}

@@ -653,6 +653,32 @@ check(sf({"title": "스택스, 왜 3배? | 가격 내러티브와 패턴 투자�
 check(sf({"title": "AMC 주가 내러티브와 패턴 투자전략: 이유", "company": "AMC", "ticker": "AMC", "theme": "x"})["seo_title"] == "AMC 주가 분석 — 이유", "검색 제목: 이름이 티커와 같으면 한 번만")
 _s2 = sf({"title": "BTQ 테크놀로지스, 바닥이 깨졌다 — 20거래일은? | 주가 내러티브와 패턴 투자전략", "company": "BTQ 테크놀로지스", "ticker": "BTQ", "theme": "x"})
 check(_s2["seo_title"] == "BTQ 테크놀로지스(BTQ) 주가 분석 — 바닥이 깨졌다" and "20거래일은?" in _s2["share_title"], "검색 제목: 훅의 첫 마디만(덧붙인 질문은 공유 제목에)")
+# 검색 기본기 검사(build.seo_audit, SEO 점검 2026-11-24): 고의로 망가뜨린 작은 사이트에서 각 문제를 잡는지
+import datetime as _dt0
+_sd = Path(tempfile.mkdtemp(prefix="kws-seo-")); atexit.register(shutil.rmtree, _sd, True)
+def _pg(rel, title, desc="설명", canon=None, extra_head="", body="<h1>x</h1>"):
+    f = _sd / rel.lstrip("/") / "index.html"; f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(f'<html><head><title>{title}</title><meta name="description" content="{desc}">'
+                 f'<link rel="canonical" href="{canon or "https://x.com" + rel}">{extra_head}</head><body>{body}</body></html>', encoding="utf-8")
+_ld = lambda typ: f'<script type="application/ld+json">{{"@type": "{typ}"}}</script>'
+_pg("/", "홈")
+_pg("/a/", "같은 제목", desc="가" * 161)
+_pg("/b/", "같은 제목", canon="https://x.com/")
+_pg("/r/ok/", "리포트", extra_head=_ld("Article") + _ld("BreadcrumbList") + _ld("FAQPage"), body='<h1>x</h1><section class="faq"></section><img src="/a.png" width="1" height="1">')
+_pg("/r/bad/", "리포트2", extra_head=_ld("Article") + '<script type="application/ld+json">{bad</script>', body='<h1>x</h1><h1>y</h1><section class="faq"></section><img src="/a.png">')
+_pg("/n/", "숨김", extra_head='<meta name="robots" content="noindex">')
+_td = _dt0.date(2026, 11, 24)
+(_sd / "sitemap.xml").write_text("".join(f"<url><loc>https://x.com{u}</loc><lastmod>{lm}</lastmod></url>" for u, lm in
+                                         [("/", "2026-11-24"), ("/n/", "2026-11-20"), ("/zz/", "2026-11-20"), ("/a/", "2026-12-01")]), encoding="utf-8")
+_sa = " | ".join(B.seo_audit(_sd, "https://x.com", _td))
+for _k in ["제목 중복", "160자 넘음", "canonical이 자기 주소 아님", "h1이 하나가 아님", "리포트 BreadcrumbList 없음", "FAQPage 없음",
+           "JSON-LD 읽기 실패", "width·height 없음", "사이트맵 주소에 파일 없음", "사이트맵에 noindex", "lastmod가 미래"]:
+    check(_k in _sa, f"검색 기본기 검사가 잡음: {_k}")
+check("/r/ok/" not in _sa and "/n/(" not in _sa, "검색 기본기 검사: 멀쩡한 리포트·noindex 화면은 문제로 안 잡음")
+check(B.seo_audit.__module__ == "build" and "seo_audit(out, su, today)" in (SRC / "build.py").read_text(encoding="utf-8"), "빌드가 검색 기본기 검사를 돌림(--strict면 막힘)")
+_rt = (SRC / "templates/report.html").read_text(encoding="utf-8")
+check("{% if r.short_answer or r.faq %}" in _rt and _rt.count("article:modified_time") == 1, "리포트: '짧은 답' 없어도 보이는 FAQ로 FAQPage, 수정 시각 메타 하나")
+check("{% block canonical %}{% endblock %}" in (SRC / "templates/404.html").read_text(encoding="utf-8"), "404 화면: canonical 없음")
 D = SRC / "dist"
 if (D / "sitemap.xml").exists():
     smx = (D / "sitemap.xml").read_text(encoding="utf-8"); rb = (D / "robots.txt").read_text(encoding="utf-8")

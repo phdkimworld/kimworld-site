@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>{% block title %}{{ site.site_name }} — {{ site.tagline }}{% endblock %}</title>
 <meta name="description" content="{% block description %}{{ site.description }}{% endblock %}">
-<link rel="canonical" href="{{ page_url }}">
+{% block canonical %}<link rel="canonical" href="{{ page_url }}">{% endblock %}
 {% block robots %}{% endblock %}{% if not self.robots()|trim %}<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">{% endif %}
 <meta property="og:site_name" content="{{ site.site_name }}">
 <meta property="og:locale" content="ko_KR">

@@ -1129,6 +1129,75 @@ def seo_fields(r: dict) -> dict:
             "share_title": share_title, "share_desc": f"{desc} 무료로 전문 보기", "seo_desc": seo_desc or summ}
 
 
+def seo_audit(out: Path, site_url: str, today: dt.date) -> list[str]:
+    """만든 사이트의 검색 노출 기본기 점검(SEO 점검 2026-11-24, ECC skills/seo(MIT, affaan-m) 참고·각색). 문제 문장 목록을 돌려준다.
+    색인 대상(noindex 아님) 화면: 제목 하나·중복 없음, 설명 1~160자, canonical = 자기 주소, h1 하나.
+    모든 화면: JSON-LD가 읽히고, 그림에 width·height(CLS). 리포트: Article·BreadcrumbList, 보이는 '자주 묻는 질문'이 있으면 FAQPage.
+    사이트맵: 주소마다 파일이 있고 noindex가 아님, lastmod가 미래가 아니고 거의 전부 오늘로 찍히지 않음."""
+    probs: dict[str, list[str]] = {}
+    add = lambda k, v: probs.setdefault(k, []).append(v)
+    titles: dict[str, str] = {}
+    noindex: set[str] = set()
+    for f in sorted(out.rglob("*.html")):
+        h = f.read_text(encoding="utf-8", errors="ignore")
+        if "</head>" not in h:
+            continue
+        rel = "/" + str(f.relative_to(out)).replace("\\", "/")
+        rel = rel[: -len("index.html")] if rel.endswith("/index.html") else rel
+        head, body = h.split("</head>", 1)
+        for m in re.finditer(r'<script type="application/ld\+json">(.*?)</script>', h, re.S):
+            try:
+                json.loads(m.group(1))
+            except ValueError:
+                add("JSON-LD 읽기 실패", rel)
+        for im in re.findall(r"<img\b[^>]*>", re.sub(r"<template\b.*?</template>", "", body, flags=re.S)):
+            if not (re.search(r"\swidth=", im) and re.search(r"\sheight=", im)):
+                add("그림 width·height 없음(CLS)", rel)
+                break
+        if re.search(r'<meta name="robots" content="[^"]*noindex', head):
+            noindex.add(rel)
+            continue
+        t = re.findall(r"<title>(.*?)</title>", head, re.S)
+        if len(t) != 1 or not t[0].strip():
+            add("제목 없음·여러 개", rel)
+        elif t[0] in titles:
+            add("제목 중복", f"{rel} = {titles[t[0]]}")
+        else:
+            titles[t[0]] = rel
+        d = re.search(r'<meta name="description" content="([^"]*)"', head)
+        dl = len(html.unescape(d.group(1)).strip()) if d else 0
+        if not 1 <= dl <= 160:
+            add("설명 없음·160자 넘음", f"{rel}({dl}자)")
+        c = re.search(r'<link rel="canonical" href="([^"]*)"', head)
+        if not c or urllib.parse.unquote(c.group(1)) != urllib.parse.unquote(site_url + rel):
+            add("canonical이 자기 주소 아님", rel)
+        if len(re.findall(r"<h1[\s>]", body)) != 1:
+            add("h1이 하나가 아님", rel)
+        if rel.startswith("/r/"):
+            for typ in ("Article", "BreadcrumbList"):
+                if f'"@type": "{typ}"' not in head:
+                    add(f"리포트 {typ} 없음", rel)
+            if 'class="faq"' in body and '"FAQPage"' not in head:
+                add("보이는 FAQ가 있는데 FAQPage 없음", rel)
+    sm = out / "sitemap.xml"
+    if sm.exists():
+        x = sm.read_text(encoding="utf-8")
+        ents = re.findall(r"<url><loc>([^<]+)</loc>(?:<lastmod>([^<]+)</lastmod>)?", x)
+        for loc, lm in ents:
+            rel = urllib.parse.unquote(html.unescape(loc)[len(site_url):])
+            tgt = out / rel.lstrip("/")
+            if not (tgt / "index.html").is_file() and not tgt.is_file():
+                add("사이트맵 주소에 파일 없음", rel)
+            elif rel in noindex or urllib.parse.quote(rel) in noindex:
+                add("사이트맵에 noindex 화면", rel)
+            if lm and lm > today.isoformat():
+                add("사이트맵 lastmod가 미래", rel)
+        n_today = sum(1 for _, lm in ents if lm == today.isoformat())
+        if len(ents) >= 50 and n_today > 0.8 * len(ents):
+            add("사이트맵 lastmod가 거의 다 오늘(빌드 날짜로 찍힘)", f"{n_today}/{len(ents)}")
+    return [f"검색 기본기: {k} {len(v)}건 — " + ", ".join(v[:4]) for k, v in probs.items()]
+
+
 def build(drafts=False, strict=False, out: Path = DIST):
     log = Log()
     site = load_yaml(ROOT / "site.yaml", {})
@@ -1549,7 +1618,7 @@ def build(drafts=False, strict=False, out: Path = DIST):
                          if not (m := re.search(r"<!--if:(\w+)-->", ln)) or page_flags.get(m.group(1)))
         body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
         html_body = wrap_tables(md_renderer().convert(body), "table-text")
-        pages.append({"slug": p.stem, "title": meta.get("title", p.stem)})
+        pages.append({"slug": p.stem, "title": meta.get("title", p.stem), "updated": to_date(meta.get("updated"))})
         ads.begin_page()
         write(f"{p.stem}/index.html", "page.html", p={"title": meta.get("title"), "description": meta.get("description", ""),
               "updated": to_date(meta.get("updated")), "html": html_body}, page_bottom=ads.render("page_bottom", {}))
@@ -1575,8 +1644,8 @@ def build(drafts=False, strict=False, out: Path = DIST):
     su = site["site_url"]
     seo = site.get("seo") or {}
     theme_last = {}
-    for r in public:
-        theme_last.setdefault(r["theme"], r["updated"] or r["date"])
+    for r in public:  # 테마의 가장 최근 리포트 날짜(갱신일 포함)
+        theme_last[r["theme"]] = max(theme_last.get(r["theme"]) or r["date"], r["updated"] or r["date"])
     if gl_terms:
         by_name = {x["term"]: x for x in gl_terms}
         for x in gl_terms:  # 같은 리포트에 함께 나온 용어 5개
@@ -1594,14 +1663,19 @@ def build(drafts=False, strict=False, out: Path = DIST):
     ads.begin_page()  # 용어 사전 첫 화면은 늘 만든다(바닥 메뉴 링크가 깨지지 않게)
     write("glossary/index.html", "glossary.html", terms=sorted(gl_terms, key=lambda x: x["term"]), page_bottom="")
     # (주소, 마지막 수정일, 대표 이미지). 리포트가 없는 테마 페이지는 내용이 없으므로 넣지 않는다(noindex)
-    urls = [(f"{su}/", today, None)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"], r.get("og_image")) for r in public]
+    # lastmod는 내용이 실제로 바뀐 날만(SEO 점검 2026-11-24, ECC skills/seo 참고): 빌드할 때마다 오늘로 찍으면 구글이 lastmod를 믿지 않는다.
+    # 홈·전체 목록 = 가장 최근 리포트 날, 용어 = 그 화면에 보이는 예문 리포트 중 가장 최근 날, 소개 등 = 머리말 updated
+    r_last = {r["slug"]: r["updated"] or r["date"] for r in public}
+    site_last = max(r_last.values()) if r_last else today
+    gl_last = {x["term"]: max((r_last.get(u["slug"]) or site_last) for u in x["uses"]) for x in gl_terms}
+    urls = [(f"{su}/", site_last, None)] + [(f"{su}/r/{r['slug']}/", r["updated"] or r["date"], r.get("og_image")) for r in public]
     # 종목 화면은 리포트가 2개 이상일 때만(1개면 리포트와 거의 같은 내용이라 noindex, ticker.html)
     urls += [(f"{su}/t/{c.lower()}/", max(x["updated"] or x["date"] for x in rs), None) for c, rs in by_ticker.items() if len([x for x in rs if not x["draft"]]) >= 2]
     urls += [(f"{su}/theme/{t['slug']}/", theme_last[t["name"]], None) for t in themes if t["name"] in theme_last]
-    urls += [(f"{su}/{p['slug']}/", None, None) for p in pages]
-    urls += [(f"{su}/reports/", today, None)]  # 2026-11-16 리포트 전체 목록
-    urls += [(f"{su}/scorecard/", today, None)] if scorecard.get("judged") else []  # 2026-11-18 예측 성적표
-    urls += ([(f"{su}/glossary/", today, None)] + [(f"{su}/glossary/{x['path']}/", today, None) for x in gl_terms]) if gl_terms else []
+    urls += [(f"{su}/{p['slug']}/", p.get("updated"), None) for p in pages]
+    urls += [(f"{su}/reports/", site_last, None)]  # 2026-11-16 리포트 전체 목록
+    urls += [(f"{su}/scorecard/", min(to_date(str(scorecard.get("as_of") or "")[:10]) or today, today), None)] if scorecard.get("judged") else []  # 2026-11-18 예측 성적표
+    urls += ([(f"{su}/glossary/", max(gl_last.values()), None)] + [(f"{su}/glossary/{x['path']}/", gl_last[x["term"]], None) for x in gl_terms]) if gl_terms else []
     sm = ['<?xml version="1.0" encoding="UTF-8"?>',
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
     for u, lm, img in urls:
@@ -1727,6 +1801,10 @@ def build(drafts=False, strict=False, out: Path = DIST):
     if broken:
         ex = ", ".join(f"{p} ← {src}" for p, src in list(broken.items())[:5])
         log.warn(f"깨진 내부 링크 {len(broken)}개: {ex}")
+
+    # ---- 검색 노출 기본기 검사(SEO 점검 2026-11-24): 문제가 있으면 경고(--strict 면 배포 전에 막힌다)
+    for w in seo_audit(out, su, today):
+        log.warn(w)
 
     # ---- 결과
     for w in log.warnings:
