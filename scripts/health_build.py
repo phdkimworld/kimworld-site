@@ -148,10 +148,14 @@ def plan(c: dict, cat: dict) -> list[tuple[dict, str]]:
     out, used = [], set()
     # HEALTH_ONLY="magnesium,vitamin-d": 진열이 빈 성분을 먼저 채울 때(손으로 실행할 때만)
     only = {x.strip() for x in os.environ.get("HEALTH_ONLY", "").split(",") if x.strip()}
-    for g, k in sorted(pairs(c), key=lambda gk: at.get(f"{gk[0]['slug']}|{gk[1]}", "")):
+    cand = sorted(pairs(c), key=lambda gk: at.get(f"{gk[0]['slug']}|{gk[1]}", ""))
+    if only:  # 손 실행은 성분을 번갈아(한 성분에 몰리지 않게): 성분별 n번째 검색어끼리 묶어 차례로
+        seen: dict = {}
+        cand = sorted(cand, key=lambda gk: (seen.__setitem__(gk[0]["slug"], seen.get(gk[0]["slug"], -1) + 1) or seen[gk[0]["slug"]]))
+    for g, k in cand:
         if only and g["slug"] not in only:
             continue
-        if g["slug"] in used:
+        if g["slug"] in used and not only:  # 손 실행(HEALTH_ONLY)은 빈 성분을 채우려고 같은 성분을 여러 검색어로(2026-11-24: 쿠팡 검색 API가 검색당 1개만 줌)
             continue
         out.append((g, k)); used.add(g["slug"])
         if len(out) >= int(os.environ.get("HEALTH_SEARCHES") or c.get("searches_per_run") or 2):
