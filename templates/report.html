@@ -74,10 +74,13 @@
         {% if site.api_url %}<button type="button" class="topic-follow" data-topic data-kind="t" data-key="{{ r.ticker }}" aria-pressed="false" hidden><span data-topic-label>+ 팔로우</span><span class="topic-n" data-topic-n></span></button>{% endif %}
       </div>
       {#- 2026-11-06: 화면 제목은 검색용 꼬리말(| 주가 내러티브와 패턴 투자전략) 없이 — 휴대폰 첫 화면에서 한 줄 아끼기. <title>·구조화 데이터는 seo_title 그대로 #}
-      <h1>{{ r.share_title or r.title }}</h1>
+      {#- 2026-11-24 디자인 개편(운영자 "디자인이 너무 조악", 미디어 review/design_study.md 원리 S2): 제목의 ' — ' 뒤 숫자 설명은
+          같은 h1 안에서 작은 부제 줄로(글자는 그대로라 검색·공유 영향 없음). 휴대폰 첫 화면에서 질문이 먼저 읽히고 본문 첫 문단이 올라온다 #}
+      {%- set h1_full = r.share_title or r.title %}{% set h1_parts = h1_full.split(' — ', 1) %}
+      <h1>{% if h1_parts|length == 2 %}<span class="h1-main">{{ h1_parts[0] }}</span><span class="h1-dek"> — {{ h1_parts[1] }}</span>{% else %}{{ h1_full }}{% endif %}</h1>
       <p class="report-meta">
         <span>공개 <time datetime="{{ r.date|iso }}">{{ r.date|kdate }}</time></span>
-        {% if r.updated %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
+        {% if r.updated and (r.updated|iso) != (r.date|iso) %}<span class="upd">갱신 <time datetime="{{ r.updated|iso }}">{{ r.updated|kdate }}</time></span>{% endif %}
         <span class="views" data-views hidden></span>
         <span class="asof">숫자 기준 <strong>{{ r.data_as_of|kdate }}</strong> <span class="asof-age" data-asof="{{ r.data_as_of|iso }}"></span></span>
         <span class="byline">{{ site.site_name }} 편집팀 · {% if r.sources %}<a href="#src-h">출처 {{ r.sources|length }}개</a> · {% endif %}<a href="{{ base }}/editorial/">작성·검증 원칙</a></span>
@@ -122,12 +125,6 @@
     </nav>
     {% endif %}
 
-    {% if site.api_url and not r.series %}
-    <section class="upd-req" data-upd-req data-ticker="{{ r.ticker }}" aria-label="리포트 업데이트 요청" hidden>
-      <div class="ur-txt"><strong>{% if r.newer %}이 종목 더 최근 리포트 있음{% else %}이 리포트 숫자 {{ r.data_as_of|kdate }} 기준{% endif %}</strong><span class="muted" data-ur-n>새 리포트가 필요하면 요청해 주세요</span></div>
-      <button type="button" class="btn ur-btn" data-ur-btn aria-pressed="false">🔔 업데이트 요청</button>
-    </section>
-    {% endif %}
 
     {# 이야기형(style: story, 2026-11-14 운영자 지시): 맨 위 핵심 요약 상자·목차를 빼고 고지 문구만 남긴다. key_points는 메타·공유용으로만 #}
     {% if r.story %}
@@ -182,6 +179,13 @@
 
     {# 투자 심리 투표: 본문을 다 읽은 뒤(6부 뒤, 출처 위). 2026-10-14 '맨 위' 결정을 2026-10-28 운영자 지시(SKILL R1.7)로 바꿈 #}
     {% if site.api_url and not r.series %}{{ sentiment(r.ticker, r.company, none, 'report') }}{% endif %}
+    {#- 업데이트 요청 상자: 2026-11-24 첫 화면(제목 위)에서 투표 상자 아래로(AGENTS '리포트 화면(투표 상자 아래)'). 첫 화면에 본문 첫 문단이 오도록 #}
+    {% if site.api_url and not r.series %}
+    <section class="upd-req" data-upd-req data-ticker="{{ r.ticker }}" aria-label="리포트 업데이트 요청" hidden>
+      <div class="ur-txt"><strong>{% if r.newer %}이 종목 더 최근 리포트 있음{% else %}이 리포트 숫자 {{ r.data_as_of|kdate }} 기준{% endif %}</strong><span class="muted" data-ur-n>새 리포트가 필요하면 요청해 주세요</span></div>
+      <button type="button" class="btn ur-btn" data-ur-btn aria-pressed="false">🔔 업데이트 요청</button>
+    </section>
+    {% endif %}
     {% if not site.community and site.operator.youtube_url %}
     <aside class="yt-card yt-card-sm" aria-label="유튜브 채널">
       <div><strong>{{ r.company or r.ticker }} 다음 이야기는 영상으로 먼저</strong><p class="muted">새 사건이 생기면 유튜브에 먼저 올립니다.</p></div>

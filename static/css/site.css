@@ -1760,3 +1760,60 @@ article.report .sent { margin-top: 14px; }
 .house-ad .ad-disclosure{display:block;margin:6px 0 0}
 .all-list li.all-ad{display:block;padding:4px 0;border-bottom:1px solid var(--line)}
 .all-list li.all-ad .ad{margin:8px 0}
+
+/* ===================================================================================================
+   2026-11-24 디자인 개편(운영자 "썸네일이나 각 페이지 디자인이 너무 조악한 거 같아. 대형채널들 찾아서 좀 배워")
+   근거: 미디어 저장소 review/design_study.md(네이버페이 증권·토스증권·Seeking Alpha 실측 + 우리 화면 390×844 측정).
+   광고 자리·높이·첫 화면 광고 없음(ads.yaml guard)은 그대로 — 아래는 색·글자·간격·위계만 바꾼다(레이아웃 이동 없음).
+   S1 브랜드 색 하나: 영상 인트로·썸네일과 같은 금색 #F5B83D, 면은 살짝 푸른 검정 계열로 층을 나눔
+   S2 첫 화면 위계: 제목(질문) > 부제(숫자 설명) > 한 줄 정보. 휴대폰에서 본문 첫 문단이 첫 화면 안에 오게
+   S3 긴 글: 순백 대신 옅은 회색 본문(검정 바탕 번짐), 숫자는 고정폭 숫자
+   S4 카드: 테두리 대신 면(토스·네이버식), 제목 굵게·요약 흐리게
+   S5 표: 머리줄은 작은 회색 글자 + 굵은 밑줄, 칸 채움 없음, 숫자 오른쪽 정렬(Seeking Alpha·네이버 표)
+   S6 그림 캡션: 금색 세로줄로 '그림 설명'임을 구분
+   =================================================================================================== */
+:root {
+  --accent: #F5B83D;
+  --tick-bg: #F5B83D;
+  --surface: #111317;
+  --surface-2: #1b1e24;
+  --line: #2a2e35;
+  --text-body: #e8e9eb;
+}
+/* S2 리포트 머리 */
+.report-head h1 { margin: 12px 0 10px; }
+.h1-main { display: block; }
+.h1-dek { display: block; margin-top: .5em; font-size: .6em; line-height: 1.55; font-weight: 600; letter-spacing: -.01em; color: #b9bdc4; }
+.report-meta { font-size: .76rem; line-height: 1.6; gap: 0 10px; }
+.report-meta .byline { color: var(--muted); }
+.story-disclosure { margin: 0 0 14px; padding-top: 8px; font-size: .74rem; }
+.story-disclosure p { margin: 2px 0; }
+@media (max-width: 479px) {
+  .report > .crumbs { display: none; }            /* 휴대폰: 위치 줄 대신 바로 아래 티커 배지가 종목 화면 링크 */
+  .report-head h1 { font-size: 1.36rem; line-height: 1.36; margin: 8px 0 8px; }
+  .h1-dek { font-size: .66em; }
+  .report-ticker { margin-top: 10px; }
+  .report-bar { margin-top: 6px; }
+}
+/* S3 긴 글 */
+.prose > p, .prose > ul > li, .prose > ol > li { color: var(--text-body); }
+.prose strong { color: #fff; }
+.prose { font-variant-numeric: tabular-nums; }
+/* S4 목록 카드(종목·테마·검색·관련 리포트. 홈 피드는 운영자 결정대로 상자 없이 그대로) */
+.cards > .card { border-color: transparent; background: var(--surface); border-radius: 16px; }
+.cards > .card:hover { border-color: var(--line); background: #15181d; }
+.cards > .card .card-title { font-size: 1.1rem; font-weight: 750; line-height: 1.42; color: #fff; }
+.cards > .card .card-summary { color: #9ea3ab; }
+.summary-box { border: 0; border-left: 4px solid var(--accent); background: var(--surface); }
+/* S5 표 */
+.table-wrap { background: var(--surface); border-radius: 12px; padding: 2px 4px; }
+.prose th { background: transparent; color: var(--muted); font-size: .78rem; font-weight: 700; border-bottom: 2px solid var(--line); }
+.prose td { border-bottom-color: #22262c; }
+.prose tbody tr:last-child td { border-bottom: 0; }
+.prose td:first-child { font-weight: 600; color: #f1f2f4; }
+/* S6 그림 캡션 */
+.story-fig figcaption { padding-left: 10px; border-left: 3px solid var(--accent); color: #aeb3ba; }
+/* 버튼·배지: 금색 위 글자는 브랜드 남색 */
+.btn-primary, .tick { color: #0B1524; }
+/* S2 카드 제목 위계(홈 피드·종목·테마 공통) */
+.card-title .card-dek { font-weight: 500; color: #a9aeb6; font-size: .9em; }

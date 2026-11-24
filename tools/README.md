@@ -5,7 +5,7 @@
 | 폴더 | 내용 |
 | --- | --- |
 | `charts/make_chart.py` | 리포트 대표 가격 차트 PNG |
-| `thumbkit/` | 유튜브 썸네일(배경 장면 + 가운데 제목 합성) |
+| `thumbkit/` | 유튜브 썸네일. 현행 `make_v7.py`(원리판: 이름표·질문·숫자 세 덩어리, 밝은 남색, 브랜드 작게 — 미디어 SKILL V5.7), 회차별 손 디자인 `render_html.py`, 옛 합성 `make_thumb.py`·`overlay.html` |
 | `tts/` | 슈퍼토닉 남성 TTS 실행 스크립트와 문장 시각표 생성 |
 | `slidekit/` | 나레이션 문장에 맞춰 바뀌는 슬라이드 영상 (`sfx.py`: 코드로 합성한 효과음·배경 드론을 섞는다, 끄기 `NO_SFX=1`) |
 | `midroll/make_assets.py` | 영상 중간 사이트 안내 이미지 |

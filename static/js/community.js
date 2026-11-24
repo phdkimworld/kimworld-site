@@ -111,7 +111,8 @@
   if (slug) {
     api('/v1/view', { method: 'POST', body: { slug: slug }, keepalive: true }).then(function (d) {
       var v = document.querySelector('[data-views]');
-      if (v && d.views) { v.textContent = '조회 ' + num(d.views); v.hidden = false; }
+      // 2026-11-24 디자인 개편: 낮은 조회수('조회 8')는 오히려 신뢰를 깎아 100회부터만 보인다(대형 금융 사이트도 적은 수는 숨김)
+      if (v && d.views >= 100) { v.textContent = '조회 ' + num(d.views); v.hidden = false; }
     }).catch(function () {});
   }
 

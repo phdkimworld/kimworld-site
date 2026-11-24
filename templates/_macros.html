@@ -41,7 +41,9 @@
   </header>
   <a class="post-body card-link" href="{{ r.url }}">
     <span class="card-company">{{ r.company }}</span>
-    <h3 class="card-title">{{ r.share_title or r.title }}</h3>
+    {#- 2026-11-24 디자인 개편: 카드 제목도 질문(굵게) + ' — ' 뒤 숫자 설명(흐리게)으로 위계를 나눔. 글자는 그대로 #}
+    {%- set ct = (r.share_title or r.title).split(' — ', 1) %}
+    <h3 class="card-title">{% if ct|length == 2 %}{{ ct[0] }}<span class="card-dek"> — {{ ct[1] }}</span>{% else %}{{ ct[0] }}{% endif %}</h3>
     <p class="card-summary">{{ r.summary }}</p>
     {% if media and r.chart %}<span class="post-media">{% if r.chart.webp %}<picture><source srcset="{{ r.chart.webp }}" type="image/webp">{% endif %}<img src="{{ r.chart.src }}" alt="{{ r.company }} 대표 가격 흐름" loading="lazy" decoding="async" width="{{ r.chart.w }}" height="{{ r.chart.h }}">{% if r.chart.webp %}</picture>{% endif %}</span>{% endif %}
   </a>
