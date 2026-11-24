@@ -35,7 +35,7 @@ BEST = "/v2/providers/affiliate_open_api/apis/openapi/products/bestcategories/"
 DISCLOSURE = "김박사 건강몰은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
 SITE = "https://drkimworld.com/?utm_source=health&utm_medium=web"
 MALL = "https://mall.drkimworld.com/?utm_source=health"
-YT = "https://www.youtube.com/@drkimworld"
+YT = "https://www.youtube.com/channel/UCNh9LrCUc0nTPKLMWPhnviw"  # 김박사 건강월드(2026-11-24: 본 채널 @drkimworld 대신 건강 채널로)
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
@@ -310,7 +310,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
 {body}</main>
 <footer><div class="wrap"><p>{esc(DISCLOSURE)} 성분 가이드는 식약처가 인정한 기능성 문구와 공개된 섭취 시 주의사항을 옮겨 정리한 일반 정보이며, 의학적 진단·상담을 대신하지 않습니다. 질환이 있거나 의약품을 복용 중이라면 의사·약사와 먼저 상담하세요.
 상품 목록은 쿠팡 검색·베스트 결과를 자동으로 가져온 것으로 추천·보증이 아니며, 건강기능식품 여부·함량·가격은 쿠팡 상품 페이지의 표시사항이 기준입니다{f" · 상품 갱신 {upd}(한국 시각)" if upd else ""}.</p>
-<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer>{mall_track.snippet("health")}</body></html>"""
+<p><a href="{SITE}">김박사 월드</a> · <a href="{MALL}">김박사 몰(장보기)</a> · <a href="{YT}">유튜브 김박사 건강월드</a> · <a href="{up}about/">김박사 건강몰 소개</a></p></div></footer>{mall_track.snippet("health")}</body></html>"""
 
 
 def ad_slot(c: dict) -> str:
