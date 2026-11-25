@@ -219,6 +219,8 @@ profile_map:
   vitc-multi-label: immune
   milkthistle-silymarin-label2: liver
   fattyliver-milkthistle: liver
+  drinker-milkthistle: liver
+  ginseng-function-label: immune
   # 첫 주(11-20~21) 성분 이름 slug 편 = 성분 기본 프로필
   omega3: blood
   coq10: blood
