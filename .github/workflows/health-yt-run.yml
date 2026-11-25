@@ -11,11 +11,15 @@ on:
         description: "자산이 있는 릴리스 태그(예: hw-2026-11-20)"
         required: true
       mode:
-        description: "upload | thumbs | stats | reach | channel | comments | reply | hide | unhide"
+        description: "upload | thumbs | stats | reach | channel | comments | reply | hide | unhide | desc"
         required: true
         default: upload
       videos:
         description: "hide/unhide 용 영상 id(쉼표로 여러 개, 최대 10). 건강월드 채널 영상만 바뀐다"
+        required: false
+        default: ""
+      edits:
+        description: "desc 용 JSON [{\"v\":\"영상id\",\"line\":\"▶ … https://link.coupang.com/a/…\"}] — 설명란의 첫 '▶ ' 줄만 바꾼다(최대 12편)"
         required: false
         default: ""
 
@@ -38,15 +42,63 @@ jobs:
       TAG: ${{ inputs.tag }}
       MODE: ${{ inputs.mode }}
       VIDEOS: ${{ inputs.videos }}
+      EDITS: ${{ inputs.edits }}
     steps:
       - name: Get assets
-        if: inputs.mode != 'hide' && inputs.mode != 'unhide'
+        if: inputs.mode != 'hide' && inputs.mode != 'unhide' && inputs.mode != 'desc'
         run: |
           mkdir -p a && cd a && gh release download "$TAG" -R "$GITHUB_REPOSITORY" --clobber
           ls -la
       - name: Run
         run: |
           pip install -q google-api-python-client google-auth
+          if [ "$MODE" = desc ]; then
+            # 설명란 첫 '▶ ' 줄(몰 링크 줄) 바꾸기(2026-11-25 운영자: '뒷면 숫자' 롱폼은 쿠팡 검색 결과 링크로 직행, 효과 판정·증상형은 몰 링크 유지).
+            # 건강월드 채널 영상만, 첫 줄 대가성 문구가 있어야 하고, 새 줄은 link.coupang.com 또는 health.drkimworld.com 링크 하나만. 제목·태그·분류는 그대로.
+            python3 - <<'PY'
+          import json, os, re, sys
+          from google.oauth2.credentials import Credentials
+          from googleapiclient.discovery import build
+          CH = "UCNh9LrCUc0nTPKLMWPhnviw"
+          DISC = "쿠팡 파트너스 활동의 일환"
+          try:
+              E = json.loads(os.environ.get("EDITS") or "[]")
+          except Exception:
+              print("::error::edits JSON 오류"); sys.exit(1)
+          ok = lambda e: isinstance(e, dict) and re.fullmatch(r"[A-Za-z0-9_-]{11}", str(e.get("v", ""))) and str(e.get("line", "")).startswith("▶ ") \
+              and "\n" not in e["line"] and len(e["line"]) <= 300 and len(re.findall(r"https://", e["line"])) == 1 \
+              and re.search(r"https://(link\.coupang\.com/a/[A-Za-z0-9]+|health\.drkimworld\.com/[^\s]*)$", e["line"])
+          if not E or len(E) > 12 or not all(ok(e) for e in E):
+              print("::error::edits 는 1~12개, line 은 '▶ '로 시작하고 끝에 쿠팡 단축·건강몰 링크 하나"); sys.exit(1)
+          cr = Credentials(None, refresh_token=os.environ["HEALTH_YT_REFRESH_TOKEN"], token_uri="https://oauth2.googleapis.com/token",
+                           client_id=os.environ["HEALTH_YT_CLIENT_ID"], client_secret=os.environ["HEALTH_YT_CLIENT_SECRET"])
+          yt = build("youtube", "v3", credentials=cr, cache_discovery=False)
+          want = {e["v"]: e["line"] for e in E}; bad = 0
+          for v in yt.videos().list(part="snippet", id=",".join(want)).execute().get("items", []):
+              sn = v["snippet"]
+              if sn["channelId"] != CH:
+                  print(f"::error::{v['id']} 은 건강월드 영상이 아님"); bad += 1; continue
+              L = sn.get("description", "").split("\n")
+              if not L or DISC not in L[0]:
+                  print(f"::error::{v['id']} 첫 줄 대가성 문구 없음 — 건드리지 않음"); bad += 1; continue
+              i = next((k for k, x in enumerate(L) if x.startswith("▶ ")), None)
+              if i is None:
+                  print(f"::warning::{v['id']} '▶ ' 줄 없음 — 둘째 줄에 넣음"); L.insert(1, want[v["id"]])
+              elif L[i] == want[v["id"]]:
+                  print(f"::notice::{v['id']} 이미 같음"); want.pop(v["id"]); continue
+              else:
+                  L[i] = want[v["id"]]
+              body = {"id": v["id"], "snippet": {k: sn[k] for k in ("title", "categoryId", "tags", "defaultLanguage", "defaultAudioLanguage") if k in sn}}
+              body["snippet"]["description"] = "\n".join(L)
+              yt.videos().update(part="snippet", body=body).execute()
+              print(f"::notice::{v['id']} 설명란 링크 줄 교체")
+              want.pop(v["id"])
+          for x in want:
+              print(f"::warning::{x} 를 찾지 못함"); bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+            exit $?
+          fi
           if [ "$MODE" = hide ] || [ "$MODE" = unhide ]; then
             # 잘못 올라간 편 숨기기(비공개) / 되돌리기(공개). 지우지 않는다(되돌릴 수 있게). 2026-11-22 운영자 "제작팀이 권한이 없다는데"
             python3 - <<'PY'
@@ -94,5 +146,5 @@ jobs:
             channel) python3 hw_channel.py ;;
             comments) python3 hw_comments.py fetch comments.json && gh release upload "$TAG" comments.json --clobber -R "$GITHUB_REPOSITORY" ;;
             reply) python3 hw_comments.py reply replies.json replied.json; [ -s replied.json ] && gh release upload "$TAG" replied.json --clobber -R "$GITHUB_REPOSITORY" ;;
-            *) echo "::error::mode는 upload|thumbs|stats|reach|channel|comments|reply|hide|unhide"; exit 1 ;;
+            *) echo "::error::mode는 upload|thumbs|stats|reach|channel|comments|reply|hide|unhide|desc"; exit 1 ;;
           esac
