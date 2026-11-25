@@ -4,11 +4,11 @@
    "features": {
     "comments": {
      "cache_read": 0,
-     "cache_write": 82985,
-     "calls": 6,
-     "in": 1693,
-     "out": 1197,
-     "usd": 0.011142
+     "cache_write": 96941,
+     "calls": 7,
+     "in": 1909,
+     "out": 1456,
+     "usd": 0.013038
     },
     "judge": {
      "cache_read": 0,
@@ -27,7 +27,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 2.557396
+   "usd": 2.559292
   }
  }
 }
