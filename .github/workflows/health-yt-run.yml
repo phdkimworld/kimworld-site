@@ -110,7 +110,12 @@ jobs:
                               yt.videos().update(part="snippet", body=body).execute(); nd += 1
                               print(f"::notice::{v['id']} 설명란 → 쿠팡")
                           if DO_C:
-                              for t in yt.commentThreads().list(part="snippet", videoId=v["id"], maxResults=20, order="relevance").execute().get("items", []):
+                              try:
+                                  ths = yt.commentThreads().list(part="snippet", videoId=v["id"], maxResults=20, order="relevance").execute().get("items", [])
+                              except HttpError as e:
+                                  if "quota" in str(e).lower(): raise
+                                  ths = []  # 댓글 꺼진 영상 등
+                              for t in ths:
                                   c = t["snippet"]["topLevelComment"]
                                   if c["snippet"].get("authorChannelId", {}).get("value") != CH:
                                       continue
