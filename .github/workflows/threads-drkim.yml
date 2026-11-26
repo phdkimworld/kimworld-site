@@ -1,15 +1,19 @@
 # 두 번째 Threads 계정 @drkimworld (2026-11-25 운영자 "drkimworld로 채널이 이미 있는데 로그인해서 연결해봐")
 # 같은 Meta 앱(phdkimworld-poster)의 Threads 테스터. 토큰은 비밀값 DRKIM_THREADS_ACCESS_TOKEN(60일, token-refresh.yml 이 매달 1·15일 갱신).
-# mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글·형식만).
-# 2026-11-26 운영자: @drkimworld = 건강월드(영양제) 전용, 형식 승인 뒤 매일 자동. reply 가 있으면 본문 바로 아래 내 답글로 단다
-# (링크·대가성 문구는 답글에 — 본문엔 링크 없음). 운영자 11-26 "그냥 제품 링크를 달아": 답글 링크는 쿠팡 단축 링크만, 첫 줄은 대가성 문구.
+# mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글만).
+# 게시 주체: 건강월드 매일 운영(미디어 skill/health/HEALTH_CHANNEL.md 4.17, 운영자 승인 형식, 하루 1~2개 mode=post + reply).
+#   그래서 이 워크플로 자체의 정기 실행은 두지 않는다(같은 계정에 두 갈래로 올라가지 않게, 2026-11-26).
+# mode health(손으로만, 예비): scripts/health_threads.py 가 건강몰 가이드 한 성분을 골라 만든 글
+#   (가이드의 '고를 때 확인할 것' + 식약처 인정 기능성 문구 그대로 + 가이드 링크 UTM, 쿠팡 링크 없음) — 2026-11-25 운영자 "니가 직접 할수 있는 방식 아무거나 해"
+# mode preview: health 글을 게시하지 않고 주석에 보여 줌.
+# 2026-11-26 운영자 "그냥 제품 링크를 달아": post 의 reply 링크는 쿠팡 단축 링크만, 첫 줄은 대가성 문구(본문엔 링크 없음).
 name: Threads drkimworld
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "ping(토큰 확인) / post(글 게시)"
+        description: "ping(토큰 확인) / post(글 게시) / health(건강몰 오늘 글 게시) / preview(health 글 미리보기)"
         required: true
         default: ping
       text:
@@ -34,6 +38,14 @@ jobs:
       TEXT: ${{ inputs.text }}
       REPLY: ${{ inputs.reply }}
     steps:
+      - uses: actions/checkout@v4
+        if: env.MODE == 'health' || env.MODE == 'preview'
+      - name: Compose health post
+        if: env.MODE == 'health' || env.MODE == 'preview'
+        run: |
+          pip install -q pyyaml
+          python3 scripts/health_threads.py > /tmp/post.txt
+          echo "TEXT_FILE=/tmp/post.txt" >> "$GITHUB_ENV"
       - name: Run
         run: |
           python3 - <<'PY'
@@ -58,14 +70,17 @@ jobs:
           print(f"::notice::토큰 정상: @{me.get('username')}")
           if os.environ["MODE"] == "ping":
               sys.exit(0)
-          if os.environ["MODE"] != "post":
-              print("::error::mode 는 ping 또는 post"); sys.exit(1)
-          text = os.environ.get("TEXT", "").strip()
+          mode = os.environ["MODE"]
+          if mode not in ("post", "health", "preview"):
+              print("::error::mode 는 ping·post·health·preview"); sys.exit(1)
+          text = (open(os.environ["TEXT_FILE"], encoding="utf-8").read() if mode in ("health", "preview") else os.environ.get("TEXT", "")).strip()
+          if mode == "preview":
+              print("::notice::" + text.replace("\n", "%0A")); sys.exit(0)
           if not text or len(text) > 500:
               print("::error::text 는 1~500자"); sys.exit(1)
           import re
-          reply = os.environ.get("REPLY", "").strip()
-          if re.search(r"https?://", text):
+          reply = os.environ.get("REPLY", "").strip() if mode == "post" else ""
+          if mode == "post" and re.search(r"https?://", text):
               print("::error::본문에는 링크를 넣지 않는다(링크는 reply)"); sys.exit(1)
           if reply:
               urls = re.findall(r"https?://\S+", reply)

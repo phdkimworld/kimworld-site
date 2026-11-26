@@ -13,6 +13,7 @@ import health_build as hb  # noqa: E402
 
 
 def main() -> int:
+    test_threads_post()
     c = hb.cfg()
     assert hb.check(c) == [], hb.check(c)
     # 금지 낱말 검사가 실제로 잡는지
@@ -93,6 +94,22 @@ def main() -> int:
     assert kept == ["락토핏 생유산균 프로바이오틱스 60포"], kept
     print("health ok")
     return 0
+
+
+def test_threads_post():
+    """Threads @drkimworld 하루 글(scripts/health_threads.py): 500자 이내, 쿠팡 링크 없음, 금지어 없음, 가이드 링크 UTM."""
+    import datetime as dt
+    import yaml
+    import health_threads as ht
+    c = yaml.safe_load((ROOT / "health" / "health.yaml").read_text(encoding="utf-8"))
+    seen = set()
+    for i in range(60):
+        t = ht.compose(c, dt.date(2026, 11, 26) + dt.timedelta(days=i))
+        assert len(t) <= 500 and "coupang" not in t.lower()
+        assert not any(w in t for w in c["banned"])
+        assert "utm_source=threads" in t and "식약처 인정 기능성" in t
+        seen.add(t.split(",")[0])
+    assert len(seen) >= 8, seen
 
 
 if __name__ == "__main__":
