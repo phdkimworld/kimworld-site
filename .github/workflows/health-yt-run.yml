@@ -95,6 +95,13 @@ jobs:
                   tok = r.get("nextPageToken")
                   if not tok: break
               nd = nc = skip = 0
+              import time as _t
+              def upd(f):  # 409 '충돌하는 업데이트'는 잠깐 쉬고 한 번 더
+                  try:
+                      return f()
+                  except HttpError as e:
+                      if e.resp.status != 409: raise
+                      _t.sleep(5); return f()
               def swap(text, medium="desc"):
                   L = text.split("\n"); hit = False
                   for k, x in enumerate(L):
@@ -118,8 +125,12 @@ jobs:
                           if nd_:
                               body = {"id": v["id"], "snippet": {k: sn[k] for k in ("title", "categoryId", "tags", "defaultLanguage", "defaultAudioLanguage") if k in sn}}
                               body["snippet"]["description"] = nd_
-                              yt.videos().update(part="snippet", body=body).execute(); nd += 1
-                              print(f"::notice::{v['id']} 설명란 → 쿠팡")
+                              try:
+                                  upd(lambda: yt.videos().update(part="snippet", body=body).execute()); nd += 1
+                                  print(f"::notice::{v['id']} 설명란 → 쿠팡")
+                              except HttpError as e:
+                                  if "quota" in str(e).lower(): raise
+                                  print(f"::warning::{v['id']} 설명란 건너뜀(HTTP {e.resp.status}) — 다음 실행에서 다시"); skip += 1
                           if DO_C:
                               try:
                                   ths = yt.commentThreads().list(part="snippet", videoId=v["id"], maxResults=20, order="relevance").execute().get("items", [])
@@ -132,8 +143,12 @@ jobs:
                                       continue
                                   nt = swap(c["snippet"].get("textOriginal", ""), "pinned")
                                   if nt:
-                                      yt.comments().update(part="snippet", body={"id": c["id"], "snippet": {"textOriginal": nt}}).execute(); nc += 1
-                                      print(f"::notice::{v['id']} 고정 댓글 → 쿠팡")
+                                      try:
+                                          upd(lambda: yt.comments().update(part="snippet", body={"id": c["id"], "snippet": {"textOriginal": nt}}).execute()); nc += 1
+                                          print(f"::notice::{v['id']} 고정 댓글 → 쿠팡")
+                                      except HttpError as e:
+                                          if "quota" in str(e).lower(): raise
+                                          print(f"::warning::{v['id']} 댓글 건너뜀(HTTP {e.resp.status})"); skip += 1
               except HttpError as e:
                   if "quota" in str(e).lower():
                       print(f"::warning::할당량 끝 — 설명란 {nd}·댓글 {nc} 바꿈, 내일 다시 돌리면 이어서"); sys.exit(0)
