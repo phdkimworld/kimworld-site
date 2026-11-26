@@ -55,7 +55,7 @@ jobs:
       - name: Run
         run: |
           python3 - <<'PY'
-          import json, os, sys, time, urllib.parse, urllib.request, urllib.error
+          import json, os, re, sys, time, urllib.parse, urllib.request, urllib.error
           API = "https://graph.threads.net/v1.0"
           tok = os.environ.get("TOKEN", "")
           if not tok:
@@ -91,8 +91,40 @@ jobs:
                   print(f"::notice::지움 {i}")
                   time.sleep(2)
               sys.exit(1 if bad else 0)
+          # 2026-11-26 운영자가 보낸 '초반 30분' 운영 글 참고: 게시 30분 안에 내 글 답글에 빠르게 대댓(answer),
+          # 30분 뒤 내 글을 인용해 한 줄 더 얹기(quote). 남의 글에 자동 댓글·리포스트 풀었다 다시 하기는 하지 않는다(스팸·조작으로 보일 수 있음).
+          if mode == "replies":
+              # ids 의 내 글(첫 번째)에 달린 답글 목록 — 내 계정 글은 빼고 아이디·글만 주석으로
+              pid = (os.environ.get("IDS", "").split(",") or [""])[0].strip()
+              if not pid.isdigit():
+                  print("::error::ids 에 내 글 id 하나"); sys.exit(1)
+              r = call("GET", f"{pid}/conversation", {"fields": "id,text,username,timestamp,replied_to", "reverse": "false"})
+              n = 0
+              for x in r.get("data", []):
+                  if x.get("username") == me.get("username"):
+                      continue
+                  n += 1
+                  t = (x.get("text") or "").replace("\n", " ")[:300]
+                  print(f"::notice::답글 {x.get('id')} @{x.get('username')} {x.get('timestamp')}: {t}")
+              print(f"::notice::남이 단 답글 {n}개"); sys.exit(0)
+          if mode in ("answer", "quote"):
+              # answer: ids 의 답글(첫 번째)에 text 로 대댓 / quote: ids 의 내 글을 인용해 text 한 글. 둘 다 링크 금지
+              tid = (os.environ.get("IDS", "").split(",") or [""])[0].strip()
+              text = os.environ.get("TEXT", "").strip()
+              if not tid.isdigit() or not text or len(text) > 500 or re.search(r"https?://", text):
+                  print("::error::ids 하나, text 1~500자, 링크 없음"); sys.exit(1)
+              if mode == "quote":
+                  q = call("GET", tid, {"fields": "id,username"})
+                  if q.get("username") != me.get("username"):
+                      print("::error::인용은 이 계정 글만"); sys.exit(1)
+              params = {"media_type": "TEXT", "text": text}
+              params["reply_to_id" if mode == "answer" else "quote_post_id"] = tid
+              c = call("POST", "me/threads", params)
+              time.sleep(5)
+              p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
+              print(f"::notice::{'대댓' if mode == 'answer' else '인용'} 게시됨 id={p.get('id')}"); sys.exit(0)
           if mode not in ("post", "health", "preview"):
-              print("::error::mode 는 ping·post·health·preview·delete"); sys.exit(1)
+              print("::error::mode 는 ping·post·health·preview·delete·replies·answer·quote"); sys.exit(1)
           text = (open(os.environ["TEXT_FILE"], encoding="utf-8").read() if mode in ("health", "preview") else os.environ.get("TEXT", "")).strip()
           if mode == "preview":
               print("::notice::" + text.replace("\n", "%0A")); sys.exit(0)
