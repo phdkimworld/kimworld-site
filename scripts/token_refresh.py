@@ -20,6 +20,8 @@ CHANNELS = [
     # (비밀값 이름, 갱신 주소, grant_type)
     ("THREADS_ACCESS_TOKEN", "https://graph.threads.net/refresh_access_token", "th_refresh_token"),
     ("IG_ACCESS_TOKEN", "https://graph.instagram.com/refresh_access_token", "ig_refresh_token"),
+    # 2026-11-25: 두 번째 Threads 계정 @drkimworld(같은 Meta 앱 phdkimworld-poster). 비밀값이 없으면 건너뛴다
+    ("DRKIM_THREADS_ACCESS_TOKEN", "https://graph.threads.net/refresh_access_token", "th_refresh_token"),
 ]
 
 

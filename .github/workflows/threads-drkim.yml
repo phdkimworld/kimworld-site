@@ -1,0 +1,63 @@
+# 두 번째 Threads 계정 @drkimworld (2026-11-25 운영자 "drkimworld로 채널이 이미 있는데 로그인해서 연결해봐")
+# 같은 Meta 앱(phdkimworld-poster)의 Threads 테스터. 토큰은 비밀값 DRKIM_THREADS_ACCESS_TOKEN(60일, token-refresh.yml 이 매달 1·15일 갱신).
+# mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글만).
+name: Threads drkimworld
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "ping(토큰 확인) / post(글 게시)"
+        required: true
+        default: ping
+      text:
+        description: "post 용 본문(500자 이내)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TOKEN: ${{ secrets.DRKIM_THREADS_ACCESS_TOKEN }}
+      MODE: ${{ inputs.mode }}
+      TEXT: ${{ inputs.text }}
+    steps:
+      - name: Run
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.parse, urllib.request, urllib.error
+          API = "https://graph.threads.net/v1.0"
+          tok = os.environ.get("TOKEN", "")
+          if not tok:
+              print("::error::DRKIM_THREADS_ACCESS_TOKEN 비밀값이 없음"); sys.exit(1)
+          print(f"::add-mask::{tok}")
+          def call(method, path, params):
+              params = dict(params, access_token=tok)
+              q = urllib.parse.urlencode(params)
+              req = urllib.request.Request(f"{API}/{path}?{q}" if method == "GET" else f"{API}/{path}",
+                                           data=None if method == "GET" else q.encode(), method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      return json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  err = json.loads(e.read() or b"{}").get("error", {})
+                  print(f"::error::HTTP {e.code} {err.get('type','')} code={err.get('code','')}: {err.get('message','')}"); sys.exit(1)
+          me = call("GET", "me", {"fields": "id,username"})
+          print(f"::notice::토큰 정상: @{me.get('username')}")
+          if os.environ["MODE"] == "ping":
+              sys.exit(0)
+          if os.environ["MODE"] != "post":
+              print("::error::mode 는 ping 또는 post"); sys.exit(1)
+          text = os.environ.get("TEXT", "").strip()
+          if not text or len(text) > 500:
+              print("::error::text 는 1~500자"); sys.exit(1)
+          c = call("POST", "me/threads", {"media_type": "TEXT", "text": text})
+          time.sleep(5)
+          p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
+          print(f"::notice::게시됨 id={p.get('id')}")
+          PY
