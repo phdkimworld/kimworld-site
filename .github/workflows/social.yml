@@ -71,8 +71,20 @@ jobs:
           git add -A social
           if git diff --cached --quiet; then echo "바뀐 기록 없음"; exit 0; fi
           git commit -q -m "SNS 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET"
+          # 이 커밋이 바꾼 파일을 따로 둔다 — rebase가 충돌하면(11-26 clsk 중복 게시 위험) 최신 main 위에 그대로 다시 얹는다
+          rm -rf /tmp/sp && mkdir -p /tmp/sp
+          git diff --name-only --diff-filter=AM HEAD~1 HEAD > /tmp/sp/am.txt
+          git diff --name-only --diff-filter=D HEAD~1 HEAD > /tmp/sp/del.txt
+          while read -r f; do mkdir -p "/tmp/sp/f/$(dirname "$f")"; cp "$f" "/tmp/sp/f/$f"; done < /tmp/sp/am.txt
           for i in 1 2 3 4; do
             git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            git fetch -q origin main && git reset -q --hard origin/main
+            while read -r f; do mkdir -p "$(dirname "$f")"; cp "/tmp/sp/f/$f" "$f"; done < /tmp/sp/am.txt
+            while read -r f; do rm -f "$f"; done < /tmp/sp/del.txt
+            git add -A social
+            git diff --cached --quiet || git commit -q -m "SNS 게시 기록 $(TZ=America/New_York date '+%Y-%m-%d %H:%M') ET (다시 얹음)"
+            git push -q origin HEAD:main && exit 0
             sleep $((i * 5))
           done
           echo "::error::게시 기록 커밋을 올리지 못함"; exit 1
