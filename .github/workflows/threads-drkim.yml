@@ -6,6 +6,7 @@
 # mode health(손으로만, 예비): scripts/health_threads.py 가 건강몰 가이드 한 성분을 골라 만든 글
 #   (가이드의 '고를 때 확인할 것' + 식약처 인정 기능성 문구 그대로 + 가이드 링크 UTM, 쿠팡 링크 없음) — 2026-11-25 운영자 "니가 직접 할수 있는 방식 아무거나 해"
 # mode preview: health 글을 게시하지 않고 주석에 보여 줌.
+# mode delete: ids(쉼표) 의 이 계정 글을 지움(2026-11-26 옛 형식 글 정리).
 # 2026-11-26 운영자 "그냥 제품 링크를 달아": post 의 reply 링크는 쿠팡 단축 링크만, 첫 줄은 대가성 문구(본문엔 링크 없음).
 name: Threads drkimworld
 
@@ -18,6 +19,10 @@ on:
         default: ping
       text:
         description: "post 용 본문(500자 이내)"
+        required: false
+        default: ""
+      ids:
+        description: "delete 용 게시 id(쉼표로 여러 개, 최대 20). @drkimworld 글만 지운다"
         required: false
         default: ""
       reply:
@@ -37,6 +42,7 @@ jobs:
       MODE: ${{ inputs.mode }}
       TEXT: ${{ inputs.text }}
       REPLY: ${{ inputs.reply }}
+      IDS: ${{ inputs.ids }}
     steps:
       - uses: actions/checkout@v4
         if: env.MODE == 'health' || env.MODE == 'preview'
@@ -58,8 +64,8 @@ jobs:
           def call(method, path, params):
               params = dict(params, access_token=tok)
               q = urllib.parse.urlencode(params)
-              req = urllib.request.Request(f"{API}/{path}?{q}" if method == "GET" else f"{API}/{path}",
-                                           data=None if method == "GET" else q.encode(), method=method)
+              req = urllib.request.Request(f"{API}/{path}?{q}" if method in ("GET", "DELETE") else f"{API}/{path}",
+                                           data=None if method in ("GET", "DELETE") else q.encode(), method=method)
               try:
                   with urllib.request.urlopen(req, timeout=60) as r:
                       return json.loads(r.read() or b"{}")
@@ -71,8 +77,22 @@ jobs:
           if os.environ["MODE"] == "ping":
               sys.exit(0)
           mode = os.environ["MODE"]
+          if mode == "delete":
+              # 2026-11-26 운영자 "맥락이 전혀 없고 그냥 광고로 보이잖아 … 알아서 다 고쳐": 옛 형식 글 지우기(이 계정 글만, 답글 먼저)
+              ids = [x.strip() for x in os.environ.get("IDS", "").split(",") if x.strip().isdigit()][:20]
+              if not ids:
+                  print("::error::ids 없음"); sys.exit(1)
+              bad = 0
+              for i in ids:
+                  m = call("GET", i, {"fields": "id,username"})
+                  if m.get("username") != me.get("username"):
+                      print(f"::error::{i} 은 이 계정 글이 아님"); bad += 1; continue
+                  call("DELETE", i, {})
+                  print(f"::notice::지움 {i}")
+                  time.sleep(2)
+              sys.exit(1 if bad else 0)
           if mode not in ("post", "health", "preview"):
-              print("::error::mode 는 ping·post·health·preview"); sys.exit(1)
+              print("::error::mode 는 ping·post·health·preview·delete"); sys.exit(1)
           text = (open(os.environ["TEXT_FILE"], encoding="utf-8").read() if mode in ("health", "preview") else os.environ.get("TEXT", "")).strip()
           if mode == "preview":
               print("::notice::" + text.replace("\n", "%0A")); sys.exit(0)
