@@ -1,6 +1,8 @@
 # 두 번째 Threads 계정 @drkimworld (2026-11-25 운영자 "drkimworld로 채널이 이미 있는데 로그인해서 연결해봐")
 # 같은 Meta 앱(phdkimworld-poster)의 Threads 테스터. 토큰은 비밀값 DRKIM_THREADS_ACCESS_TOKEN(60일, token-refresh.yml 이 매달 1·15일 갱신).
-# mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글만).
+# mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글·형식만).
+# 2026-11-26 운영자: @drkimworld = 건강월드(영양제) 전용, 형식 승인 뒤 매일 자동. reply 가 있으면 본문 바로 아래 내 답글로 단다
+# (링크·대가성 문구는 답글에 — 본문엔 링크 없음). 운영자 11-26 "그냥 제품 링크를 달아": 답글 링크는 쿠팡 단축 링크만, 첫 줄은 대가성 문구.
 name: Threads drkimworld
 
 on:
@@ -12,6 +14,10 @@ on:
         default: ping
       text:
         description: "post 용 본문(500자 이내)"
+        required: false
+        default: ""
+      reply:
+        description: "post 뒤 내 답글(500자 이내, 첫 줄 대가성 문구, 링크는 쿠팡 단축 링크만). 비우면 답글 없음"
         required: false
         default: ""
 
@@ -26,6 +32,7 @@ jobs:
       TOKEN: ${{ secrets.DRKIM_THREADS_ACCESS_TOKEN }}
       MODE: ${{ inputs.mode }}
       TEXT: ${{ inputs.text }}
+      REPLY: ${{ inputs.reply }}
     steps:
       - name: Run
         run: |
@@ -56,8 +63,23 @@ jobs:
           text = os.environ.get("TEXT", "").strip()
           if not text or len(text) > 500:
               print("::error::text 는 1~500자"); sys.exit(1)
+          import re
+          reply = os.environ.get("REPLY", "").strip()
+          if re.search(r"https?://", text):
+              print("::error::본문에는 링크를 넣지 않는다(링크는 reply)"); sys.exit(1)
+          if reply:
+              urls = re.findall(r"https?://\S+", reply)
+              if len(reply) > 500 or "쿠팡 파트너스" not in reply.split("\n")[0] or not urls or \
+                 any(not re.match(r"https://link\.coupang\.com/a/", u) for u in urls):
+                  print("::error::reply 는 500자 이내, 첫 줄 대가성 문구, 링크는 쿠팡 단축 링크만"); sys.exit(1)
           c = call("POST", "me/threads", {"media_type": "TEXT", "text": text})
           time.sleep(5)
           p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
           print(f"::notice::게시됨 id={p.get('id')}")
+          if reply:
+              time.sleep(5)
+              c2 = call("POST", "me/threads", {"media_type": "TEXT", "text": reply, "reply_to_id": p["id"]})
+              time.sleep(5)
+              p2 = call("POST", "me/threads_publish", {"creation_id": c2["id"]})
+              print(f"::notice::답글 게시됨 id={p2.get('id')}")
           PY
