@@ -1,14 +1,14 @@
 # 두 번째 Threads 계정 @drkimworld (2026-11-25 운영자 "drkimworld로 채널이 이미 있는데 로그인해서 연결해봐")
 # 같은 Meta 앱(phdkimworld-poster)의 Threads 테스터. 토큰은 비밀값 DRKIM_THREADS_ACCESS_TOKEN(60일, token-refresh.yml 이 매달 1·15일 갱신).
 # mode ping: 토큰 확인(계정 아이디만 주석에). mode post: text 를 그대로 한 글 게시(운영자가 승인한 글만).
-# mode health(매일 08:23 KST 자동): scripts/health_threads.py 가 건강몰 가이드 한 성분을 골라 만든 글
+# 게시 주체: 건강월드 매일 운영(미디어 skill/health/HEALTH_CHANNEL.md 4.17, 운영자 승인 형식, 하루 1~2개 mode=post + reply).
+#   그래서 이 워크플로 자체의 정기 실행은 두지 않는다(같은 계정에 두 갈래로 올라가지 않게, 2026-11-26).
+# mode health(손으로만, 예비): scripts/health_threads.py 가 건강몰 가이드 한 성분을 골라 만든 글
 #   (가이드의 '고를 때 확인할 것' + 식약처 인정 기능성 문구 그대로 + 가이드 링크 UTM, 쿠팡 링크 없음) — 2026-11-25 운영자 "니가 직접 할수 있는 방식 아무거나 해"
 # mode preview: health 글을 게시하지 않고 주석에 보여 줌.
 name: Threads drkimworld
 
 on:
-  schedule:
-    - cron: "23 23 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -17,6 +17,10 @@ on:
         default: ping
       text:
         description: "post 용 본문(500자 이내)"
+        required: false
+        default: ""
+      reply:
+        description: "post 뒤 내 답글(500자 이내, 비우면 없음) — 링크·대가성 문구는 여기"
         required: false
         default: ""
 
@@ -29,8 +33,9 @@ jobs:
     timeout-minutes: 5
     env:
       TOKEN: ${{ secrets.DRKIM_THREADS_ACCESS_TOKEN }}
-      MODE: ${{ inputs.mode || 'health' }}
+      MODE: ${{ inputs.mode }}
       TEXT: ${{ inputs.text }}
+      REPLY: ${{ inputs.reply }}
     steps:
       - uses: actions/checkout@v4
         if: env.MODE == 'health' || env.MODE == 'preview'
@@ -76,4 +81,13 @@ jobs:
           time.sleep(5)
           p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
           print(f"::notice::게시됨 id={p.get('id')}")
+          rep = os.environ.get("REPLY", "").strip() if mode == "post" else ""
+          if rep:
+              if len(rep) > 500:
+                  print("::error::reply 는 500자 이내"); sys.exit(1)
+              time.sleep(5)
+              rc = call("POST", "me/threads", {"media_type": "TEXT", "text": rep, "reply_to_id": p["id"]})
+              time.sleep(5)
+              rp = call("POST", "me/threads_publish", {"creation_id": rc["id"]})
+              print(f"::notice::내 답글 id={rp.get('id')}")
           PY
