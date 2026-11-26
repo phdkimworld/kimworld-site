@@ -7,7 +7,7 @@
 #   (가이드의 '고를 때 확인할 것' + 식약처 인정 기능성 문구 그대로 + 가이드 링크 UTM, 쿠팡 링크 없음) — 2026-11-25 운영자 "니가 직접 할수 있는 방식 아무거나 해"
 # mode preview: health 글을 게시하지 않고 주석에 보여 줌.
 # mode delete: ids(쉼표) 의 이 계정 글을 지움(2026-11-26 옛 형식 글 정리).
-# 2026-11-26 운영자 "그냥 제품 링크를 달아": post 의 reply 링크는 쿠팡 단축 링크만, 첫 줄은 대가성 문구(본문엔 링크 없음).
+# 2026-11-26 운영자 "제품을 먼저 달고 그 밑에 몰 주소도 달아": 마지막 조각 = 대가성 문구 → 쿠팡 단축 링크 → 그 밑에 건강몰 링크(본문엔 링크 없음).
 name: Threads drkimworld
 
 on:
@@ -107,8 +107,9 @@ jobs:
           for k, pt in enumerate(parts):
               urls = re.findall(r"https?://\S+", pt)
               if len(pt) > 500 or (urls and ("쿠팡 파트너스" not in pt.split("\n")[0] or k != len(parts) - 1)) or \
-                 any(not re.match(r"https://link\.coupang\.com/a/", u) for u in urls):
-                  print("::error::reply 조각은 500자 이내, 링크는 마지막 조각에만(첫 줄 대가성 문구, 쿠팡 단축 링크만)"); sys.exit(1)
+                 any(not re.match(r"https://(link\.coupang\.com/a/|health\.drkimworld\.com/)", u) for u in urls) or \
+                 not re.match(r"https://link\.coupang\.com/a/", urls[0]):
+                  print("::error::reply 조각은 500자 이내, 링크는 마지막 조각에만(첫 줄 대가성 문구, 쿠팡 단축 링크 먼저 그 밑에 건강몰)"); sys.exit(1)
           c = call("POST", "me/threads", {"media_type": "TEXT", "text": text})
           time.sleep(5)
           p = call("POST", "me/threads_publish", {"creation_id": c["id"]})

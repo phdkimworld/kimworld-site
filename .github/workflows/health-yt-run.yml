@@ -80,6 +80,11 @@ jobs:
                                client_id=os.environ["HEALTH_YT_CLIENT_ID"], client_secret=os.environ["HEALTH_YT_CLIENT_SECRET"])
               yt = build("youtube", "v3", credentials=cr, cache_discovery=False)
               GL = re.compile(r"^▶ .*https://health\.drkimworld\.com/guide/([a-z0-9-]+)/\S*$")
+              # 2026-11-26 운영자 "제품을 먼저 달고 그 밑에 몰 주소도 달아": "below": {성분: "▶ … 건강몰 링크"} 가 있으면 그 성분 쿠팡 줄 바로 밑에 몰 줄을 넣는다(이미 있으면 그대로)
+              BELOW = E.get("below") or {}
+              if not all(k in AUTO and isinstance(x, str) and x.startswith("▶ ") and "\n" not in x and len(x) <= 300
+                         and re.search(r"https://health\.drkimworld\.com/guide/[a-z0-9-]+/\S*$", x) for k, x in BELOW.items()):
+                  print("::error::below 는 {성분: '▶ … https://health.drkimworld.com/guide/…'}"); sys.exit(1)
               ch = yt.channels().list(part="contentDetails", mine=True).execute()["items"][0]
               if ch["id"] != CH:
                   print("::error::건강월드 채널이 아님"); sys.exit(1)
@@ -90,13 +95,19 @@ jobs:
                   tok = r.get("nextPageToken")
                   if not tok: break
               nd = nc = skip = 0
-              def swap(text):
+              def swap(text, medium="desc"):
                   L = text.split("\n"); hit = False
                   for k, x in enumerate(L):
                       m = GL.match(x)
                       if m and m.group(1) in AUTO:
                           L[k] = AUTO[m.group(1)]; hit = True
-                  return ("\n".join(L) if hit else None)
+                  out = []
+                  for k, x in enumerate(L):
+                      out.append(x)
+                      for ing, cl in AUTO.items():
+                          if x == cl and ing in BELOW and not (k + 1 < len(L) and "health.drkimworld.com/guide/" in L[k + 1]):
+                              out.append(BELOW[ing].replace("utm_medium=desc", f"utm_medium={medium}")); hit = True
+                  return ("\n".join(out) if hit else None)
               try:
                   for j in range(0, len(ids), 50):
                       for v in yt.videos().list(part="snippet", id=",".join(ids[j:j + 50])).execute().get("items", []):
@@ -119,7 +130,7 @@ jobs:
                                   c = t["snippet"]["topLevelComment"]
                                   if c["snippet"].get("authorChannelId", {}).get("value") != CH:
                                       continue
-                                  nt = swap(c["snippet"].get("textOriginal", ""))
+                                  nt = swap(c["snippet"].get("textOriginal", ""), "pinned")
                                   if nt:
                                       yt.comments().update(part="snippet", body={"id": c["id"], "snippet": {"textOriginal": nt}}).execute(); nc += 1
                                       print(f"::notice::{v['id']} 고정 댓글 → 쿠팡")
