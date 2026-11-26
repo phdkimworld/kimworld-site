@@ -376,8 +376,17 @@ def main(spec_p, raw, out):
                     sub_cache[key] = sub_img(g, em)
                 fr.alpha_composite(sub_cache[key], (0, SUB_Y)); break
         # 마지막 장면 아래 작은 글씨(면책 줄 아래, 이모지는 글꼴에 없어 쓰지 않는다 · spec "foot", 영양제 중간광고 9절 5번 — 운영자 11-22 "좀더 적극적으로 팔아"): 자막과 면책 사이
+        # 2026-11-26 운영자 "광고는 시각적으로나 호흡으로나 딱 구분되는게 더 이목을 끌거 같아": 초록 칩 '광고' + 어두운 초록 알약 안에 문구(본편 자막·면책과 색으로 갈림).
+        #   문구 앞 '💊'·'광고'는 그리지 않는다(칩이 대신함)
         if spec.get('foot') and si == len(scenes) - 1:
-            ff_ = font(FBD, 34); d3 = ImageDraw.Draw(fr); d3.text((540 - d3.textlength(spec['foot'], font=ff_) / 2, NOTE_Y + 58), spec['foot'], font=ff_, fill=COL['sub'])
+            ft_ = re.sub(r'^\s*(💊\s*)?(광고\s*[·:|]?\s*)?', '', str(spec['foot']))
+            ff_ = font(FBD, 34); fc_ = font(FB, 32); d3 = ImageDraw.Draw(fr)
+            tw_ = d3.textlength(ft_, font=ff_); cw_ = d3.textlength('광고', font=fc_) + 28; w_ = cw_ + 18 + tw_ + 30
+            x_ = 540 - w_ / 2; y_ = NOTE_Y + 60
+            d3.rounded_rectangle([x_, y_, x_ + w_, y_ + 56], radius=28, fill=(11, 45, 35, 235), outline=COL['green'], width=3)
+            d3.rounded_rectangle([x_ + 6, y_ + 6, x_ + 6 + cw_, y_ + 50], radius=22, fill=COL['green'])
+            d3.text((x_ + 6 + 14, y_ + 8), '광고', font=fc_, fill=(6, 37, 26))
+            d3.text((x_ + 6 + cw_ + 18, y_ + 6), ft_, font=ff_, fill=(230, 248, 240))
         # 면책: 처음 2초·마지막 3초
         if t < 2.0 or t >= total - 3.0:
             nf_ = font(FBD, 38); note = '교육용 분석 · 매수·매도 권유 아님'
