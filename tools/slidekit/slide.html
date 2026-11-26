@@ -115,6 +115,20 @@ h1{font-weight:900;font-size:66px;line-height:1.2;color:#fff;margin-bottom:40px;
 .pcard .op.now{border-color:var(--gold);background:rgba(245,184,61,.12)}.pcard .op.now .n{border-color:var(--gold);background:var(--gold);color:#0E1A2B}
 .pcard .pf{margin-top:36px;font-size:40px;font-weight:900;color:var(--gold);text-align:center}
 .pcard .pf.hid{visibility:hidden}
+/* 광고 화면(2026-11-26 운영자 "광고는 시각적으로나 호흡으로나 딱 구분되는게 더 이목을 끌거 같아"): slides.json 문단 "kind": "ad"
+   본편(남색)과 다른 초록 바탕 + 위 띠 + 오른쪽 위 '광고' 배지(브랜드 자리) + 아래 대가성 줄. 제품 조건 카드 layout 'product'(누구 → 제품 조건 → 왜 → 행동) */
+#stage.admode{--gold:#5CF2B0;--rule:rgba(92,242,176,.30);--mute:#A9D9C4;--soft:#D4F2E4;--panel:rgba(10,52,38,.6)}
+#stage.admode .bg{background:radial-gradient(1000px 700px at 80% 40%,rgba(92,242,176,.12),transparent 70%),linear-gradient(180deg,#0F3A2C 0%,#0B2D23 60%,#08231B 100%)}
+#stage.admode .brand{display:none}
+.adband{position:absolute;left:0;right:0;top:0;height:16px;background:#3DDC97}
+.adbadge{margin-left:auto;padding:6px 26px;border-radius:12px;background:#3DDC97;color:#06251A;font-size:40px;font-weight:900;letter-spacing:2px}
+.adftr{position:absolute;left:96px;right:96px;bottom:36px;font-size:24px;color:#A9D9C4}
+.prod{display:flex;flex-direction:column;gap:22px;margin-top:10px}
+.prod .row{display:flex;align-items:baseline;gap:36px;padding:22px 34px;border-radius:22px;background:rgba(10,52,38,.62);border-left:10px solid rgba(92,242,176,.35)}
+.prod .row.now{border-left-color:#5CF2B0;background:rgba(61,220,151,.16)}
+.prod .lb{flex:0 0 190px;font-size:32px;font-weight:900;color:#5CF2B0}
+.prod .tx{font-size:46px;font-weight:700;color:#fff;line-height:1.25}
+.prod .row.cond .tx{font-size:64px;font-weight:900;color:#5CF2B0}
 </style></head><body><div id="stage"></div>
 <script>
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*\*(.+?)\*\*/g,'<em>$1</em>');
@@ -133,6 +147,7 @@ quote(d,st){return `<div class="body quote"><div class="mark"></div><div class="
 source(d,st){return `<div class="body source">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="src ${vis(d.at,st)}"><div class="kd">${esc(d.kind||'원문')}</div><div class="orig">${esc(d.orig)}</div>${d.tr?`<div class="tr">${esc(d.tr)}</div>`:''}<div class="by">${esc(d.src)} · ${esc(d.date)}</div></div></div>`},
 poll(d,st){const N=['①','②','③','④'];return `<div class="body pollb"><div class="pcard"><div class="ph"><span class="dot"></span>${esc(d.head||'투표')}</div><div class="pq ${vis(d.at,st)}">${esc(d.question)}</div><div class="opts">${d.options.map((o,k)=>`<div class="op ${vis(o.at,st)}"><span class="n">${N[k]}</span>${esc(o.text)}</div>`).join('')}</div><div class="pf ${vis(d.foot_at,st)}">${esc(d.foot||'댓글에 번호 하나만 남겨 주세요')}</div></div></div>`},
 outro(d,st){return `<div class="body outro"><div class="b">김박사 월드</div>${(d.lines||[]).map(l=>`<div class="l ${vis(l.at,st)}">${esc(l.text)}</div>`).join('')}</div>`},
+product(d,st){const R=[['who','누구'],['cond','제품 조건'],['why','왜'],['act','행동']].filter(([k])=>d[k]);return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="prod">${R.map(([k,l])=>`<div class="row ${k} ${vis(d[k+'_at']??d.at,st)}"><div class="lb">${l}</div><div class="tx">${esc(d[k])}</div></div>`).join('')}</div></div>`},
 chart(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="chart" id="ch"></div></div>`}
 };
 function drawChart(d,st){
@@ -151,7 +166,8 @@ function drawChart(d,st){
  box.innerHTML=s+'</svg>'}
 window.render=function(deck,d,st,banner){
  const bg=d.bg?`<div class="photo" style="background-image:url('${d.bg}')"></div>`:'<div class="bg"></div>';
- document.getElementById('stage').innerHTML=bg+`<div class="hdr"><span class="tk">${esc(deck.ticker)}</span><span>${esc(deck.name)}</span>${d.kicker?`<span class="kick">${esc(d.kicker)}</span>`:''}<span class="brand">김박사 월드</span></div>`+L[d.layout](d,st)+(banner?`<div class="banner"><span class="pill">무료 리포트</span>${esc(deck.banner||'숫자와 대응 전략은 고정 댓글 링크에')}</div>`:`<div class="ftr">공개 자료를 정리한 교육용 분석 · 특정 종목의 매수·매도 권유가 아닙니다</div>`);
+ const stg=document.getElementById('stage');stg.className=d.ad?'admode':'';
+ stg.innerHTML=bg+(d.ad?'<div class="adband"></div>':'')+`<div class="hdr"><span class="tk">${esc(deck.ticker)}</span><span>${esc(deck.name)}</span>${d.kicker?`<span class="kick">${esc(d.kicker)}</span>`:''}<span class="brand">김박사 월드</span>${d.ad?'<span class="adbadge">광고</span>':''}</div>`+L[d.layout](d,st)+(d.ad?`<div class="adftr">${esc(d.ad_note||'유료 광고 · 쿠팡 파트너스 활동으로 수수료를 받을 수 있음 · 의사·약사 아님 · 약을 드시면 먼저 상담')}</div>`:banner?`<div class="banner"><span class="pill">무료 리포트</span>${esc(deck.banner||'숫자와 대응 전략은 고정 댓글 링크에')}</div>`:`<div class="ftr">공개 자료를 정리한 교육용 분석 · 특정 종목의 매수·매도 권유가 아닙니다</div>`);
  if(d.layout==='chart')drawChart(d,st);
  document.querySelectorAll('.st .big,.cmp .big,.ti .val').forEach(e=>{fit(e,48)});
  const b=document.querySelector('.body');let g=0;while(b.scrollHeight>b.clientHeight+2&&g++<30){document.querySelectorAll('.body *').forEach(e=>{const fs=parseFloat(getComputedStyle(e).fontSize);if(fs>40)e.style.fontSize=Math.max(40,fs*0.95)+'px'})}
@@ -167,7 +183,7 @@ function numParts(s){if(/[→~:\/]|\d[.]\d+[.]\d/.test(s))return null;const m=s.
  const i=s.indexOf(t),dec=(t.split('.')[1]||'').length;return {pre:s.slice(0,i),post:s.slice(i+t.length),v,dec,comma:t.includes(','),plus:t[0]==='+'}}
 function fmtN(n,v){let s=Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:n.dec,maximumFractionDigits:n.dec,useGrouping:n.comma});return n.pre+(v<0?'-':(n.plus?'+':''))+s+n.post}
 window.prep=function(first,ban){
- MO=[];const sel=first?'.body>h1,.hero .ln,.hero .sub,.st,.ti,.cmp .side,.cmp .vs,.li,.quote .mark,.quote .q,.quote .sub,.src,.pcard,.pcard .op,.pcard .pf,.outro .b,.outro .l,.chart':'.body .now';
+ MO=[];const sel=first?'.body>h1,.hero .ln,.hero .sub,.st,.ti,.cmp .side,.cmp .vs,.li,.quote .mark,.quote .q,.quote .sub,.src,.pcard,.pcard .op,.pcard .pf,.outro .b,.outro .l,.chart,.prod .row':'.body .now';
  const els=[...document.querySelectorAll(sel)].filter(e=>!e.classList.contains('hid')&&!e.closest('.hid'));
  els.forEach((e,k)=>{const pop=e.matches('.mark');MO.push({e,d:Math.min(k,6)*0.07,L:pop?0.35:0.4,kind:e.matches('.chart')?'draw':(e.matches('.vs')?'fade':(pop?'pop':'up'))});
   e.querySelectorAll('.big,.val').forEach(b=>{const n=numParts(b.textContent);if(n)MO.push({e:b,d:Math.min(k,6)*0.07+0.05,L:0.6,kind:'count',n,txt:b.textContent})})});

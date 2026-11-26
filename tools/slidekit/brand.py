@@ -39,7 +39,8 @@ def health_code(deck):
 
 def health_card(code):
     nm, slug = HEALTH[code]
-    return {'tag': '건강 가이드', 'title': f'{nm} 고르는 법', 'sub': '설명란 둘째 줄 링크', 'url': f'health.drkimworld.com/guide/{slug}', 'note': '유료 광고 포함', 'color': '#3DDC97'}
+    # 2026-11-26 운영자 "링크는 이제 몰이 아니라 제품 링크를 바로 달기로 했어" + "광고는 … 딱 구분": 꼬리표 '광고', 제품 링크(설명란 둘째 줄), 가이드 주소 없음
+    return {'tag': '광고', 'title': f'{nm} 제품 링크', 'sub': '조건 맞는 제품 · 설명란 둘째 줄', 'note': '쿠팡 파트너스', 'color': '#3DDC97'}
 
 
 def problems(card):

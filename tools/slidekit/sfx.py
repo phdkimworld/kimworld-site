@@ -83,8 +83,16 @@ def logo_tail(sec=1.0):  # 쇼츠 끝 0.8~1.2초용: 소리 로고의 마지막 
     x[-int(SR * 0.06):] *= np.linspace(1, 0, int(SR * 0.06))
     return _st(x / np.abs(x).max())
 
-GAIN = {'boom': 0.32, 'whoosh': 0.08, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10, 'logo': 0.30, 'logo_tail': 0.14}
-GEN = {'boom': boom, 'whoosh': whoosh, 'riser': riser, 'chime': chime, 'tick': tick, 'logo': logo, 'logo_tail': logo_tail}
+def adin(sec=0.75):  # 광고 시작 표지(2026-11-26 운영자 "광고는 … 호흡으로나 딱 구분"): 짧은 '딩-동' 두 음(위→아래), 무음 0.8초 안에 끝남
+    t = _t(sec); x = np.zeros(len(t))
+    for dl, f0, a in [(0.0, 1174.7, 1.0), (0.22, 880.0, 0.9)]:  # D6 → A5
+        k = int(SR * dl); x[k:] += _bell(t[:len(t) - k], f0, a, dec=5.0)
+    x *= np.minimum(1.0, (sec - t) / 0.08).clip(0, 1)  # 끝 페이드
+    return _st(x / np.abs(x).max())
+
+
+GAIN = {'boom': 0.32, 'whoosh': 0.08, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10, 'logo': 0.30, 'logo_tail': 0.14, 'adin': 0.22}
+GEN = {'boom': boom, 'whoosh': whoosh, 'riser': riser, 'chime': chime, 'tick': tick, 'logo': logo, 'logo_tail': logo_tail, 'adin': adin}
 BED_GAIN = 0.075
 
 def read_wav(p):
