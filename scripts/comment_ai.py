@@ -9,8 +9,11 @@
 장부 social/llm/comments/state.json: 미디어 tools/hourly.py 가 읽어 posted 는 건너뛰고, left 는 세션에 넘기고,
 아직 시도 전인 질문·의견은 잠깐(2시간) 기다린다. 키가 없거나(no_key) 크레딧이 없으면(no_credit) 아무것도 하지 않는다.
 
-사용: python3 scripts/comment_ai.py [--dry] [--max N]
+사용: python3 scripts/comment_ai.py [--dry] [--max N] [--young MIN]
   --dry : 답을 만들고 검사만 한다(게시·장부 없음). LLM_MOCK_RESPONSE 와 함께 쓰면 네트워크 없이 흐름만 본다.
+  --young MIN : 초반 빠른 답(2026-11-26 운영자 공유 'Threads 첫 30분' 팁, 15분마다). 게시한 지 MIN 분(기본 60)이 안 된
+                Threads·페이스북 글의 첫 댓글(우리 글·self_reply 에 직접 단 대답 포함)만, 한 번에 YOUNG_MAX 개까지. 유튜브는 보지 않는다.
+                어린 글이 없으면 API·모델을 부르지 않고 끝난다. 규칙 검사·장부·하루 한도는 매시 실행과 같다.
 """
 import json
 import os
@@ -31,6 +34,8 @@ YT_DAY_LIMIT = 40          # 유튜브 하루(ET) 한도: hourly.py·세션과 �
 AI_CEILING = 32            # 오늘 답글이 이만큼 차면 AI는 멈춘다(종목 요청·대댓글 몫 8개를 세션에 남김)
 MAX_PER_RUN = 15
 MAX_CHARS = 150
+YOUNG_MINUTES = 60         # --young: 게시 뒤 이 분 안의 글만
+YOUNG_MAX = 5              # --young: 한 번(15분)에 모델을 부르는 최대 댓글 수 — 크레딧 상한(하루 최대 약 96회 × 5, 실제는 어린 글이 있을 때만)
 HOLD_HOURS = 2             # hourly.py 가 시도 전 질문을 기다려 주는 시간(장부에 함께 적어 둠)
 
 # ---------- 분류(미디어 tools/hourly.py 와 같은 정규식) ----------
@@ -273,7 +278,13 @@ def handle(item, rep, st, key, dry, results):
     return text + f"\nhttps://drkimworld.com/r/{rep['slug']}/" + section_anchor(rep.get("full"), r["json"].get("section"))
 
 
-def run(dry=False, max_n=MAX_PER_RUN):
+def ledger_24h(st, platform):
+    """장부에서 최근 24시간 이 채널 AI 답글 수(--young 은 어린 글만 읽어 my_replies_24h 가 작게 나오므로 함께 본다)."""
+    cut = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    return sum(1 for k, v in st.get("items", {}).items() if k.startswith(platform + ":") and v.get("status") == "posted" and v.get("at", "") >= cut)
+
+
+def run(dry=False, max_n=MAX_PER_RUN, young=None):
     st = load_state()
     st.setdefault("items", {})
     prev_status = st.get("status")
@@ -281,9 +292,11 @@ def run(dry=False, max_n=MAX_PER_RUN):
     results = {"posted": 0, "left": 0, "skip": ""}
     todo = []   # (key, item, report)
 
-    # 유튜브
+    # 유튜브(--young 에서는 보지 않는다)
     yt_tok, yt_used = None, 0
     try:
+        if young is not None:
+            raise LookupError("young")
         import yt_comments as yt
         if yt.available():
             yt_tok = yt.token()
@@ -302,19 +315,21 @@ def run(dry=False, max_n=MAX_PER_RUN):
                                    "where": f"유튜브 영상 '{o.get('videoTitle', '')}'"}, rep))
         else:
             print("유튜브 인증값 없음 — 유튜브는 건너뜀(YT_CLIENT_ID·YT_CLIENT_SECRET·YT_REFRESH_TOKEN)")
+    except LookupError:
+        yt_tok = None
     except Exception as e:  # 유튜브가 실패해도 SNS 는 계속
         print(f"::warning::유튜브 목록 실패 {type(e).__name__}: {str(e)[:150]}")
         yt_tok = None
 
     # Threads·페이스북(인스타그램은 인스타팀 몫이라 보지 않는다)
-    sns_used = {}
+    sns_used, lst = {}, {}
     try:
         import social_comments as sc
-        lst = sc.list_all(7)
+        lst = sc.list_young(young) if young is not None else sc.list_all(7)
         for pl, v in lst["platforms"].items():
             if pl == "instagram" or not v.get("ok"):
                 continue
-            sns_used[pl] = v.get("my_replies_24h", 0)
+            sns_used[pl] = max(v.get("my_replies_24h", 0), ledger_24h(st, pl) if young is not None else 0)
             for o in v.get("open", []):
                 if o.get("kind") != "top" or prefilter(o.get("text")) or not o.get("slug"):
                     continue
@@ -329,6 +344,9 @@ def run(dry=False, max_n=MAX_PER_RUN):
     except Exception as e:
         print(f"::warning::SNS 목록 실패 {type(e).__name__}: {str(e)[:150]}")
 
+    if young is not None:
+        max_n = min(max_n, YOUNG_MAX)
+        print(f"초반 {young}분 글: " + ", ".join(f"{k} {len(v)}개" for k, v in lst.get("young", {}).items()) + f" · 모델 대상 {len(todo)}건(이번 상한 {max_n})")
     print(f"모델 대상 {len(todo)}건 · 유튜브 오늘 답글 {yt_used}/{YT_DAY_LIMIT}")
     sns_out = []
     for key, it, rep in todo[:max_n]:
@@ -400,10 +418,19 @@ def run(dry=False, max_n=MAX_PER_RUN):
 def main(argv):
     dry = "--dry" in argv
     max_n = int(argv[argv.index("--max") + 1]) if "--max" in argv else MAX_PER_RUN
+    young = None
+    if "--young" in argv:
+        nxt = argv[argv.index("--young") + 1:argv.index("--young") + 2]
+        young = int(nxt[0]) if nxt and nxt[0].isdigit() else YOUNG_MINUTES
+        import social_comments as sc
+        yp = sc.young_posts(young)
+        if not any(yp.values()):   # 어린 글이 없으면 API·모델·장부 모두 건드리지 않는다(15분마다 도는 대부분의 실행)
+            print(f"초반 {young}분 안의 글 없음 — 건너뜀")
+            return 0
     if not llm.has_key() and "LLM_MOCK_RESPONSE" not in os.environ:
         print("::notice::STATUS=no_key — 댓글 AI 답글을 건너뜀(지금처럼 hourly.py·세션이 처리)")
         return 0
-    results, changed = run(dry, max_n)
+    results, changed = run(dry, max_n, young)
     if results["skip"]:
         print(f"::notice::STATUS={results['skip']} — 모델을 부르지 않고 건너뜀(실패 아님)")
     out = os.environ.get("CHANGED_FILE")

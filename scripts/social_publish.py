@@ -12,8 +12,11 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     "channel_text": {"instagram": "인스타 전용 캡션"},  # 선택: 채널별 본문
     "replies": [{"text": "...", "link_attachment": "https://..."}],  # 선택: Threads 이어지는 댓글
     "link_attachment": "https://...",                   # 선택: Threads 링크 카드
-    "poll": ["보기 1", "보기 2", "보기 3"]               # 선택: Threads 본문 투표(보기 2~4개, 각 25바이트 이하 = 한글 약 8자, 24시간)
+    "poll": ["보기 1", "보기 2", "보기 3"],              # 선택: Threads 본문 투표(보기 2~4개, 각 25바이트 이하 = 한글 약 8자, 24시간)
+    "self_reply": "여러분은 … 댓글로 의견 주세요"          # 선택: 게시 2~5분 뒤 Threads 본문에 다는 내 댓글 한 개(초반 30분 첫 활성화)
   }
+  self_reply(2026-11-26 운영자 공유 'Threads 첫 30분' 팁 중 플랫폼에 안전한 부분만): 150자 이내, 링크·투자 권유·베팅·AI 언급 없음.
+  이어지는 댓글(replies)을 다 단 뒤 본문 게시 시각에서 SELF_REPLY_DELAY 초가 지나면 본문에 직접 단다. 25분이 지났거나 실패하면 다시 달지 않는다.
   poll 은 Threads 본문에 투표로 붙고 link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
   인스타·페이스북은 API로 투표를 넣을 수 없어 본문 끝에 '① 보기 …'로 글로 붙인다(릴스 파일에도 poll 을 넣으면 같다).
   media.type: image | carousel | reels
@@ -72,6 +75,21 @@ IG_LIMIT = 2200
 CHANNELS = ("threads", "instagram", "facebook")
 MEDIA_EXT = {"image": (".jpg", ".jpeg", ".png"), "reels": (".mp4", ".mov")}
 STALE_HOURS = 6  # 미디어 주소가 이 시간 넘게 열리지 않으면 실패로 표시
+# 초반 30분 내 댓글(self_reply): 게시 뒤 이 초만큼 기다렸다가 단다(2~5분 권장 → 150초). 늦게 이어 단 실행에서 25분이 지났으면 건너뛴다
+SELF_REPLY_DELAY = 150
+SELF_REPLY_LATE = 25 * 60
+SELF_REPLY_MAX = 150
+# 미디어 tools/queue_check.py·scripts/comment_ai.py BANNED 와 같은 뜻의 짧은 목록(내 댓글은 질문 한 줄이라 이 정도면 충분)
+SELF_REPLY_BANNED = [
+    (r"https?://|www\.|\.com\b|t\.me/", "링크"),
+    (r"매수|매도|사세요|파세요|담으세요|줍줍|물타기|손절|익절|목표\s*(가|주가)", "매매 권유·목표가"),
+    (r"수익\s*(보장|약속|확실)|확실한\s*수익|무조건|급등\s*확정|원금", "수익 약속"),
+    (r"베팅|배팅|올인|몰빵|도박|대박|떡상|떡락|존버", "베팅 표현"),
+    (r"(?<![A-Za-z])AI(?![A-Za-z])|인공지능|에이아이|GPT|챗봇|자동\s*(답글|댓글)", "AI 언급"),
+    (r"빚|대출\s*받아|신용\s*(거래|매수)", "빚"),
+    (r"지금\s*당장|서두르|놓치면|마지막\s*기회", "긴급성"),
+    (r"팔로우|맞팔|좋아요\s*(눌러|부탁)|리포스트\s*(해|부탁)|공유\s*부탁", "참여 구걸"),
+]
 TH_TOPIC_DEFAULT = "미국주식"  # Threads 주제 태그 기본값(글마다 "topic_tag"로 바꾼다, 코인 글은 "코인")
 # 한국 시청자가 많이 보는 시각(KST). 새 글은 바로 올리지 않고 다음 칸에 넣는다(운영자 지시 2026-10-20)
 KST = ZoneInfo("Asia/Seoul")
@@ -116,6 +134,21 @@ def threads_len(text):
                  or cp in (0x200D, 0xFE0F) or unicodedata.category(ch) == "So")
         n += len(ch.encode("utf-8")) if emoji else 1
     return n
+
+
+def self_reply_problems(text):
+    """self_reply 검사. 빈 목록이면 통과(미디어 tools/queue_check.py 도 같은 규칙)."""
+    import re
+    t = (text or "").strip()
+    if not t:
+        return ["self_reply 가 비어 있음"]
+    errs = []
+    if threads_len(t) > SELF_REPLY_MAX:
+        errs.append(f"self_reply {threads_len(t)}자 > {SELF_REPLY_MAX}자")
+    for pat, why in SELF_REPLY_BANNED:
+        if re.search(pat, t, re.I):
+            errs.append(f"self_reply 금지: {why}")
+    return errs
 
 
 def parse_time(s):
@@ -193,6 +226,9 @@ def load(path):
                 errs.append(f"replies[{i}] text 가 비어 있음")
             elif threads_len(rt) > TH_LIMIT:
                 errs.append(f"replies[{i}] {threads_len(rt)}자 > {TH_LIMIT}자 제한")
+        if post.get("self_reply") is not None:
+            sr = post["self_reply"]
+            errs += self_reply_problems(sr) if isinstance(sr, str) else ["self_reply 는 글자여야 함"]
         poll = post.get("poll")
         if poll is not None:
             if not isinstance(poll, list) or not 2 <= len(poll) <= 4:
@@ -323,12 +359,44 @@ def do_threads(post, res, save):
     for i in range(len(ids), len(parts)):
         ids.append(th_publish_one(parts[i], uid, token, reply_to=ids[-1] if ids else None))
         if i == 0:
+            res["first_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             try:
                 res["permalink"] = call(TH_API, "GET", ids[0], {"fields": "permalink"}, token).get("permalink", "")
             except RuntimeError:
                 pass
         save()
+    th_self_reply(post, res, save, uid, token)
     res["done"] = True
+
+
+def th_self_reply(post, res, save, uid, token, publish=None, now=None, sleep=None):
+    """초반 30분 첫 활성화: 본문 게시 SELF_REPLY_DELAY 초 뒤 본문에 내 댓글 한 개(self_reply).
+    한 번만 시도한다 — 성공이면 self_reply_id, 실패·늦음이면 self_reply_skipped 를 남기고 글 게시는 실패로 치지 않는다."""
+    text = (post.get("self_reply") or "").strip()
+    ids = res.get("ids") or []
+    if not text or not ids or res.get("self_reply_id") or res.get("self_reply_skipped"):
+        return
+    publish = publish or th_publish_one
+    sleep = sleep or time.sleep
+    now = now or (lambda: datetime.now(timezone.utc))
+    try:
+        first = datetime.fromisoformat(res["first_at"])
+    except (KeyError, ValueError):
+        first = now()
+    elapsed = (now() - first).total_seconds()
+    if elapsed > SELF_REPLY_LATE:
+        res["self_reply_skipped"] = f"늦음 {int(elapsed // 60)}분"
+        save()
+        return
+    if elapsed < SELF_REPLY_DELAY:
+        sleep(SELF_REPLY_DELAY - elapsed)
+    try:
+        res["self_reply_id"] = publish({"text": text}, uid, token, reply_to=ids[0])
+        print(f"::notice::Threads 내 댓글(self_reply) 게시 {res['self_reply_id']}")
+    except RuntimeError as e:
+        res["self_reply_skipped"] = f"실패 {str(e)[:150]}"
+        print(f"::warning::Threads 내 댓글(self_reply) 실패 — 다시 달지 않음: {str(e)[:150]}")
+    save()
 
 
 # ---------- Instagram ----------

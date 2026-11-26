@@ -116,4 +116,49 @@ check("키 없으면 심사 건너뜀(0)", lj.main([str(rp), "--out", str(tmp / 
 md, cut = wa.scrub("## 요약\n- 페이지뷰 지난주보다 12% 늘었다\n- 쿠팡 수수료 3,000원\n- 애드핏 클릭 4번")
 check("수익·광고 줄 지움", cut == 2 and "페이지뷰" in md and "쿠팡" not in md)
 
+
+# 초반 60분 빠른 답(--young, 2026-11-26): 어린 글 대화만 읽고, self_reply 에 단 대답도 top, 상한 5개, 유튜브 안 봄 — 가짜 API·모의 응답, 게시 없음(dry)
+import social_comments as scm  # noqa: E402
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz  # noqa: E402
+_now = _dt.now(_tz.utc)
+_yd = tmp / "young"
+(_yd / "social/posted").mkdir(parents=True)
+(_yd / "social/posted/laes-2026-11-7.json").write_text(json.dumps({"posted_at": _now.isoformat(), "results": {"threads": {
+    "ids": ["500", "501"], "first_at": (_now - _td(minutes=12)).isoformat(), "self_reply_id": "502"}}}), encoding="utf-8")
+scm.POSTED, scm.ROOT = _yd / "social/posted", _yd
+_seen = []
+def _fake(api, method, path, params, token):
+    _seen.append(path)
+    if path == "me":
+        return {"id": "9", "username": "me"}
+    if path == "500":
+        return {"id": "500", "text": "실스크 https://drkimworld.com/r/laes-2026-11-7/", "permalink": "p", "timestamp": _now.isoformat()}
+    if path == "500/conversation":
+        T = lambda m: (_now - _td(minutes=m)).isoformat()
+        cs = [{"id": "501", "username": "me", "text": "링크", "timestamp": T(11), "replied_to": {"id": "500"}},
+              {"id": "502", "username": "me", "text": "질문", "timestamp": T(9), "replied_to": {"id": "500"}}]
+        cs += [{"id": f"6{i:02d}", "username": f"u{i}", "text": f"반등 신호로 보이는데 {i}번째 생각은 어떠세요?", "timestamp": T(8 - i * 0.1),
+                "replied_to": {"id": "502" if i % 2 else "500"}} for i in range(7)]
+        cs += [{"id": "700", "username": "u9", "text": "저도 궁금하네요 왜 그런가요", "timestamp": T(1), "replied_to": {"id": "600"}}]
+        return {"data": cs}
+    raise AssertionError(path)
+scm.call = _fake
+os.environ["THREADS_ACCESS_TOKEN"] = "x"
+os.environ.pop("FB_PAGE_TOKEN", None)
+_yl = scm.list_young(60)
+_th = _yl["platforms"]["threads"]["open"]
+check("young: 본문·self_reply 에 단 대답은 top, 시청자끼리 대화는 빼고, 어린 글만 읽음",
+      sorted(o["commentId"] for o in _th if o["kind"] == "top") == [f"6{i:02d}" for i in range(7)] and "700" not in [o["commentId"] for o in _th]
+      and "me/threads" not in _seen)
+os.environ["LLM_MOCK_RESPONSE"] = '{"category":"other","reply":"","section":""}'
+_calls = []
+_orig = ca.generate
+ca.generate = lambda rep, c, w: _calls.append(c["text"]) or _orig(rep, c, w)
+_st = ca.STATE
+ca.STATE = tmp / "state.json"
+res, _ = ca.run(dry=True, max_n=15, young=60)
+check("young: 모델은 한 번에 5개까지(dry, 게시 없음)", len(_calls) == ca.YOUNG_MAX and res["posted"] == 0)
+ca.generate, ca.STATE = _orig, _st
+del os.environ["LLM_MOCK_RESPONSE"]
+
 print(f"test_llm: {ok} 통과")

@@ -145,7 +145,7 @@ def item(platform, post, slug, o, reply_to):
     t = o["target"]
     return {"platform": platform, "kind": o["kind"], "replyTo": reply_to, "commentId": t["id"], "postId": post["id"],
             "postPermalink": post.get("permalink", ""), "postText": (post.get("text") or "")[:200], "slug": slug,
-            "author": t["author"], "text": t["text"], "publishedAt": t["publishedAt"], "likeCount": t.get("likeCount", 0),
+            "parentId": t.get("parent", ""), "author": t["author"], "text": t["text"], "publishedAt": t["publishedAt"], "likeCount": t.get("likeCount", 0),
             "followups": [msg(x) for x in o["followups"]], "context": o["context"], "my_replies_in_thread_24h": o["mine24"]}
 
 
@@ -163,7 +163,7 @@ def pages(fetch, first, limit=20):
 
 
 # ---------- Threads ----------
-def list_threads(since, now, pmap):
+def list_threads(since, now, pmap, only=None):
     tok = os.environ.get("THREADS_ACCESS_TOKEN", "")
     if not tok:
         raise RuntimeError("THREADS_ACCESS_TOKEN 비밀값이 없음")
@@ -171,7 +171,9 @@ def list_threads(since, now, pmap):
     me = f("me", {"fields": "id,username"})
     oldest = int((now - timedelta(days=POST_WINDOW_DAYS)).timestamp())
     out, mine24 = [], 0
-    for post in pages(f, ("me/threads", {"fields": "id,text,permalink,timestamp", "since": oldest, "limit": 50})):
+    posts = ([f(i, {"fields": "id,text,permalink,timestamp"}) for i in only] if only is not None
+             else pages(f, ("me/threads", {"fields": "id,text,permalink,timestamp", "since": oldest, "limit": 50})))
+    for post in posts:
         conv = list(pages(f, (f"{post['id']}/conversation", {"fields": "id,text,username,timestamp,replied_to,is_reply_owned_by_me,hide_status", "reverse": "false", "limit": 100})))
         cs = [{"id": c["id"], "parent": (c.get("replied_to") or {}).get("id", post["id"]), "author": c.get("username", ""),
                "isMe": bool(c.get("is_reply_owned_by_me")) or c.get("username") == me.get("username"), "text": c.get("text", ""),
@@ -214,17 +216,26 @@ def list_instagram(since, now, pmap):
 
 
 # ---------- Facebook ----------
-def list_facebook(since, now, pmap):
+def list_facebook(since, now, pmap, only=None):
     tok, page = os.environ.get("FB_PAGE_TOKEN", ""), os.environ.get("FB_PAGE_ID", "")
     if not tok or not page:
         raise RuntimeError("FB_PAGE_TOKEN·FB_PAGE_ID 비밀값이 없음")
     f = lambda p, q: fb_call("GET", p, q, tok)  # noqa: E731
     oldest = int((now - timedelta(days=POST_WINDOW_DAYS)).timestamp())
-    posts = list(pages(f, (f"{page}/posts", {"fields": "id,message,created_time,permalink_url", "since": oldest, "limit": 50}), limit=4))
-    try:
-        posts += [{**v, "message": v.get("description", "")} for v in pages(f, (f"{page}/video_reels", {"fields": "id,description,created_time,permalink_url", "since": oldest, "limit": 50}), limit=2)]
-    except RuntimeError:
-        pass
+    if only is not None:
+        posts = []
+        for i in only:
+            try:
+                posts.append(f(i, {"fields": "id,message,created_time,permalink_url"}))
+            except RuntimeError:   # 릴스 영상 ID 는 message 칸이 없다
+                v = f(i, {"fields": "id,description,created_time,permalink_url"})
+                posts.append({**v, "message": v.get("description", "")})
+    else:
+        posts = list(pages(f, (f"{page}/posts", {"fields": "id,message,created_time,permalink_url", "since": oldest, "limit": 50}), limit=4))
+        try:
+            posts += [{**v, "message": v.get("description", "")} for v in pages(f, (f"{page}/video_reels", {"fields": "id,description,created_time,permalink_url", "since": oldest, "limit": 50}), limit=2)]
+        except RuntimeError:
+            pass
     norm = lambda c: {"id": c["id"], "author": (c.get("from") or {}).get("name", ""), "isMe": (c.get("from") or {}).get("id") == page,  # noqa: E731
                       "text": c.get("message", ""), "publishedAt": c["created_time"], "likeCount": c.get("like_count", 0)}
     out, mine24 = [], 0
@@ -255,6 +266,58 @@ def list_all(days):
         except RuntimeError as e:
             res[name] = {"ok": False, "error": str(e)[:400]}
     return {"generated": now.isoformat(timespec="seconds"), "since": since.isoformat(timespec="seconds"), "platforms": res}
+
+
+# ---------- 초반 30~60분(운영자 공유 Threads 팁 2026-11-26) ----------
+def young_posts(minutes, now=None):
+    """게시 기록(social/posted)에서 첫 글을 올린 지 minutes 분이 안 된 Threads·페이스북 게시물.
+    돌려주는 값: {"threads": [{"id", "own": [이 글에 우리가 단 이어지는 댓글·self_reply ID], "slug"}], "facebook": [...]}.
+    API 를 부르지 않는다 — 어린 글이 없으면 comment_ai --young 은 아무것도 부르지 않고 끝난다."""
+    now = now or datetime.now(timezone.utc)
+    out = {"threads": [], "facebook": []}
+    for p in list(POSTED.glob("*.json")) + list((ROOT / "social" / "queue").glob("*.json")):   # 다른 채널이 남아 대기열에 있는 글도
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        res = d.get("results") or {}
+        th = res.get("threads") or {}
+        at = th.get("first_at") or d.get("posted_at") or ""
+        fb = res.get("facebook") or {}
+        for pl, pid, own in (("threads", (th.get("ids") or [None])[0], list(th.get("ids") or [])[1:] + [th.get("self_reply_id")]),
+                             ("facebook", fb.get("post_id") or fb.get("video_id"), [])):
+            if not pid:
+                continue
+            t_at = at if pl == "threads" else (d.get("posted_at") or "")
+            try:
+                age = (now - ts(t_at)).total_seconds() / 60
+            except (ValueError, TypeError):
+                continue
+            if 0 <= age <= minutes:
+                out[pl].append({"id": str(pid), "own": [str(x) for x in own if x], "slug": slug_of_file(p.stem)})
+    return out
+
+
+def list_young(minutes):
+    """어린 게시물에서만 답할 차례인 댓글을 모은다. 우리 글(본문·이어지는 댓글·self_reply)에 직접 단 시청자 댓글은 top 으로 친다
+    (self_reply 질문에 단 대답이 초반 대화의 대부분이라서). 시청자끼리 대화·우리 답글 뒤 대댓글은 그대로 followup."""
+    now = datetime.now(timezone.utc)
+    yp, pmap, res = young_posts(minutes, now), posted_map(), {}
+    since = now - timedelta(minutes=minutes + 5)
+    for name, fn in (("threads", list_threads), ("facebook", list_facebook)):
+        if not yp[name]:
+            continue
+        try:
+            r = fn(since, now, pmap, only=[x["id"] for x in yp[name]])
+        except RuntimeError as e:
+            res[name] = {"ok": False, "error": str(e)[:400]}
+            continue
+        own = {i for x in yp[name] for i in x["own"]}
+        for o in r["open"]:
+            if o["kind"] == "followup" and o.get("parentId") in own:
+                o["kind"] = "top"
+        res[name] = r
+    return {"generated": now.isoformat(timespec="seconds"), "since": since.isoformat(timespec="seconds"), "young": yp, "platforms": res}
 
 
 def probe():

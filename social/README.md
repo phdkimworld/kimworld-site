@@ -35,6 +35,7 @@
   - `reels`: `path` MP4(세로 9:16, 3~90초 권장), 선택 `cover`
   - 캡션 2,200자 이내. 캡션의 링크는 눌리지 않는다.
 - `channel_text`: 채널마다 본문을 따로 쓸 때.
+- `self_reply`(선택, 2026-11-26 'Threads 첫 30분'): 본문 게시 약 150초 뒤 Threads 본문에 다는 내 댓글 한 줄(그 회차 숫자를 묻는 질문, 150자 이내, 링크·권유·베팅·AI 언급 없음). 한 번만 시도하고 결과는 `results.threads.self_reply_id`(실패·늦음은 `self_reply_skipped`). 게시 60분 안 된 글의 첫 댓글은 comment-ai.yml `--young 60`이 15분마다 답한다(한 번에 5개).
 - 미리 검사: `python scripts/social_publish.py --check`
 - 글 쓰는 기준: 미디어 저장소 `skill/SKILL.md` K8.0·K8.1 '스레드 작성 표준'(운영자 지침 2026-10-29) — 모순으로 시작, 숫자와 비교 기준, 사실·가설·예측 구분(같은 날 두 일을 인과로 단정하지 않음), 복수 해석과 반대 증거, 마지막 질문과 `poll` 보기는 같은 전망 질문, 리포트 연결은 'N부 <표 이름>', 사후 검증. 올리기 전 미디어 저장소 `tools/queue_check.py`.
 

@@ -74,6 +74,53 @@ with tempfile.TemporaryDirectory() as d:
     check("미디어 없는 글은 인스타 건너뜀", json.loads((sp.POSTED / "c.json").read_text())["results"]["instagram"]["skipped"])
     check("미래 글은 대기열에 남음", (sp.QUEUE / "b.json").exists())
 
+    # 초반 30분 내 댓글(self_reply, 2026-11-26): 검사 + 본문에 직접, 150초 뒤, 한 번만. 실제 게시 없이 가짜 call 로만 본다
+    for bad_sr, why in (("의견 주세요 https://drkimworld.com/r/x/", "링크"), ("가" * 151, "151자"), ("지금 매수 신호일까요?", "매수"),
+                        ("올인할 자리일까요?", "베팅"), ("AI가 보기엔?", "AI")):
+        W("sr.json", {"text": "본문", "publish_at": future, "channels": ["threads"], "self_reply": bad_sr})
+        check(f"self_reply {why} 는 검사 실패", sp.main(["--check"]) == 1)
+    good_sr = "여러분은 1.07달러, 반등 신호로 보세요 아니면 한 번 더 확인하고 싶으세요? 댓글로 의견 주세요"
+    check("self_reply 예시 문장은 통과", sp.self_reply_problems(good_sr) == [])
+    (sp.QUEUE / "sr.json").unlink()
+    slept = []
+    sp.time.sleep = lambda s: slept.append(s)
+    log.clear()
+    W("sr.json", {"text": "본문", "publish_at": past, "channels": ["threads"], "replies": [{"text": "링크 댓글"}], "self_reply": good_sr})
+    check("self_reply 글 게시 성공", sp.main([]) == 0)
+    srp = json.loads((sp.POSTED / "sr.json").read_text())["results"]["threads"]
+    th = [l for l in log if l[0] == sp.TH_API and l[2] == "9/threads"]
+    check("self_reply: 이어지는 댓글 뒤 본문(ids[0])에 직접, 기록 남김",
+          len(th) == 3 and th[2][3]["text"] == good_sr and th[2][3]["reply_to_id"] == srp["ids"][0] and th[1][3]["reply_to_id"] == srp["ids"][0]
+          and srp["self_reply_id"] and len(srp["ids"]) == 2 and "topic_tag" not in th[2][3])
+    check("self_reply: 본문 게시 뒤 약 150초 기다림", any(140 <= x <= sp.SELF_REPLY_DELAY for x in slept))
+    sp.time.sleep = lambda s: None
+    T0 = datetime(2026, 11, 26, 12, tzinfo=timezone.utc)
+    calls, sv = [], []
+    pub = lambda part, uid, tok, reply_to=None: calls.append((part["text"], reply_to)) or "777"
+    r = {"ids": ["1", "2"], "first_at": T0.isoformat()}
+    sp.th_self_reply({"self_reply": "질문?"}, r, lambda: sv.append(1), "9", "t", publish=pub, now=lambda: T0 + timedelta(minutes=26), sleep=lambda s: None)
+    check("self_reply: 25분 넘게 늦으면 달지 않음", not calls and r["self_reply_skipped"].startswith("늦음"))
+    r = {"ids": ["1"], "first_at": T0.isoformat()}
+    def boom(*a, **k): raise RuntimeError("HTTP 500")
+    sp.th_self_reply({"self_reply": "질문?"}, r, lambda: None, "9", "t", publish=boom, now=lambda: T0 + timedelta(minutes=3), sleep=lambda s: None)
+    sp.th_self_reply({"self_reply": "질문?"}, r, lambda: None, "9", "t", publish=pub, now=lambda: T0 + timedelta(minutes=18), sleep=lambda s: None)
+    check("self_reply: 실패하면 기록만, 다음 실행에서 다시 달지 않음", not calls and r["self_reply_skipped"].startswith("실패"))
+    r = {"ids": ["1"]}
+    sp.th_self_reply({}, r, lambda: None, "9", "t", publish=pub)
+    check("self_reply 없으면 아무것도 안 함", not calls and r == {"ids": ["1"]})
+
+    # 초반 60분 빠른 답: 게시 기록에서 어린 글만 고른다(API 없음)
+    import social_comments as scm
+    scm.POSTED, scm.ROOT = sp.POSTED, d
+    now = datetime.now(timezone.utc)
+    (sp.POSTED / "y-2026-11-1.json").write_text(json.dumps({"posted_at": now.isoformat(), "results": {"threads": {"ids": ["501", "502"], "first_at": (now - timedelta(minutes=10)).isoformat(), "self_reply_id": "503"}, "facebook": {"post_id": "55_9"}}}), encoding="utf-8")
+    (sp.POSTED / "o-2026-11-1.json").write_text(json.dumps({"posted_at": (now - timedelta(minutes=90)).isoformat(), "results": {"threads": {"ids": ["601"], "first_at": (now - timedelta(minutes=90)).isoformat()}}}), encoding="utf-8")
+    yp = scm.young_posts(60, now)
+    y5 = [x for x in yp["threads"] if x["id"] in ("501", "601")]
+    check("어린 글(60분 안)만, 우리 이어지는 댓글·self_reply ID 함께",
+          [x["id"] for x in y5] == ["501"] and y5[0]["own"] == ["502", "503"] and "55_9" in [x["id"] for x in yp["facebook"]])
+    check("오래된 글만 있으면 어린 글 없음", not any(scm.young_posts(60, now + timedelta(minutes=120)).values()))
+
     sp.url_ready = lambda u: False
     W("d.json", {"text": "대기", "publish_at": past, "channels": ["instagram"], "media": {"type": "image", "path": "static/social/a.jpg"}})
     check("배포 전이면 실패 없이 다음으로 미룸", sp.main([]) == 0 and (sp.QUEUE / "d.json").exists())
