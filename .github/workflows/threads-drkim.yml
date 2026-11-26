@@ -26,7 +26,7 @@ on:
         required: false
         default: ""
       reply:
-        description: "post 뒤 내 답글(500자 이내, 첫 줄 대가성 문구, 링크는 쿠팡 단축 링크만). 비우면 답글 없음"
+        description: "post 뒤 내 답글. 여러 개면 줄 하나에 === 로 나눔(각 500자 이내, 링크는 마지막 조각에만 — 첫 줄 대가성 문구, 쿠팡 단축 링크만). 비우면 답글 없음"
         required: false
         default: ""
 
@@ -102,19 +102,23 @@ jobs:
           reply = os.environ.get("REPLY", "").strip() if mode == "post" else ""
           if mode == "post" and re.search(r"https?://", text):
               print("::error::본문에는 링크를 넣지 않는다(링크는 reply)"); sys.exit(1)
-          if reply:
-              urls = re.findall(r"https?://\S+", reply)
-              if len(reply) > 500 or "쿠팡 파트너스" not in reply.split("\n")[0] or not urls or \
+          # 2026-11-26 대형 계정 참고: 본문 → 이어지는 글(링크 없음) → 마지막 답글(대가성 문구 + 쿠팡 링크). reply 안 '\n===\n' 로 이어 단다.
+          parts = [x.strip() for x in reply.split("\n===\n") if x.strip()] if reply else []
+          for k, pt in enumerate(parts):
+              urls = re.findall(r"https?://\S+", pt)
+              if len(pt) > 500 or (urls and ("쿠팡 파트너스" not in pt.split("\n")[0] or k != len(parts) - 1)) or \
                  any(not re.match(r"https://link\.coupang\.com/a/", u) for u in urls):
-                  print("::error::reply 는 500자 이내, 첫 줄 대가성 문구, 링크는 쿠팡 단축 링크만"); sys.exit(1)
+                  print("::error::reply 조각은 500자 이내, 링크는 마지막 조각에만(첫 줄 대가성 문구, 쿠팡 단축 링크만)"); sys.exit(1)
           c = call("POST", "me/threads", {"media_type": "TEXT", "text": text})
           time.sleep(5)
           p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
           print(f"::notice::게시됨 id={p.get('id')}")
-          if reply:
+          prev = p["id"]
+          for pt in parts:
               time.sleep(5)
-              c2 = call("POST", "me/threads", {"media_type": "TEXT", "text": reply, "reply_to_id": p["id"]})
+              c2 = call("POST", "me/threads", {"media_type": "TEXT", "text": pt, "reply_to_id": prev})
               time.sleep(5)
               p2 = call("POST", "me/threads_publish", {"creation_id": c2["id"]})
-              print(f"::notice::답글 게시됨 id={p2.get('id')}")
+              prev = p2.get("id")
+              print(f"::notice::답글 게시됨 id={prev}")
           PY
