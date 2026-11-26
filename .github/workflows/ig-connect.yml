@@ -1,0 +1,41 @@
+# 인스타 계정을 휴대폰만으로 연결(2026-11-26 운영자 "폰으론 못해?") — scripts/ig_connect.py
+# 1) 휴대폰에서 Instagram 승인 주소를 열어 해당 계정으로 '허용'
+# 2) 넘어간 drkimworld.com 주소의 ?code= 값(또는 주소 전체)을 이 워크플로 code 입력에 넣고 실행(1시간·1회용)
+# 토큰은 출력하지 않고 바로 비밀값 <prefix>_ACCESS_TOKEN·<prefix>_USER_ID 에 넣는다. 60일 갱신은 token-refresh.yml.
+name: Instagram connect
+
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "승인 뒤 넘어간 주소(https://drkimworld.com/?code=...) 전체 또는 code 값"
+        required: true
+      expect:
+        description: "연결할 인스타 아이디(다르면 저장 안 함)"
+        required: true
+        default: drkim_world
+      prefix:
+        description: "비밀값 이름 앞부분"
+        required: true
+        default: HEALTH_IG
+
+permissions:
+  contents: read
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet "pynacl==1.5.0"
+      - name: Exchange and store
+        env:
+          CODE: ${{ inputs.code }}
+          EXPECT: ${{ inputs.expect }}
+          PREFIX: ${{ inputs.prefix }}
+          IG_APP_SECRET: ${{ secrets.HEALTH_IG_APP_SECRET }}
+          GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          echo "::add-mask::$CODE"
+          python3 scripts/ig_connect.py

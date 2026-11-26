@@ -32,5 +32,6 @@ jobs:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           DRKIM_THREADS_ACCESS_TOKEN: ${{ secrets.DRKIM_THREADS_ACCESS_TOKEN }}
+          HEALTH_IG_ACCESS_TOKEN: ${{ secrets.HEALTH_IG_ACCESS_TOKEN }}
           GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
         run: python scripts/token_refresh.py
