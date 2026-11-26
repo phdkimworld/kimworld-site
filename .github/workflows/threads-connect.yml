@@ -1,0 +1,36 @@
+# Threads @drkimworld 토큰을 휴대폰 승인만으로 다시 받기(2026-11-26 운영자 "삭제 권한 얻어서 해결해") — scripts/threads_connect.py
+# 1) 휴대폰에서 `python3 scripts/threads_connect.py url` 주소를 열어 @drkimworld 로 '허용'
+# 2) 넘어간 drkimworld.com 주소(?code=...) 전체를 이 워크플로 code 입력에 넣고 실행(1시간·1회용)
+# 토큰은 출력하지 않고 바로 비밀값 DRKIM_THREADS_ACCESS_TOKEN 에 넣는다. 필요한 비밀값: THREADS_APP_SECRET(Threads 앱 시크릿), GH_SECRETS_PAT.
+name: Threads connect
+
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "승인 뒤 넘어간 주소(https://drkimworld.com/?code=...) 전체 또는 code 값"
+        required: true
+      expect:
+        description: "연결할 Threads 아이디(다르면 저장 안 함)"
+        required: true
+        default: drkimworld
+
+permissions:
+  contents: read
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet "pynacl==1.5.0"
+      - name: Exchange and store
+        env:
+          CODE: ${{ inputs.code }}
+          EXPECT: ${{ inputs.expect }}
+          THREADS_APP_SECRET: ${{ secrets.THREADS_APP_SECRET }}
+          GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          echo "::add-mask::$CODE"
+          python3 scripts/threads_connect.py
