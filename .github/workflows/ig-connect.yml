@@ -15,7 +15,7 @@ on:
         description: "연결할 계정"
         type: choice
         default: threads-drkimworld
-        options: [threads-drkimworld, instagram-drkim_world]
+        options: [threads-drkimworld, instagram-drkim_world, threads-phdkimworld, instagram-drkimworld]
 
 permissions:
   contents: read
@@ -30,11 +30,18 @@ jobs:
       - name: Exchange and store
         env:
           CODE: ${{ inputs.code }}
-          EXPECT: ${{ inputs.target == 'threads-drkimworld' && 'drkimworld' || 'drkim_world' }}
-          PREFIX: ${{ inputs.target == 'threads-drkimworld' && 'DRKIM_THREADS' || 'HEALTH_IG' }}
-          PLATFORM: ${{ inputs.target == 'threads-drkimworld' && 'threads' || 'instagram' }}
-          IG_APP_SECRET: ${{ inputs.target == 'threads-drkimworld' && secrets.THREADS_APP_SECRET || secrets.HEALTH_IG_APP_SECRET }}
+          TARGET: ${{ inputs.target }}
+          TH_SECRET: ${{ secrets.THREADS_APP_SECRET }}
+          IGA_SECRET: ${{ secrets.HEALTH_IG_APP_SECRET }}
           GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
         run: |
           echo "::add-mask::$CODE"
+          # 2026-11-27: 본계정 Threads @phdkimworld(THREADS_*)·인스타 @drkimworld(IG_*)도 code 190 으로 끊겨 같은 통로로 다시 연결
+          case "$TARGET" in
+            threads-drkimworld)    export PLATFORM=threads   EXPECT=drkimworld   PREFIX=DRKIM_THREADS IG_APP_SECRET="$TH_SECRET" ;;
+            threads-phdkimworld)   export PLATFORM=threads   EXPECT=phdkimworld  PREFIX=THREADS       IG_APP_SECRET="$TH_SECRET" ;;
+            instagram-drkim_world) export PLATFORM=instagram EXPECT=drkim_world  PREFIX=HEALTH_IG     IG_APP_SECRET="$IGA_SECRET" ;;
+            instagram-drkimworld)  export PLATFORM=instagram EXPECT=drkimworld   PREFIX=IG            IG_APP_SECRET="$IGA_SECRET" ;;
+            *) echo "::error::알 수 없는 target $TARGET"; exit 1 ;;
+          esac
           python3 scripts/ig_connect.py
