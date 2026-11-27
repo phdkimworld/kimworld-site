@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import social_publish as sp
+sp.PAUSED = set()  # social/PAUSED(운영 중 채널 중단)는 검사에 영향 주지 않게
 
 ok = 0
 def check(name, cond):
@@ -73,6 +74,13 @@ with tempfile.TemporaryDirectory() as d:
     check("media_publish 호출", any(l[2] == "7/media_publish" for l in log))
     check("미디어 없는 글은 인스타 건너뜀", json.loads((sp.POSTED / "c.json").read_text())["results"]["instagram"]["skipped"])
     check("미래 글은 대기열에 남음", (sp.QUEUE / "b.json").exists())
+    # social/PAUSED(2026-11-27 인스타 중단): 멈춘 채널은 호출 없이 '건너뜀'으로 끝나고 글은 게시 완료로 옮겨진다
+    sp.PAUSED = {"instagram"}
+    log.clear()
+    W("pz.json", {"text": "본문", "publish_at": past, "channels": ["instagram"], "media": {"type": "image", "path": "static/social/a.jpg"}})
+    check("멈춘 채널은 건너뜀·호출 없음", sp.main([]) == 0 and not any(l[0] == sp.IG_API for l in log)
+          and json.loads((sp.POSTED / "pz.json").read_text())["results"]["instagram"]["skipped"])
+    sp.PAUSED = set()
 
     # 초반 30분 내 댓글(self_reply, 2026-11-26): 검사 + 본문에 직접, 150초 뒤, 한 번만. 실제 게시 없이 가짜 call 로만 본다
     for bad_sr, why in (("의견 주세요 https://drkimworld.com/r/x/", "링크"), ("가" * 151, "151자"), ("지금 매수 신호일까요?", "매수"),
