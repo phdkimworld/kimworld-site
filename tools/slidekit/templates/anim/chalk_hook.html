@@ -3,7 +3,7 @@
      글씨: 말(라벨·질문)은 손글씨(lib/NanumPenScript-ks.woff2, KS X 1001 한글 2350자+ASCII 부분집합, OFL),
            숫자는 또렷한 고딕(Noto Sans CJK KR Black)에 분필 결만 입힌다 — 손글씨 0·7 판독성 문제(11-16 시험) 해결.
      입력(window.ANIM): {data, t:{beats:[초…]}, dur}
-     data = {top, left:{label, value}, mid?('그런데'), right:{label, value, tone?('red'|'gold'|'white')}, question?, beats?:[오른쪽 숫자 문장, 질문 문장]}
+     data = {top, left:{label, value}, mid?('그런데'), right:{label, value, tone?('red'|'gold'|'white'|'down'|'up')}, question?, beats?:[오른쪽 숫자 문장, 질문 문장]}
      첫 프레임부터 제목(top)·왼쪽 라벨·왼쪽 숫자가 보인다. 오른쪽 숫자는 beats[0]초, 질문은 beats[1]초에 써진다.
      계약: window.scene = {dur, ready, seek(t), boxes()} — 결정적(무작위는 고정 시드). -->
 <style>@font-face{font-family:'KW Pen';src:url(lib/NanumPenScript-ks.woff2) format('woff2')}
@@ -46,7 +46,8 @@ function chalkBlock(text,size,color,rot,font,weight,maxW){
   for(let i=0;i<holes;i++){x.globalAlpha=.2+rnd()*.6;x.fillRect(rnd()*w,rnd()*h,1+rnd()*2.2,1+rnd()*1.4);}
   return {c,w,h,tw,size,rot:rot||0};
 }
-const TONE={red:'#ff8f8f',gold:'#ffe08a',white:'#ffffff'};
+// 11-27: 모르는 tone('down' 등)이면 색이 비어 검은 글씨(칠판 대비 1.85:1)가 됐다(RZLV 0.88달러). 하락=파랑·상승=빨강을 넣고 모르는 값은 red로. 모든 색은 칠판 밝은 곳(#24402f) 대비 4.5:1 이상(check_slides CHALK)
+const TONE={red:'#ff8f8f',gold:'#ffe08a',white:'#ffffff',down:'#9fd0ff',up:'#ff8f8f'};const tone=k=>TONE[k]||TONE.red;
 let B={};const LX=480,RX=1440,SIDE=680;
 function build(){
   B.top=chalkBlock(d.top||'',80,'#e9efe6',-.01,PEN,400,1700);
@@ -54,7 +55,7 @@ function build(){
   B.l2=chalkBlock(d.left.value,250,'#ffffff',-.02,NUM,900,SIDE);
   if(d.mid)B.vs=chalkBlock(d.mid,90,'#ffe08a',.02,PEN,400,220);
   B.r1=chalkBlock(d.right.label,96,'#f4f6f0',.01,PEN,400,SIDE);
-  B.r2=chalkBlock(d.right.value,230,TONE[d.right.tone||'red'],-.015,NUM,900,SIDE);
+  B.r2=chalkBlock(d.right.value,230,tone(d.right.tone),-.015,NUM,900,SIDE);
   if(d.question)B.q=chalkBlock(d.question,120,'#ffe08a',-.015,PEN,400,1600);
 }
 // 왼쪽에서 오른쪽으로 '써지는' 모습: 비스듬한 경계로 잘라 그린다
@@ -78,7 +79,7 @@ function frame(t){
   write(B.top,960,120,-1,0,t);write(B.l1,LX,300,-1,0,t);write(B.l2,LX,520,-1,0,t);   // 첫 프레임부터 보이게(빈 화면·컷 판정)
   chalkStroke(under(LX-B.l2.tw/2,LX+B.l2.tw/2,520+B.l2.size*.62),60,ease((t-.25)/.45),'#f4f6f0',12);
   write(B.vs,960,300,tR-.85,tR-.55,t);write(B.r1,RX,300,tR-.6,tR-.1,t);write(B.r2,RX,520,tR,tR+.7,t);
-  chalkStroke(ring(RX,525,Math.min(440,B.r2.tw/2+70),Math.min(200,B.r2.size*.62+20)),90,ease((t-tR-.8)/.7),TONE[d.right.tone||'red'],11);
+  chalkStroke(ring(RX,525,Math.min(440,B.r2.tw/2+70),Math.min(200,B.r2.size*.62+20)),90,ease((t-tR-.8)/.7),tone(d.right.tone),11);
   write(B.q,960,880,tQ,tQ+.65,t);
 }
 const END=(d.question?tQ+.65:tR+1.5)+.4;

@@ -129,6 +129,8 @@ h1{font-weight:900;font-size:66px;line-height:1.2;color:#fff;margin-bottom:40px;
 .prod .lb{flex:0 0 190px;font-size:32px;font-weight:900;color:#5CF2B0}
 .prod .tx{font-size:46px;font-weight:700;color:#fff;line-height:1.25}
 .prod .row.cond .tx{font-size:64px;font-weight:900;color:#5CF2B0}
+/* 11-27 고르는 기준 칸(pick): 링크한 제품 이름(catalog)에 표기된 사실만 칩으로. 근거 질 메모는 광고 화면 머리가 아니라 리포트·건강 가이드에 */
+.prod .pk{display:flex;flex-wrap:wrap;gap:14px}.prod .pk span{padding:6px 22px;border-radius:14px;background:rgba(92,242,176,.16);border:2px solid rgba(92,242,176,.55);font-size:40px;font-weight:800;color:#fff}
 </style></head><body><div id="stage"></div>
 <script>
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*\*(.+?)\*\*/g,'<em>$1</em>');
@@ -147,7 +149,7 @@ quote(d,st){return `<div class="body quote"><div class="mark"></div><div class="
 source(d,st){return `<div class="body source">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="src ${vis(d.at,st)}"><div class="kd">${esc(d.kind||'원문')}</div><div class="orig">${esc(d.orig)}</div>${d.tr?`<div class="tr">${esc(d.tr)}</div>`:''}<div class="by">${esc(d.src)} · ${esc(d.date)}</div></div></div>`},
 poll(d,st){const N=['①','②','③','④'];return `<div class="body pollb"><div class="pcard"><div class="ph"><span class="dot"></span>${esc(d.head||'투표')}</div><div class="pq ${vis(d.at,st)}">${esc(d.question)}</div><div class="opts">${d.options.map((o,k)=>`<div class="op ${vis(o.at,st)}"><span class="n">${N[k]}</span>${esc(o.text)}</div>`).join('')}</div><div class="pf ${vis(d.foot_at,st)}">${esc(d.foot||'댓글에 번호 하나만 남겨 주세요')}</div></div></div>`},
 outro(d,st){return `<div class="body outro"><div class="b">김박사 월드</div>${(d.lines||[]).map(l=>`<div class="l ${vis(l.at,st)}">${esc(l.text)}</div>`).join('')}</div>`},
-product(d,st){const R=[['who','누구'],['cond','제품 조건'],['why','왜'],['act','행동']].filter(([k])=>d[k]);return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="prod">${R.map(([k,l])=>`<div class="row ${k} ${vis(d[k+'_at']??d.at,st)}"><div class="lb">${l}</div><div class="tx">${esc(d[k])}</div></div>`).join('')}</div></div>`},
+product(d,st){const R=[['who','누구'],['cond','제품 조건'],['pick','고르는 기준'],['why','왜'],['act','행동']].filter(([k])=>Array.isArray(d[k])?d[k].length:d[k]);const tx=(k)=>Array.isArray(d[k])?`<div class="tx pk">${d[k].map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:`<div class="tx">${esc(d[k])}</div>`;return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="prod">${R.map(([k,l])=>`<div class="row ${k} ${vis(d[k+'_at']??d.at,st)}"><div class="lb">${l}</div>${tx(k)}</div>`).join('')}</div></div>`},
 chart(d,st){return `<div class="body">${d.title?`<h1>${esc(d.title)}</h1>`:''}<div class="chart" id="ch"></div></div>`}
 };
 function drawChart(d,st){

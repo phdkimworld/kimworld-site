@@ -17,6 +17,8 @@
 #   광고 구분(2026-11-26 운영자 "광고는 시각적으로나 호흡으로나 딱 구분되는게 더 이목을 끌거 같아"): 문단 "kind": "ad"(영양제 중간광고 문단)이면
 #   ① 그 문단 슬라이드는 광고 화면(slide.html admode: 초록 바탕·위 띠·'광고' 배지·대가성 줄, layout 'product' = 제품 조건 카드)
 #   ② 문단 앞 0.8초 무음 + '광고' 표지 화면 + 알림음(sfx adin), 문단 뒤 0.6초 무음(광고 화면 유지) 뒤 본편 전환음. 길이는 deck "ad_gap_pre"·"ad_gap_post"
+#   (2026-11-27 RZLV 전환 분석) 광고 문단 안 'shop' 문장도 광고 화면 유지(남색 카드 안 씀) · 표지 한 줄은 짧게(기본 '유료 광고 포함') ·
+#   쿠팡 띠는 마지막 2분 안 한 번, 위험 문단("tone": "risk"·kicker 위험) 밖(segments 'strip_rule': 'last2') · 전환음 -6dB(sfx.py)
 #   나레이션이 그만큼 밀린다 → timing_video.json, segments.json 'ad_gaps' = [[영상 시각, 길이]…], 'ad_kind' = [광고 시작, 끝](표지~무음 끝, ad_gap_check·video_check가 읽음)
 import json, sys, os, asyncio, subprocess, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -92,7 +94,8 @@ for pi, (pt, pd) in enumerate(zip(P, D)):
         k = max(i for i, x in enumerate(sl) if x.get('from', 0) <= si) if any(x.get('from', 0) <= si for x in sl) else 0
         sdur = s['end'] - s['start']
         if BRAND_END and sl[k].get('layout') == 'outro': key = ('BR', 'end')  # 브랜드 엔드카드(나레이션 outro 문단은 그대로 위에)
-        elif shop_img and si in set(pd.get('shop', [])): key = ('AD', 'shop')
+        # 11-27 광고 블록 테마: kind "ad" 문단 안의 'shop' 문장은 남색 쿠팡 카드로 바꾸지 않고 광고 화면(admode) 슬라이드를 그대로 — 마지막 광고 장면·뒤 무음까지 초록
+        elif shop_img and si in set(pd.get('shop', [])) and pd.get('kind') != 'ad': key = ('AD', 'shop')
         elif si in ads and ad_style(pi) == 'full' and full_used + sdur <= 30.0:
             key = ('AD', 'app' if midroll_app and pi == ad_paras[-1] else 'rep'); full_used += sdur
         elif sl[k].get('anim'): key = (pi, k, 'anim')  # 움직이는 장면: 슬라이드 전체가 한 구간(배너 안내 문장도 장면 그대로)
@@ -193,7 +196,9 @@ def ad_bumper(path):
     t = '광고'; tw = d.textlength(t, font=f1); bw, bh = tw + 120, 230; x0, y0 = (1920 - bw) / 2, 330
     d.rounded_rectangle([x0, y0, x0 + bw, y0 + bh], radius=36, fill=(61, 220, 151))
     d.text(((1920 - tw) / 2, y0 + 20), t, font=f1, fill=(6, 37, 26))
-    sub = str(deck.get('ad_bumper_text') or '잠깐, 영양제 이야기 · 유료 광고 포함')
+    # 11-27: 제목은 '광고' 배지 + 짧은 한 줄(18자 이하)만. '잠깐, 영양제 이야기' 같은 말 걸기 문구는 쓰지 않는다(구분은 화면·무음·알림음이 한다)
+    sub = str(deck.get('ad_bumper_text') or '유료 광고 포함')
+    if len(sub) > 18 or '잠깐' in sub: sub = '유료 광고 포함'
     d.text(((1920 - d.textlength(sub, font=f2)) / 2, y0 + bh + 60), sub, font=f2, fill=(212, 242, 228))
     im.save(path); return path
 def ad_entrance(src, outdir, sec=0.4):
@@ -282,6 +287,14 @@ def sfx_events():
 # 4.5) 쿠팡 짧은 띠(운영자 지시 2026-11-11 "짧게 여러번", 11-22 UX 한도로 축소): deck 'shop_strip' = 띠 문구(28자 이하). 영상 1/3·2/3 지점 근처에 6초씩 0~2번,
 # 화면 아래(자막·재생바 위, y 860~944)에 얇은 띠를 겹친다. 첫 30초(훅)·브랜드 스팅·outro(엔드카드)를 피하고, 광고(사이트 안내·카드·중간광고 문단)와는 앞뒤 60초를 띄운다
 STRIP_SEC = 6.0
+STRIP_LAST = 120.0  # 11-27: 띠는 영상 마지막 2분 안(outro 앞)에만
+RISK_KICK = ('위험', '리스크', '악재')
+def risk_windows():
+    out = []
+    for pi, pd in enumerate(D):
+        if pd.get('tone') in ('risk', 'negative') or any(any(w in str(x.get('kicker', '')) for w in RISK_KICK) for x in pd.get('slides', [])):
+            out.append((P[pi]['start'] - 1.0, P[pi]['end'] + 1.0))
+    return out
 # 4.4) 구독 버튼 띠(운영자 지시 2026-11-17 "1 3만 수행" — 구독 전환 시험): 문단 'sub' = [문장 번호] 한 문장 동안 화면 아래(y 860)에 '구독' 띠.
 # 문구는 deck 'sub_text'(없으면 기본). 쿠팡 띠는 이 구간을 피한다. check_slides.py SUB가 영상 전체 1문장·'구독'이 들어간 문장인지 본다
 sub_win = [(round(P[pi]['sents'][k]['start'], 2), round(P[pi]['sents'][k]['end'] + 0.6, 2)) for pi, pd in enumerate(D) for k in pd.get('sub', []) if k < len(P[pi]['sents'])]
@@ -305,7 +318,11 @@ def strip_windows():
          + [(0, 30.0), (outro_t0, total)] + sub_win + next_win  # 움직이는 장면·브랜드 스팅·엔드카드(outro)·구독/이어 보기 띠 위에도 얹지 않는다
     free = lambda t: all(t + STRIP_SEC <= a - 0.5 or t >= b + 0.5 for a, b in busy)
     cuts = sorted({round(a, 2) for a, _, _, _ in segs})
-    targets = [total / 3, total * 2 / 3]
+    # 11-27: 띠는 마지막 2분(health_midroll 9절 1번)에만, 한 번. 예전 1/3·2/3 목표가 11:22 영상 08:06(위험 이야기 근처)에 띠를 띄웠다.
+    #   위험·나쁜 소식 문단(문단 "tone": "risk"|"negative" 또는 슬라이드 kicker '위험·리스크·악재') 위에는 얹지 않는다
+    lo = max(30.0, total - STRIP_LAST)
+    busy += risk_windows()
+    targets = [lo + 0.5]
     union = []  # 겹치는 광고(중간광고 문단 안의 카드 등)는 한 번만 센다 — ad_gap_check.py 합계와 같은 방식
     for a, b in sorted(adw):
         if union and a <= union[-1][1] + 0.5: union[-1][1] = max(union[-1][1], b)
@@ -314,10 +331,10 @@ def strip_windows():
     wins = []
     for tg in targets:
         if cap < STRIP_SEC: break
-        cand = [c for c in cuts if tg - 25 <= c <= tg + 40] + [tg]
+        cand = [c for c in cuts if lo <= c <= outro_t0 - STRIP_SEC] + [tg]
         cand.sort(key=lambda c: abs(c - tg) + (0 if c in cuts else 8))  # 슬라이드 전환 지점 우선
         for c in cand:
-            if c >= 0 and free(c) and all(abs(c - w) >= AD_GAP + STRIP_SEC for w in wins):
+            if c >= lo and free(c) and all(abs(c - w) >= AD_GAP + STRIP_SEC for w in wins):
                 wins.append(round(c, 2)); cap -= STRIP_SEC; break
     return sorted(wins)
 def make_strip(text, path):
@@ -410,7 +427,7 @@ for a, k, b, _ in segs:
     else: run = [a, b, h]; static.append(run)
 longest = max(static, key=lambda r: r[1] - r[0]) if static else [0, 0]
 full_ad = round(sum(b - a for a, b in ad), 1); banners = len({k[0] for _, k, _, _ in segs if len(k) == 4})
-json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'sub_at': sub_win, 'next_at': next_win,
+json.dump({'segments': [[round(a, 2), str(k), round(b, 2)] for a, k, b, _ in segs], 'ad': ad, 'full_ad_sec': full_ad, 'banner_paras': banners, 'shop_sec': shop_sec, 'shop_strip_at': strip_at, 'strip_rule': 'last2', 'sub_at': sub_win, 'next_at': next_win,
            'longest_static': [round(longest[0], 1), round(longest[1], 1)],
            'anim': [[round(a, 2), round(min(b, a + anim_info[k][0]), 2), round(b, 2), anim_info[k][2], anim_info[k][1]] for a, k, b, _ in segs if isanim(k)], 'motion': len(motion_keys), 'brand_intro': [brand_at, round(brand_sec, 3)] if brand_at is not None else None, 'brand_end': [k for k, _ in promo] if BRAND_END else None, 'ad_gaps': [[round(a, 2), s] for a, s in ad_gaps], 'ad_kind': [round(ad_kind[0], 2), round(ad_kind[1], 2)] if ad_kind else None, 'outro_sec': round(total - outro_t0, 1), 'duration': round(total, 2), 'sfx': [[round(a, 2), k] for a, k in events]}, open(os.path.join(wd, 'segments.json'), 'w'), ensure_ascii=False)
 from collections import Counter
