@@ -1,0 +1,11 @@
+{
+ "feature": "shared",
+ "run_id": "46030674895",
+ "at": "2026-11-27T16:07:03+00:00",
+ "calls": 1,
+ "usd": 0.001733,
+ "status": "truncated",
+ "out": "/home/runner/work/kimworld-site/kimworld-site/social/llm/tasks/hw-threads-46030674895.json",
+ "task": "hw-threads",
+ "caller": "healthworld"
+}
