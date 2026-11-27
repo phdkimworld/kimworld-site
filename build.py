@@ -1088,6 +1088,13 @@ def seo_fields(r: dict) -> dict:
         name, hook = m.group(1).strip(), m.group(2).strip()
     else:
         m = re.match(r"^([^,，]{1,20})[,，]\s*(.+)$", t)
+        comp = str(r.get("company") or "")
+        # 쉼표 앞이 회사 이름이 아니라 사건 문구('조비 에비에이션 임원 매도 신고', '블룸 에너지는 17.7% 빠졌는데')면 이름으로 쓰지 않는다
+        # (2026-11-27: 종목 화면 제목이 '조비 에비에이션 임원 매도 신고(JOBY) 주가 분석·전망 리포트'로 나오던 문제). 연재는 그대로
+        if m and not r.get("series") and (re.search(r"[0-9%]", m.group(1)) or (comp and m.group(1).strip().startswith(comp + " "))):
+            m = None
+            if comp and t.startswith(comp + " "):
+                hook = t[len(comp):].strip()
         if m:
             name, hook = m.group(1).strip(), m.group(2).strip()
     name = name or r["company"] or r["ticker"]
