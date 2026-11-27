@@ -77,6 +77,9 @@ POLL_OPTION_LIMIT = 25  # Threads 는 UTF-8 바이트로 센다(한글 약 8자)
 POLL_KEYS = ("option_a", "option_b", "option_c", "option_d")
 IG_LIMIT = 2200
 CHANNELS = ("threads", "instagram", "facebook")
+# 2026-11-27 운영자 "인스타는 포기하고 쓰레드만": social/PAUSED 에 적힌 채널(한 줄에 하나)은 게시·토큰 확인을 건너뛰고 '건너뜀'으로 기록한다
+PAUSED_FILE = Path(__file__).resolve().parent.parent / "social" / "PAUSED"
+PAUSED = {ln.strip() for ln in PAUSED_FILE.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")} if PAUSED_FILE.exists() else set()
 MEDIA_EXT = {"image": (".jpg", ".jpeg", ".png"), "reels": (".mp4", ".mov")}
 STALE_HOURS = 6  # 미디어 주소가 이 시간 넘게 열리지 않으면 실패로 표시
 # 초반 30분 내 댓글(self_reply): 게시 뒤 이 초만큼 기다렸다가 단다(2~5분 권장 → 150초). 늦게 이어 단 실행에서 25분이 지났으면 건너뛴다
@@ -677,6 +680,9 @@ def ping():
     th = os.environ.get("THREADS_ACCESS_TOKEN", "")
     ig = os.environ.get("IG_ACCESS_TOKEN", "")
     for name, api, tok, fields in (("Threads", TH_API, th, "id,username"), ("Instagram", IG_API, ig, "user_id,username")):
+        if name.lower() in PAUSED:
+            print(f"::notice::{name} 확인 건너뜀(social/PAUSED)")
+            continue
         if not tok:
             print(f"::error::{name} 토큰 비밀값이 없음")
             bad += 1
@@ -777,6 +783,10 @@ def main(argv):
         for ch in post["channels"]:
             res = results.setdefault(ch, {})
             if res.get("done"):
+                continue
+            if ch in PAUSED:
+                res.update(done=True, skipped="채널 중단(social/PAUSED)")
+                save()
                 continue
             try:
                 if ch == "threads":
