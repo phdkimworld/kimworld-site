@@ -67,7 +67,7 @@ if s.get('shop'):
         if i>=len(s['paras'])-1: print('SHOP 마지막 문단(outro)에는 넣지 않음');ok=False
         else: print('shop p%d[%d]'%(i+1,k),st['text'][:45])
     st_txt=str(s.get('shop_strip') or '')
-    if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침, 11-22 UX 한도: 1/3·2/3 근처 6초씩 0~2번)');ok=False
+    if not st_txt: print('SHOP 쿠팡 짧은 띠 문구 "shop_strip"이 없음(2026-11-11 지침, 11-27~ 마지막 2분 안 한 번·위험 문단 밖)');ok=False
     elif len(st_txt)>28 or '설명란' not in st_txt: print('SHOP shop_strip은 28자 이하, \'설명란\' 포함:',st_txt);ok=False
 elif any(p.get('shop') for p in s['paras']): print('SHOP 문단에 shop 표시가 있는데 slides.json에 "shop" 이미지가 없음');ok=False
 else: print('SHOPMISS 쿠팡 상품 카드(shop)가 없음: SKILL 쿠팡 장(yt-shop.yml → make_shop_card.py)으로 영상마다 한 장 넣는다(운영자 확인 2026-11-11, AGNC 75회차 누락)');ok=False
@@ -165,6 +165,27 @@ if s.get('brand_end',True) is not False:
         print('brand end',[k for k,_ in ch] or '홍보 칸 없음')
         if brand.health_code(s) and any(k=='mall' for k,_ in ch): print('OUTRO_PROMO 영양제 광고 회차에 김박사 몰 칸(설명란 몰 줄과 같은 회차에 두지 않음, health_midroll 3절 5번)');ok=False
     if not any(x.get('layout')=='outro' for x in s['paras'][-1]['slides']): print('WARN BRAND 마지막 문단에 outro 슬라이드가 없어 엔드카드가 뜨지 않음')
+# CHALK(11-27): RZLV 0초 칠판 0.88달러가 tone 'down'(틀에 없는 값 → 검은 글씨, 칠판 대비 1.85:1)이라 안 보였다.
+# chalk_hook 틀의 TONE 색이 모두 칠판 밝은 곳(#24402f) 대비 4.5:1 이상인지, 덱의 right.tone이 TONE에 있는 값인지 본다
+def _lum(h):
+    h=h.lstrip('#');c=[int(h[k:k+2],16)/255 for k in (0,2,4)];c=[x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4 for x in c];return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]
+def contrast(a,b):
+    a,b=_lum(a),_lum(b);return (max(a,b)+0.05)/(min(a,b)+0.05)
+_ch=os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates','anim','chalk_hook.html')
+if os.path.exists(_ch):
+    _src=open(_ch,encoding='utf-8').read();_m=re.search(r"const TONE=\{([^}]*)\}",_src)
+    TONE=dict(re.findall(r"(\w+):'(#[0-9a-fA-F]{6})'",_m.group(1))) if _m else {}
+    for k,c in TONE.items():
+        if contrast(c,'#24402f')<4.5: print('CHALK 틀 색 %s %s 칠판 대비 %.2f:1 < 4.5'%(k,c,contrast(c,'#24402f')));ok=False
+    for i,p in enumerate(s['paras']):
+        for j,x in enumerate(p['slides']):
+            an=x.get('anim') or {}
+            if an.get('tpl')=='chalk_hook':
+                tn=(an.get('data',{}).get('right') or {}).get('tone')
+                if tn and tn not in TONE: print('CHALK p%d s%d right.tone %r 은 틀에 없는 색(%s 중 하나)'%(i+1,j,tn,'·'.join(TONE)));ok=False
+# ADBUMPER(11-27): 광고 표지 한 줄은 18자 이하, '잠깐' 같은 말 걸기 없이(구분은 화면·무음·알림음)
+_bt=s.get('ad_bumper_text')
+if _bt is not None and (len(str(_bt))>18 or '잠깐' in str(_bt)): print('ADBUMPER ad_bumper_text는 18자 이하·\'잠깐\' 없이:',_bt);ok=False
 m=re.findall(r'\$[\d.,]+\s*(?:만|억)',open(d+'/slides.json',encoding='utf-8').read())
 if m: print('MONEY','달러 기호와 만·억을 같이 씀(지침 A7):',m[:6]);ok=False
 print('OK' if ok else 'FAIL')

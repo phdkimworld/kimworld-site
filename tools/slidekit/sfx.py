@@ -91,7 +91,8 @@ def adin(sec=0.75):  # 광고 시작 표지(2026-11-26 운영자 "광고는 … 
     return _st(x / np.abs(x).max())
 
 
-GAIN = {'boom': 0.32, 'whoosh': 0.08, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10, 'logo': 0.30, 'logo_tail': 0.14, 'adin': 0.22}
+# 11-27: 화면 전환음(whoosh) 0.08 → 0.04(약 -6dB, 전환음이 크다는 분석). 광고 표지 알림음 adin·종소리는 그대로
+GAIN = {'boom': 0.32, 'whoosh': 0.04, 'riser': 0.22, 'chime': 0.20, 'tick': 0.10, 'logo': 0.30, 'logo_tail': 0.14, 'adin': 0.22}
 GEN = {'boom': boom, 'whoosh': whoosh, 'riser': riser, 'chime': chime, 'tick': tick, 'logo': logo, 'logo_tail': logo_tail, 'adin': adin}
 BED_GAIN = 0.075
 
