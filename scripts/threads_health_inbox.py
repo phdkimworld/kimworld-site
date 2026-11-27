@@ -21,6 +21,9 @@ API = "https://graph.threads.net/v1.0"
 STATE = ROOT / "social/llm/threads_health/state.json"
 TOK = os.environ.get("DRKIM_THREADS_ACCESS_TOKEN", "")
 FLAG = re.compile(r"약을|약 먹|복용|처방|진단|수술|암|당뇨|고혈압|혈압약|신장|간 수치|임신|수유|아기|아이|어린이|부작용|병원|검사 결과|수치가")
+# 광고성 댓글(운영자 11-27 "광고성 댓글 다는 애들 다 차단 및 삭제"): API로는 남의 댓글 삭제·계정 차단이 안 되므로 '숨김'(manage_reply hide)으로 처리하고
+# 아이디를 장부 spam 에 모아 운영자가 앱에서 차단하게 한다.
+SPAM = re.compile(r"https?://|www\.|\.com|\.kr|오픈채팅|오픈톡|카톡|카카오톡|텔레그램|DM\s?주|디엠|부업|재택|수익\s?인증|월\s?\d+\s?만|투자\s?리딩|코인|리딩방|대출|협찬|체험단|공구|공동구매|할인\s?코드|쿠폰|프로필\s?(링크|확인)|맞팔|선팔|팔로우\s?(해|하면|부탁)", re.I)
 BAD = re.compile(r"https?://|쿠팡|구매|추천 제품|치료|예방|완화|낫|꼭 드세요|필수|놀라운|충격|최고|완벽")
 SYSTEM = """너는 영양제 뒷면 표기를 식약처 기준으로 읽어 주는 '김박사'(의사·약사 아님)의 Threads 계정이다. 남이 단 댓글에 답한다.
 합쇼체(~입니다·~하십시오), 2~4문장, 200자 이내. 그분 상황에 맞는 확인 포인트 1~2개(아래 식약처 근거의 숫자·문구만) + 대화를 잇는 짧은 질문 하나로 끝.
@@ -63,11 +66,35 @@ def load():
     return json.loads(STATE.read_text()) if STATE.exists() else {"answered": {}, "flagged": {}, "skipped": {}}
 
 
+def review():
+    """복기(운영자 11-27 '30일 루틴' — 전날 성과 매일 10분 복기·잘된 훅 모아두기): 최근 14일 원글 지표를 표로. 모델 안 부름."""
+    rows = []
+    for t in call("GET", "me/threads", {"fields": "id,text,timestamp", "limit": 40}).get("data", []):
+        try:
+            m = {d["name"]: (d.get("values") or [{}])[0].get("value", d.get("total_value", {}).get("value", 0))
+                 for d in call("GET", f"{t['id']}/insights", {"metric": "views,likes,replies,reposts,quotes"}).get("data", [])}
+        except Exception:
+            m = {}
+        rows.append({"id": t["id"], "at": t["timestamp"][:16], "hook": (t.get("text") or "").split("\n")[0][:60], **m})
+    rows.sort(key=lambda r: -(r.get("views") or 0))
+    out = ROOT / "social/llm/threads_health/review.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"at": datetime.now(timezone.utc).isoformat(timespec="minutes"), "posts": rows[:20]}, ensure_ascii=False, indent=1) + "\n")
+    cf = os.environ.get("CHANGED_FILE")
+    if cf:
+        Path(cf).write_text(str(out.relative_to(ROOT)) + "\n")
+    for r in rows[:5]:
+        print(f"  조회 {r.get('views')} 좋아요 {r.get('likes')} 댓글 {r.get('replies')} | {r['hook']}")
+    return 0
+
+
 def main():
     dry = "--dry" in sys.argv
+    if "--review" in sys.argv and TOK:
+        return review()
     if not TOK:
         print("::notice::DRKIM_THREADS_ACCESS_TOKEN 없음 — 건너뜀"); return 0
-    st = load(); seen = set(st["answered"]) | set(st["flagged"]) | set(st["skipped"])
+    st = load(); seen = set(st["answered"]) | set(st["flagged"]) | set(st["skipped"]) | set(st.get("spam", {}))
     me = call("GET", "me", {"fields": "id,username"})
     since = datetime.now(timezone.utc) - timedelta(days=14)
     roots = [t for t in call("GET", "me/threads", {"fields": "id,text,timestamp", "limit": 40}).get("data", [])
@@ -83,6 +110,17 @@ def main():
     caller = Caller("shared", mock=dry); changed = False
     for t, x in new[:6]:
         txt = (x.get("text") or "").strip()
+        if SPAM.search(txt):
+            if not dry:
+                try:
+                    call("POST", f"{x['id']}/manage_reply", {"hide": "true"})
+                    hid = True
+                except Exception:
+                    hid = False
+            else:
+                hid = False
+            st.setdefault("spam", {})[x["id"]] = {"who": x.get("username"), "text": txt[:200], "hidden": hid, "at": x.get("timestamp")}
+            changed = True; print(f"::notice::광고성 댓글 숨김 @{x.get('username')} ({'숨김' if hid else '숨김 실패'})"); continue
         if len(txt) < 4 or re.fullmatch(r"[\W\d_ㅋㅎ]+", txt):
             st["skipped"][x["id"]] = {"why": "짧음·이모지", "at": x.get("timestamp")}; changed = True; continue
         if FLAG.search(txt) or re.search(r"https?://", txt) or len(txt) > 400:

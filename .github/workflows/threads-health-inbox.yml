@@ -2,10 +2,13 @@ name: Threads drkimworld inbox (건강월드 댓글 자동 관리)
 
 # 운영자 2026-11-27 "댓글 체크 자주 하되 토큰 사용 줄일 방법": 세션 대신 20분마다 여기서 확인(scripts/threads_health_inbox.py).
 # 새 댓글이 없으면 모델을 부르지 않고 끝(비용 0). 의료 판단이 필요한 댓글은 답하지 않고 장부 flagged 로 남겨 세션이 하루 한 번 본다.
+# 광고성 댓글은 숨김(manage_reply hide) + 장부 spam(아이디) — 삭제·차단은 API로 불가, 운영자가 앱에서 차단.
+# 매일 09:03 KST 복기: 최근 글 조회·좋아요·댓글 표 social/llm/threads_health/review.json.
 # 필요한 비밀값: DRKIM_THREADS_ACCESS_TOKEN, ANTHROPIC_API_KEY(없으면 flagged 로만). 값은 출력하지 않는다.
 on:
   schedule:
     - cron: "7,27,47 * * * *"
+    - cron: "3 0 * * *"     # 09:03 KST 복기(지표 표, 모델 안 부름)
   workflow_dispatch:
     inputs:
       dry:
@@ -39,6 +42,7 @@ jobs:
       - name: Run
         run: |
           if [ "$DRY" = "1" ]; then python scripts/threads_health_inbox.py --dry; exit 0; fi
+          if [ "${{ github.event.schedule }}" = "3 0 * * *" ]; then CHANGED_FILE=/tmp/changed.txt python scripts/threads_health_inbox.py --review; exit 0; fi
           CHANGED_FILE=/tmp/changed.txt python scripts/threads_health_inbox.py
       - name: Commit
         if: always() && env.DRY != '1'
