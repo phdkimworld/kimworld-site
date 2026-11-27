@@ -1,0 +1,1654 @@
+{
+ "episodes": [
+  {
+   "slug": "omega3-heart",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "omega3",
+   "question": "오메가3 먹으면 심장병이 줄까?",
+   "answer": "예방 목적 하루 1g 남짓: 주요 심혈관 사건 거의 차이 없음(근거 탄탄). 심근경색 감소 신호는 미확정, 고용량 순수 EPA(REDUCE-IT)는 의약품·비교군 논란, 용량↑ 심방세동↑",
+   "key": "VITAL HR 0.92(0.80–1.06) · ASCEND 8.9% vs 9.2% · 코크란 사망 RR 0.97 · 심방세동 HR 1.25",
+   "long": "T2_O_kMO4b0",
+   "short": "0fXpbKrhkJk"
+  },
+  {
+   "slug": "vitamin-d-bone",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "vitamin-d",
+   "question": "비타민D 먹으면 뼈가 덜 부러질까?",
+   "answer": "결핍 아닌 일반 성인의 골절 예방: 차이 없음(근거 탄탄). 연 1회 50만 IU 초고용량은 오히려 낙상·골절↑, 칼슘 병용·요양시설은 따로",
+   "key": "VITAL 골절 HR 0.98 · 81개 임상 RR 1.00 · 50만 IU 골절 IRR 1.26",
+   "long": "YypeZkVj_SU",
+   "short": "Ktf7GQtcWKs"
+  },
+  {
+   "slug": "vitamin-c-cold",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "vitamin-c",
+   "question": "비타민C 먹으면 감기 안 걸릴까?",
+   "answer": "일반인 감기 예방 못 함(근거 탄탄), 기간 어른 −8%, 발병 뒤 시작 일관된 효과 없음, 메가도스 흡수 한계·남성 결석 신호",
+   "key": "코크란 RR 0.97 · 극한 운동 0.48 · 남성 1g+ 결석 HR 1.43",
+   "long": "7X9nz_Dt-HQ",
+   "short": "zzJi0qaSsKk"
+  },
+  {
+   "slug": "saw-palmetto-prostate",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "saw-palmetto",
+   "question": "쏘팔메토 먹으면 소변이 시원해질까?",
+   "answer": "전립선비대 소변 증상: 가짜약과 차이 없음(확실성 높음), 용량 3배도 같음, 해로운 신호 없음",
+   "key": "STEP 0.04점 · CAMUS 가짜약 0.79점 앞섬 · 코크란 2023 장기 0.07점",
+   "long": "CzBqVo1Xo3E",
+   "short": "ePZ76L0uLJE"
+  },
+  {
+   "slug": "milk-thistle-liver",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "milk-thistle",
+   "question": "밀크씨슬 먹으면 간이 좋아질까?",
+   "answer": "간 질환 임상에서도 뚜렷한 이득 확인 안 됨(근거 중간), 섬유화 신호 하나는 열린 질문",
+   "key": "코크란 사망 RR 0.78(유의 아님) · C형 간염 ALT 정상화 4.0% vs 3.8% · 섬유화 22.4% vs 6.0%",
+   "long": "ebXqOu7UqOE",
+   "short": "59rv6M7BJUY"
+  },
+  {
+   "slug": "lutein-eye",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "lutein",
+   "question": "루테인 먹으면 황반변성·백내장을 막을까?",
+   "answer": "중간 단계 AMD 5년 차이 없음, 10년 관찰 9% 낮은 신호, 백내장 차이 없음, 건강인 예방 임상 없음(근거 중간)",
+   "key": "AREDS2 HR 0.90 · 백내장 0.96 · 10년 0.91",
+   "long": "XpFMPoErLZk",
+   "short": "T76GuoMgIEE"
+  },
+  {
+   "slug": "probiotics-antibiotic",
+   "date": "2026-11-21",
+   "angle": "판정",
+   "ingredient": "probiotics",
+   "question": "항생제 먹을 때 유산균 같이 먹어야 할까?",
+   "answer": "아이 설사 감소 근거 중간, 노인 입원 대형 임상 차이 없음, 회복 지연은 실험 단계",
+   "key": "코크란 아이 8% vs 19% · PLACIDE 10.8% vs 10.4%",
+   "long": "D_JzvEBqr8Q",
+   "short": "jG9wk67KyDo"
+  },
+  {
+   "slug": "tg-what-to-take",
+   "date": "2026-11-21",
+   "angle": "뭘 먹어야",
+   "ingredient": "omega3",
+   "question": "중성지방이 높다면 뭘 먹어야 할까?",
+   "answer": "EPA·DHA 오메가3(식약처 혈중 중성지질 개선, 0.5–2g) — 아마씨유보다 폭이 큼",
+   "key": "EPA·DHA 2g+·8주+ −57 mg/dL · 아마씨유 −8 · AHA 4g 30%↓",
+   "long": "7AlQ8cw2ezI",
+   "short": "2tMgxdgJwoE"
+  },
+  {
+   "slug": "eye-what-to-take",
+   "date": "2026-11-21",
+   "angle": "뭘 먹어야",
+   "ingredient": "lutein",
+   "question": "눈이 침침하고 눈부시다면 뭘 먹어야 할까?",
+   "answer": "루테인(+지아잔틴), 하루 10–20mg — 빌베리 근거 약함, 오메가3 안구건조 최대 임상 차이 없음",
+   "key": "38개 임상 MPOD·대비 감도↑ · DREAM 535명 차이 없음",
+   "long": "RGtLB3t9e_A",
+   "short": "4QJ2MlkWgCQ"
+  },
+  {
+   "slug": "constipation-what-to-take",
+   "date": "2026-11-21",
+   "angle": "뭘 먹어야",
+   "ingredient": "probiotics",
+   "question": "변비가 잦다면 뭘 먹어야 할까?",
+   "answer": "1순위 식이섬유(차전자피 하루 10g+·4주+), 유산균은 비피더스균 락티스 균주",
+   "key": "식이섬유 66% vs 41% · 락티스 +1.5회/주 · 카제이 시로타 차이 없음",
+   "long": "Pc5Pb9-4SJc",
+   "short": "kTOjHcBPams"
+  },
+  {
+   "slug": "fatigue-what-to-take",
+   "date": "2026-11-21",
+   "angle": "뭘 먹어야",
+   "ingredient": "red-ginseng",
+   "question": "피곤이 안 풀린다면 뭘 먹어야 할까?",
+   "answer": "홍삼(식약처 피로개선 인정, 진세노사이드 3–80mg) — 코엔자임Q10도 피로 점수↓지만 피로 기능성 없음",
+   "key": "인삼 고찰 10개 유망 · CoQ10 13개 임상 g −0.40",
+   "long": "qoQx3Xl9L1s",
+   "short": "-7aUjd3-7zw"
+  },
+  {
+   "slug": "bone-what-to-take",
+   "date": "2026-11-21",
+   "angle": "같이 먹어야",
+   "ingredient": "vitamin-d",
+   "question": "뼈가 걱정이라면 뭘 먹어야 할까?",
+   "answer": "비타민D 단독 말고 칼슘과 함께, 매일 보통 용량(400–800 IU + 칼슘 1,000–1,200mg)",
+   "key": "단독 RR 1.06 · 병용 엉덩이뼈 0.84",
+   "long": "j6h5e2xYVlM",
+   "short": "_oq1HI_f3rw"
+  },
+  {
+   "slug": "memory-what-to-take",
+   "date": "2026-11-21",
+   "angle": "이거 대신",
+   "ingredient": "omega3",
+   "question": "깜빡깜빡한다면 뭘 먹어야 할까?",
+   "answer": "은행잎 말고 오메가3(EPA+DHA, 식약처 기억력 0.9–2g)",
+   "key": "GEM 3,069명 차이 없음 · DHA 1g+ 일화 기억↑",
+   "long": "uBCRu3CSm4w",
+   "short": "aBCmUQ_iQAc"
+  },
+  {
+   "slug": "omega3-form",
+   "date": "2026-11-21",
+   "angle": "어떻게 먹어야",
+   "ingredient": "omega3",
+   "question": "오메가3, rTG와 EE 중 뭘 먹어야 할까?",
+   "answer": "EPA+DHA 합 먼저, 같은 값이면 rTG",
+   "key": "생체이용률 rTG 124 vs EE 73 · 6개월 오메가3 지수 197% vs 171%",
+   "long": "quhMEGx6Vqg",
+   "short": "QeZwY8qL-oo"
+  },
+  {
+   "slug": "vitd-when",
+   "date": "2026-11-22",
+   "angle": "언제 먹어야",
+   "ingredient": "vitamin-d",
+   "question": "비타민D, 언제 먹어야 할까?",
+   "answer": "시간보다 무엇과: 지방이 든 식사(가장 든든한 끼니)와 함께, 매일 보통 용량",
+   "key": "지방 식사 흡수 +32% · 큰 식사로 바꿔 +56.7%(비교군 없음)",
+   "long": "68yIIA5CHfM",
+   "short": ""
+  },
+  {
+   "slug": "vitc-how-much",
+   "date": "2026-11-22",
+   "angle": "얼마나 먹어야",
+   "ingredient": "vitamin-c",
+   "question": "비타민C 하루 몇 mg이면 충분할까?",
+   "answer": "건강한 어른 하루 200mg 안팎이면 혈중 거의 포화, 흡연자 140mg보다 넉넉히, 1회 500mg+ 흡수율 저하 → 고함량은 나눠서, 남성 매일 1,000mg+ 피하기",
+   "key": "200mg 곡선 밖·1,000mg 완전 포화(7명) · 여성 400mg 포화 · 200mg 1~2주 포화(70명) · 흡연자 140mg · 남성 1g+ 결석 HR 1.43(관찰)",
+   "long": "C4Pe6aPtWmY",
+   "short": ""
+  },
+  {
+   "slug": "magnesium-who",
+   "date": "2026-11-22",
+   "angle": "누가 먹어야(기능의학)",
+   "ingredient": "magnesium",
+   "question": "마그네슘은 누가 모자라기 쉬울까? 혈액검사 정상이면 괜찮을까?",
+   "answer": "위산 억제제 장기 사용·혈당 높음·고령·비타민D 수치가 안 맞는 사람 먼저. 혈액은 몸 전체의 1% 미만이라 검사만으로는 한계. 음식 먼저, 모자라면 영양제, 약 드시면 상담",
+   "key": "혈액 <1%·혈청 0.3% · 근육 Mg 나이와 음의 관련(441명) · PPI 19.4% vs 13.5%, 보정 OR 1.71(관찰, 결론 유보 메타 있음) · 마그네슘이 기저 30ng/mL 근처 비타민D 올림(180명)",
+   "long": "hdSl4nMqkas",
+   "short": ""
+  },
+  {
+   "slug": "probiotics-when",
+   "date": "2026-11-22",
+   "angle": "언제 먹어야(기능의학)",
+   "ingredient": "probiotics",
+   "question": "유산균은 공복에 먹어야 할까, 식후에 먹어야 할까?",
+   "answer": "코팅 안 한 유산균은 식사와 함께·식사 직전(약간의 지방), 식후 30분 뒤는 피함(실험 장치), 장용 코팅은 표시대로, 매일 꾸준히(끊으면 3~6일), 정착은 개인차, 위산 억제제·항생제는 상담",
+   "key": "실험 장치: 식사와 함께·30분 전 생존 최고, 30분 뒤 적음 · 30명: 끊은 뒤 3~6일 · Cell 2018 점막 정착 개인차 · PPI 211/1,815명 세균 20% 변화",
+   "long": "FMi7Y2TyEmQ",
+   "short": ""
+  },
+  {
+   "slug": "vitd-why-low",
+   "date": "2026-11-29",
+   "angle": "왜 모자랄까(기능의학)",
+   "ingredient": "vitamin-d",
+   "question": "비타민D는 왜 모자랄까?",
+   "answer": "나이·체지방·의외로 젊은 층 — 햇빛·음식 먼저, 모자라면 매일 보통 용량을 지방 든 식사와, 마그네슘도 함께",
+   "key": "성인 46.5% 결핍(3,920명, 젊은 층 최다) · 피부 생성 능력 2배+ 차이(노화) · 비만 −57% · 매일·매주 aOR 0.81 vs 볼루스 0.97",
+   "long": "4PeCyY2iDuQ",
+   "short": ""
+  },
+  {
+   "slug": "iron-vitc-pair",
+   "date": "2026-11-29",
+   "angle": "짝 영양소(기능의학)",
+   "ingredient": "vitamin-c",
+   "question": "철분은 비타민C와 함께 먹어야 할까?",
+   "answer": "채소·곡물 위주 식사엔 비타민C를 곁들이고 커피·차는 식사 1시간 전, 철분제엔 비타민C가 꼭 필요하진 않음",
+   "key": "피트산 −18/−64/−82% · 커피 −39% 차 −64%, 1시간 전 영향 없음 · 440명 Hb 2.00 vs 1.84 동등",
+   "long": "Gld8KvLn_QA",
+   "short": ""
+  },
+  {
+   "slug": "lutein-how-long",
+   "date": "2026-11-29",
+   "angle": "얼마나 오래(기능의학)",
+   "ingredient": "lutein",
+   "question": "루테인은 몇 달을 먹어야 할까?",
+   "answer": "몇 달 단위(연구는 6개월~1년), 하루 10~20mg을 기름 든 식사와 매일, 기저 황반색소 낮을수록 더 오름",
+   "key": "메타 20개 건강인 WMD 0.09·기저 r=−0.71 · 48주 20mg +0.076 · LUTEGA 12개월 증가",
+   "long": "ToW5d4AZOVA",
+   "short": ""
+  },
+  {
+   "slug": "omega3-index-why",
+   "date": "2026-11-29",
+   "angle": "개인차(기능의학)",
+   "ingredient": "omega3",
+   "question": "오메가3는 왜 사람마다 다르게 오를까?",
+   "answer": "용량 위에 몸무게·출발점·꾸준함·흡수 — EPA+DHA 0.5~2g을 식사와 매일, 몸무게 많거나 수치 낮으면 더 필요할 수",
+   "key": "용량 68%·체중당 70%·+요인 78%(115명) · 순응도 <3% 재분석 · 제형 6.4~11.5배",
+   "long": "",
+   "short": ""
+  },
+  {
+   "slug": "magnesium-form",
+   "date": "2026-11-29",
+   "angle": "형태(기능의학 흡수)",
+   "ingredient": "magnesium",
+   "question": "마그네슘은 어떤 형태가 잘 흡수될까?",
+   "answer": "흡수 우선이면 구연산·킬레이트, 산화라면 물에 녹이는 형태, 원소량 94.5~250mg",
+   "key": "46명 유기>산화 · 14명 구연산만 상승 · 발포정 40% vs 캡슐 20%",
+   "long": "",
+   "short": ""
+  },
+  {
+   "slug": "omega3-who",
+   "date": "2026-11-23",
+   "angle": "누가 먹어야(기능의학)",
+   "ingredient": "omega3",
+   "question": "오메가3는 누가 먹어야 할까?",
+   "answer": "생선을 거의 안 먹는 사람·채식인·중성지질이 높게 나온 사람 먼저(고용량은 진료), 일반인 심혈관 예방·안구건조증 시험은 차이 없음 — 출발은 생선, 0.5~2g을 식사와",
+   "key": "채식인 혈중 n-3 낮음(47명) · 4g 중성지질 −30%+(AHA) · VITAL HR 0.92 · DREAM 3g 차이 없음",
+   "long": "wrDWUibZSDU",
+   "short": ""
+  },
+  {
+   "slug": "coq10-bp",
+   "date": "2026-11-23",
+   "angle": "증상 타겟(혈압)·기능의학",
+   "ingredient": "coq10",
+   "question": "혈압이 높다면 코엔자임Q10을 먹으면 될까?",
+   "answer": "진료·약·생활 습관이 먼저, 코엔자임Q10은 보조(수축기 몇 mmHg) — 대사 질환·12주 이상에서 더 큼, 더한다면 90~100mg 꾸준히, 혈압약은 상담",
+   "key": "2007 −16.6(공개 시험 섞임) · 코크란 2016 −3.68 유의하지 않음 · 2022 −4.77(1,831명), 100~200mg 최대 · 장기 Q10 20세 이후 감소",
+   "long": "2h-hsiDAB7I",
+   "short": ""
+  },
+  {
+   "slug": "dryeye-omega3",
+   "date": "2026-11-24",
+   "angle": "증상 타겟(눈 건조)·기능의학",
+   "ingredient": "omega3",
+   "question": "눈이 건조하다면 오메가3를 먹으면 될까?",
+   "answer": "원인(나이·화면·렌즈·수술) 확인과 안과 진료가 먼저, 작은 시험·메타분석은 증상 개선, 크고 엄격한 시험(DREAM 535명)은 차이 없음 — 생선 적게 먹으면 0.6~2.24g을 2~3달 써 보고 확인, 보조",
+   "key": "위험 요인 49만 명(나이 1.82·화면 1.32·렌즈 1.74) · 메타 3,363명·4,246명 증상 ↓ · 엄격 메타 1,107명 객관 지표 X · DREAM 3g 1년 차이 없음",
+   "long": "3t5mvz2e79k",
+   "short": ""
+  },
+  {
+   "slug": "fattyliver-milkthistle",
+   "date": "2026-11-24",
+   "angle": "증상 타겟(지방간·간 수치)·기능의학·수요-공급(누가)",
+   "ingredient": "milk-thistle",
+   "question": "간 수치가 높다면(지방간) 어떤 밀크씨슬을 먹어야 할까?",
+   "answer": "진료로 원인 확인 + 체중·술 먼저(체중 10% 감량 시 지방간염 90% 해소, 293명). 실리마린은 지방간에서 간 수치를 조금 낮춤(587명·2,375명 메타), 조직 변화 근거는 약함(99명 시험 차이 없음). 술·약물 간 손상·BMI 30 이상에선 뚜렷하지 않음(3,545명) — 술이 주원인 아니고 체중 관리를 함께 시작하는 분은 실리마린 하루 130mg, 2달 뒤 수치 확인",
+   "key": "5%↓ 58%·10%↓ 90% 해소 · ALT −9.16·AST −6.57 · NAS 32.7 vs 26.0% · 55개 시험 3,545명 하위군 · 코크란 1,088명",
+   "long": "X49bB2y94fw",
+   "short": ""
+  },
+  {
+   "slug": "drinker-milkthistle",
+   "date": "2026-11-25",
+   "angle": "쇼츠 증상형(음주)·수요-공급",
+   "ingredient": "milk-thistle",
+   "question": "술자리가 잦아 밀크씨슬을 먹으면 될까?",
+   "answer": "술로 인한 간 손상엔 뚜렷한 효과 없음(3,545명 메타·코크란 1,088명) — 들어오는 술의 양부터",
+   "key": "3,545명 · 1,088명",
+   "long": "",
+   "short": "BY3VVT_rC80"
+  },
+  {
+   "slug": "ginseng-function-label",
+   "date": "2026-11-25",
+   "angle": "쇼츠 기능별 기준(단위 하나로)·수요-공급",
+   "ingredient": "red-ginseng",
+   "question": "감기 걱정에 홍삼, 어떤 홍삼을 골라야 할까?",
+   "answer": "면역력·피로 기능 기준 진세노사이드 하루 3~80mg, 혈액흐름·기억력·항산화 2.4mg~, 1포 함량과 건강기능식품 표시 확인, 당뇨약·항응고제는 주의",
+   "key": "3~80mg · 2.4mg~",
+   "long": "",
+   "short": "kA1aPZ3Jk0I"
+  },
+  {
+   "slug": "coq10-bp-search",
+   "date": "2026-11-26",
+   "angle": "쇼츠 검색어 제목(코엔자임Q10 혈압)·연구마다 다른 숫자",
+   "ingredient": "coq10",
+   "question": "코엔자임Q10 혈압, 연구마다 숫자가 왜 다를까?",
+   "answer": "무작위 120명 −16.6 vs 코크란 50명 유의하지 않음 vs 26개 연구 −4.77(100~200mg 최대, 당뇨·이상지질혈증·12주+ 더 큼)",
+   "key": "PMID 17287847·26935713·36130103",
+   "long": "",
+   "short": "2yR7ozFh3cI"
+  },
+  {
+   "slug": "nocturia-sawpalmetto",
+   "date": "2026-11-26",
+   "angle": "쇼츠 증상형(밤 소변)",
+   "ingredient": "saw-palmetto",
+   "question": "밤에 소변 자주 본다면 쏘팔메토?",
+   "answer": "STEP 225명 1년 차이 0.04점, CAMUS 3배 용량 369명 차이 없음, 코크란 2023 27개 연구 같은 결론 — 진료로 원인 먼저",
+   "key": "PMID 16467543·21954478·37345871",
+   "long": "",
+   "short": "sXPbS0RlClE"
+  }
+ ],
+ "papers": [
+  {
+   "study": "EMA 2019",
+   "pmid": "",
+   "population": "—",
+   "results": [
+    "심근경색 후 1g/일 오메가3 의약품 재발 예방 효과 없음"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "NIH ODS",
+   "pmid": "",
+   "population": "성인",
+   "results": [
+    "상한 2,000mg/일(설사·위장 증상)"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "Wortsman 등, Am J Clin Nutr 2000",
+   "pmid": "10966885",
+   "population": "비만(BMI≥30) vs 마른(≤25)",
+   "results": [
+    "전신 자외선 24시간 뒤 D3 증가 57% 낮음, 피부 7-DHC·전환은 같음, BMI와 D3(r=−0.55)·경구 5만 IU D2 최고치 역상관 → 체지방에 침착"
+   ],
+   "episodes": [
+    "vitd-why-low"
+   ]
+  },
+  {
+   "study": "Levine 등, PNAS 2001 — 젊은 여성",
+   "pmid": "11504949",
+   "population": "건강한 젊은 여성, 186±28일 입원, 30–2,500mg",
+   "results": [
+    "100mg 넘어야 선형 구간 밖, 혈장·혈구 400mg/일에서 포화, 그 이상은 소변 배설"
+   ],
+   "episodes": [
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "Walker 등, Magnes Res 2003 — 무작위 이중맹검",
+   "pmid": "14596323",
+   "population": "건강인 46명, 원소 300mg/일 60일",
+   "results": [
+    "유기 형태(구연산·아미노산 킬레이트)가 MgO보다 60일 24시간 소변 마그네슘으로 더 흡수(P=0.033), 제목: 구연산이 가장 생체이용률 높음"
+   ],
+   "episodes": [
+    "magnesium-form"
+   ]
+  },
+  {
+   "study": "Canter & Ernst, Surv Ophthalmol 2004",
+   "pmid": "14711439",
+   "population": "빌베리 안토시아노사이드 — 가짜약 대조 12개",
+   "results": [
+    "최근 RCT 4개 모두 음성, 엄격할수록 음성; 밤눈 개선 가설 근거 없음"
+   ],
+   "episodes": [
+    "eye-what-to-take"
+   ]
+  },
+  {
+   "study": "참고: Padayatty 등, Ann Intern Med 2004",
+   "pmid": "15068981",
+   "population": "입원 자원자 17명",
+   "results": [
+    "경구 1.25g 최고 혈중 134.8µmol/L — 경구는 혈중 농도가 좁게 조절됨"
+   ],
+   "episodes": [
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "STEP, Bent, NEJM 2006",
+   "pmid": "16467543",
+   "population": "49세 초과 남성 225명(중등도 이상 BPH 증상), 160mg 하루 2회, 1년",
+   "results": [
+    "AUASI 차이 0.04(−0.93–1.01), 최대 요속·전립선 크기·잔뇨·삶의 질·PSA 차이 없음, 부작용 비슷",
+    "AUASI 차이 0.04(−0.93–1.01)"
+   ],
+   "episodes": [
+    "saw-palmetto-prostate",
+    "nocturia-sawpalmetto"
+   ]
+  },
+  {
+   "study": "Rosenfeldt 등, J Hum Hypertens 2007 — 메타분석",
+   "pmid": "17287847",
+   "population": "12개 연구 362명(무작위 3·교차 1·공개 8)",
+   "results": [
+    "무작위 120명: 수축기 −16.6(12.6–20.6), 이완기 −8.2mmHg, 가짜약 변화 없음",
+    "무작위: 수축기 −16.6, 이완기 −8.2mmHg"
+   ],
+   "episodes": [
+    "coq10-bp",
+    "coq10-bp-search"
+   ]
+  },
+  {
+   "study": "Cochrane, Rambaldi 2007",
+   "pmid": "17943794",
+   "population": "알코올성·B/C형 간염 간질환 1,088명, 임상 18개",
+   "results": [
+    "사망 RR 0.78(0.53–1.15), 합병증 0.95, 조직 차이 없음; 간 관련 사망 0.50(0.29–0.88)이나 질 높은 임상 0.57(0.28–1.19); 이상반응 0.83; 방법론 질 낮음",
+    "사망(RR 0.78)·합병증 차이 없음, 고품질 시험에서 간 관련 사망도 차이 없음",
+    "사망(RR 0.78)·합병증 차이 없음"
+   ],
+   "episodes": [
+    "milk-thistle-liver",
+    "fattyliver-milkthistle",
+    "drinker-milkthistle"
+   ]
+  },
+  {
+   "study": "Elin, Magnes Trace Elem — 마그네슘 상태 검사법 리뷰",
+   "pmid": "1844550",
+   "population": "리뷰",
+   "results": [
+    "어른 몸 약 24g(절반 뼈·절반 연조직), 혈액 1% 미만·혈청 약 0.3%. 몸 전체 상태를 알려 주는 간단·정확한 검사 없음, 여러 검사 조합 권고"
+   ],
+   "episodes": [
+    "magnesium-who"
+   ]
+  },
+  {
+   "study": "GEM, Snitz, JAMA 2009",
+   "pmid": "20040554",
+   "population": "72–96세 3,069명, 은행잎 120mg 하루 2회, 중간값 6.1년",
+   "results": [
+    "기억·주의·시공간·언어·실행 기능 연간 감소율 차이 없음"
+   ],
+   "episodes": [
+    "memory-what-to-take"
+   ]
+  },
+  {
+   "study": "Mulligan, J Bone Miner Res 2010",
+   "pmid": "20200983",
+   "population": "비타민D 결핍 치료에 반응이 없던 17명, 가장 큰 식사와 함께로 변경",
+   "results": [
+    "2~3달 뒤 25(OH)D 30.5→47.2 ng/mL, 평균 56.7% 상승(비교군 없음)"
+   ],
+   "episodes": [
+    "vitd-when"
+   ]
+  },
+  {
+   "study": "Sanders, JAMA 2010",
+   "pmid": "20460620",
+   "population": "70세 이상 여성 2,256명, 연 1회 500,000 IU",
+   "results": [
+    "낙상 IRR 1.15, 골절 1.26, 투여 뒤 3개월에 몰림",
+    "낙상 IRR 1.15, 골절 1.26"
+   ],
+   "episodes": [
+    "vitamin-d-bone",
+    "bone-what-to-take",
+    "vitd-when"
+   ]
+  },
+  {
+   "study": "Dyerberg, Prostaglandins Leukot Essent Fatty Acids 2010",
+   "pmid": "20638827",
+   "population": "72명, EPA+DHA 약 3.3g/일, 2주",
+   "results": [
+    "자연 생선기름 대비 생체이용률 rTG 124%, EE 73%, 유리지방산 91%"
+   ],
+   "episodes": [
+    "omega3-form"
+   ]
+  },
+  {
+   "study": "Urol Res 2011",
+   "pmid": "20862466",
+   "population": "건강 남성 13명, MgO 450mg",
+   "results": [
+    "소변 마그네슘 증가 발포정 40% vs 캡슐 20% — 물에 녹아 이온화가 흡수 전제"
+   ],
+   "episodes": [
+    "magnesium-form"
+   ]
+  },
+  {
+   "study": "Neubronner, Eur J Clin Nutr 2011",
+   "pmid": "21063431",
+   "population": "150명, EPA 1.01g+DHA 0.67g, 6개월",
+   "results": [
+    "오메가3 지수 3개월 186% vs 161%, 6개월 197% vs 171%(rTG vs EE)"
+   ],
+   "episodes": [
+    "omega3-form"
+   ]
+  },
+  {
+   "study": "CAMUS, Barry, JAMA 2011",
+   "pmid": "21954478",
+   "population": "45세 이상 369명, 320mg/일 → 24·48주에 2·3배, 72주",
+   "results": [
+    "AUASI −2.20 vs 가짜약 −2.99, 차이 0.79점 가짜약 쪽, 2차 결과 모두 차이 없음, 뚜렷한 이상반응 없음",
+    "차이 0.79점 가짜약 쪽, 2차 결과 차이 없음"
+   ],
+   "episodes": [
+    "saw-palmetto-prostate",
+    "nocturia-sawpalmetto"
+   ]
+  },
+  {
+   "study": "Tompkins 등, Benef Microbes 2011 — 위·십이지장 실험 장치(IViDiS)",
+   "pmid": "22146689",
+   "population": "시판 다균주 캡슐(L. helveticus R0052·L. rhamnosus R0011·B. longum R0175·S. boulardii)",
+   "results": [
+    "식사와 함께 또는 식사 30분 전에 생존 최고, 식사 30분 뒤는 적게 생존. 1% 우유·우유 오트밀이 사과 주스·물보다 유의하게 좋음. S. boulardii는 영향 없음. 단백질보다 지방이 중요했던 듯 → 코팅 안 한 제품은 약간의 지방이 든 식사와 함께·직전"
+   ],
+   "episodes": [
+    "probiotics-when"
+   ]
+  },
+  {
+   "study": "SyNCH, Fried, JAMA 2012",
+   "pmid": "22797645",
+   "population": "C형 간염 154명, 실리마린 420·700mg 하루 3회, 24주",
+   "results": [
+    "ALT 기준 도달 3.8%·4.0%·3.8%, ALT 감소·HCV RNA 차이 없음"
+   ],
+   "episodes": [
+    "milk-thistle-liver"
+   ]
+  },
+  {
+   "study": "Ma 등, Ophthalmology 2012 — 무작위",
+   "pmid": "22858124",
+   "population": "초기 황반변성 108명, 48주(24·48주 측정)",
+   "results": [
+    "20mg 군 MPOD +0.076, 용량-반응, 기저 MPOD와 음의 상관(r=−0.56)"
+   ],
+   "episodes": [
+    "lutein-how-long"
+   ]
+  },
+  {
+   "study": "Cochrane, Tacklind 2012",
+   "pmid": "23235581",
+   "population": "임상 32개, 5,666명",
+   "results": [
+    "질 높은 장기 임상 2개(582명) AUA 차이 0.25(−0.58–1.07)"
+   ],
+   "episodes": [
+    "saw-palmetto-prostate"
+   ]
+  },
+  {
+   "study": "Hemilä & Chalker, Cochrane 2013",
+   "pmid": "23440782",
+   "population": "일반인 11,306명(29 비교)",
+   "results": [
+    "감기 횟수 RR 0.97(0.94–1.00); 극한 신체 부담 598명 RR 0.48(0.35–0.64); 기간 어른 −8%, 아이 −14%; 발병 뒤 시작 7개 일관된 효과 없음"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "Eur J Nutr 2014 — 쥐",
+   "pmid": "23543147",
+   "population": "루테인 결핍 쥐",
+   "results": [
+    "올리브유와 함께 혈장 루테인 AUC +41.8%, 눈 +35.2%(대조 대비)"
+   ],
+   "episodes": [
+    "lutein-how-long"
+   ]
+  },
+  {
+   "study": "AREDS2, JAMA 2013",
+   "pmid": "23644932",
+   "population": "50–85세 4,203명(진행 위험 높은 중간 단계 AMD), 루테인 10mg+지아잔틴 2mg, 중앙 5년, 모두 AREDS 공식 병용",
+   "results": [
+    "5년 진행 31%(가짜약)·29%(루테인), HR 0.90(98.7% CI 0.76–1.07); 베타카로틴군 폐암 2.0% vs 0.9%(주로 과거 흡연자); 결론: 루테인이 베타카로틴 대체로 적절"
+   ],
+   "episodes": [
+    "lutein-eye"
+   ]
+  },
+  {
+   "study": "AREDS2 보고 4, JAMA Ophthalmol 2013",
+   "pmid": "23645227",
+   "population": "3,159명, 중앙 4.7년",
+   "results": [
+    "백내장 수술 HR 0.96(0.84–1.10), 시력 3줄 이상 저하 1.03(0.93–1.13); 음식 섭취 최저 5분위 0.68(0.48–0.96)"
+   ],
+   "episodes": [
+    "lutein-eye"
+   ]
+  },
+  {
+   "study": "Dawczynski 등, Graefes Arch 2013 — LUTEGA",
+   "pmid": "23695657",
+   "population": "건성 황반변성 172명, 1년",
+   "results": [
+    "루테인 10mg 조합 1·2회 군 12개월 뒤 MPOD 유의 증가, 가짜약은 부피 감소"
+   ],
+   "episodes": [
+    "lutein-how-long"
+   ]
+  },
+  {
+   "study": "PLACIDE, Allen, Lancet 2013",
+   "pmid": "23932219",
+   "population": "65세 이상 입원 2,981명, 유산균·비피더스균 6×10^10/일 21일",
+   "results": [
+    "설사 10.8% vs 10.4%, RR 1.04(0.84–1.28); C. difficile 0.8% vs 1.2%, RR 0.71(0.34–1.47); 예방 근거 없음"
+   ],
+   "episodes": [
+    "probiotics-antibiotic"
+   ]
+  },
+  {
+   "study": "Flock 등, J Am Heart Assoc 2013 — 무작위 용량-반응",
+   "pmid": "24252845",
+   "population": "건강한 어른 115명, 0·300·600·900·1,800mg, 약 5개월",
+   "results": [
+    "O3I 용량 의존 증가, 용량이 반응 변이 68%, 체중당 용량 70%, 기저 O3I·나이·성별·활동 더해 78% — 특히 체중으로 권장량 조정"
+   ],
+   "episodes": [
+    "omega3-index-why"
+   ]
+  },
+  {
+   "study": "Cochrane Avenell 2014",
+   "pmid": "24729336",
+   "population": "—",
+   "results": [
+    "엉덩이뼈: D 단독 RR 1.12, D+칼슘 0.84(0.74–0.96)",
+    "엉덩이뼈: 비타민D 단독 RR 1.12, 칼슘과 함께 0.84(0.74–0.96)"
+   ],
+   "episodes": [
+    "vitamin-d-bone",
+    "bone-what-to-take"
+   ]
+  },
+  {
+   "study": "유산균 메타분석, Dimidi, Am J Clin Nutr 2014",
+   "pmid": "25099542",
+   "population": "RCT 14개, 1,182명",
+   "results": [
+    "장 통과 시간 −12.4시간, 배변 +1.3회/주; B. lactis +1.5회/주, L. casei Shirota −0.2(유의하지 않음); 이질성·비뚤림 높음"
+   ],
+   "episodes": [
+    "constipation-what-to-take"
+   ]
+  },
+  {
+   "study": "Dawson-Hughes, J Acad Nutr Diet 2015",
+   "pmid": "25441954",
+   "population": "건강한 노년층 50명, 12시간 공복 뒤 아침과 함께 비타민D3 50,000 IU 1회",
+   "results": [
+    "지방 든 식사(열량 30%) 쪽 12시간 혈중 D3 32%(11–52%) 높음; MUFA:PUFA 비율은 차이 없음"
+   ],
+   "episodes": [
+    "vitd-when"
+   ]
+  },
+  {
+   "study": "DHA와 성인 기억력 메타분석, PLoS One 2015",
+   "pmid": "25786262",
+   "population": "성인 연구 묶음",
+   "results": [
+    "가벼운 기억력 저하 성인에서 DHA/EPA로 일화 기억 유의 개선; 처음 상태와 상관없이 하루 1g 초과에서 개선"
+   ],
+   "episodes": [
+    "memory-what-to-take"
+   ]
+  },
+  {
+   "study": "Vilar-Gomez 등, Gastroenterology 2015",
+   "pmid": "25865049",
+   "population": "조직으로 확인한 지방간염 293명, 52주 생활 습관 체중 감량",
+   "results": [
+    "5% 이상 감량 58% 지방간염 해소, 10% 이상 감량 90% 해소·45% 섬유화 감소"
+   ],
+   "episodes": [
+    "fattyliver-milkthistle"
+   ]
+  },
+  {
+   "study": "World J Diabetes 2015 — 리뷰",
+   "pmid": "26322160",
+   "population": "리뷰",
+   "results": [
+    "제2형 당뇨에서 마그네슘 결핍 흔함, 혈당 조절 불량일수록. 주된 기전: 적은 섭취·소변 손실 증가"
+   ],
+   "episodes": [
+    "magnesium-who"
+   ]
+  },
+  {
+   "study": "Ferraro, Am J Kidney Dis 2016",
+   "pmid": "26463139",
+   "population": "미국 코호트",
+   "results": [
+    "남성 ≥1,000mg/일 HR 1.43(1.15–1.79), 여성 연관 없음",
+    "남성 총섭취 ≥1,000mg/일 HR 1.43(1.15–1.79), 보충제 ≥1,000mg HR 1.19. 여성은 관련 없음"
+   ],
+   "episodes": [
+    "vitamin-c-cold",
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "Imhann 등, Gut 2016",
+   "pmid": "26657899",
+   "population": "3개 코호트 1,815명(PPI 사용 211명)",
+   "results": [
+    "PPI 사용: 다양성 감소, 세균 분류군 20% 변화, 입속 세균(Rothia 등) 대변에 과다"
+   ],
+   "episodes": [
+    "probiotics-when"
+   ]
+  },
+  {
+   "study": "Cochrane, Ho 2016",
+   "pmid": "26935713",
+   "population": "고혈압 무작위 임상 2개, 50명",
+   "results": [
+    "수축기 −3.68(−8.86–1.49), 이완기 −2.03(−4.86–0.81) 유의하지 않음; 중간 품질 근거로 임상적 의미 있는 효과 없음",
+    "수축기 −3.68(−8.86~1.49), 이완기 −2.03, 유의하지 않음 — 임상적 의미 있는 효과 없음(중간 수준 근거)",
+    "수축기 −3.68(−8.86~1.49), 유의하지 않음"
+   ],
+   "episodes": [
+    "coq10-bp",
+    "coq10-bp-search"
+   ]
+  },
+  {
+   "study": "Carr 등, Nutrients 2016 — 두 보충 연구 재분석",
+   "pmid": "27271663",
+   "population": "젊은 남성 70명, 50 또는 200mg/일 최대 6주",
+   "results": [
+    "200mg: 대개 1주 안에 포화(>65µmol/L), 기저 저수치(≤23)는 2주. 저수치가 50mg 먹으면 ~30µmol/L에 그침"
+   ],
+   "episodes": [
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "Ma 등, Nutrients 2016 — 메타분석",
+   "pmid": "27420092",
+   "population": "RCT 20개, 황반변성 938명·건강인 826명",
+   "results": [
+    "MPOD 증가 WMD 0.07(환자)·0.09(건강인), 용량-반응, 기저 MPOD 낮을수록 더 증가(건강인 r=−0.71)"
+   ],
+   "episodes": [
+    "lutein-how-long"
+   ]
+  },
+  {
+   "study": "Kalén 등, Lipids 1989",
+   "pmid": "2779364",
+   "population": "사람 장기(1일~81세)·쥐",
+   "results": [
+    "대부분 장기에서 유비퀴논(코엔자임Q10) 20세 무렵 최고, 이후 계속 감소"
+   ],
+   "episodes": [
+    "coq10-bp"
+   ]
+  },
+  {
+   "study": "Br J Nutr 2017 — 단면 비교",
+   "pmid": "28366178",
+   "population": "40–70세 채식인 23명 vs 일반식 24명",
+   "results": [
+    "채식인의 적혈구 막·혈장 장쇄 n-3 비율과 지질 매개체 유의하게 낮음"
+   ],
+   "episodes": [
+    "omega3-who"
+   ]
+  },
+  {
+   "study": "Wah Kheong, Clin Gastroenterol Hepatol 2017",
+   "pmid": "28419855",
+   "population": "NASH 99명, 700mg 하루 3회, 48주",
+   "results": [
+    "1차(NAS 30% 감소) 32.7% vs 26.0% 차이 없음; 섬유화 1점 이상 감소 22.4% vs 6.0%(p=0.023)",
+    "NAS 30% 개선 32.7% vs 26.0%(P=.467), 섬유화 감소 신호 — 더 큰 시험 필요"
+   ],
+   "episodes": [
+    "milk-thistle-liver",
+    "fattyliver-milkthistle"
+   ]
+  },
+  {
+   "study": "Lipids Health Dis 2017 — 제형 교차 연구",
+   "pmid": "29037249",
+   "population": "건강한 공복 성인",
+   "results": [
+    "SMEDS 제형 EPA+DHA 흡수 일반 EE 대비 6.4배(저용량)·11.5배(고용량) → 고지방 식사 없이도 흡수"
+   ],
+   "episodes": [
+    "omega3-index-why"
+   ]
+  },
+  {
+   "study": "Hallberg 등, Am J Clin Nutr 1989",
+   "pmid": "2911999",
+   "population": "사람, 동위원소 표지 빵",
+   "results": [
+    "피트산 인 2mg −18%, 25mg −64%, 250mg −82%. 아스코르브산이 억제를 유의하게 상쇄"
+   ],
+   "episodes": [
+    "iron-vitc-pair"
+   ]
+  },
+  {
+   "study": "Zhong 등, Medicine 2017 — 메타분석",
+   "pmid": "29245314",
+   "population": "지방간 무작위 8개 587명",
+   "results": [
+    "실리마린이 대조군보다 AST −6.57, ALT −9.16 IU/L"
+   ],
+   "episodes": [
+    "fattyliver-milkthistle"
+   ]
+  },
+  {
+   "study": "인삼과 피로 체계적 고찰, J Altern Complement Med 2018",
+   "pmid": "29624410",
+   "population": "피로가 있는 사람, 연구 10개",
+   "results": [
+    "이상반응 위험 낮음, 효과 중간 정도 근거, 유망한 피로 선택지"
+   ],
+   "episodes": [
+    "fatigue-what-to-take"
+   ]
+  },
+  {
+   "study": "DREAM, NEJM 2018",
+   "pmid": "29652551",
+   "population": "중등도 이상 안구건조 535명, EPA+DHA 3,000mg/일 vs 올리브유, 12개월",
+   "results": [
+    "OSDI −13.9 vs −12.5, 차이 −1.9(−5.0–1.1) 유의하지 않음; 눈물막·염색 검사 차이 없음",
+    "OSDI 변화 −13.9 vs −12.5(차이 −1.9, P=0.21), 눈 표면 지표도 차이 없음",
+    "OSDI 변화 차이 없음(P=0.21)"
+   ],
+   "episodes": [
+    "eye-what-to-take",
+    "omega3-who",
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "MacLaughlin·Holick, J Clin Invest 1985",
+   "pmid": "2997282",
+   "population": "8–92세 피부",
+   "results": [
+    "나이 들수록 표피 7-DHC 감소, 8·18세 vs 77·82세 피부의 전비타민D3 생성 능력 2배 넘게 차이"
+   ],
+   "episodes": [
+    "vitd-why-low"
+   ]
+  },
+  {
+   "study": "ASCEND, NEJM 2018",
+   "pmid": "30146932",
+   "population": "당뇨 15,480명, 1g, 7.4년",
+   "results": [
+    "심각한 혈관 사건 8.9% vs 9.2%, RR 0.97(0.87–1.08)"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "Zmora 등, Cell 2018",
+   "pmid": "30193112",
+   "population": "사람·쥐, 11균주 vs 가짜약, 장 점막 시료",
+   "results": [
+    "유산균은 위장관을 살아서 통과, 사람에서 점막 정착은 사람·부위·균주별로 다르고 기저 숙주·미생물 특징으로 예측"
+   ],
+   "episodes": [
+    "probiotics-when"
+   ]
+  },
+  {
+   "study": "Suez, Cell 2018",
+   "pmid": "30193113",
+   "population": "쥐·사람 실험",
+   "results": [
+    "항생제 뒤 유산균은 장내 세균·점막 회복을 늦추고 불완전하게, 자기 대변 이식은 며칠 안에 거의 회복"
+   ],
+   "episodes": [
+    "probiotics-antibiotic"
+   ]
+  },
+  {
+   "study": "Bolland, Lancet Diabetes Endocrinol 2018",
+   "pmid": "30293909",
+   "population": "임상 81개, 53,537명",
+   "results": [
+    "골절 RR 1.00, 엉덩이뼈 1.11, 낙상 0.97, 800 IU 초과도 같음"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "REDUCE-IT, NEJM 2019",
+   "pmid": "30415628",
+   "population": "스타틴 복용·TG 높음 8,179명, 순수 EPA 4g, 4.9년",
+   "results": [
+    "17.2% vs 22.0%, HR 0.75(0.68–0.83). 미네랄 오일 비교군 LDL·hsCRP 상승"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "VITAL, NEJM 2019",
+   "pmid": "30415637",
+   "population": "25,871명, 1g(EPA+DHA 840mg), 5.3년",
+   "results": [
+    "주요 심혈관 사건 HR 0.92(0.80–1.06), 심근경색(2차 결과) 0.72(0.59–0.90)",
+    "주요 심혈관 사건 HR 0.92(0.80–1.06), 유의 차이 없음 (지난 판정 omega3-heart)"
+   ],
+   "episodes": [
+    "omega3-heart",
+    "omega3-who"
+   ]
+  },
+  {
+   "study": "Dai 등, Am J Clin Nutr 2018 — 무작위 이중맹검(PPCCT)",
+   "pmid": "30541089",
+   "population": "40–85세 180명, 식사량에 맞춘 마그네슘 vs 가짜약",
+   "results": [
+    "기저 25(OH)D ~30ng/mL이면 25(OH)D3 상승, 30–50이면 감소 → 최적 마그네슘 상태가 비타민D 상태 최적화에 중요할 수 있음",
+    "기저 25(OH)D ~30ng/mL에서 마그네슘이 25(OH)D3 올림"
+   ],
+   "episodes": [
+    "magnesium-who",
+    "vitd-why-low"
+   ]
+  },
+  {
+   "study": "Martineau 등, Health Technol Assess 2019 — 개별 자료 메타분석",
+   "pmid": "30675873",
+   "population": "RCT 25개 11,321명",
+   "results": [
+    "매일·매주 투여에서 급성 호흡기 감염 aOR 0.81, 볼루스 0.97(차이 없음), 기저 <25nmol/L에서 0.30"
+   ],
+   "episodes": [
+    "vitd-why-low"
+   ]
+  },
+  {
+   "study": "Giannaccare 등, Cornea 2019 — 메타분석",
+   "pmid": "30702470",
+   "population": "무작위 17개 3,363명",
+   "results": [
+    "오메가3가 가짜약보다 증상 감소(SDM 0.968), BUT·쉬르머 증가, 각막 염색 감소"
+   ],
+   "episodes": [
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "Medicine 2019 — 다른 메타분석",
+   "pmid": "30921222",
+   "population": "15편, 129,347명",
+   "results": [
+    "RR 1.44(1.13–1.76)이나 이질성 커서 결론 불명확"
+   ],
+   "episodes": [
+    "magnesium-who"
+   ]
+  },
+  {
+   "study": "Cochrane, Guo 2019",
+   "pmid": "31039287",
+   "population": "아이 6,352명, 임상 33개",
+   "results": [
+    "항생제 관련 설사 8% vs 19%, RR 0.45(0.36–0.56), 중간 확실성; 하루 50억 이상 8% vs 23%(RR 0.37), 미만 8% vs 13%(RR 0.68, 0.46–1.01); 20개 연구 비뚤림 위험 높음"
+   ],
+   "episodes": [
+    "probiotics-antibiotic"
+   ]
+  },
+  {
+   "study": "미국심장협회 과학 권고, Circulation 2019",
+   "pmid": "31422671",
+   "population": "—",
+   "results": [
+    "EPA+DHA 4g/일: 매우 높은 중성지방 30% 이상 감소, LDL 동반 상승 가능(EPA 단독은 아님)",
+    "중성지질 매우 높음(≥500mg/dL)에 하루 4g EPA+DHA로 중성지질 30% 이상 감소, 의약품 용량(>3g/일)"
+   ],
+   "episodes": [
+    "tg-what-to-take",
+    "omega3-who"
+   ]
+  },
+  {
+   "study": "DREAM 연장, Ocul Surf 2020",
+   "pmid": "31425752",
+   "population": "43명, 12개월 더 계속 vs 중단",
+   "results": [
+    "중단해도 OSDI·표면 지표 나빠지지 않음"
+   ],
+   "episodes": [
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "Burt, JAMA 2019",
+   "pmid": "31454046",
+   "population": "311명, 400·4,000·10,000 IU, 3년",
+   "results": [
+    "요골 vBMD 4,000 IU −3.9, 10,000 IU −7.5(400 IU 대비), 파괴 하중 차이 없음"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "Navarro, PLoS One 2019",
+   "pmid": "31536511",
+   "population": "비간경변 NASH 78명, 420·700mg 하루 3회, 48주",
+   "results": [
+    "NAS 2점 이상 개선 15%(700)·19%(420)·12%(가짜약), p=0.79"
+   ],
+   "episodes": [
+    "milk-thistle-liver"
+   ]
+  },
+  {
+   "study": "Medicine 2019 — PPI와 저마그네슘혈증 메타분석",
+   "pmid": "31689852",
+   "population": "관찰 연구 16편, 131,507명",
+   "results": [
+    "저마그네슘혈증 PPI 사용자 19.4% vs 비사용 13.5%, 보정 OR 1.71(1.33–2.19), 고용량 vs 저용량 OR 2.13"
+   ],
+   "episodes": [
+    "magnesium-who"
+   ]
+  },
+  {
+   "study": "Front Physiol 2019 — 볼티모어 노화 종단 연구(BLSA)",
+   "pmid": "31827445",
+   "population": "24–98세 441명, 31P-MRS 근육 속 이온화 마그네슘",
+   "results": [
+    "근육 속 마그네슘은 나이와 음의 관련(β −0.29), 무릎 신전 근력과 양의 관련 — 혈청 마그네슘보다 더 밀접"
+   ],
+   "episodes": [
+    "magnesium-who"
+   ]
+  },
+  {
+   "study": "비타민D·칼슘 골절 메타분석, JAMA Netw Open 2019",
+   "pmid": "31860103",
+   "population": "비타민D 단독 RCT 11개(34,243명), 비타민D+칼슘 RCT 6개(49,282명)",
+   "results": [
+    "단독: 전체 골절 RR 1.06(0.98–1.14), 엉덩이뼈 1.14(0.98–1.32); 병용(400–800 IU+칼슘 1,000–1,200mg): 전체 0.94(0.89–0.99), 엉덩이뼈 0.84(0.72–0.97)",
+    "엉덩이뼈 골절 RR 0.84"
+   ],
+   "episodes": [
+    "bone-what-to-take",
+    "vitd-when"
+   ]
+  },
+  {
+   "study": "Cochrane, Abdelhamid 2020",
+   "pmid": "32114706",
+   "population": "무작위 임상 45개, 143,693명",
+   "results": [
+    "전체 사망 RR 0.97(0.93–1.01), 확실성 높음"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "Magnes Res 2019",
+   "pmid": "32162607",
+   "population": "마그네슘 포화 남성 14명, 400mg 1회",
+   "results": [
+    "구연산: 24시간 소변·4·8시간 혈장 유의 증가, MgO는 유의하지 않음"
+   ],
+   "episodes": [
+    "magnesium-form"
+   ]
+  },
+  {
+   "study": "MPOD와 시각 기능 체계적 고찰, Eye 2021",
+   "pmid": "32792595",
+   "population": "22편",
+   "results": [
+    "MPOD와 대비 감도(r 0.37)·눈부심 장애(0.47)·광스트레스 회복 상관"
+   ],
+   "episodes": [
+    "eye-what-to-take"
+   ]
+  },
+  {
+   "study": "Li 등, JAMA Netw Open 2020 — 무작위",
+   "pmid": "33136134",
+   "population": "철결핍성 빈혈 어른 440명",
+   "results": [
+    "2주 헤모글로빈 상승 2.00 vs 1.84g/dL(동등), 8주 페리틴 35.75 vs 34.48ng/mL(차이 없음)"
+   ],
+   "episodes": [
+    "iron-vitc-pair"
+   ]
+  },
+  {
+   "study": "DO-HEALTH, JAMA 2020",
+   "pmid": "33170239",
+   "population": "70세 이상 2,157명, 2,000 IU, 3년",
+   "results": [
+    "척추 외 골절 IRR 1.03(99% CI 0.75–1.43), 낙상 감소 없음"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "STRENGTH, JAMA 2020",
+   "pmid": "33190147",
+   "population": "13,078명, EPA+DHA 4g vs 옥수수기름",
+   "results": [
+    "12.0% vs 12.2%, HR 0.99, 무익성 조기 중단"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "OMEMI, Circulation 2021",
+   "pmid": "33191772",
+   "population": "70–82세 심근경색 후 1,027명, 1.8g",
+   "results": [
+    "HR 1.08(0.82–1.41)"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "Kalopitas 등, Nutrition 2021 — 메타분석",
+   "pmid": "33418491",
+   "population": "지방간 무작위 8개(가짜약 대조)",
+   "results": [
+    "체중 감량과 무관하게 간 수치 더 감소, 포함 연구 질의 한계"
+   ],
+   "episodes": [
+    "fattyliver-milkthistle"
+   ]
+  },
+  {
+   "study": "키위·푸룬·차전자피 비교, Am J Gastroenterol 2021",
+   "pmid": "34074830",
+   "population": "만성 변비 79명, 키위 2개·푸룬 100g·차전자피 12g, 4주",
+   "results": [
+    "1차 반응 비율 비슷, 세 가지 모두 CSBM 증가; 탐색 연구"
+   ],
+   "episodes": [
+    "constipation-what-to-take"
+   ]
+  },
+  {
+   "study": "PLEFA 2021 — RANGER 재분석",
+   "pmid": "34271325",
+   "population": "미 육군 레인저 훈련생, 2,100mg·14주",
+   "results": [
+    "혈중 수치로 계산한 실제 복약 순응도 3% 미만 → 무효 결론 해석 주의"
+   ],
+   "episodes": [
+    "omega3-index-why"
+   ]
+  },
+  {
+   "study": "Gencer, Circulation 2021",
+   "pmid": "34612056",
+   "population": "임상 7개, 81,210명",
+   "results": [
+    "심방세동 HR 1.25(1.07–1.46), 1g 초과 1.49, 1g당 1.11"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "AREDS2 보고 28, JAMA Ophthalmol 2022",
+   "pmid": "35653117",
+   "population": "3,882명, 10년(5년 뒤 관찰)",
+   "results": [
+    "폐암 OR 베타카로틴 1.82(1.06–3.12), 루테인 1.15(0.79–1.66); 말기 AMD HR 루테인 0.91(0.84–0.99), 루테인 vs 베타카로틴 0.85(0.73–0.98)"
+   ],
+   "episodes": [
+    "lutein-eye"
+   ]
+  },
+  {
+   "study": "LOVIT, NEJM 2022",
+   "pmid": "35704292",
+   "population": "패혈증 중환자 863명, 정맥 200mg/kg/일",
+   "results": [
+    "사망·장기 손상 지속 44.5% vs 38.5%, RR 1.21(1.04–1.40)"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "식이섬유 메타분석, Am J Clin Nutr 2022",
+   "pmid": "35816465",
+   "population": "만성 변비 성인 RCT 16개, 1,251명",
+   "results": [
+    "반응 66% vs 41%, RR 1.48(1.17–1.88); 차전자피·펙틴 유의; 하루 10g 초과에서만 반응 증가, 배변 횟수는 고용량·4주 이상에서; 방귀 증가"
+   ],
+   "episodes": [
+    "constipation-what-to-take"
+   ]
+  },
+  {
+   "study": "VITAL 골절, NEJM 2022",
+   "pmid": "35939577",
+   "population": "25,871명, 2,000 IU/일, 5.3년",
+   "results": [
+    "전체 골절 HR 0.98(0.89–1.08), 엉덩이뼈 1.01(0.70–1.47)"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "PLoS One 2022 — 위험 요인 메타분석",
+   "pmid": "35984830",
+   "population": "48개 연구 493,630명",
+   "results": [
+    "나이 OR 1.82, 여성 1.56, 화면(VDT) 1.32, 콘택트렌즈 1.74, 백내장 수술 1.80 등"
+   ],
+   "episodes": [
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "코엔자임Q10과 피로 메타분석, Front Pharmacol 2022",
+   "pmid": "36091835",
+   "population": "RCT 13개, 1,126명",
+   "results": [
+    "피로 점수 Hedges' g −0.398(−0.641~−0.155), 건강인·환자 방향 같음"
+   ],
+   "episodes": [
+    "fatigue-what-to-take"
+   ]
+  },
+  {
+   "study": "Adv Nutr 2022 — 용량-반응 메타분석",
+   "pmid": "36130103",
+   "population": "26개 연구 1,831명(심혈관 대사 질환)",
+   "results": [
+    "수축기 −4.77(−6.57~−2.97), 당뇨·이상지질혈증·12주 초과에서 더 큼, U자형으로 하루 100–200mg에서 최대(근거 질 중간)",
+    "수축기 −4.77, 당뇨·이상지질혈증·12주 초과에서 더 큼, 100–200mg/일 최대"
+   ],
+   "episodes": [
+    "coq10-bp",
+    "coq10-bp-search"
+   ]
+  },
+  {
+   "study": "Acta Ophthalmol 2023 — 메타분석",
+   "pmid": "36147013",
+   "population": "무작위 8개 1,107명(치우칠 위험 낮은 연구 0)",
+   "results": [
+    "OSDI 증상 개선, 각막 염색·TBUT·쉬르머 뚜렷한 개선 없음, 이질성 큼"
+   ],
+   "episodes": [
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "D-Health, Lancet Diabetes Endocrinol 2023",
+   "pmid": "37011645",
+   "population": "60–84세 20,326명 분석, 월 60,000 IU, 최대 5년",
+   "results": [
+    "골절 HR 0.94(0.84–1.06)"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "J Neurogastroenterol Motil 2023 — 파일럿",
+   "pmid": "37019866",
+   "population": "건강한 어른 30명, 하루 30×10⁹ CFU 2주",
+   "results": [
+    "첫 섭취 1–2일 뒤 대변에서 검출, 중단 뒤 약 3–6일 지속. 장 통과 시간 중간 군에서 R0175가 평균 약 8.5일, 13명 중 6명은 15일 이상"
+   ],
+   "episodes": [
+    "probiotics-when"
+   ]
+  },
+  {
+   "study": "Cochrane, Franco 2023",
+   "pmid": "37345871",
+   "population": "27개 연구, 4,656명",
+   "results": [
+    "장기(12–17개월) IPSS 차이 0.07(−0.75–0.88), 확실성 높음; 단기 −0.90(−1.74–−0.07) 거의 차이 없음; 이상반응 RR 1.01",
+    "장기 IPSS 차이 0.07, 확실성 높음"
+   ],
+   "episodes": [
+    "saw-palmetto-prostate",
+    "nocturia-sawpalmetto"
+   ]
+  },
+  {
+   "study": "J Clin Med 2023 — 메타분석",
+   "pmid": "38002640",
+   "population": "무작위 19개 4,246명",
+   "results": [
+    "증상(g −1.047)·TBUT·쉬르머·삼투압 개선, 하루 용량·기간이 클수록 증상 개선 큼"
+   ],
+   "episodes": [
+    "dryeye-omega3"
+   ]
+  },
+  {
+   "study": "Hemilä & Chalker, BMC Public Health 2023",
+   "pmid": "38082300",
+   "population": "10 RCT",
+   "results": [
+    "증상 정도 −15%(9–21%), 가벼운 증상 기간 차이 없음"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "Li 등, Ann Hepatol 2024 — 메타분석",
+   "pmid": "38579127",
+   "population": "무작위 26개 2,375명",
+   "results": [
+    "ALT·AST·지방간 지수 감소, 조직 지방증 개선 OR 3.25, '추가 연구로 확인 필요'"
+   ],
+   "episodes": [
+    "fattyliver-milkthistle"
+   ]
+  },
+  {
+   "study": "항산화 영양제 네트워크 메타분석, Adv Nutr 2024",
+   "pmid": "38582248",
+   "population": "RCT 38개, 8개 조합",
+   "results": [
+    "모든 조합 MPOD·저주파 대비 감도 증가; 루테인+지아잔틴 광스트레스 회복 시간 감소; MPOD 1위 루테인+지아잔틴+지방산; 근거 질 낮음"
+   ],
+   "episodes": [
+    "eye-what-to-take"
+   ]
+  },
+  {
+   "study": "Shahsavari 등, BMC Complement Med Ther 2025 — 메타분석",
+   "pmid": "40221681",
+   "population": "무작위 55개 3,545명",
+   "results": [
+    "AST·ALT 감소, 지방간·바이러스 간염에서 감소, 알코올·약물 간 손상은 효과 없음, 50세 미만 더 큼, BMI≥30 효과 없음, 400mg 미만·2달 이내 더 큼",
+    "지방간·바이러스 간염 AST·ALT 감소, 알코올·약물 간 손상은 뚜렷한 효과 없음"
+   ],
+   "episodes": [
+    "fattyliver-milkthistle",
+    "drinker-milkthistle"
+   ]
+  },
+  {
+   "study": "해양 오메가3 메타분석, Nutrients 2025",
+   "pmid": "41156531",
+   "population": "대사증후군 RCT 21개, 약 1,950명",
+   "results": [
+    "중성지방 고용량 장기 −56.78 mg/dL, 고용량 단기 −50.87, 중용량 −24.93~−31.84; 하루 2,000mg 넘게·8주 이상에서 큼"
+   ],
+   "episodes": [
+    "tg-what-to-take"
+   ]
+  },
+  {
+   "study": "Nutrients 2025 — KNHANES 2022",
+   "pmid": "41156543",
+   "population": "성인 3,920명",
+   "results": [
+    "비타민D 결핍 46.5%, 젊은 층에서 가장 흔함"
+   ],
+   "episodes": [
+    "vitd-why-low"
+   ]
+  },
+  {
+   "study": "아마씨유 메타분석, Avicenna J Phytomed 2026",
+   "pmid": "42920971",
+   "population": "RCT 36개, 1,959명",
+   "results": [
+    "중성지방 WMD −8.04 mg/dL(−15.63~−0.45)"
+   ],
+   "episodes": [
+    "tg-what-to-take"
+   ]
+  },
+  {
+   "study": "Morck 등, Am J Clin Nutr 1983",
+   "pmid": "6402915",
+   "population": "철 충분한 사람",
+   "results": [
+    "햄버거 식사와 커피 −39%, 차 −64%. 식사 1시간 전 커피는 영향 없음, 1시간 뒤는 동시와 같은 억제"
+   ],
+   "episodes": [
+    "iron-vitc-pair"
+   ]
+  },
+  {
+   "study": "Cook·Monsen, Ann N Y Acad Sci 1980 — 리뷰",
+   "pmid": "6940487",
+   "population": "리뷰",
+   "results": [
+    "헴철은 식사 영향 적음, 비헴철(주된 식이 철)은 식사 구성에 크게 좌우. 아스코르브산은 비헴철 흡수 강화·차·칼슘 억제 역전, 채소 식사에서 양에 비례, 육류 식사에선 덜할 수 있음"
+   ],
+   "episodes": [
+    "iron-vitc-pair"
+   ]
+  },
+  {
+   "study": "Kallner 등, Am J Clin Nutr 1981 — 흡연자",
+   "pmid": "7258125",
+   "population": "하루 20개비 넘는 흡연 남성",
+   "results": [
+    "대사 회전 더 큼, 비흡연자 수준을 맞추려면 하루 최소 140mg(비흡연자 약 100mg)"
+   ],
+   "episodes": [
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "Levine, PNAS 1996",
+   "pmid": "8623000",
+   "population": "입원 자원자 7명, 30–2,500mg",
+   "results": [
+    "200mg 완전 흡수, 500mg 이상 흡수율 감소, 1,000mg/일 혈장 포화",
+    "곡선 가파른 구간 30–100mg, 200mg부터 곡선 밖, 혈장 완전 포화 1,000mg. 호중구·단핵구·림프구 100mg에서 포화. 1회 200mg 생체이용률 완전, 1회 500mg 이상 감소·흡수분 소변 배설. 1,000mg/일에서 수산·요산 배설 증가"
+   ],
+   "episodes": [
+    "vitamin-c-cold",
+    "vitc-how-much"
+   ]
+  },
+  {
+   "study": "Pauling 1970",
+   "pmid": "",
+   "population": "책 Vitamin C and the Common Cold",
+   "results": [
+    "메가도스 주장의 시작"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "RESPECT-EPA, 2022/2024",
+   "pmid": "",
+   "population": "일본 관상동맥질환 2,506명, EPA 1.8g, 공개",
+   "results": [
+    "HR 0.79(0.62–1.00), p=0.055"
+   ],
+   "episodes": [
+    "omega3-heart"
+   ]
+  },
+  {
+   "study": "USPSTF 2018",
+   "pmid": "",
+   "population": "폐경 여성",
+   "results": [
+    "≤400 IU·≤1,000mg 칼슘 D등급, 그 이상 I, 신장결석 증가"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "코엔자임Q10",
+   "results": [
+    "항산화·높은 혈압 감소에 도움을 줄 수 있음, 90–100mg; 의약품 대체 아님",
+    "항산화·높은 혈압 감소(피로 기능성 없음)"
+   ],
+   "episodes": [
+    "fatigue-what-to-take"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "루테인(마리골드꽃추출물)",
+   "results": [
+    "황반색소밀도 유지 눈 건강 도움, 10–20mg; 2023 흡연자 섭취 주의",
+    "노화로 인해 감소될 수 있는 황반색소밀도를 유지하여 눈 건강에 도움, 10–20mg; 2023 흡연자 섭취 주의"
+   ],
+   "episodes": [
+    "lutein-eye",
+    "eye-what-to-take"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "밀크씨슬 추출물",
+   "results": [
+    "간 건강에 도움을 줄 수 있음, 실리마린으로서 130mg"
+   ],
+   "episodes": [
+    "milk-thistle-liver"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "EPA·DHA 함유 유지",
+   "results": [
+    "혈중 중성지질 개선·혈행 개선에 도움을 줄 수 있음, 하루 0.5–2g",
+    "혈중 중성지질 개선·혈행 개선에 도움을 줄 수 있음, EPA+DHA 0.5–2g",
+    "기억력 개선에 도움을 줄 수 있음(EPA+DHA 0.9–2g); 항응고제·항혈소판제·혈압강하제 복용 시 상담",
+    "혈중 중성지질·혈행 0.5–2g, 건조한 눈 0.6–2.24g, 기억력 0.9–2g(EPA+DHA 합)"
+   ],
+   "episodes": [
+    "omega3-heart",
+    "tg-what-to-take",
+    "memory-what-to-take",
+    "omega3-form"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "프로바이오틱스",
+   "results": [
+    "유산균 증식 및 유해균 억제·배변활동 원활·장 건강에 도움을 줄 수 있음"
+   ],
+   "episodes": [
+    "probiotics-antibiotic",
+    "constipation-what-to-take"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "홍삼",
+   "results": [
+    "면역력 증진·피로개선에 도움을 줄 수 있음(진세노사이드 3–80mg); 당뇨약·혈액항응고제 복용 시 주의, 임산부·수유부·영유아 주의"
+   ],
+   "episodes": [
+    "fatigue-what-to-take"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "쏘팔메토 열매 추출물",
+   "results": [
+    "전립선 건강의 유지에 도움을 줄 수 있음"
+   ],
+   "episodes": [
+    "saw-palmetto-prostate"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "비타민C",
+   "results": [
+    "결합조직·철 흡수·항산화 필요, 하루 30–1,000mg"
+   ],
+   "episodes": [
+    "vitamin-c-cold"
+   ]
+  },
+  {
+   "study": "식약처",
+   "pmid": "",
+   "population": "비타민D",
+   "results": [
+    "칼슘과 인이 흡수되고 이용되는데 필요, 뼈의 형성과 유지에 필요"
+   ],
+   "episodes": [
+    "bone-what-to-take",
+    "vitd-when"
+   ]
+  },
+  {
+   "study": "한국",
+   "pmid": "",
+   "population": "—",
+   "results": [
+    "상한섭취량 100μg(4,000 IU), 기준치 10μg"
+   ],
+   "episodes": [
+    "vitamin-d-bone"
+   ]
+  }
+ ]
+}

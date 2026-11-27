@@ -31,6 +31,7 @@ import mall_track  # noqa: E402
 
 CFG = ROOT / "health" / "health.yaml"
 CAT = ROOT / "health" / "catalog.json"
+RES = ROOT / "health" / "research.json"  # 건강월드 리서치 스냅숏(scripts/health_research_sync.py)
 BEST = "/v2/providers/affiliate_open_api/apis/openapi/products/bestcategories/"
 DISCLOSURE = "김박사 건강몰은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
 SITE = "https://drkimworld.com/?utm_source=health&utm_medium=web"
@@ -223,7 +224,8 @@ def fetch(c: dict, searcher=None, getter=get) -> dict:
 # ---------- 화면 ----------
 CSS = """
 :root{--bg:#f6f8f6;--card:#fff;--ink:#14231c;--muted:#5f6b66;--line:#dfe6e1;--accent:#2f9e6b;--accent-ink:#fff;--soft:#e8f4ee;--red:#c8442f}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1512;--card:#16201b;--ink:#e6eeea;--muted:#9aa9a2;--line:#27342e;--accent:#4cc38a;--accent-ink:#06120c;--soft:#1b2a23;--red:#ff8a75}}
+/* 밝은 화면 고정: 휴대폰 다크 모드에서 크림 상자 위 밝은 글씨가 안 보이던 문제(2026-11-26) */
+:root{color-scheme:light}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
 a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
 header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
@@ -263,7 +265,6 @@ footer{margin-top:40px;padding:22px 0 40px;border-top:1px solid var(--line);colo
 .adbox{margin:22px 0;min-height:1px;text-align:center}
 /* ── 건강몰 디자인 v2(운영자 2026-11-24 "페이지 디자인이 조악 — 대형 채널 배워서"): 썸네일 v3·영상 슬라이드와 같은 크림·딥그린·노랑, 엠블럼, 성분 색 아이콘 ── */
 :root{--bg:#F6F1E4;--card:#fff;--ink:#0F1B2D;--muted:#5B6878;--line:#E3DCCB;--accent:#0F8A5F;--accent-ink:#fff;--soft:#FFF8DC;--brand:#0F3D2E;--hl:#FFE600}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1714;--card:#17211d;--ink:#eef3ef;--muted:#a3b1aa;--line:#2a3832;--accent:#3ccf8e;--accent-ink:#06120c;--soft:#1d2a24;--brand:#0F3D2E;--hl:#FFE600}}
 header{background:var(--brand);border-bottom:0}header .logo{color:#fff;display:flex;align-items:center;gap:8px;font-size:20px}header .logo span{color:var(--hl)}header .tag{color:#cfe3d8}
 nav.gn a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}nav.gn a.on{background:var(--hl);color:#111;border-color:var(--hl)}
 .hero{position:relative;overflow:hidden;background:var(--brand);color:#fff;border-radius:22px;padding:26px 20px 24px}
@@ -297,7 +298,21 @@ table.fn th{background:var(--soft)}h1.t{font-weight:900;letter-spacing:-.5px}
 .pq button,.sortbar button{font:inherit;font-size:14px;padding:7px 12px;margin:0 6px 6px 0;border-radius:999px;border:1.5px solid #111;background:#fff;cursor:pointer}
 .pq button.on,.sortbar button.on{background:var(--brand);color:var(--hl)}.pq .res{display:none;margin-top:8px;padding:10px;border-radius:10px;background:var(--soft);font-size:14px;line-height:1.55}
 .pq .res.on{display:block}.pn{margin:8px 0 0;font-size:14px}.pn a{display:inline-block;margin:4px 6px 0 0;padding:5px 12px;border-radius:999px;background:var(--brand);color:#fff;text-decoration:none}
-.pn a.cur{background:#fff;color:#111;border:1px solid #111}.pnext{margin:18px 0;padding:14px 16px;border-radius:14px;background:var(--soft);font-weight:700}
+.pn a.cur{background:#fff;color:#111;border:1px solid #111}
+/* 논문 정리(2026-11-26) */
+.rbox{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin:16px 0;padding:14px 16px;border-radius:16px;background:var(--brand);color:#fff;text-decoration:none;box-shadow:4px 4px 0 #111}
+.rbox .rk{grid-column:1;font-size:12px;font-weight:800;color:var(--hl)}.rbox b{grid-column:1;font-size:17px}.rbox .rn{grid-column:1;font-size:13px;color:#d7e7de}
+.rbox .rg{grid-column:2;grid-row:1/4;font-weight:900;color:#111;background:var(--hl);border-radius:999px;padding:8px 14px;white-space:nowrap}
+.rbox.go{background:#fff;color:var(--ink);border:2px solid #111}.rbox.go .rk{color:var(--accent)}
+.rnote{font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.rtoc{background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 16px;margin:14px 0}.rtoc ol{margin:6px 0 0;padding-left:20px}.rtoc li{margin:4px 0}.rtoc a{text-decoration:none;color:var(--accent);font-weight:700}
+.re{background:#fff;border:2px solid var(--line);border-radius:18px;padding:16px;margin:16px 0;scroll-margin-top:110px}
+.re h2{margin:4px 0 10px;font-size:20px}.ra{margin:0;font-size:12px;color:var(--muted)}.ra span{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:999px;background:var(--hl);color:#111;font-weight:800}
+.rans{margin:0 0 8px;line-height:1.65}.rans b,.rkey b{display:inline-block;margin-right:6px;padding:1px 8px;border-radius:6px;background:var(--brand);color:var(--hl);font-size:12px}
+.rkey{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.rvs{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.rv{display:block;width:180px;text-decoration:none;font-size:13px;font-weight:700}.rv img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;display:block;background:#ddd}.rv.sh{width:110px}.rv.sh img{aspect-ratio:9/16}
+.rp summary{cursor:pointer;font-weight:800;color:var(--accent);padding:6px 0}.tw{overflow-x:auto}.rp table{font-size:13px;min-width:560px}.rp a{color:var(--accent)}
+.ri{background:#fff;border:2px solid var(--line);border-radius:16px;padding:6px 16px 12px;margin:12px 0}.ri h2 a{text-decoration:none}.ri ul{margin:0;padding-left:20px}.ri li{margin:5px 0}.ri li a{color:var(--ink)}.pnext{margin:18px 0;padding:14px 16px;border-radius:14px;background:var(--soft);font-weight:700}
 .pnext a{color:var(--brand)}table.pm{width:100%;border-collapse:collapse;margin:6px 0 4px;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
 table.pm th{background:var(--brand);color:var(--hl);text-align:left;padding:8px 10px}table.pm td{padding:8px 10px;border-top:1px solid #eee;vertical-align:top}table.pm td:first-child{width:40%}table.pm td:last-child{font-weight:700}.sortbar{margin:4px 0 10px}.card.hide{display:none}
 """
@@ -358,6 +373,8 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
     base = c["url"].rstrip("/")
     canon = f"{base}/{path}"
     nav = [f'<a href="{up}" class="{"on" if on == "home" else ""}">홈</a>', f'<a href="{up}guide/" class="{"on" if on == "guide" else ""}">성분 가이드</a>']
+    if cat.get("has_research"):
+        nav.append(f'<a href="{up}research/" class="{"on" if on == "research" else ""}">논문 정리</a>')
     nav += [f'<a href="{up}guide/{g["slug"]}/" class="{"on" if on == g["slug"] else ""}">{esc(g["name"])}</a>' for g in c.get("guides") or []]
     if cat.get("best_shown"):
         nav.append(f'<a href="{up}best/" class="{"on" if on == "best" else ""}">건강식품 베스트</a>')
@@ -372,7 +389,7 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)}</title><meta name="description" content="{esc(desc)}">{robots}<link rel="canonical" href="{esc(canon)}">
 <meta property="og:type" content="website"><meta property="og:site_name" content="{esc(c['name'])}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:url" content="{esc(canon)}"><meta property="og:locale" content="ko_KR">
-<meta name="theme-color" content="#2f9e6b">{meta}
+<meta name="color-scheme" content="light only"><meta name="theme-color" content="#0F3D2E">{meta}
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f9e6b'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%23fff'%3E건%3C/text%3E%3C/svg%3E">
 <style>{CSS}</style>{lds}{adsense_head}</head><body>
 <header><div class="wrap"><div class="top"><a class="logo" href="{up}">{EMBLEM.format(px=30)}김박사 <span>건강몰</span></a><span class="tag">{esc(c['tagline'])}</span></div>
@@ -418,7 +435,9 @@ def profile_box(c: dict, g: dict) -> str:
              '<div class="res"></div></div>')
         attr = ' data-def="1"' if code == dflt else " hidden"
         # 수요-공급 연결(운영자 2026-11-24 "어떤 조건·상황의 사람에게 어떤 조건·특성의 제품이 연결되는지"): 이런 분 → 고를 조건
-        mrows = "".join(f'<tr><td>{esc(m["who"])}</td><td>{esc(m["pick"])}</td></tr>' for m in pr.get("match") or [])
+        others = [o["name"] for o in c.get("guides") or [] if o["slug"] != g["slug"]]
+        mine = lambda m: g["name"] in m["who"] + m["pick"] or not any(n in m["who"] + m["pick"] for n in others)  # 다른 성분만 말하는 줄은 그 가이드로(2026-11-26)
+        mrows = "".join(f'<tr><td>{esc(m["who"])}</td><td>{esc(m["pick"])}</td></tr>' for m in pr.get("match") or [] if mine(m))
         mt = (f'<table class="pm"><thead><tr><th>이런 분이라면</th><th>이런 조건의 제품</th></tr></thead><tbody>{mrows}</tbody></table>') if mrows else ""
         out.append(f'<section class="pf" data-pf="{code}"{attr}><p class="pk" data-n="{esc(pr["name"])}">{esc(pr["name"])}에 관심 있다면</p>'
                    f'<h2>이 순서로 확인하세요</h2><ol>{steps}</ol>{mt}{q}<nav class="pn">같은 관심의 가이드 {nxt}</nav></section>')
@@ -463,7 +482,7 @@ if(A[1]&&A[2]&&A[3]&&!q.dataset.done){q.dataset.done=1;E('quiz-done')}r.innerHTM
 }catch(e){}})();</script>"""
 
 
-def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
+def guide_body(c: dict, cat: dict, g: dict, res: dict | None = None) -> tuple[str, str]:
     others = '<h2>다른 성분 가이드</h2><nav class="chips">' + "".join(
         f'<a href="../{o["slug"]}/">{esc(o["name"])}</a>' for o in c.get("guides") or [] if o["slug"] != g["slug"]) + "</nav>"
     rows = "".join(f"<tr><td>{esc(f['text'])}</td><td>{esc(f['dose'])}</td></tr>" for f in g["functions"])
@@ -477,6 +496,7 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
 <h1 class="t">{esc(g['name'])} 고르는 법: 식약처 기능성·하루 섭취량·주의사항</h1>
 <p><a class="btn jump" href="#items">기준과 제품 비교 바로 보기 ↓</a></p>
 <p class="lead">{esc(g['intro'])}</p>
+{research_box(c, g, (res or {}).get(g["slug"]) or [])}
 {profile_box(c, g)}
 <h2 id="fn">식약처가 인정한 기능성 <small>{esc(g['aka'])}</small></h2>
 <table class="fn"><thead><tr><th>기능성 내용(인정 문구)</th><th>1일 섭취량 기준</th></tr></thead><tbody>{rows}</tbody></table>
@@ -495,6 +515,99 @@ def guide_body(c: dict, cat: dict, g: dict) -> tuple[str, str]:
     return body, desc
 
 
+# ---------- 논문 정리(2026-11-26 운영자 "제품 별로 그동안 쌓인 리서치들이 잘 연결되서 고객에게 백분 도움 되는 구조") ----------
+# 질병 결과는 '그 연구에서 이렇게 나왔다'로만, 상품 진열·쿠팡 링크가 없는 별도 페이지(/research/)에 둔다.
+# 가이드에서는 중립 문구 상자 하나로만 연결한다(질병 문장을 상품 옆에 두지 않음, HEALTH_CHANNEL 2장).
+RES_FIX = (("결핍 치료에", "결핍 보충에"), ("가짜약보다", "가짜약과 비교해"))
+
+
+def rfix(t: str) -> str:
+    for a, b in RES_FIX:
+        t = t.replace(a, b)
+    return t
+
+
+def load_research(path: Path = RES, today: str | None = None) -> dict:
+    """{성분: [편…]} — 공개일이 지난 편만, 최신 순. 편마다 papers(그 편 논문 카드) 붙임."""
+    if not path.exists():
+        return {}
+    r = json.loads(path.read_text(encoding="utf-8"))
+    today = today or dt.datetime.now(KST).date().isoformat()
+    pp = {}
+    for x in r.get("papers") or []:
+        for e in x.get("episodes") or []:
+            pp.setdefault(e, []).append(x)
+    out: dict = {}
+    for e in r.get("episodes") or []:
+        if (e.get("date") or "9999") > today:
+            continue
+        out.setdefault(e["ingredient"], []).append({**e, "papers": pp.get(e["slug"], [])})
+    for v in out.values():
+        v.sort(key=lambda e: e["date"], reverse=True)
+    return out
+
+
+def research_box(c: dict, g: dict, eps: list) -> str:
+    """가이드 위쪽 상자: 질문 수·논문 수·영상 수 + 연구 정리 링크(질병 문장 없이)."""
+    if not eps:
+        return ""
+    n_p = len({x["study"] for e in eps for x in e["papers"]})
+    n_v = sum(bool(e["long"]) + bool(e["short"]) for e in eps)
+    return (f'<a class="rbox" href="../../research/{g["slug"]}/" onclick="hmEv&&hmEv(\'research-box\')"><span class="rk">논문으로 따져 봤습니다</span>'
+            f'<b>{esc(g["name"])} 연구 정리</b><span class="rn">질문 {len(eps)}개 · 논문 {n_p}편 · 영상 {n_v}편</span><span class="rg">보기 ›</span></a>')
+
+
+def ep_html(e: dict) -> str:
+    vids = []
+    if e["long"]:
+        vids.append(f'<a class="rv" href="https://youtu.be/{esc(e["long"])}" target="_blank" rel="noopener" onclick="hmEv&&hmEv(\'research-yt\')"><img loading="lazy" src="https://i.ytimg.com/vi/{esc(e["long"])}/mqdefault.jpg" alt=""><span>영상(롱폼)</span></a>')
+    if e["short"]:
+        vids.append(f'<a class="rv sh" href="https://youtube.com/shorts/{esc(e["short"])}" target="_blank" rel="noopener" onclick="hmEv&&hmEv(\'research-yt\')"><img loading="lazy" src="https://i.ytimg.com/vi/{esc(e["short"])}/mqdefault.jpg" alt=""><span>쇼츠 1분</span></a>')
+    rows = "".join(
+        f'<tr><td>{(f"<a href={chr(34)}https://pubmed.ncbi.nlm.nih.gov/{esc(x[chr(112)+chr(109)+chr(105)+chr(100)])}/{chr(34)} target=_blank rel={chr(34)}nofollow noopener{chr(34)}>" + esc(x["study"]) + "</a>") if x["pmid"] else esc(x["study"])}</td>'
+        f'<td>{esc(rfix(x["population"]))}</td><td>{"<br>".join(esc(rfix(t)) for t in x["results"])}</td></tr>' for x in e["papers"])
+    tbl = (f'<details class="rp"><summary>근거 논문 {len(e["papers"])}편 보기</summary><div class="tw"><table class="fn"><thead><tr><th>연구</th><th>대상</th><th>결과</th></tr></thead><tbody>{rows}</tbody></table></div></details>') if rows else ""
+    return (f'<article class="re" id="{esc(e["slug"])}"><p class="ra"><span>{esc(e["angle"].split("(")[0].split("·")[0])}</span>{esc(e["date"])}</p>'
+            f'<h2>{esc(rfix(e["question"]))}</h2><p class="rans"><b>정리</b> {esc(rfix(e["answer"]))}</p>'
+            f'<p class="rkey"><b>핵심 숫자</b> {esc(rfix(e["key"]))}</p>{"<div class=rvs>" + "".join(vids) + "</div>" if vids else ""}{tbl}</article>')
+
+
+RES_NOTE = ("연구 결과를 정리한 일반 정보입니다. 특정 제품의 효능·효과를 뜻하지 않으며, 진단과 진료를 대신하지 않습니다. "
+            "숫자는 PubMed 초록에서 확인한 값이고, 관찰 연구·하위 분석은 그렇게 적었습니다. 드시는 약이 있거나 수치·증상이 있다면 의사·약사와 먼저 상담하세요.")
+
+
+def research_pages(c: dict, cat: dict, res: dict, base: str, org: dict, w, lastmod: dict) -> None:
+    guides = [g for g in c.get("guides") or [] if res.get(g["slug"])]
+    if not guides:
+        return
+    idx = []
+    for g in guides:
+        eps = res[g["slug"]]
+        qs = "".join(f'<li><a href="{g["slug"]}/#{esc(e["slug"])}">{esc(rfix(e["question"]))}</a></li>' for e in eps)
+        idx.append(f'<section class="ri"><h2><a href="{g["slug"]}/">{esc(g["name"])}</a><small>질문 {len(eps)}개</small></h2><ul>{qs}</ul></section>')
+    w("research/index.html", page(c, cat, f"영양제 논문 정리 — 성분별로 따져 본 질문 | {c['name']}",
+                                 f'<p class="crumb"><a href="../">홈</a> › 논문 정리</p><h1 class="t">영양제, 논문으로 따져 봤습니다</h1>'
+                                 f'<p class="lead">김박사 건강월드 영상마다 확인한 대형 임상·메타분석을 성분별로 모았습니다. 질문을 누르면 결론·핵심 숫자·근거 논문·영상을 한 번에 볼 수 있어요.</p>'
+                                 f'<p class="rnote">{esc(RES_NOTE)}</p>' + "".join(idx),
+                                 "research/", "오메가3·비타민D·루테인·밀크씨슬 등 영양제마다 대형 임상·메타분석이 어떤 결론을 냈는지 성분별로 정리했습니다.", "research"))
+    lastmod["research/"] = max(e["date"] for v in res.values() for e in v)
+    for g in guides:
+        eps = res[g["slug"]]
+        pth = f"research/{g['slug']}/"
+        toc = "".join(f'<li><a href="#{esc(e["slug"])}">{esc(rfix(e["question"]))}</a></li>' for e in eps)
+        body = (f'<p class="crumb"><a href="../../">홈</a> › <a href="../">논문 정리</a> › {esc(g["name"])}</p>'
+                f'<h1 class="t">{esc(g["name"])}, 논문으로 따져 본 질문 {len(eps)}개</h1>'
+                f'<p class="rnote">{esc(RES_NOTE)}</p><nav class="rtoc"><b>이 페이지의 질문</b><ol>{toc}</ol></nav>'
+                + "".join(ep_html(e) for e in eps)
+                + f'<a class="rbox go" href="../../guide/{g["slug"]}/" onclick="hmEv&&hmEv(\'research-guide\')"><span class="rk">고를 때</span><b>{esc(g["name"])} 식약처 인정 기능성·하루 섭취량·주의사항</b><span class="rg">가이드 보기 ›</span></a>'
+                + '<h2>다른 성분 논문 정리</h2><nav class="chips">' + "".join(f'<a href="../{o["slug"]}/">{esc(o["name"])}</a>' for o in guides if o["slug"] != g["slug"]) + "</nav>")
+        desc = f"{g['name']}: " + " · ".join(rfix(e["question"]) for e in eps[:4])
+        ld = [{"@context": "https://schema.org", "@type": "Article", "headline": f"{g['name']}, 논문으로 따져 본 질문 {len(eps)}개", "description": desc[:300],
+               "inLanguage": "ko-KR", "dateModified": eps[0]["date"], "author": org, "publisher": org, "mainEntityOfPage": base + "/" + pth}]
+        w(pth + "index.html", page(c, cat, f"{g['name']} 논문 정리 — {eps[0]['question'][:40]} | {c['name']}", body, pth, desc[:160], "research", ld=ld))
+        lastmod[pth] = eps[0]["date"]
+
+
 def build(c: dict, cat: dict, out: Path) -> int:
     errs = check(c)
     if errs:
@@ -506,6 +619,8 @@ def build(c: dict, cat: dict, out: Path) -> int:
     today = dt.datetime.now(KST).date().isoformat()
     w = lambda rel, s: ((out / rel).parent.mkdir(parents=True, exist_ok=True), (out / rel).write_text(s, encoding="utf-8"))
     guides = c.get("guides") or []
+    res = load_research(today=today)
+    cat = {**cat, "has_research": bool(res)}
     org = {"@type": "Organization", "name": "김박사 월드", "url": "https://drkimworld.com/"}
     gl = '<div class="gl">' + "".join(
         f'<a class="gc" style="--c:{GCOL.get(g["slug"], "#0F8A5F")}" href="{{up}}guide/{g["slug"]}/"><b>{esc(g["name"])}</b><small>{esc(g["aka"])}</small><p>{esc(g["functions"][0]["text"])}</p></a>' for g in guides) + "</div>"
@@ -518,6 +633,10 @@ def build(c: dict, cat: dict, out: Path) -> int:
             '<p>성분마다 식약처가 인정한 기능성 문구, 하루 섭취량 기준, 섭취 시 주의사항을 먼저 정리했습니다. 확인한 다음 쿠팡에서 비교해 보세요.</p>'
             '<a class="btn" href="guide/">성분 가이드 보기</a><div class="trust"><span>식약처 인정 문구 그대로</span><span>PubMed 논문 근거</span><span>1알당 값 비교</span></div></section>',
             '<h2>성분 가이드<small>기능성·섭취량·주의사항</small></h2>' + gl.replace("{up}", ""), funnel(c, "home")]
+    if res:
+        nq = sum(len(v) for v in res.values())
+        home.append('<a class="rbox" href="research/" onclick="hmEv&&hmEv(\'research-home\')"><span class="rk">논문으로 따져 봤습니다</span>'
+                    f'<b>영양제 논문 정리</b><span class="rn">성분 {len(res)}개 · 질문 {nq}개 · 대형 임상·메타분석</span><span class="rg">보기 ›</span></a>')
     rows = []
     for g in guides:
         items = gclean(c, g, prods.get(g["slug"]) or [])
@@ -539,7 +658,7 @@ def build(c: dict, cat: dict, out: Path) -> int:
     # 가이드
     lastmod = {"": today, "guide/": today}
     for g in guides:
-        body, desc = guide_body(c, cat, g)
+        body, desc = guide_body(c, cat, g, res)
         p = f"guide/{g['slug']}/"
         title = f"{g['name']} 고르는 법: 식약처 기능성·하루 섭취량·주의사항 | {c['name']}"
         ld = [{"@context": "https://schema.org", "@type": "Article", "headline": f"{g['name']} 고르는 법: 식약처 기능성·하루 섭취량·주의사항",
@@ -551,6 +670,7 @@ def build(c: dict, cat: dict, out: Path) -> int:
         w(p + "index.html", page(c, cat, title, body, p, desc, g["slug"], ld=ld))
         seen = [x.get("seen", "") for x in (cat.get("products") or {}).get(g["slug"]) or []]
         lastmod[p] = max([g["verified"]] + seen)
+    research_pages(c, cat, res, base, org, w, lastmod)
     # 베스트(상품만 있는 페이지 — 검색 색인 제외)
     if best:
         w("best/index.html", page(c, cat, f"헬스·건강식품 베스트 | {c['name']}", f'<h1 class="t">헬스·건강식품 베스트<span class="ad">광고</span></h1><p class="lead">쿠팡 헬스/건강식품 카테고리 베스트를 자동으로 가져옵니다. 추천·보증이 아닙니다.</p><div class="grid" data-sub="best">{"".join(card(p) for p in best)}</div>',
