@@ -25,6 +25,10 @@ on:
         description: "delete 용 게시 id(쉼표로 여러 개, 최대 20). @drkimworld 글만 지운다"
         required: false
         default: ""
+      topic:
+        description: "주제 태그 1개(선택, 예: 영양제) — 운영자 11-27 '주제 태그 1개 정확히'"
+        required: false
+        default: ""
       reply:
         description: "post 뒤 내 답글. 여러 개면 줄 하나에 === 로 나눔(각 500자 이내, 링크는 마지막 조각에만 — 첫 줄 대가성 문구, 쿠팡 단축 링크만). 비우면 답글 없음"
         required: false
@@ -43,6 +47,7 @@ jobs:
       TEXT: ${{ inputs.text }}
       REPLY: ${{ inputs.reply }}
       IDS: ${{ inputs.ids }}
+      TOPIC: ${{ inputs.topic }}
     steps:
       - uses: actions/checkout@v4
         if: env.MODE == 'health' || env.MODE == 'preview'
@@ -142,7 +147,11 @@ jobs:
                  any(not re.match(r"https://(link\.coupang\.com/a/|health\.drkimworld\.com/)", u) for u in urls) or \
                  not re.match(r"https://link\.coupang\.com/a/", urls[0]):
                   print("::error::reply 조각은 500자 이내, 링크는 마지막 조각에만(첫 줄 대가성 문구, 쿠팡 단축 링크 먼저 그 밑에 건강몰)"); sys.exit(1)
-          c = call("POST", "me/threads", {"media_type": "TEXT", "text": text})
+          first = {"media_type": "TEXT", "text": text}
+          tp = re.sub(r"[^0-9A-Za-z가-힣]", "", os.environ.get("TOPIC", ""))[:50]
+          if tp and mode == "post":
+              first["topic_tag"] = tp
+          c = call("POST", "me/threads", first)
           time.sleep(5)
           p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
           print(f"::notice::게시됨 id={p.get('id')}")
