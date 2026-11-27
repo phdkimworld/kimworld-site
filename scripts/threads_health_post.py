@@ -13,6 +13,8 @@ Q = ROOT / "social/threads_health/queue.json"
 P = ROOT / "social/threads_health/posted.json"
 API = "https://graph.threads.net/v1.0"
 TOK = os.environ.get("DRKIM_THREADS_ACCESS_TOKEN", "")
+# 운영자 11-27 빌리쌤 팁 "자신만의 시그니처 장착": 모든 원글 끝에 같은 서명 한 줄(이미 있거나 500자 넘으면 생략)
+SIG = "— 영양제 뒷면 읽어 주는 김박사 —"
 LINK_OK = re.compile(r"https://(link\.coupang\.com/a/|health\.drkimworld\.com/)")
 
 
@@ -44,7 +46,8 @@ def main():
     if re.search(r"https?://", x["text"]) or any(re.search(r"https?://", p) for p in parts[:-1]) or \
        any(not LINK_OK.match(u) for u in re.findall(r"https?://\S+", parts[-1] if parts else "")) or len(x["text"]) > 500 or any(len(p) > 500 for p in parts):
         print(f"::error::{x.get('slug')} 형식 위반 — 대기열 맨 뒤로"); q.append(q.pop(0)); Q.write_text(json.dumps(q, ensure_ascii=False, indent=1) + "\n"); return 1
-    root = pub(x["text"], topic=re.sub(r"[^0-9A-Za-z가-힣]", "", x.get("topic", ""))[:50] or None)
+    text = x["text"] if SIG in x["text"] or len(x["text"]) + len(SIG) + 2 > 500 else x["text"].rstrip() + "\n\n" + SIG
+    root = pub(text, topic=re.sub(r"[^0-9A-Za-z가-힣]", "", x.get("topic", ""))[:50] or None)
     prev = root; ids = [root]
     for p in parts:
         time.sleep(4); prev = pub(p, reply_to=prev); ids.append(prev)

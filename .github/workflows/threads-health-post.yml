@@ -4,9 +4,11 @@ name: Threads drkimworld scheduled post (건강월드 정시 게시)
 # 대기열 social/threads_health/queue.json 은 세션이 채운다(공용 API 초안 + 검사). 비면 아무것도 안 함. 값은 출력하지 않는다.
 on:
   schedule:
+    # 11-27 빌리쌤 팁: 피크타임 아침 6~9시·저녁 20~24시(저녁 2배), 낮은 댓글 시간 → 하루 4개
     - cron: "27 22 * * *"   # 07:27 KST
-    - cron: "27 3 * * *"    # 12:27 KST
-    - cron: "57 11 * * *"   # 20:57 KST
+    - cron: "47 23 * * *"   # 08:47 KST
+    - cron: "7 12 * * *"    # 21:07 KST
+    - cron: "47 13 * * *"   # 22:47 KST
   workflow_dispatch: {}
 
 permissions:
