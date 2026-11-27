@@ -88,7 +88,7 @@ def main():
         if FLAG.search(txt) or re.search(r"https?://", txt) or len(txt) > 400:
             st["flagged"][x["id"]] = {"why": "의료 판단·링크·긴 글 — 세션 확인", "who": x.get("username"), "text": txt[:300], "root": t["id"]}; changed = True; continue
         facts = facts_for((t.get("text") or "") + " " + txt) or facts_for("오메가3 비타민D 마그네슘")
-        r = caller.ask(system=SYSTEM, user=f"우리 원글: {(t.get('text') or '')[:400]}\n댓글: {txt}\n\n식약처 근거:\n{facts}", tier="cheap", max_tokens=400)
+        r = caller.ask(system=SYSTEM, user=f"우리 원글: {(t.get('text') or '')[:400]}\n댓글: {txt}\n\n식약처 근거:\n{facts}", tier="cheap", max_tokens=1200)  # 400은 잘림(11-27 실측)
         ans = (r.get("text") or "").strip()
         why = r["status"] if r["status"] != "ok" else check(ans, facts)
         if why:
