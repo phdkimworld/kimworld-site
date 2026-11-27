@@ -3,6 +3,7 @@
 # 2) 넘어간 drkimworld.com 주소의 ?code= 값(또는 주소 전체)을 이 워크플로 code 입력에 넣고 실행(1시간·1회용)
 # 토큰은 출력하지 않고 바로 비밀값 <prefix>_ACCESS_TOKEN·<prefix>_USER_ID 에 넣는다. 60일 갱신은 token-refresh.yml.
 name: Instagram connect
+# 2026-11-27: platform=threads 로 Threads 계정도(예 @drkimworld → DRKIM_THREADS_ACCESS_TOKEN). 앱 비밀은 THREADS_APP_SECRET
 
 on:
   workflow_dispatch:
@@ -15,9 +16,13 @@ on:
         required: true
         default: drkim_world
       prefix:
-        description: "비밀값 이름 앞부분"
+        description: "비밀값 이름 앞부분(threads 는 DRKIM_THREADS)"
         required: true
         default: HEALTH_IG
+      platform:
+        description: "instagram / threads"
+        required: true
+        default: instagram
 
 permissions:
   contents: read
@@ -34,7 +39,8 @@ jobs:
           CODE: ${{ inputs.code }}
           EXPECT: ${{ inputs.expect }}
           PREFIX: ${{ inputs.prefix }}
-          IG_APP_SECRET: ${{ secrets.HEALTH_IG_APP_SECRET }}
+          PLATFORM: ${{ inputs.platform }}
+          IG_APP_SECRET: ${{ inputs.platform == 'threads' && secrets.THREADS_APP_SECRET || secrets.HEALTH_IG_APP_SECRET }}
           GH_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT }}
         run: |
           echo "::add-mask::$CODE"
