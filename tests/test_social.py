@@ -382,4 +382,30 @@ with tempfile.TemporaryDirectory() as d:
     ex = spr.excluded(d, now)
     check("게시 3일 지난 미디어만 배포 제외(대기열·최근 게시·기록 없는 파일은 남김)", list(ex) == ["static/social/x/old.mp4"])
 
+# T20(2026-11-27 'Threads 20가지 방법'): 주제 태그 형식·관찰 글(kind observe) 검사
+check("주제 태그 정상", sp.topic_tag_problems("미국주식") == [] and sp.topic_tag_problems("양자컴퓨터") == [])
+check("주제 태그 # · . · & · 51자 · 빈 값은 실패", all(sp.topic_tag_problems(x) for x in ("#주식", "U.S.", "AI&반도체", "가" * 51, "", None)))
+OBS = {"kind": "observe", "channels": ["threads"], "publish_at": "2026-11-29T07:10:00-05:00", "topic_tag": "미국주식",
+       "text": "같은 날 오른 이유, 뉴스일까 시장일까?\n\n승인은 오전 10시 2분이었다.\n\n여러분은 뉴스와 시장 중 무엇을 먼저 보세요?"}
+check("관찰 글 정상", sp.observe_problems(OBS) == [])
+check("관찰 글 링크·광고·홍보는 실패", all(sp.observe_problems({**OBS, "text": OBS["text"].replace("이었다.", x)}) for x in
+      ("이었다. https://drkimworld.com/r/a/", "이었다.\n💊 오메가3(광고)", "이었다. 자세한 건 리포트에")))
+check("관찰 글 self_reply 링크도 실패", sp.observe_problems({**OBS, "self_reply": "t.me/drkimworld 보세요?"}) != [])
+check("관찰 글 마지막 줄이 질문이 아니면 실패", sp.observe_problems({**OBS, "text": "숫자 하나.\n\n오늘은 여기까지."}) != [])
+check("관찰 글 답글·투표·다른 채널은 실패", all(sp.observe_problems({**OBS, **x}) for x in
+      ({"replies": [{"text": "a"}]}, {"poll": ["가", "나"]}, {"channels": ["threads", "facebook"]})))
+with tempfile.TemporaryDirectory() as d:
+    q = Path(d) / "o.json"
+    q.write_text(json.dumps(OBS, ensure_ascii=False), encoding="utf-8")
+    check("load: 관찰 글 통과", sp.load(q)[1] == [])
+    q.write_text(json.dumps({**OBS, "kind": "promo"}, ensure_ascii=False), encoding="utf-8")
+    check("load: 모르는 kind 는 실패", sp.load(q)[1] != [])
+    q.write_text(json.dumps({**OBS, "topic_tag": "#주식"}, ensure_ascii=False), encoding="utf-8")
+    check("load: 잘못된 topic_tag 는 실패", sp.load(q)[1] != [])
+    q.write_text(json.dumps({k: v for k, v in OBS.items() if k != "kind"} | {"text": "회차 글 https://x.com"}, ensure_ascii=False), encoding="utf-8")
+    check("load: kind 없는 회차 글은 관찰 규칙을 보지 않음", sp.load(q)[1] == [])
+check("다음 칸은 KST 07–09·12–13·18–19·20–24시 안", all(
+    (lambda t: any(a <= t.hour * 60 + t.minute < b for a, b in ((420, 540), (720, 780), (1080, 1140), (1200, 1440))))(
+        sp.next_slot(now=datetime(2026, 11, 28, h, tzinfo=sp.KST)).astimezone(sp.KST)) for h in range(24)))
+
 print(f"\n모두 통과 ({ok})")

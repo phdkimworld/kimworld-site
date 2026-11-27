@@ -13,8 +13,12 @@ social/posted/ 로 옮긴다(커밋은 워크플로가 한다).
     "replies": [{"text": "...", "link_attachment": "https://..."}],  # 선택: Threads 이어지는 댓글
     "link_attachment": "https://...",                   # 선택: Threads 링크 카드
     "poll": ["보기 1", "보기 2", "보기 3"],              # 선택: Threads 본문 투표(보기 2~4개, 각 25바이트 이하 = 한글 약 8자, 24시간)
-    "self_reply": "여러분은 … 댓글로 의견 주세요"          # 선택: 게시 2~5분 뒤 Threads 본문에 다는 내 댓글 한 개(초반 30분 첫 활성화)
+    "self_reply": "여러분은 … 댓글로 의견 주세요",         # 선택: 게시 2~5분 뒤 Threads 본문에 다는 내 댓글 한 개(초반 30분 첫 활성화)
+    "topic_tag": "미국주식",                              # 선택: Threads 주제 태그 하나(1~50자, . & 없이). 없으면 TH_TOPIC_DEFAULT
+    "kind": "observe"                                     # 선택: 링크·광고 없는 관찰 글(공감 8:홍보 2, 미디어 marketing.md 3-2 T20)
   }
+  kind observe: Threads 한 글만(답글·투표·link_attachment 없음), 본문·self_reply 에 링크·광고 표시 없음, 본문 마지막 줄은 질문(?).
+  T20(2026-11-27): 결론·리포트 링크는 replies 에(본문은 질문으로 끝남). 회차 글의 훅·질문·링크 1개 규칙은 미디어 tools/queue_check.py [T20] 몫.
   self_reply(2026-11-26 운영자 공유 'Threads 첫 30분' 팁 중 플랫폼에 안전한 부분만): 150자 이내, 링크·투자 권유·베팅·AI 언급 없음.
   이어지는 댓글(replies)을 다 단 뒤 본문 게시 시각에서 SELF_REPLY_DELAY 초가 지나면 본문에 직접 단다. 25분이 지났거나 실패하면 다시 달지 않는다.
   poll 은 Threads 본문에 투표로 붙고 link_attachment 와 함께 쓸 수 없다. 링크는 replies 에 둔다.
@@ -90,6 +94,10 @@ SELF_REPLY_BANNED = [
     (r"지금\s*당장|서두르|놓치면|마지막\s*기회", "긴급성"),
     (r"팔로우|맞팔|좋아요\s*(눌러|부탁)|리포스트\s*(해|부탁)|공유\s*부탁", "참여 구걸"),
 ]
+# Threads topic_tag: 1~50자, 마침표·앰퍼샌드 불가(Threads API). '#'은 붙이지 않는다
+TOPIC_TAG_MAX = 50
+# 관찰 글(kind observe)에 있으면 안 되는 것: 링크·광고·홍보 표시(미디어 queue_check [T20⑥]와 같은 뜻)
+OBSERVE_BANNED = [(r"https?://|www\.|\.com\b|t\.me/", "링크"), (r"💊|광고|쿠팡|파트너스|리포트|영상|구독|텔레그램|@drkimworld|앱 설치|김박사", "광고·홍보")]
 TH_TOPIC_DEFAULT = "미국주식"  # Threads 주제 태그 기본값(글마다 "topic_tag"로 바꾼다, 코인 글은 "코인")
 # 한국 시청자가 많이 보는 시각(KST). 새 글은 바로 올리지 않고 다음 칸에 넣는다(운영자 지시 2026-10-20)
 KST = ZoneInfo("Asia/Seoul")
@@ -148,6 +156,35 @@ def self_reply_problems(text):
     for pat, why in SELF_REPLY_BANNED:
         if re.search(pat, t, re.I):
             errs.append(f"self_reply 금지: {why}")
+    return errs
+
+
+def topic_tag_problems(tag):
+    """Threads 주제 태그 검사(빈 목록이면 통과)."""
+    if not isinstance(tag, str) or not tag.strip():
+        return ["topic_tag 는 비어 있지 않은 글자여야 함"]
+    if len(tag.strip()) > TOPIC_TAG_MAX:
+        return [f"topic_tag {len(tag.strip())}자 > {TOPIC_TAG_MAX}자"]
+    if any(c in tag for c in ".&#"):
+        return ["topic_tag 에 '.'·'&'·'#' 은 쓸 수 없음(태그 하나만, # 없이)"]
+    return []
+
+
+def observe_problems(post):
+    """관찰 글(kind observe, 공감 8:홍보 2) 검사. 빈 목록이면 통과."""
+    import re
+    errs = []
+    if post.get("channels") != ["threads"]:
+        errs.append('관찰 글은 "channels": ["threads"] 만')
+    if post.get("replies") or post.get("poll") or post.get("link_attachment") or post.get("threads_media"):
+        errs.append("관찰 글은 답글·투표·링크 카드·이미지 없이 한 글")
+    text = text_for(post, "threads")
+    for pat, why in OBSERVE_BANNED:
+        if re.search(pat, text + "\n" + str(post.get("self_reply") or "")):
+            errs.append(f"관찰 글 금지: {why}")
+    lines = [l for l in text.strip().split("\n") if l.strip()]
+    if not lines or not re.search(r"[?？]", lines[-1]):
+        errs.append("관찰 글 마지막 줄은 질문(?)")
     return errs
 
 
@@ -229,6 +266,8 @@ def load(path):
         if post.get("self_reply") is not None:
             sr = post["self_reply"]
             errs += self_reply_problems(sr) if isinstance(sr, str) else ["self_reply 는 글자여야 함"]
+        if "topic_tag" in post:
+            errs += topic_tag_problems(post["topic_tag"])
         poll = post.get("poll")
         if poll is not None:
             if not isinstance(poll, list) or not 2 <= len(poll) <= 4:
@@ -241,6 +280,11 @@ def load(path):
                         errs.append(f"poll[{i}] {len(o.encode('utf-8'))}바이트 > {POLL_OPTION_LIMIT}바이트 제한(한글 1자 = 3바이트)")
             if post.get("link_attachment"):
                 errs.append("poll 과 link_attachment 는 함께 쓸 수 없음(링크는 replies 에)")
+    if post.get("kind") is not None:
+        if post["kind"] != "observe":
+            errs.append('kind 는 "observe" 만(없으면 회차 글)')
+        else:
+            errs += observe_problems(post)
     tm = post.get("threads_media")
     if tm:
         tps = [tm["path"]] if tm.get("path") else (tm.get("paths") or [])
