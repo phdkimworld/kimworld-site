@@ -145,7 +145,7 @@ jobs:
               urls = re.findall(r"https?://\S+", pt)
               if len(pt) > 500 or (urls and ("쿠팡 파트너스" not in pt.split("\n")[0] or k != len(parts) - 1)) or \
                  any(not re.match(r"https://(link\.coupang\.com/a/|health\.drkimworld\.com/)", u) for u in urls) or \
-                 not re.match(r"https://link\.coupang\.com/a/", urls[0]):
+                 (urls and not re.match(r"https://link\.coupang\.com/a/", urls[0])):
                   print("::error::reply 조각은 500자 이내, 링크는 마지막 조각에만(첫 줄 대가성 문구, 쿠팡 단축 링크 먼저 그 밑에 건강몰)"); sys.exit(1)
           first = {"media_type": "TEXT", "text": text}
           tp = re.sub(r"[^0-9A-Za-z가-힣]", "", os.environ.get("TOPIC", ""))[:50]
