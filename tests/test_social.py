@@ -267,8 +267,8 @@ check("기록 커밋: rebase 전에 git 이름·메일을 저장소 설정으로
 KST = sp.KST
 n0 = datetime(2026, 10, 20, 20, 10, tzinfo=KST)
 check("다음 칸: KST 20:10 → 21:10", sp.next_slot(n0).strftime("%H:%M") == "21:10")
-check("3시간 안에 잡힌 글이 있으면 그다음 칸", sp.next_slot(n0, [datetime(2026, 10, 20, 21, 0, tzinfo=KST)]).strftime("%d %H:%M") == "21 07:40")
-check("밤 23시 뒤에는 다음 날 아침 칸", sp.next_slot(datetime(2026, 10, 20, 23, 30, tzinfo=KST)).strftime("%d %H:%M") == "21 07:40")
+check("3시간 안에 잡힌 글이 있으면 그다음 칸", sp.next_slot(n0, [datetime(2026, 10, 20, 21, 0, tzinfo=KST)]).strftime("%d %H:%M") == "21 07:10")
+check("밤 23시 뒤에는 다음 날 아침 칸", sp.next_slot(datetime(2026, 10, 20, 23, 30, tzinfo=KST)).strftime("%d %H:%M") == "21 07:10")
 
 # ---------- 인스타 DM 자동 응답(scripts/ig_dm.py, 네트워크 없이 모의 응답) ----------
 import ig_dm as dm

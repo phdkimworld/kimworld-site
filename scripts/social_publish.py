@@ -104,7 +104,7 @@ OBSERVE_BANNED = [(r"https?://|www\.|\.com\b|t\.me/", "링크"), (r"💊|광고|
 TH_TOPIC_DEFAULT = "미국주식"  # Threads 주제 태그 기본값(글마다 "topic_tag"로 바꾼다, 코인 글은 "코인")
 # 한국 시청자가 많이 보는 시각(KST). 새 글은 바로 올리지 않고 다음 칸에 넣는다(운영자 지시 2026-10-20)
 KST = ZoneInfo("Asia/Seoul")
-SLOTS_KST = ((7, 40), (12, 10), (18, 40), (21, 10))
+SLOTS_KST = ((7, 10), (21, 10))  # 11-27 운영자 공유 billy___ssam "피크타임 아침 6~9시·저녁 9~12시(KST)"
 SLOT_GAP_HOURS = 3  # 같은 칸에 두 글이 겹치지 않게, 대기열·최근 게시 글과 이 시간 이상 띄운다
 
 
