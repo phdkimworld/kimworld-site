@@ -11,7 +11,8 @@
   "publish_at": "2026-11-27T04:41:05-05:00",
   "results": {
     "instagram": {
-      "waiting": "미디어 주소 배포 대기"
+      "waiting": "미디어 주소 배포 대기",
+      "last_error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"A2aOte4Z6oK5NXZMefr2mB5\"}}"
     }
   }
 }
