@@ -14,6 +14,7 @@ import health_build as hb  # noqa: E402
 
 def main() -> int:
     test_threads_post()
+    test_research_pages()
     c = hb.cfg()
     assert hb.check(c) == [], hb.check(c)
     # 금지 낱말 검사가 실제로 잡는지
@@ -59,7 +60,7 @@ def main() -> int:
             assert "api.drkimworld.com/v1/mhit" in f.read_text(encoding="utf-8") and "SITE='health'" in f.read_text(encoding="utf-8"), f
         assert 'data-sub="g-omega3"' in g
         sm = (out / "sitemap.xml").read_text(encoding="utf-8")
-        assert "/best/" not in sm and sm.count("<url>") == 3 + len(c["guides"])
+        nres = len(hb.load_research()); assert "/best/" not in sm and sm.count("<url>") == 3 + len(c["guides"]) + (1 + nres if nres else 0)
         for f in out.rglob("*.html"):
             s = f.read_text(encoding="utf-8")
             assert hb.DISCLOSURE in s, f
@@ -110,6 +111,28 @@ def test_threads_post():
         assert "utm_source=threads" in t and "식약처 인정 기능성" in t
         seen.add(t.split(",")[0])
     assert len(seen) >= 8, seen
+
+
+def test_research_pages():
+    """논문 정리(/research/): 쿠팡 링크 없음·금지어 없음, 가이드는 중립 상자로만 연결, 공개일 전 편 숨김, 다크 모드 없음(2026-11-26)."""
+    import re as _re
+    c = hb.cfg()
+    assert "prefers-color-scheme" not in hb.CSS and "color-scheme:light" in hb.CSS
+    res = hb.load_research(today="2026-11-26")
+    assert res and all(e["date"] <= "2026-11-26" for v in res.values() for e in v)
+    assert not any(e["slug"] == "coq10-statin" for v in res.values() for e in v)
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d)
+        assert hb.build(c, {"products": {}}, out) == 0
+        for f in (out / "research").rglob("index.html"):
+            h = f.read_text(encoding="utf-8")
+            assert "link.coupang" not in h, f
+            t = _re.sub("<[^>]+>", " ", h)
+            assert not [w for w in c["banned"] if w in t], (f, [w for w in c["banned"] if w in t])
+        g = (out / "guide" / "omega3" / "index.html").read_text(encoding="utf-8")
+        assert 'class="rbox" href="../../research/omega3/"' in g
+        assert "코엔자임Q10을 찾는 분" not in g  # 다른 성분 줄은 그 가이드에서만
+        assert "research/omega3/" in (out / "sitemap.xml").read_text(encoding="utf-8")
 
 
 if __name__ == "__main__":
