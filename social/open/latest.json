@@ -1,14 +1,14 @@
 {
- "generated": "2026-11-27T20:26:01+00:00",
- "since": "2026-11-20T20:26:01+00:00",
+ "generated": "2026-11-27T23:25:51+00:00",
+ "since": "2026-11-20T23:25:51+00:00",
  "platforms": {
   "threads": {
    "ok": false,
-   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"ABLAXL81SsuPjHH2-QHPUUE\"}}"
+   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"AIbqktuOVGbmdDkyC_aFe_L\"}}"
   },
   "instagram": {
    "ok": false,
-   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"AwEi0bsqYsqZ5LxnIWQjken\"}}"
+   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"APhuLGx--s5ApEkScAxzJNH\"}}"
   },
   "facebook": {
    "ok": true,
@@ -17,5 +17,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-27T20:26Z"
+ "saved_utc": "2026-11-27T23:26Z"
 }
