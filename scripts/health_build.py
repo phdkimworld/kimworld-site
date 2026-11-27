@@ -325,7 +325,7 @@ nav.gn a{background:transparent;border-color:var(--line);color:var(--ink)}nav.gn
 .hero{background:linear-gradient(160deg,#EFE3CF 0%,#E6D6BC 100%);color:var(--ink);border-radius:28px;box-shadow:0 18px 40px rgba(63,74,46,.10)}
 .hero .kicker{color:var(--accent)}.hero h1{color:var(--brand);font-size:30px}.hero h1 em{color:var(--accent);background:none;padding:0}
 .hero p{color:var(--muted)}.hero .btn{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(180,85,45,.28)}
-.hero .pills{opacity:.22;filter:sepia(.6) saturate(.7)}
+.hero .pills{display:none}  /* unslop 점검(운영자 11-27 heydamir/unslop 공유): 의미 없는 광택 장식(알약 덩어리) 제거 */
 .trust span{background:rgba(255,255,255,.55);color:var(--brand);border:1px solid var(--line)}
 @media(min-width:720px){.hero h1{font-size:42px}.hero{padding:52px 44px}}
 .kicker{color:var(--accent)}h2{font-weight:700}
