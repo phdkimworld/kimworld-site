@@ -21,10 +21,10 @@
     "shared": {
      "cache_read": 0,
      "cache_write": 0,
-     "calls": 5,
-     "in": 9260,
-     "out": 14467,
-     "usd": 0.008159
+     "calls": 6,
+     "in": 11193,
+     "out": 17538,
+     "usd": 0.009888
     },
     "weekly": {
      "cache_read": 0,
@@ -35,7 +35,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 2.903901
+   "usd": 2.90563
   }
  }
 }
