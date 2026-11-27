@@ -14,8 +14,8 @@ on:
       target:
         description: "연결할 계정"
         type: choice
-        default: threads-drkimworld
-        options: [threads-drkimworld, instagram-drkim_world, threads-phdkimworld, instagram-drkimworld]
+        default: threads-phdkimworld
+        options: [threads-phdkimworld, threads-drkimworld, instagram-drkim_world, instagram-drkimworld]
 
 permissions:
   contents: read
