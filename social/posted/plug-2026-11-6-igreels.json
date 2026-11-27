@@ -12,7 +12,10 @@
   "results": {
     "instagram": {
       "waiting": "미디어 주소 배포 대기",
-      "last_error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"A2aOte4Z6oK5NXZMefr2mB5\"}}"
+      "last_error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"A2aOte4Z6oK5NXZMefr2mB5\"}}",
+      "done": true,
+      "skipped": "채널 중단(social/PAUSED)"
     }
-  }
+  },
+  "posted_at": "2026-11-27T16:46:47-05:00"
 }
