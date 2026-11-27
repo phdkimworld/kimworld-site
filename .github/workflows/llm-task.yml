@@ -1,0 +1,75 @@
+name: LLM task (다른 세션 공용 작업)
+
+# 운영자 지시 2026-11-27 "다른 세션에서도 좀 쓰게": 키가 없는 세션(healthworld·다른 팀 등)이 API 크레딧을 쓰는 공용 통로.
+# 프롬프트는 저장소에 커밋한 llm-tasks/<task>.md(최대 40,000자) 또는 입력 prompt(4,000자 이하) 하나, 선택 schema_path(llm-tasks/ 아래 JSON 스키마).
+# 저가 모델 1회, max_tokens ≤ 4000. 결과 social/llm/tasks/<task>-<run_id>.json. 비밀값·개인정보 모양이 있으면 보내지 않고 refused 로 남긴다.
+# 예산 shared 20달러/월(전체 상한 120 안), 하루 20회(모든 세션 합). 사용법: docs/LLM_ACCESS.md
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "작업 이름(영문 소문자·숫자·하이픈 40자 이하, 결과 파일 이름 앞부분)"
+        required: true
+      prompt_path:
+        description: "llm-tasks/ 아래 프롬프트 파일(prompt 와 둘 중 하나)"
+        required: false
+        default: ""
+      prompt:
+        description: "짧은 프롬프트(4,000자 이하, prompt_path 와 둘 중 하나)"
+        required: false
+        default: ""
+      schema_path:
+        description: "선택: llm-tasks/ 아래 JSON 스키마(모든 object 에 additionalProperties false)"
+        required: false
+        default: ""
+      max_tokens:
+        description: "출력 상한(1~4000, 기본 1500)"
+        required: false
+        default: "1500"
+      caller:
+        description: "부르는 세션·팀 이름(예: healthworld, 선택 — 사용량 기록용)"
+        required: false
+        default: ""
+      dry:
+        description: "1이면 모의 응답으로 끝까지 돌리고 커밋하지 않음"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  task:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TASK: ${{ github.event.inputs.task }}
+      PROMPT_PATH: ${{ github.event.inputs.prompt_path }}
+      PROMPT: ${{ github.event.inputs.prompt }}
+      SCHEMA_PATH: ${{ github.event.inputs.schema_path }}
+      MAX_TOKENS: ${{ github.event.inputs.max_tokens }}
+      CALLER: ${{ github.event.inputs.caller }}
+      DRY: ${{ github.event.inputs.dry }}
+      CHANGED_FILE: /tmp/changed.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pyyaml
+      - name: Run
+        run: |
+          : > "$CHANGED_FILE"
+          case "$MAX_TOKENS" in ''|*[!0-9]*) MAX_TOKENS=1500;; esac
+          ARGS=(task --task "$TASK" --prompt-path "$PROMPT_PATH" --prompt "$PROMPT" --schema-path "$SCHEMA_PATH" --max-tokens "$MAX_TOKENS" --caller "$CALLER")
+          if [ "$DRY" = "1" ]; then python scripts/llm_jobs.py "${ARGS[@]}" --mock --no-write | tail -20 | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          python scripts/llm_jobs.py "${ARGS[@]}" | tail -2 | tee -a "$GITHUB_STEP_SUMMARY"
+          python scripts/llm.py status >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        if: always() && env.DRY != '1'
+        run: |
+          [ -s "$CHANGED_FILE" ] || { echo "바뀐 것 없음"; exit 0; }
+          python scripts/llm.py commit -m "LLM 공용 작업 $TASK $(TZ=America/New_York date '+%m-%d %H:%M') ET" $(sort -u "$CHANGED_FILE")

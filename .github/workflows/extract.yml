@@ -1,0 +1,69 @@
+name: LLM extract (공시·IR 표 뽑기)
+
+# 운영자 지시 2026-11-27 "다 옮겨": 세션이 공시 원문을 통째로 읽던 조사 단계 일을 API(저가 모델)로 옮긴다.
+# 입력 주소(sec.gov·IR 페이지, 쉼표로 최대 6개)를 받아 정해진 표(doc·date·form·item·amount·unit·shares·price·quote≤15단어·url)를
+# JSON 스키마로 뽑아 social/llm/extract/<slug>.json 으로 커밋한다. 제작자는 핵심 숫자 2~3개를 원문에서 직접 확인한다.
+# 예산 extract 15달러/월(scripts/llm.py), 하루 10회. 키·크레딧·예산이 없으면 건너뜀으로 끝난다. 사용법: docs/LLM_ACCESS.md
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "결과 파일 이름(리포트 slug 권장, 예: plug-2026-11-6)"
+        required: true
+      urls:
+        description: "https 주소, 쉼표로 구분(최대 6개, PDF 안 됨)"
+        required: true
+      preset:
+        description: "뽑을 항목 묶음(filing)"
+        required: false
+        default: "filing"
+      focus:
+        description: "추가로 볼 것(300자 이하, 선택)"
+        required: false
+        default: ""
+      dry:
+        description: "1이면 모의 응답으로 끝까지 돌리고 커밋하지 않음(크레딧 안 씀)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: llm-extract-${{ github.event.inputs.slug }}
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SLUG: ${{ github.event.inputs.slug }}
+      URLS: ${{ github.event.inputs.urls }}
+      PRESET: ${{ github.event.inputs.preset }}
+      FOCUS: ${{ github.event.inputs.focus }}
+      DRY: ${{ github.event.inputs.dry }}
+      CHANGED_FILE: /tmp/changed.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pyyaml
+      - name: Test
+        run: python tests/test_llm_jobs.py > /dev/null
+      - name: Extract
+        run: |
+          : > "$CHANGED_FILE"
+          if [ "$DRY" = "1" ]; then python scripts/llm_jobs.py extract --slug "$SLUG" --urls "$URLS" --preset "${PRESET:-filing}" --focus "$FOCUS" --mock --no-write | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          if [ -z "$ANTHROPIC_API_KEY" ]; then echo "::notice::STATUS=no_key — 건너뜀"; fi
+          python scripts/llm_jobs.py extract --slug "$SLUG" --urls "$URLS" --preset "${PRESET:-filing}" --focus "$FOCUS" | tee -a "$GITHUB_STEP_SUMMARY"
+          python scripts/llm.py status >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        if: always() && env.DRY != '1'
+        run: |
+          [ -s "$CHANGED_FILE" ] || { echo "바뀐 것 없음"; exit 0; }
+          python scripts/llm.py commit -m "LLM 표 뽑기 $SLUG $(TZ=America/New_York date '+%m-%d %H:%M') ET" $(sort -u "$CHANGED_FILE")

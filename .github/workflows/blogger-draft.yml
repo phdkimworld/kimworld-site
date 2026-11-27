@@ -1,0 +1,55 @@
+name: LLM blogger-draft (블로거 머리말 초안)
+
+# 운영자 지시 2026-11-27 "다 옮겨": 블로거 글 본문은 scripts/blogger_post.py 가 머리말로 만들지만, 그 머리말
+# blog_slug·blog_intro·blog_faq(3개)는 세션이 써 왔다 → API(판단용 모델) 초안으로 옮긴다.
+# 검사: K10(도입 200자 이상·질문 3개·영문 blog_slug·티커), v2.9 금지 어휘, site.yaml 금지 표현, 리포트에 없는 숫자, 블로거 본문 700자.
+# 결과 social/llm/blogger/<slug>.md — 제작자가 검토해 리포트 머리말에 붙인다(공개 뒤 blog_slug 은 바꾸지 않음).
+# 예산 blogger 5달러/월, 하루 8회, 실행당 2회. 사용법: docs/LLM_ACCESS.md
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "리포트 파일 이름(확장자 빼고)"
+        required: true
+      dry:
+        description: "1이면 모의 응답으로 끝까지 돌리고 커밋하지 않음"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: llm-blogger-${{ github.event.inputs.slug }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SLUG: ${{ github.event.inputs.slug }}
+      DRY: ${{ github.event.inputs.dry }}
+      CHANGED_FILE: /tmp/changed.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pyyaml
+      - name: Test
+        run: python tests/test_llm_jobs.py > /dev/null
+      - name: Draft
+        run: |
+          : > "$CHANGED_FILE"
+          if [ "$DRY" = "1" ]; then python scripts/llm_jobs.py blogger --slug "$SLUG" --mock --no-write | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          python scripts/llm_jobs.py blogger --slug "$SLUG" | tail -3 | tee -a "$GITHUB_STEP_SUMMARY"
+          python scripts/llm.py status >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        if: always() && env.DRY != '1'
+        run: |
+          [ -s "$CHANGED_FILE" ] || { echo "바뀐 것 없음"; exit 0; }
+          python scripts/llm.py commit -m "LLM 블로거 초안 $SLUG $(TZ=America/New_York date '+%m-%d %H:%M') ET" $(sort -u "$CHANGED_FILE")

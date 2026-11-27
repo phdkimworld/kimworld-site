@@ -1,0 +1,66 @@
+name: LLM sns-draft (Threads·릴스 초안)
+
+# 운영자 지시 2026-11-27 "다 옮겨": 세션이 쓰던 SNS 글 초안을 API(판단용 모델)로 옮긴다.
+# 리포트(content/reports/<slug>.md)와 회차 메모(facts)로 Threads 첫 글(th1, 투표)·둘째 글(th2)·관찰 글(선택)·인스타/페이스북 릴스 캡션을
+# social/queue 형식으로 만들고, 미디어 tools/queue_check.py 의 T20·S1·AD2·self_reply 검사 사본(scripts/sns_rules.py)으로 거른다(걸리면 한 번 고쳐 받음).
+# 결과는 social/llm/sns/<slug>.json(대기열이 아님) — 제작자가 검토하고 💊 광고 문단·publish_at 을 채워 social/queue 로 옮긴 뒤 queue_check 전체를 돌린다.
+# 예산 sns 10달러/월, 하루 8회, 실행당 2회. 사용법: docs/LLM_ACCESS.md
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "리포트 파일 이름(확장자 빼고)"
+        required: true
+      facts:
+        description: "회차 메모(2,000자 이하, 선택: 리포트에 없는 영상 제목·핵심 숫자 강조점 등. 비밀값·개인정보 금지)"
+        required: false
+        default: ""
+      observe:
+        description: "1이면 관찰 글(공감 8:홍보 2) 초안도"
+        required: false
+        default: ""
+      dry:
+        description: "1이면 모의 응답으로 끝까지 돌리고 커밋하지 않음"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: llm-sns-${{ github.event.inputs.slug }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SLUG: ${{ github.event.inputs.slug }}
+      FACTS: ${{ github.event.inputs.facts }}
+      OBSERVE: ${{ github.event.inputs.observe }}
+      DRY: ${{ github.event.inputs.dry }}
+      CHANGED_FILE: /tmp/changed.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pyyaml
+      - name: Test
+        run: python tests/test_llm_jobs.py > /dev/null
+      - name: Draft
+        run: |
+          : > "$CHANGED_FILE"
+          OBS=""; [ "$OBSERVE" = "1" ] && OBS="--observe"
+          if [ "$DRY" = "1" ]; then python scripts/llm_jobs.py sns --slug "$SLUG" --facts "$FACTS" $OBS --mock --no-write | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          python scripts/llm_jobs.py sns --slug "$SLUG" --facts "$FACTS" $OBS | tail -3 | tee -a "$GITHUB_STEP_SUMMARY"
+          python scripts/llm.py status >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit
+        if: always() && env.DRY != '1'
+        run: |
+          [ -s "$CHANGED_FILE" ] || { echo "바뀐 것 없음"; exit 0; }
+          python scripts/llm.py commit -m "LLM SNS 초안 $SLUG $(TZ=America/New_York date '+%m-%d %H:%M') ET" $(sort -u "$CHANGED_FILE")
