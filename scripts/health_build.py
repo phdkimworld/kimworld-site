@@ -315,9 +315,42 @@ table.fn th{background:var(--soft)}h1.t{font-weight:900;letter-spacing:-.5px}
 .ri{background:#fff;border:2px solid var(--line);border-radius:16px;padding:6px 16px 12px;margin:12px 0}.ri h2 a{text-decoration:none}.ri ul{margin:0;padding-left:20px}.ri li{margin:5px 0}.ri li a{color:var(--ink)}.pnext{margin:18px 0;padding:14px 16px;border-radius:14px;background:var(--soft);font-weight:700}
 .pnext a{color:var(--brand)}table.pm{width:100%;border-collapse:collapse;margin:6px 0 4px;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
 table.pm th{background:var(--brand);color:var(--hl);text-align:left;padding:8px 10px}table.pm td{padding:8px 10px;border-top:1px solid #eee;vertical-align:top}table.pm td:first-child{width:40%}table.pm td:last-child{font-weight:700}.sortbar{margin:4px 0 10px}.card.hide{display:none}
+/* ── 건강몰 디자인 v3 'Nature Distilled'(운영자 2026-11-27 "새 단장" — Claude 디자인 세트 참고):
+   크림 종이 바탕·올리브 브랜드·테라코타 포인트·명조 제목·부드러운 그림자. 굵은 검정 테두리·검정 그림자(브루탈) 걷어냄 ── */
+:root{--bg:#F4EDE1;--card:#FBF7F0;--ink:#2E2A24;--muted:#6E655A;--line:#E4D9C6;--accent:#B4552D;--accent-ink:#fff;--soft:#EFE5D3;--brand:#3F4A2E;--hl:#E7C27D}
+body{font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;letter-spacing:-.1px}
+h1,h2,h3,.hero h1,h1.t,.pf h2,.re h2{font-family:"Noto Serif KR","Nanum Myeongjo",serif;font-weight:700;letter-spacing:-.4px}
+header{background:rgba(244,237,225,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}header .logo{color:var(--brand)}header .logo span{color:var(--accent)}header .tag{color:var(--muted)}
+nav.gn a{background:transparent;border-color:var(--line);color:var(--ink)}nav.gn a.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.hero{background:linear-gradient(160deg,#EFE3CF 0%,#E6D6BC 100%);color:var(--ink);border-radius:28px;box-shadow:0 18px 40px rgba(63,74,46,.10)}
+.hero .kicker{color:var(--accent)}.hero h1{color:var(--brand);font-size:30px}.hero h1 em{color:var(--accent);background:none;padding:0}
+.hero p{color:var(--muted)}.hero .btn{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(180,85,45,.28)}
+.hero .pills{opacity:.22;filter:sepia(.6) saturate(.7)}
+.trust span{background:rgba(255,255,255,.55);color:var(--brand);border:1px solid var(--line)}
+@media(min-width:720px){.hero h1{font-size:42px}.hero{padding:52px 44px}}
+.kicker{color:var(--accent)}h2{font-weight:700}
+.gc{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 2px 0 rgba(46,42,36,.03)}
+.gc:hover,.card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(63,74,46,.12)}
+.gc b{font-family:"Noto Serif KR",serif;font-weight:700;color:var(--brand)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px}.card .im{background:#fff;border-bottom:1px solid var(--line)}
+.pr{color:var(--accent)}.tg{background:var(--soft);color:var(--brand)}.tg.lo{background:var(--hl);color:#3a2a10}
+.btn{background:var(--brand);color:#fff;box-shadow:0 6px 14px rgba(63,74,46,.22);border-radius:999px}
+.stick{background:var(--accent)!important;color:#fff!important}
+.fnl{background:var(--brand);border-radius:24px}.fnl p{color:#e3e6d8}.fnl .btn{background:var(--hl);color:#2E2A24;box-shadow:none}
+.box,table.fn,.rnote,.rtoc,.re,.ri,.pq{background:var(--card);border-color:var(--line)}
+table.fn th{background:var(--soft);color:var(--brand)}
+.pf{background:var(--card);border:1px solid var(--line);box-shadow:0 14px 34px rgba(63,74,46,.10);border-radius:24px}.pf .pk{color:var(--accent)}
+.pq button,.sortbar button{border:1px solid var(--line);background:#fff}.pq button.on,.sortbar button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.pn a{background:var(--brand)}.pn a.cur{border-color:var(--brand);color:var(--brand)}
+.rbox{background:var(--brand);box-shadow:0 12px 28px rgba(63,74,46,.18)}.rbox .rk{color:var(--hl)}.rbox .rg{background:var(--hl);color:#2E2A24}
+.rbox.go{background:var(--card);border:1px solid var(--line)}.rans b,.rkey b{background:var(--brand);color:#fff}.ra span{background:var(--soft);color:var(--brand)}
+table.pm th{background:var(--brand);color:#fff}
+footer{border-top:1px solid var(--line)}
+.gc:before{filter:saturate(.5) brightness(.95)}
+
 """
 
-EMBLEM = '''<svg width="{px}" height="{px}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#0F3D2E"/><g transform="rotate(-35 86 88)"><rect x="52" y="70" width="68" height="36" rx="18" fill="#F6F1E4"/><rect x="86" y="70" width="34" height="36" rx="18" fill="#FFC845"/><rect x="86" y="70" width="14" height="36" fill="#FFC845"/></g><circle cx="86" cy="88" r="46" fill="none" stroke="#5EE0A0" stroke-width="12"/><line x1="120" y1="122" x2="152" y2="154" stroke="#5EE0A0" stroke-width="16" stroke-linecap="round"/></svg>'''
+EMBLEM = '''<svg width="{px}" height="{px}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#3F4A2E"/><g transform="rotate(-35 86 88)"><rect x="52" y="70" width="68" height="36" rx="18" fill="#F4EDE1"/><rect x="86" y="70" width="34" height="36" rx="18" fill="#B4552D"/><rect x="86" y="70" width="14" height="36" fill="#B4552D"/></g><circle cx="86" cy="88" r="46" fill="none" stroke="#E7C27D" stroke-width="12"/><line x1="120" y1="122" x2="152" y2="154" stroke="#E7C27D" stroke-width="16" stroke-linecap="round"/></svg>'''
 GCOL = {"omega3": "#0b5cad", "lutein": "#e85d04", "milk-thistle": "#6d28d9", "coq10": "#c1121f", "saw-palmetto": "#4d7c0f", "red-ginseng": "#7f1d1d", "probiotics": "#0096c7", "magnesium": "#3d4f8f", "vitamin-d": "#ff9f0a", "vitamin-c": "#ff7a00"}
 
 
@@ -389,9 +422,9 @@ def page(c: dict, cat: dict, title: str, body: str, path: str, desc: str, on: st
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)}</title><meta name="description" content="{esc(desc)}">{robots}<link rel="canonical" href="{esc(canon)}">
 <meta property="og:type" content="website"><meta property="og:site_name" content="{esc(c['name'])}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:url" content="{esc(canon)}"><meta property="og:locale" content="ko_KR">
-<meta name="color-scheme" content="light only"><meta name="theme-color" content="#0F3D2E">{meta}
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f9e6b'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%23fff'%3E건%3C/text%3E%3C/svg%3E">
-<style>{CSS}</style>{lds}{adsense_head}</head><body>
+<meta name="color-scheme" content="light only"><meta name="theme-color" content="#F4EDE1">{meta}
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233F4A2E'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' font-family='sans-serif' font-weight='800' fill='%23fff'%3E건%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet"><style>{CSS}</style>{lds}{adsense_head}</head><body>
 <header><div class="wrap"><div class="top"><a class="logo" href="{up}">{EMBLEM.format(px=30)}김박사 <span>건강몰</span></a><span class="tag">{esc(c['tagline'])}</span></div>
 <nav class="gn" aria-label="메뉴">{''.join(nav)}</nav></div></header>
 <main class="wrap"><p class="disc">{esc(DISCLOSURE)}</p>
