@@ -4,7 +4,7 @@
 # 틀(1280×720, 위치 고정 — taste.md 15절 표와 같은 숫자):
 #  ① 왼쪽 위 인용 한 줄 "…"(22자 이하, 34px 500, 연회색)     ② 오른쪽 위 브랜드(V7과 같은 자리)
 #  ③ 왼쪽 약 60% 장면: 주가선(40,170,300×240) + 사업 그림(400,86,400×380)  — V7과 같은 biz_svg/biz_from·closes
-#  ④ 오른쪽 약 40% 캐릭터(assets/drkim_character.png): 높이 634px(88%), 바닥 맞춤, left 826 — 글자 상자와 겹치지 않음(렌더 때 확인)
+#  ④ 오른쪽 약 40% 캐릭터(assets/drkim_character.png): 높이 634px(88%), 바닥 맞춤, left 866(11-28 운영자가 준 수채화 그림, 오른쪽 넘침은 잘림) — 글자 상자와 겹치지 않음(렌더 때 확인)
 #  ⑤ 왼쪽 아래 글자 상자(32,456,828×236 → 오른쪽 끝 860 < 880, 재생 시간 자리 비움), 강조색 테두리 5px
 #     1줄 = 종목명 + 핵심 숫자(84px 900, 강조색) / 2줄 = 질문(84px 900, 흰색). 티커 칩은 상자 위 테두리에 걸친다.
 # 강조색: spec.accent가 없으면 thumb_history.json에서 그 종목 '첫 회차'의 accent(없으면 palette 이름의 첫 색 낱말)를 쓰고,
@@ -24,7 +24,7 @@ from make_v7 import biz_group, chart_path, BRAND_GOLD, BRAND_NAVY, BRAND_TEXT, D
 CHAR_PNG = os.path.join(KIT, "assets", "drkim_character.png")
 # 고정 위치(바꾸면 taste.md 15절 표와 thumb_taste_check THUMB_V8_POS도 같이 바꾼다)
 POS = dict(quote=(40, 34), box=(32, 456, 828, 236), line1=(28, 26), line2=(28, 128), tick=(56, 430),
-           brand=(34, 30), chart=(40, 170, 300, 240), biz=(400, 86, 400, 380), chip=(40, 96), char_h=634, char_left=826)
+           brand=(34, 30), chart=(40, 170, 300, 240), biz=(400, 86, 400, 380), chip=(40, 96), char_h=634, char_left=866)
 QUOTE_MAX = 22
 # palette 이름 낱말 → 어두운 상자 위에서 읽히는 밝은 강조색(바탕 낱말 navy·black 등은 건너뜀)
 WORD_HEX = {"crimson": "#FF4D5E", "red": "#FF5A5F", "pink": "#FF6FB1", "magenta": "#FF4FD8", "violet": "#B69CFF", "purple": "#B69CFF",
