@@ -278,7 +278,7 @@ def extract(args):
     focus = PRESETS[args.preset] + (f"\n추가로 볼 것: {args.focus[:300]}" if args.focus else "")
     user = focus + "\n\n" + "\n\n".join(f"=== {d} | {u} ===\n{t}" for d, u, t in docs)
     caller = Caller("extract", mock=args.mock)
-    r = caller.ask(system=system, user=user, tier="cheap", max_tokens=4000, schema=EXTRACT_SCHEMA)
+    r = caller.ask(system=system, user=user, tier="cheap", max_tokens=12000, schema=EXTRACT_SCHEMA)  # 11-28 4000에서 truncated
     res["status"], res["error"], res["usd"] = r["status"], r.get("error", ""), round(caller.usd, 6)
     if r["status"] == "ok" and r.get("json"):
         by_doc = {d: (u, t) for d, u, t in docs}
@@ -431,7 +431,7 @@ def sns(args):
     if args.mock:
         os.environ["LLM_MOCK_RESPONSE"] = json.dumps(MOCK_SNS, ensure_ascii=False)
     caller = Caller("sns", mock=args.mock)
-    r = caller.ask(system=SNS_SYSTEM, user=user, tier="judge", max_tokens=4000, schema=SNS_SCHEMA, cache_system=True)
+    r = caller.ask(system=SNS_SYSTEM, user=user, tier="judge", max_tokens=12000, schema=SNS_SCHEMA, cache_system=True)
     slots = next_slots(2)
     if r["status"] == "ok" and r.get("json"):
         files = build_queue(slug, ticker, r["json"], slots)
@@ -439,7 +439,7 @@ def sns(args):
         if any(probs.values()) and not args.mock:   # 한 번만 고쳐 달라고 한다(실행당 2회 상한)
             fix = (user + "\n\n앞 초안:\n" + json.dumps(r["json"], ensure_ascii=False) + "\n\n규칙 검사에서 걸린 것(모두 고쳐 같은 형식으로 전체를 다시):\n"
                    + "\n".join(p for ps in probs.values() for p in ps))
-            r2 = caller.ask(system=SNS_SYSTEM, user=fix, tier="judge", max_tokens=4000, schema=SNS_SCHEMA, cache_system=True)
+            r2 = caller.ask(system=SNS_SYSTEM, user=fix, tier="judge", max_tokens=12000, schema=SNS_SCHEMA, cache_system=True)
             if r2["status"] == "ok" and r2.get("json"):
                 files2 = build_queue(slug, ticker, r2["json"], slots)
                 probs2 = check_files(files2, source_text)
@@ -546,14 +546,14 @@ def blogger(args):
     if args.mock:
         os.environ["LLM_MOCK_RESPONSE"] = json.dumps(MOCK_BLOG, ensure_ascii=False)
     caller = Caller("blogger", mock=args.mock)
-    r = caller.ask(system=BLOG_SYSTEM, user=user, tier="judge", max_tokens=2000, schema=BLOG_SCHEMA, cache_system=True)
+    r = caller.ask(system=BLOG_SYSTEM, user=user, tier="judge", max_tokens=8000, schema=BLOG_SCHEMA, cache_system=True)
     j = None
     if r["status"] == "ok" and r.get("json"):
         j = redact(r["json"])
         probs = blogger_problems(slug, fm, body, j)
         if probs and not args.mock:
             fix = user + "\n\n앞 초안:\n" + json.dumps(j, ensure_ascii=False) + "\n\n검사에서 걸린 것(모두 고쳐 같은 형식으로 다시):\n" + "\n".join(probs)
-            r2 = caller.ask(system=BLOG_SYSTEM, user=fix, tier="judge", max_tokens=2000, schema=BLOG_SCHEMA, cache_system=True)
+            r2 = caller.ask(system=BLOG_SYSTEM, user=fix, tier="judge", max_tokens=8000, schema=BLOG_SCHEMA, cache_system=True)
             if r2["status"] == "ok" and r2.get("json"):
                 j2 = redact(r2["json"])
                 p2 = blogger_problems(slug, fm, body, j2)
