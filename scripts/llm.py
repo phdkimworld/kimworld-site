@@ -45,7 +45,8 @@ FALLBACK_PRICE = {"in": 5.00, "out": 25.00}   # 모르는 모델(서버 대체 �
 # 월 예산(달러). 월 크레딧 200 중 80은 사이트 Q&A(워커 별도 관리) 몫, 나머지 전체 상한 120.
 # 2026-11-27 운영자 "다 옮겨. 다른 세션에서도 좀 쓰게": 세션이 하던 공시 표 뽑기(extract)·SNS 초안(sns)·블로거 초안(blogger)과
 # 다른 세션 공용 작업(shared, scripts/llm_jobs.py)을 더함. 기능별 합 125 > 전체 상한 120(그대로) — 먼저 닿는 쪽에서 멈춘다.
-BUDGETS = {"comments": 40.0, "judge": 25.0, "weekly": 10.0, "extract": 15.0, "sns": 10.0, "blogger": 5.0, "shared": 20.0}
+# 2026-11-28 운영자 지시 "김박사 월드 주식채널에 한해 모든 토큰 사용을 잠정 중단" — 주식채널 항목 0(재개 때 원래 값 comments 40·judge 25·weekly 10·extract 15·sns 10·blogger 5)
+BUDGETS = {"comments": 0.0, "judge": 0.0, "weekly": 0.0, "extract": 0.0, "sns": 0.0, "blogger": 0.0, "shared": 20.0}
 TOTAL_CAP = 120.0
 
 
