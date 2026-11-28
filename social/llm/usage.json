@@ -2,6 +2,14 @@
  "months": {
   "2026-11": {
    "features": {
+    "blogger": {
+     "cache_read": 0,
+     "cache_write": 846,
+     "calls": 1,
+     "in": 12548,
+     "out": 2000,
+     "usd": 0.047211
+    },
     "comments": {
      "cache_read": 0,
      "cache_write": 139170,
@@ -43,7 +51,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 3.039719
+   "usd": 3.08693
   }
  }
 }
