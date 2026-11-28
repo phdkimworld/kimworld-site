@@ -128,6 +128,34 @@ jobs:
               time.sleep(5)
               p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
               print(f"::notice::{'대댓' if mode == 'answer' else '인용'} 게시됨 id={p.get('id')}"); sys.exit(0)
+          if mode == "top":
+              # 2026-11-28 운영자 "예전에 터졌던 글들 보고 자동발행 할 수 있을지 평가": 내 글 전체 + 조회·반응 → 조회 상위 25개 본문(앞 400자)
+              posts, prm = [], {"fields": "id,text,timestamp,permalink,media_type", "limit": 100}
+              for _ in range(30):
+                  r = call("GET", "me/threads", prm)
+                  posts += r.get("data", [])
+                  nxt = (r.get("paging") or {}).get("cursors", {}).get("after")
+                  if not nxt or not r.get("data"):
+                      break
+                  prm = dict(prm, after=nxt)
+              for x in posts:
+                  try:
+                      ins = call("GET", f"{x['id']}/insights", {"metric": "views,likes,replies,reposts,quotes,shares"})
+                      x["m"] = {d["name"]: (d.get("values") or [{}])[0].get("value", d.get("total_value", {}).get("value", 0)) for d in ins.get("data", [])}
+                  except SystemExit:
+                      x["m"] = {}
+              posts.sort(key=lambda x: -(x["m"].get("views") or 0))
+              import statistics
+              vs = [x["m"].get("views") or 0 for x in posts]
+              print(f"::notice title=글 {len(posts)}개 조회 중앙값 {statistics.median(vs) if vs else 0}::" + " ".join(str(v) for v in vs[:80]))
+              for k in range(0, min(25, len(posts)), 5):
+                  chunk = []
+                  for x in posts[k:k+5]:
+                      m = x["m"]
+                      t = (x.get("text") or "").replace("\n", " / ")[:400]
+                      chunk.append(f"[{(x.get('timestamp') or '')[:10]} 조회{m.get('views')} 좋아요{m.get('likes')} 답글{m.get('replies')} 리포스트{m.get('reposts')} 공유{m.get('shares')} {x.get('media_type')}] {x.get('permalink')} {t}")
+                  print(f"::notice title=상위 {k+1}~{k+len(chunk)}::" + "%0A%0A".join(chunk))
+              sys.exit(0)
           if mode == "links":
               # 2026-11-28 운영자 "건강 쓰레드 채널아냐?"(하위 ID 없는 쿠팡 클릭 출처): 이 계정 글·답글 전체에서 쿠팡 링크가 든 것만 날짜·주소·링크로
               rows = []
