@@ -1,0 +1,10 @@
+{
+ "feature": "extract",
+ "run_id": "46118237817",
+ "at": "2026-11-28T06:48:30+00:00",
+ "calls": 1,
+ "usd": 0.061366,
+ "status": "truncated",
+ "out": "/home/runner/work/kimworld-site/kimworld-site/social/llm/extract/xndu-2026-11.json",
+ "slug": "xndu-2026-11"
+}

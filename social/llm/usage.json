@@ -10,6 +10,14 @@
      "out": 1510,
      "usd": 0.018384
     },
+    "extract": {
+     "cache_read": 0,
+     "cache_write": 0,
+     "calls": 1,
+     "in": 102732,
+     "out": 4000,
+     "usd": 0.061366
+    },
     "judge": {
      "cache_read": 0,
      "cache_write": 0,
@@ -35,7 +43,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 2.911245
+   "usd": 2.972611
   }
  }
 }

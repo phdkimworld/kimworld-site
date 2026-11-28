@@ -1,0 +1,35 @@
+{
+ "slug": "xndu-2026-11",
+ "preset": "filing",
+ "at": "2026-11-28T06:48:11+00:00",
+ "run_id": "46118237817",
+ "status": "truncated",
+ "error": "",
+ "urls": [
+  {
+   "doc": "D1",
+   "url": "https://www.sec.gov/Archives/edgar/data/2097163/000209716326000025/exhibit991pressrelease-nov.htm",
+   "chars": 24937,
+   "truncated": false,
+   "error": ""
+  },
+  {
+   "doc": "D2",
+   "url": "https://www.sec.gov/Archives/edgar/data/2097163/000121390026118383/ea031196603-424b3_xanadu.htm",
+   "chars": 120000,
+   "truncated": true,
+   "error": ""
+  },
+  {
+   "doc": "D3",
+   "url": "https://www.sec.gov/Archives/edgar/data/2097163/000121390026118381/ea031196602-424b3_xanadu.htm",
+   "chars": 120000,
+   "truncated": true,
+   "error": ""
+  }
+ ],
+ "rows": [],
+ "notes": "",
+ "usd": 0.061366,
+ "check": "제작자는 핵심 숫자 2~3개를 원문에서 직접 확인한 뒤 쓴다(quote_found=false 행은 특히)."
+}
