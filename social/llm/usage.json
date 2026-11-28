@@ -44,11 +44,11 @@
     },
     "sns": {
      "cache_read": 0,
-     "cache_write": 2652,
-     "calls": 1,
-     "in": 12589,
-     "out": 4000,
-     "usd": 0.071808
+     "cache_write": 5304,
+     "calls": 2,
+     "in": 21120,
+     "out": 8000,
+     "usd": 0.1355
     },
     "weekly": {
      "cache_read": 0,
@@ -59,7 +59,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 3.251295
+   "usd": 3.314987
   }
  }
 }

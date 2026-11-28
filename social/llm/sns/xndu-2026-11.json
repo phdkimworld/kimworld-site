@@ -1,0 +1,12 @@
+{
+ "slug": "xndu-2026-11",
+ "at": "2026-11-28T07:53:32+00:00",
+ "run_id": "46123209832",
+ "status": "truncated",
+ "error": "",
+ "usd": 0.063692,
+ "calls": 1,
+ "files": {},
+ "problems": {},
+ "next": "제작자가 검토 → 💊 광고 문단·publish_at 채움 → social/queue/<파일 이름>으로 옮김 → 미디어 tools/queue_check.py 전체 통과"
+}

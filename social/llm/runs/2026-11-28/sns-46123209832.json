@@ -1,0 +1,10 @@
+{
+ "feature": "sns",
+ "run_id": "46123209832",
+ "at": "2026-11-28T07:54:01+00:00",
+ "calls": 1,
+ "usd": 0.063692,
+ "status": "truncated",
+ "out": "/home/runner/work/kimworld-site/kimworld-site/social/llm/sns/xndu-2026-11.json",
+ "slug": "xndu-2026-11"
+}
