@@ -1,0 +1,10 @@
+{
+ "feature": "sns",
+ "run_id": "46120868669",
+ "at": "2026-11-28T07:23:13+00:00",
+ "calls": 1,
+ "usd": 0.071808,
+ "status": "truncated",
+ "out": "/home/runner/work/kimworld-site/kimworld-site/social/llm/sns/btq-2026-11-6.json",
+ "slug": "btq-2026-11-6"
+}

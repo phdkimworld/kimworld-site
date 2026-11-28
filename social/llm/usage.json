@@ -42,6 +42,14 @@
      "out": 21166,
      "usd": 0.011921
     },
+    "sns": {
+     "cache_read": 0,
+     "cache_write": 2652,
+     "calls": 1,
+     "in": 12589,
+     "out": 4000,
+     "usd": 0.071808
+    },
     "weekly": {
      "cache_read": 0,
      "cache_write": 0,
@@ -51,7 +59,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 3.08693
+   "usd": 3.158738
   }
  }
 }
