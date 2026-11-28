@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "ping(토큰 확인) / post(글 게시) / health(건강몰 오늘 글 게시) / preview(health 글 미리보기)"
+        description: "ping(토큰 확인) / post(글 게시) / health(건강몰 오늘 글 게시) / preview(health 글 미리보기) / links(쿠팡 링크 든 글 목록)"
         required: true
         default: ping
       text:
@@ -128,6 +128,24 @@ jobs:
               time.sleep(5)
               p = call("POST", "me/threads_publish", {"creation_id": c["id"]})
               print(f"::notice::{'대댓' if mode == 'answer' else '인용'} 게시됨 id={p.get('id')}"); sys.exit(0)
+          if mode == "links":
+              # 2026-11-28 운영자 "건강 쓰레드 채널아냐?"(하위 ID 없는 쿠팡 클릭 출처): 이 계정 글·답글 전체에서 쿠팡 링크가 든 것만 날짜·주소·링크로
+              rows = []
+              for edge in ("threads", "replies"):
+                  path, prm = f"me/{edge}", {"fields": "id,text,timestamp,permalink", "limit": 100}
+                  for _ in range(30):
+                      r = call("GET", path, prm)
+                      for x in r.get("data", []):
+                          ls = re.findall(r"https?://(?:link\.coupang\.com|coupa\.ng|www\.coupang\.com)/\S+", x.get("text") or "")
+                          if ls:
+                              rows.append(f"{(x.get('timestamp') or '')[:10]} {edge} {x.get('permalink') or x.get('id')} {' '.join(sorted(set(ls)))}")
+                      nxt = (r.get("paging") or {}).get("cursors", {}).get("after")
+                      if not nxt or not r.get("data"):
+                          break
+                      prm = dict(prm, after=nxt)
+              rows.sort()
+              print(f"::notice title=쿠팡 링크 든 글 {len(rows)}개::" + "%0A".join(rows[:300]))
+              sys.exit(0)
           if mode not in ("post", "health", "preview"):
               print("::error::mode 는 ping·post·health·preview·delete·replies·answer·quote"); sys.exit(1)
           text = (open(os.environ["TEXT_FILE"], encoding="utf-8").read() if mode in ("health", "preview") else os.environ.get("TEXT", "")).strip()
