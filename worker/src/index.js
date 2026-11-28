@@ -2004,10 +2004,10 @@ export default {
       // ---------- 리포트에 질문하기 ----------
       // 화면은 먼저 켜졌는지 묻는다(키가 없으면 버튼을 숨김)
       if (p === "/v1/ask" && req.method === "GET") {
-        return json(req, { on: !!env.ANTHROPIC_API_KEY && !(await askOff(db, now)), max: ASK.qMax, per_day: ASK.perDay }, 200, { "Cache-Control": "public, max-age=300" });
+        return json(req, { on: !ASK.paused && !!env.ANTHROPIC_API_KEY && !(await askOff(db, now)), max: ASK.qMax, per_day: ASK.perDay }, 200, { "Cache-Control": "public, max-age=300" });
       }
       if (p === "/v1/ask" && req.method === "POST") {
-        if (!env.ANTHROPIC_API_KEY || (await askOff(db, now))) return json(req, { error: "unavailable" }, 503);
+        if (ASK.paused || !env.ANTHROPIC_API_KEY || (await askOff(db, now))) return json(req, { error: "unavailable" }, 503);
         if (botWhy(req)) return json(req, { error: "bot" }, 403);
         const b = await readJson(req);
         const slug = String(b.slug || "");

@@ -992,6 +992,8 @@ console.log("애드핏 데일리 리포트 받기");
 console.log("리포트에 질문하기");
 {
   const { costUsd, ASK } = await import("../src/ask.js");
+  check(ASK.paused === true, "질문하기: 운영자 지시로 잠정 중단(11-28)");
+  ASK.paused = false; // 아래는 재개했을 때의 동작 시험
   let a = await call("GET", "/v1/ask");
   check(a.data.on === false, "질문하기: 키가 없으면 꺼짐");
   a = await call("POST", "/v1/ask", { body: { slug: "askt-2026-11", q: "현금은 얼마인가요?" }, ip: "95.0.0.1" });

@@ -13,6 +13,7 @@ export const ASK = {
   dayMax: 600,        // 사이트 전체 하루 외부 호출 수
   dayUsd: 6,          // 사이트 전체 하루 추정 달러
   monthUsd: 80,       // 월 예산(운영자 지시)
+  paused: true,       // 2026-11-28 운영자 지시 "주식 사업 모든 토큰 꺼 예외없어" — 재개 때 false
   keepMs: 30 * 864e5, // 질문 원문 보관 30일
   reportMax: 200000,  // 이보다 긴 본문은 잘라 넣지 않고 이 기능을 끈다
   maxTokens: 1024,
