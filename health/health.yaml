@@ -225,6 +225,8 @@ profile_map:
   nocturia-sawpalmetto: male   # 2026-11-26 쇼츠(증상형 밤 소변)
   vitd-efficacy-search: bone   # 2026-11-27 운영자 "두개 더"(검색어 '비타민d 효능')
   antibiotic-probiotics-search: gut   # 2026-11-27 운영자 "두개 더"(검색어 '항생제 유산균')
+  magnesium-type-search: energy   # 2026-11-28 하루 운영 쇼츠(검색어 '마그네슘 종류')
+  omega3-noeffect-search: blood   # 2026-11-28 하루 운영 쇼츠(검색어 '오메가3 효과')
   # 첫 주(11-20~21) 성분 이름 slug 편 = 성분 기본 프로필
   omega3: blood
   coq10: blood
