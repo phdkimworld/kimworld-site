@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-28T08:26:02+00:00",
- "since": "2026-11-21T08:26:02+00:00",
+ "generated": "2026-11-28T10:18:12+00:00",
+ "since": "2026-11-21T10:18:12+00:00",
  "platforms": {
   "threads": {
    "ok": true,
@@ -10,7 +10,7 @@
   },
   "instagram": {
    "ok": false,
-   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"Ah7_aW5M8ciEWVgx3-2IJeE\"}}"
+   "error": "HTTP 400: {\"error\":{\"message\":\"Error validating access token: The session has been invalidated because the user changed their password or Facebook has changed the session for security reasons.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"A9nEj6pGYKVwcqUQIsGFdux\"}}"
   },
   "facebook": {
    "ok": true,
@@ -19,5 +19,5 @@
    "open": []
   }
  },
- "saved_utc": "2026-11-28T08:31Z"
+ "saved_utc": "2026-11-28T10:22Z"
 }
