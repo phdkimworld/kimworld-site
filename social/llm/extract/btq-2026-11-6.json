@@ -1,0 +1,35 @@
+{
+ "slug": "btq-2026-11-6",
+ "preset": "filing",
+ "at": "2026-11-28T06:51:53+00:00",
+ "run_id": "46118510288",
+ "status": "truncated",
+ "error": "",
+ "urls": [
+  {
+   "doc": "D1",
+   "url": "https://www.sec.gov/Archives/edgar/data/1821866/000106299326006141/exhibit99-2.htm",
+   "chars": 120000,
+   "truncated": true,
+   "error": ""
+  },
+  {
+   "doc": "D2",
+   "url": "https://www.sec.gov/Archives/edgar/data/1821866/000106299326006141/exhibit99-1.htm",
+   "chars": 59630,
+   "truncated": false,
+   "error": ""
+  },
+  {
+   "doc": "D3",
+   "url": "https://www.sec.gov/Archives/edgar/data/1859690/000110465926000000/tm2630661d1_6k.htm",
+   "chars": 0,
+   "truncated": false,
+   "error": "HTTPError: HTTP Error 404: Not Found"
+  }
+ ],
+ "rows": [],
+ "notes": "",
+ "usd": 0.008658,
+ "check": "제작자는 핵심 숫자 2~3개를 원문에서 직접 확인한 뒤 쓴다(quote_found=false 행은 특히)."
+}

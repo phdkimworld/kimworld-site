@@ -1,0 +1,10 @@
+{
+ "feature": "extract",
+ "run_id": "46118510288",
+ "at": "2026-11-28T06:52:12+00:00",
+ "calls": 1,
+ "usd": 0.008658,
+ "status": "truncated",
+ "out": "/home/runner/work/kimworld-site/kimworld-site/social/llm/extract/btq-2026-11-6.json",
+ "slug": "btq-2026-11-6"
+}
