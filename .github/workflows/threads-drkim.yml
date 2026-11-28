@@ -40,7 +40,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     env:
       TOKEN: ${{ secrets.DRKIM_THREADS_ACCESS_TOKEN }}
       MODE: ${{ inputs.mode }}
@@ -138,12 +138,16 @@ jobs:
                   if not nxt or not r.get("data"):
                       break
                   prm = dict(prm, after=nxt)
-              for x in posts:
+              from concurrent.futures import ThreadPoolExecutor
+              def one(x):
                   try:
                       ins = call("GET", f"{x['id']}/insights", {"metric": "views,likes,replies,reposts,quotes,shares"})
                       x["m"] = {d["name"]: (d.get("values") or [{}])[0].get("value", d.get("total_value", {}).get("value", 0)) for d in ins.get("data", [])}
                   except SystemExit:
                       x["m"] = {}
+              print(f"글 {len(posts)}개 반응 읽는 중")
+              with ThreadPoolExecutor(8) as ex:
+                  list(ex.map(one, posts))
               posts.sort(key=lambda x: -(x["m"].get("views") or 0))
               import statistics
               vs = [x["m"].get("views") or 0 for x in posts]
