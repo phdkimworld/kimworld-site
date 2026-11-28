@@ -4,11 +4,11 @@
    "features": {
     "blogger": {
      "cache_read": 0,
-     "cache_write": 846,
-     "calls": 1,
-     "in": 12548,
-     "out": 2000,
-     "usd": 0.047211
+     "cache_write": 1692,
+     "calls": 2,
+     "in": 21043,
+     "out": 4000,
+     "usd": 0.086316
     },
     "comments": {
      "cache_read": 0,
@@ -59,7 +59,7 @@
      "usd": 0.105908
     }
    },
-   "usd": 3.21219
+   "usd": 3.251295
   }
  }
 }
