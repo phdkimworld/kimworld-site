@@ -1517,12 +1517,18 @@ def build(drafts=False, strict=False, out: Path = DIST):
 
     # ---- 종목·테마·홈·검색
     ticker_list = []
+    # 같은 테마 다른 종목(2026-11-28 매일 점검, 유입 과제 검색): 다음 검색으로 종목 화면(/t/joby/ 등)에 온 사람이 1쪽 보고 떠남 → 종목 화면 끝에 같은 테마 종목 칩·테마 링크
+    _order = sorted(by_ticker, key=lambda c: by_ticker[c][0]["date"], reverse=True)
+    def _peers(code):
+        th = (tickers.get(code) or {}).get("theme")
+        return [{"code": c, "name": (tickers.get(c) or {}).get("name") or c, "n": len(by_ticker[c])}
+                for c in _order if c != code and th and (tickers.get(c) or {}).get("theme") == th][:8]
     for code, rs in sorted(by_ticker.items(), key=lambda kv: kv[1][0]["date"], reverse=True):
         t = tickers[code]
         ticker_list.append({"code": code, "name": t.get("name"), "count": len(rs), "last": rs[0]["date"], "theme": t.get("theme")})
         tex = [code, t.get("name", ""), t.get("name_en", ""), *(t.get("aliases") or [])]
         ads.begin_page()
-        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs,
+        write(f"t/{code.lower()}/index.html", "ticker.html", code=code, t=t, rs=rs, peers=_peers(code),
               list_ad=ads.render("list", {"theme": t.get("theme", "")}), page_bottom=ads.render("page_bottom", {}),
               thread_ad=ads.render("thread_inline", {"theme": "*"}))
     for th in themes:
